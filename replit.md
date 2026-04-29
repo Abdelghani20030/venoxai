@@ -1,27 +1,35 @@
-# Workspace
+# Venoxa AI Platform
 
-## Overview
+Arabic/English language-learning web app with AI-powered features (vocabulary, grammar, listening, reading, writing, speaking, conversation).
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+## Architecture
 
-## Stack
+Monorepo with three artifacts:
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- `artifacts/venoxa` — React + Vite frontend (path `/`). Single-file `src/App.jsx` ported verbatim from the user's source, with the AI helper rewritten to call the backend instead of Gemini directly.
+- `artifacts/api-server` — Express 5 backend (path `/api`). Provides `/api/chat`, an OpenAI-compatible proxy.
+- `artifacts/mockup-sandbox` — design preview server (path `/__mockup`).
 
-## Key Commands
+## AI provider
 
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
+`artifacts/api-server/src/routes/chat.ts` selects a provider in this order:
 
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+1. **Replit AI Integration** (default) — `AI_INTEGRATIONS_OPENAI_BASE_URL` + `AI_INTEGRATIONS_OPENAI_API_KEY`. No user-managed key required, charged to Replit credits. Uses `gpt-5-nano`.
+2. **OpenRouter** — `OPENROUTER_API_KEY` (must start with `sk-or-`). Uses the free `x-ai/grok-4-fast:free` model.
+3. **OpenAI direct** — `OPENAI_API_KEY` (must start with `sk-`). Uses `gpt-4o-mini`.
+
+The frontend posts `{ prompt }` to `${BASE_URL}api/chat` and receives `{ text }`.
+
+Image generation for vocabulary cards uses the free, no-key `image.pollinations.ai` service.
+
+## Notable changes vs the original source
+
+- `fetchFromGemini` replaced with a thin wrapper around `POST /api/chat`.
+- The direct Imagen call inside `generateImage` swapped for the Pollinations URL.
+- Tailwind v3 directives in the original CSS rewritten to v4 (`@import "tailwindcss"`).
+
+## Workflows
+
+- `artifacts/venoxa: web` — Vite dev server (port assigned via `PORT`).
+- `artifacts/api-server: API Server` — esbuild + Node server.
+- `artifacts/mockup-sandbox: Component Preview Server` — Vite preview.
