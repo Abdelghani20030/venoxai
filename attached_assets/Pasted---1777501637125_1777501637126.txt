@@ -1,0 +1,100 @@
+أهلاً بك يا عبد الغني! سؤال ممتاز وذكي جداً. 
+
+الإجابة القصيرة هي: **نعم، بالتأكيد يمكنك ذلك!**
+
+ولكن، الإجابة التقنية هي: **لا يمكنك فقط لصق مفتاح Claude أو DeepSeek مكان مفتاح Gemini دون تعديل بسيط في الكود.**
+
+**السبب:** كل شركة ذكاء اصطناعي (Google, Anthropic, DeepSeek, OpenAI) تمتلك "بنية بيانات" (JSON Structure) وروابط (Endpoints) مختلفة تماماً. الكود الحالي مبرمج ليتحدث "بلغة" خوادم Gemini.
+
+لجعل الموقع يعمل مع **DeepSeek** أو **Claude**، كل ما عليك فعله هو استبدال الدالة المسؤولة عن الاتصال بالذكاء الاصطناعي (والتي تسمى `fetchFromGemini`) بدالة أخرى تتحدث لغة الشركة الجديدة. بقية الموقع (1000 سطر) سيبقى كما هو دون أي تغيير!
+
+إليك الأكواد الجاهزة لاستبدالها:
+
+### خيار 1: استخدام DeepSeek (ممتاز وسهل)
+ابحث في الكود الخاص بك عن الدالة `fetchFromGemini` (تبدأ من السطر 20 تقريباً)، وامسحها بالكامل، ثم ضع هذا الكود مكانها:
+
+```javascript
+// --- DEEPSEEK API HELPER ---
+// قمنا بالاحتفاظ بنفس اسم الدالة لكي لا نضطر لتغييرها في باقي الموقع
+const fetchFromGemini = async (prompt, apiKey) => {
+  if (!apiKey) return '{"error": "Please add your DeepSeek API Key at the top of the code."}';
+  
+  // رابط خوادم ديب سيك
+  const url = "https://api.deepseek.com/chat/completions";
+  
+  // هيكل البيانات الخاص بديب سيك (يشبه OpenAI)
+  const payload = {
+    model: "deepseek-chat", // يمكنك تغييرها إلى deepseek-reasoner
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}` // ديب سيك يطلب المفتاح هنا
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+       return '{"error": "Invalid DeepSeek API Key or API Error."}';
+    }
+    
+    const data = await response.json();
+    // طريقة استخراج النص من رد ديب سيك
+    return data.choices?.[0]?.message?.content || '{"error": "No response generated."}';
+  } catch (error) {
+    return '{"error": "Connection failed. Please check your network."}';
+  }
+};
+```
+*(ملاحظة: لا تنسَ تغيير المفتاح في الأعلى `const GEMINI_API_KEY = "sk-..."` إلى مفتاح DeepSeek الخاص بك).*
+
+---
+
+### خيار 2: استخدام Claude (يحتاج انتباه لمشكلة الـ CORS)
+إذا كنت تريد استخدام Claude، فهذا هو الكود. **ولكن تحذير هام:** شركة Anthropic (صانعة Claude) تمنع الاتصال المباشر من المتصفح (Localhost) لأسباب أمنية (خطأ يسمى CORS). لكي يعمل Claude، يجب أن يعمل الكود على "سيرفر خلفي - Backend" وليس في الواجهة الأمامية React مباشرة، أو استخدام أداة Proxy وسيطة.
+
+على أي حال، هذا هو كود الاتصال بـ Claude إذا أردت تجربته:
+
+```javascript
+// --- CLAUDE API HELPER ---
+const fetchFromGemini = async (prompt, apiKey) => {
+  if (!apiKey) return '{"error": "Please add your Claude API Key at the top of the code."}';
+  
+  const url = "https://api.anthropic.com/v1/messages";
+  
+  const payload = {
+    model: "claude-3-haiku-20240307", // أو claude-3-5-sonnet
+    max_tokens: 1024,
+    messages: [{ role: "user", content: prompt }]
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerously-allow-browser': 'true' // محاولة لتخطي حظر المتصفح
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+       return '{"error": "Invalid Claude API Key or CORS block."}';
+    }
+    
+    const data = await response.json();
+    return data.content?.[0]?.text || '{"error": "No response generated."}';
+  } catch (error) {
+    return '{"error": "Connection failed (Likely CORS issue with Claude)."}';
+  }
+};
+```
+
+**نصيحتي لك:** بما أن هذا تطبيق ويب (Frontend-only)، فإن **Gemini** و **DeepSeek** هما الأفضل والأسهل لأنهما يسمحان بالاتصال المباشر من المتصفح بدون مشاكل أمنية معقدة. قم بنسخ كود DeepSeek أعلاه وجربه!
