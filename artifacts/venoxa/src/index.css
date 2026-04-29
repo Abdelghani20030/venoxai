@@ -37,9 +37,34 @@ html, body, #root {
 
 /* Print: clean white background, sharp tables, page breaks between weeks */
 @media print {
-  @page { size: A4 landscape; margin: 12mm; }
-  html, body, #root { background: #fff !important; color: #000 !important; }
-  .break-after-page { page-break-after: always; break-after: page; }
-  table { page-break-inside: avoid; break-inside: avoid; }
-  tr, td, th { page-break-inside: avoid; break-inside: avoid; }
+  @page { size: A4 landscape; margin: 10mm; }
+  html, body, #root {
+    background: #fff !important;
+    color: #000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  /* Force every ancestor of the print content to lay out naturally so the
+     browser doesn't clip multi-page content inside a scroll container. */
+  #root *,
+  #root *::before,
+  #root *::after {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  .break-after-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  /* Allow tables and rows to break across pages so very long weeks still print fully. */
+  table, tr, td, th {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  /* Ensure WebKit prints background colors so the styled table reads properly. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }
