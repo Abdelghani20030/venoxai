@@ -3,7 +3,13 @@ import OpenAI from "openai";
 
 const router: IRouter = Router();
 
-const openrouterKey = process.env["OPENROUTER_API_KEY"];
+const rawOpenrouterKey = process.env["OPENROUTER_API_KEY"];
+// OpenRouter keys must start with "sk-or-" — anything else (e.g. an OpenAI key
+// pasted into the wrong slot) would just produce 401s, so treat it as missing.
+const openrouterKey =
+  rawOpenrouterKey && rawOpenrouterKey.startsWith("sk-or-")
+    ? rawOpenrouterKey
+    : undefined;
 const openaiKey = process.env["OPENAI_API_KEY"];
 
 type Provider = {
