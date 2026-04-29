@@ -153,7 +153,7 @@ export default function App() {
   ];
 
   return (
-    <div className={`flex h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-[#09090b] text-gray-100' : 'bg-gray-50 text-gray-900'} font-sans selection:bg-blue-500/30`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#09090b] text-gray-100' : 'bg-gray-50 text-gray-900'} font-sans selection:bg-blue-500/30 print:bg-white print:text-black`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className={`hidden md:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-200'} border-l shadow-2xl z-10 transition-colors duration-300 print:hidden`}>
         <div className={`flex items-center justify-center h-24 border-b ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-200'}`}>
           <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 tracking-tight">
@@ -247,8 +247,8 @@ export default function App() {
         </div>
       )}
 
-      <div className={`flex-1 overflow-y-auto md:p-10 p-4 mt-16 md:mt-0 ${theme === 'dark' ? 'bg-[#09090b]' : 'bg-gray-50'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:bg-white`}>
-        <div className="max-w-6xl mx-auto print:max-w-none">
+      <div className={`flex-1 overflow-y-auto md:p-10 p-4 mt-16 md:mt-0 ${theme === 'dark' ? 'bg-[#09090b]' : 'bg-gray-50'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
+        <div className="max-w-6xl mx-auto print:max-w-none print:mx-0">
           {renderContent()}
         </div>
       </div>
