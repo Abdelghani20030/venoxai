@@ -398,6 +398,146 @@ function DashboardCard({ icon: Icon, title, desc, onClick, color, iconColor, bor
   );
 }
 
+function PlanWeekTable({
+  weekNum,
+  planData,
+  userLevel,
+  wordsPerDay,
+  relevantGrammarTopics,
+  t,
+  formatTime,
+  getVocabRange,
+  getSpacedRepetition,
+  dailyTotalMins,
+  weeklyTotalMins,
+  openVocabModal,
+  openGrammarModal,
+  interactive,
+}) {
+  const cellBase =
+    "border border-gray-400 dark:border-gray-700 print:border-black px-2 py-2 align-middle text-center";
+  const headBase =
+    "border border-gray-400 dark:border-gray-700 print:border-black bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white print:bg-gray-100 print:text-black px-2 py-2 font-bold text-sm";
+
+  return (
+    <div className="overflow-x-auto print:overflow-visible">
+      <table className="w-full border-collapse text-sm bg-white dark:bg-[#0e0e11] print:bg-white text-gray-800 dark:text-gray-100 min-w-[760px] print:min-w-full">
+        <thead>
+          <tr>
+            <th className={headBase}>{t.activity}</th>
+            {[1, 2, 3, 4, 5, 6, 7].map(d => (
+              <th key={d} className={headBase}>
+                <div>{t.day} {d}</div>
+                <div className="text-[10px] font-bold opacity-70 mt-0.5">{userLevel}</div>
+              </th>
+            ))}
+            <th className={headBase}>{t.summary}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {planData.categories.map((cat) => (
+            <tr key={cat.id}>
+              <td className={`${cellBase} text-start font-bold ${cat.textColor} bg-gray-50 dark:bg-[#161618] print:bg-white print:text-black`}>
+                <div className="flex items-center gap-2 px-1">
+                  <cat.icon className="w-4 h-4 shrink-0" />
+                  <span>{cat.name}</span>
+                </div>
+              </td>
+              {[0, 1, 2, 3, 4, 5, 6].map((d) => {
+                const isInteractive = interactive && (cat.id === 'vocab' || cat.id === 'grammar');
+                const baseTextClass = `${cat.textColor} print:text-black`;
+                const cellClass = `${cellBase} ${baseTextClass} font-semibold ${
+                  isInteractive
+                    ? cat.id === 'vocab'
+                      ? 'cursor-pointer hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/30 active:bg-fuchsia-200 dark:active:bg-fuchsia-800/40 transition-colors'
+                      : 'cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/30 active:bg-orange-200 dark:active:bg-orange-800/40 transition-colors'
+                    : ''
+                }`;
+                const onClick = isInteractive
+                  ? () => {
+                      if (cat.id === 'vocab') openVocabModal(d);
+                      if (cat.id === 'grammar') openGrammarModal(d);
+                    }
+                  : undefined;
+
+                return (
+                  <td key={d} className={cellClass} onClick={onClick}>
+                    {cat.id === 'vocab' ? (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-sm font-extrabold tracking-tight" dir="ltr">{getVocabRange(weekNum, d)}</span>
+                        <span className="text-[10px] opacity-70">{cat.mins}m</span>
+                      </div>
+                    ) : cat.id === 'grammar' ? (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span
+                          className="text-[10px] font-bold leading-tight px-0.5 line-clamp-2 overflow-hidden"
+                          dir="ltr"
+                          title={relevantGrammarTopics[((weekNum - 1) * 7 + d) % relevantGrammarTopics.length]}
+                        >
+                          {relevantGrammarTopics[((weekNum - 1) * 7 + d) % relevantGrammarTopics.length]}
+                        </span>
+                        <span className="text-[10px] opacity-70">{cat.mins}m</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm">{cat.mins}m</span>
+                    )}
+                  </td>
+                );
+              })}
+              <td className={`${cellBase} font-bold ${cat.textColor} bg-gray-50 dark:bg-[#161618] print:bg-white print:text-black`}>
+                {formatTime(cat.mins * 7)}
+              </td>
+            </tr>
+          ))}
+
+          <tr>
+            <td className={`${cellBase} text-start font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/15 print:bg-white print:text-black`}>
+              <div className="flex items-center gap-2 px-1">
+                <Layers className="w-4 h-4 shrink-0" />
+                <span>{t.spacedRep}</span>
+              </div>
+            </td>
+            {[0, 1, 2, 3, 4, 5, 6].map((d) => {
+              const phases = getSpacedRepetition(weekNum, d);
+              return (
+                <td
+                  key={d}
+                  className={`${cellBase} text-purple-700 dark:text-purple-300 bg-purple-50/50 dark:bg-purple-900/10 print:bg-white print:text-black text-[11px] font-semibold leading-tight`}
+                  dir="ltr"
+                >
+                  {phases.length === 0
+                    ? <span className="opacity-40">—</span>
+                    : phases.map((p) => <div key={p}>{p}</div>)}
+                </td>
+              );
+            })}
+            <td className={`${cellBase} text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/15 print:bg-white print:text-black font-bold`}>
+              <span className="opacity-40">—</span>
+            </td>
+          </tr>
+
+          <tr>
+            <td className={`${cellBase} text-start font-bold text-gray-900 dark:text-white bg-gray-200 dark:bg-gray-800 print:bg-gray-100 print:text-black`}>
+              <div className="flex items-center gap-2 px-1">
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>{t.categories.total}</span>
+              </div>
+            </td>
+            {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+              <td key={d} className={`${cellBase} font-bold text-gray-900 dark:text-gray-100 bg-gray-100 dark:bg-gray-800/60 print:bg-white print:text-black`}>
+                {formatTime(dailyTotalMins)}
+              </td>
+            ))}
+            <td className={`${cellBase} font-extrabold text-gray-900 dark:text-white bg-gray-300 dark:bg-gray-700 print:bg-gray-100 print:text-black`}>
+              {formatTime(weeklyTotalMins)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
   const [targetLevel, setTargetLevel] = useState('C1');
   const [targetDate, setTargetDate] = useState('');
@@ -421,7 +561,9 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     week: lang === 'ar' ? 'الأسبوع' : 'Week',
     day: lang === 'ar' ? 'اليوم' : 'Day',
     reset: lang === 'ar' ? 'إعادة ضبط الخطة' : 'Reset Plan',
-    exportPdf: lang === 'ar' ? 'تصدير الخطة كـ PDF' : 'Export as PDF',
+    exportPdf: lang === 'ar' ? 'طباعة كل الأسابيع' : 'Print All Weeks',
+    exportCsv: lang === 'ar' ? 'تصدير CSV' : 'Export CSV',
+    jumpWeek: lang === 'ar' ? 'الانتقال إلى الأسبوع' : 'Jump to Week',
     activity: lang === 'ar' ? 'النشاط' : 'Activity',
     summary: lang === 'ar' ? 'المجموع' : 'Summary',
     words: lang === 'ar' ? 'كلمات' : 'words',
@@ -431,6 +573,7 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     grammarTarget: lang === 'ar' ? 'القاعدة المطلوبة دراستها' : 'Rule to study',
     alertTime: lang === 'ar' ? 'يرجى تحديد وقت المذاكرة!' : 'Please specify study time!',
     alertDate: lang === 'ar' ? 'يرجى تحديد تاريخ الهدف بشكل صحيح!' : 'Please select a valid target date!',
+    spacedRep: lang === 'ar' ? 'مراجعة متباعدة' : 'Spaced Review',
     categories: {
       listen: lang === 'ar' ? 'استماع' : 'Listening',
       read: lang === 'ar' ? 'قراءة' : 'Reading',
@@ -548,6 +691,83 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     return `${m}m`;
   };
 
+  const getVocabRange = (weekIdx, dayIdx) => {
+    const globalDay = (weekIdx - 1) * 7 + dayIdx + 1;
+    const start = (globalDay - 1) * wordsPerDay + 1;
+    const end = globalDay * wordsPerDay;
+    return `${start}-${end}`;
+  };
+
+  const getSpacedRepetition = (weekIdx, dayIdx) => {
+    const globalDay = (weekIdx - 1) * 7 + dayIdx + 1;
+    const phases = [];
+    for (let p = 1; p <= 3; p++) {
+      const pDay = globalDay - p;
+      if (pDay >= 1) {
+        const start = (pDay - 1) * wordsPerDay + 1;
+        const end = pDay * wordsPerDay;
+        phases.push(`P${p}: ${start}-${end}`);
+      }
+    }
+    return phases;
+  };
+
+  const exportCSV = () => {
+    if (!planData) return;
+    const rows = [];
+    const header = ['Week', 'Activity', ...[1, 2, 3, 4, 5, 6, 7].map(d => `Day ${d}`), 'Weekly Total'];
+    rows.push(header);
+
+    for (let w = 1; w <= planData.totalWeeks; w++) {
+      planData.categories.forEach(cat => {
+        const row = [`Week ${w}`, cat.name];
+        for (let d = 0; d < 7; d++) {
+          if (cat.id === 'vocab') {
+            row.push(`${getVocabRange(w, d)} (${cat.mins}m)`);
+          } else if (cat.id === 'grammar') {
+            const idx = (w - 1) * 7 + d;
+            const topic = relevantGrammarTopics[idx % relevantGrammarTopics.length] || '';
+            row.push(`${topic} (${cat.mins}m)`);
+          } else {
+            row.push(`${cat.mins}m`);
+          }
+        }
+        row.push(formatTime(cat.mins * 7));
+        rows.push(row);
+      });
+
+      const srRow = [`Week ${w}`, t.spacedRep];
+      for (let d = 0; d < 7; d++) {
+        const phases = getSpacedRepetition(w, d);
+        srRow.push(phases.length ? phases.join(' | ') : '-');
+      }
+      srRow.push('-');
+      rows.push(srRow);
+
+      const totalRow = [`Week ${w}`, t.categories.total];
+      for (let d = 0; d < 7; d++) totalRow.push(formatTime(dailyTotalMins));
+      totalRow.push(formatTime(weeklyTotalMins));
+      rows.push(totalRow);
+
+      rows.push([]);
+    }
+
+    const csv = rows.map(r => r.map(c => {
+      const s = String(c ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(',')).join('\n');
+
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `venoxa-study-plan-${userLevel}-to-${targetLevel}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const dailyTotalMins = planData?.categories.reduce((acc, cat) => acc + cat.mins, 0) || 0;
   const weeklyTotalMins = dailyTotalMins * 7;
 
@@ -607,19 +827,34 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
       {planData && (
         <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl shadow-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 print:hidden">
-             <div className="flex items-center gap-4 bg-gray-50 dark:bg-[#1a1a1e] px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-               <button onClick={lang === 'ar' ? handleNextWeek : handlePrevWeek} disabled={lang === 'ar' ? currentWeek === planData.totalWeeks : currentWeek === 1} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors">
-                 {lang === 'ar' ? <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-300" /> : <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />}
-               </button>
-               <span className="font-bold text-blue-600 dark:text-blue-400 min-w-[120px] text-center text-lg">
-                 {t.week} {currentWeek} <span className="text-sm opacity-60">/ {planData.totalWeeks}</span>
-               </span>
-               <button onClick={lang === 'ar' ? handlePrevWeek : handleNextWeek} disabled={lang === 'ar' ? currentWeek === 1 : currentWeek === planData.totalWeeks} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors">
-                 {lang === 'ar' ? <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" /> : <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-300" />}
-               </button>
+             <div className="flex items-center gap-3 flex-wrap">
+               <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#1a1a1e] px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                 <button onClick={lang === 'ar' ? handleNextWeek : handlePrevWeek} disabled={lang === 'ar' ? currentWeek === planData.totalWeeks : currentWeek === 1} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors">
+                   {lang === 'ar' ? <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-300" /> : <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />}
+                 </button>
+                 <span className="font-bold text-blue-600 dark:text-blue-400 min-w-[110px] text-center text-base">
+                   {t.week} {currentWeek} <span className="text-sm opacity-60">/ {planData.totalWeeks}</span>
+                 </span>
+                 <button onClick={lang === 'ar' ? handlePrevWeek : handleNextWeek} disabled={lang === 'ar' ? currentWeek === 1 : currentWeek === planData.totalWeeks} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors">
+                   {lang === 'ar' ? <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" /> : <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-300" />}
+                 </button>
+               </div>
+               <select
+                 value={currentWeek}
+                 onChange={(e) => setCurrentWeek(Number(e.target.value))}
+                 className="bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-bold rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500 cursor-pointer shadow-sm"
+                 aria-label={t.jumpWeek}
+               >
+                 {Array.from({ length: planData.totalWeeks }, (_, i) => i + 1).map(w => (
+                   <option key={w} value={w}>{t.jumpWeek}: {w}</option>
+                 ))}
+               </select>
              </div>
 
-             <div className="flex items-center gap-3">
+             <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={exportCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-lg shadow-sm">
+                  <Archive className="w-4 h-4" /> {t.exportCsv}
+                </button>
                 <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-lg shadow-sm">
                   <Printer className="w-4 h-4" /> {t.exportPdf}
                 </button>
@@ -629,85 +864,53 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
              </div>
           </div>
 
-          <div className="hidden print:block text-center mb-6">
-             <h1 className="text-3xl font-bold text-black">{lang === 'ar' ? 'الجدول الأسبوعي للمذاكرة - Venoxa AI' : 'Weekly Study Plan - Venoxa AI'}</h1>
-             <p className="text-gray-600 mt-2">{t.week} {currentWeek} | {t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel}</p>
+          {/* Screen view: current week only */}
+          <div className="print:hidden">
+            <PlanWeekTable
+              weekNum={currentWeek}
+              planData={planData}
+              userLevel={userLevel}
+              wordsPerDay={wordsPerDay}
+              relevantGrammarTopics={relevantGrammarTopics}
+              t={t}
+              formatTime={formatTime}
+              getVocabRange={getVocabRange}
+              getSpacedRepetition={getSpacedRepetition}
+              dailyTotalMins={dailyTotalMins}
+              weeklyTotalMins={weeklyTotalMins}
+              openVocabModal={openVocabModal}
+              openGrammarModal={openGrammarModal}
+              interactive
+            />
           </div>
 
-          <div className="overflow-x-auto pb-6 custom-scrollbar print:overflow-visible">
-            <div className="min-w-[900px] flex flex-col gap-3 print:min-w-full">
-              <div className="grid grid-cols-9 gap-3">
-                 <div className="col-span-1 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold py-4 shadow-md print:shadow-none print:border print:border-gray-300 print:text-black print:bg-gray-100">
-                   {t.activity}
-                 </div>
-                 {[1,2,3,4,5,6,7].map(d => (
-                   <div key={d} className="col-span-1 bg-blue-600 text-white rounded-xl flex flex-col items-center justify-center font-bold py-2 shadow-md print:shadow-none print:border print:border-gray-300 print:text-black print:bg-gray-100">
-                     <span className="text-sm">{t.day} {d}</span>
-                     <span className="text-xs bg-blue-700 print:bg-transparent print:border print:border-gray-400 px-2 py-0.5 rounded-full mt-1">{userLevel}</span>
-                   </div>
-                 ))}
-                 <div className="col-span-1 bg-blue-600 text-white rounded-xl flex flex-col items-center justify-center font-bold py-2 shadow-md text-center print:shadow-none print:border print:border-gray-300 print:text-black print:bg-gray-100">
-                   <span className="text-sm">{t.week}</span>
-                   <span className="text-xs opacity-80 mt-1">{t.summary}</span>
-                 </div>
-              </div>
-
-              {planData.categories.map((cat, idx) => (
-                 <div key={idx} className="grid grid-cols-9 gap-3">
-                    <div className={`col-span-1 rounded-xl p-3 flex flex-col items-start justify-center ${cat.headerBg} ${cat.textColor} font-bold shadow-sm print:shadow-none print:border print:border-gray-200 print:bg-white print:text-black`}>
-                      <div className="flex items-center gap-2 mb-1"><cat.icon className="w-4 h-4"/> {cat.name}</div>
-                      <div className="text-[10px] opacity-70 font-normal">Daily practice</div>
-                    </div>
-                    {[0,1,2,3,4,5,6].map(d => {
-                       const isInteractive = cat.id === 'vocab' || cat.id === 'grammar';
-                       return (
-                         <button
-                           key={d}
-                           onClick={() => {
-                              if(cat.id === 'vocab') openVocabModal(d);
-                              if(cat.id === 'grammar') openGrammarModal(d);
-                           }}
-                           className={`col-span-1 rounded-xl flex flex-col items-center justify-center p-2 transition-all ${isInteractive ? `cursor-pointer hover:scale-105 hover:shadow-md border ${cat.id === 'vocab' ? 'border-fuchsia-300 dark:border-fuchsia-500/50' : 'border-orange-300 dark:border-orange-500/50'}` : 'cursor-default border border-transparent'} ${cat.cellBg} ${cat.textColor} font-semibold shadow-sm print:shadow-none print:border print:border-gray-200 print:bg-white print:text-black`}
-                         >
-                            {cat.id === 'vocab' ? (
-                              <>
-                                <span className="text-sm font-bold">{wordsPerDay} {t.words}</span>
-                                <span className="text-xs opacity-70 mt-1">{cat.mins}m</span>
-                              </>
-                            ) : cat.id === 'grammar' ? (
-                              <>
-                                <span className="text-[10px] font-bold text-center px-1 leading-tight line-clamp-2 overflow-hidden text-ellipsis w-full" dir="ltr" title={relevantGrammarTopics[((currentWeek - 1) * 7 + d) % relevantGrammarTopics.length]}>
-                                   {relevantGrammarTopics[((currentWeek - 1) * 7 + d) % relevantGrammarTopics.length]}
-                                </span>
-                                <span className="text-[10px] opacity-70 mt-0.5">{cat.mins}m</span>
-                              </>
-                            ) : (
-                              <span className="text-sm">{cat.mins}m</span>
-                            )}
-                         </button>
-                       );
-                    })}
-                    <div className={`col-span-1 rounded-xl p-2 flex flex-col items-center justify-center ${cat.headerBg} ${cat.textColor} font-bold shadow-sm opacity-90 print:shadow-none print:border print:border-gray-200 print:bg-gray-50 print:text-black`}>
-                       {formatTime(cat.mins * 7)}
-                    </div>
-                 </div>
-              ))}
-
-              <div className="grid grid-cols-9 gap-3 mt-2">
-                <div className="col-span-1 rounded-xl p-3 flex flex-col items-start justify-center bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold shadow-sm print:shadow-none print:border print:border-gray-300 print:bg-gray-100 print:text-black">
-                  <div className="flex items-center gap-2"><Clock className="w-4 h-4"/> {t.categories.total}</div>
-                </div>
-                {[0,1,2,3,4,5,6].map(d => (
-                   <div key={d} className="col-span-1 rounded-xl flex items-center justify-center p-2 bg-gray-100 dark:bg-gray-800/50 text-gray-700 dark:text-gray-400 font-bold shadow-sm print:shadow-none print:border print:border-gray-200 print:bg-white print:text-black">
-                      {formatTime(dailyTotalMins)}
-                   </div>
-                ))}
-                <div className="col-span-1 rounded-xl p-2 flex items-center justify-center bg-gray-300 dark:bg-gray-700 text-gray-900 dark:text-white font-bold shadow-sm print:shadow-none print:border print:border-gray-300 print:bg-gray-100 print:text-black">
-                   {formatTime(weeklyTotalMins)}
-                </div>
-              </div>
-
+          {/* Print view: every week, page break between */}
+          <div className="hidden print:block">
+            <div className="text-center mb-4">
+              <h1 className="text-2xl font-bold text-black">{lang === 'ar' ? 'الجدول الأسبوعي للمذاكرة - Venoxa AI' : 'Weekly Study Plan - Venoxa AI'}</h1>
+              <p className="text-gray-700 mt-1 text-sm">{t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel} | {planData.totalWeeks} {lang === 'ar' ? 'أسابيع' : 'weeks'}</p>
             </div>
+            {Array.from({ length: planData.totalWeeks }, (_, i) => i + 1).map(w => (
+              <div key={w} className={w < planData.totalWeeks ? 'mb-6 break-after-page' : 'mb-6'}>
+                <h2 className="text-lg font-bold text-black mb-2 text-center">{t.week} {w}</h2>
+                <PlanWeekTable
+                  weekNum={w}
+                  planData={planData}
+                  userLevel={userLevel}
+                  wordsPerDay={wordsPerDay}
+                  relevantGrammarTopics={relevantGrammarTopics}
+                  t={t}
+                  formatTime={formatTime}
+                  getVocabRange={getVocabRange}
+                  getSpacedRepetition={getSpacedRepetition}
+                  dailyTotalMins={dailyTotalMins}
+                  weeklyTotalMins={weeklyTotalMins}
+                  openVocabModal={openVocabModal}
+                  openGrammarModal={openGrammarModal}
+                  interactive={false}
+                />
+              </div>
+            ))}
           </div>
 
           {vocabModal && (
@@ -996,12 +1199,31 @@ function Vocabulary({ AI_KEY, userLevel, lang, globalVocab, setGlobalVocab }) {
     if(loadingImage || cardImage || !card) return;
     setLoadingImage(true);
     try {
-      const promptText = `A clear, high-quality, and educational illustration representing the English word '${card.word}'. Context: ${card.meaning}. Make it visual and easy to understand without text. For example, if the word is 'across', show a person walking across a street.`;
+      // Step 1: ask the AI for a concrete, single-scene visual description that conveys the word's meaning.
+      const briefPrompt = `In ONE short English sentence (max 18 words), describe a vivid, photorealistic single-scene image that clearly conveys the meaning of the English word "${card.word}" (which means: ${card.meaning || 'see context'}). Rules: describe one concrete visual scene with a clear subject and action, no text or letters in the image, no abstract concepts. Output ONLY the description sentence, nothing else.`;
+      let visual = '';
+      try {
+        const raw = await fetchFromGemini(briefPrompt, AI_KEY);
+        const errJson = parseGeminiJSON(raw);
+        if (!errJson || !errJson.error) {
+          visual = String(raw || '').trim().split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
+          // Strip surrounding quotes if the model wrapped them.
+          visual = visual.replace(/^["'`]+|["'`]+$/g, '').trim();
+        }
+      } catch (_) { /* fall through to default */ }
+
+      if (!visual) {
+        visual = `A photorealistic everyday scene that visually represents the English word "${card.word}" meaning "${card.meaning || ''}".`;
+      }
+
+      const finalPrompt = `${visual} Photorealistic, natural lighting, clean composition, ultra detailed, no text, no letters, no captions, no watermark.`;
+      const seed = Math.floor(Math.random() * 1_000_000);
       // Use a free, no-key image service (no quota) so this works without a paid Imagen key.
-      setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(promptText)}?width=600&height=400&nologo=true`);
+      setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=640&height=420&nologo=true&model=flux&seed=${seed}`);
     } catch (err) {
       console.error("Image generation error", err);
-      setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent('A clear educational illustration representing the word ' + card.word + ' meaning ' + card.meaning)}?width=600&height=400&nologo=true`);
+      const fallback = `Photorealistic image showing the meaning of the English word ${card.word} (${card.meaning || ''}), no text, no letters.`;
+      setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(fallback)}?width=640&height=420&nologo=true&model=flux`);
     } finally {
       setLoadingImage(false);
     }
@@ -1219,25 +1441,46 @@ function Grammar({ AI_KEY, userLevel, lang }) {
       <div className="space-y-4">
         {GRAMMAR_LEVELS.map((level, idx) => (
           <div key={idx} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm">
-            <button onClick={() => { setOpenLevel(openLevel === idx ? -1 : idx); setActiveTopic(null); }} className={`w-full px-8 py-6 flex justify-between items-center text-xl font-bold transition-colors ${openLevel === idx ? 'bg-gray-50 dark:bg-[#1a1a1e] text-blue-600' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-50'}`} dir="ltr">
+            <button onClick={() => { setOpenLevel(openLevel === idx ? -1 : idx); setActiveTopic(null); }} className={`w-full px-8 py-6 flex justify-between items-center text-xl font-bold transition-colors ${openLevel === idx ? 'bg-gray-50 dark:bg-[#1a1a1e] text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1a1a1e] hover:text-blue-600 dark:hover:text-blue-400'}`} dir="ltr">
               <div className="flex items-center gap-4"><div className={`w-3 h-3 rounded-full ${openLevel === idx ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-600'}`}></div>{level.level}</div>
               <ChevronRight className={`w-6 h-6 transition-transform ${openLevel === idx ? 'rotate-90 text-blue-500' : 'text-gray-400'}`} />
             </button>
             <div className={`transition-all duration-500 overflow-hidden ${openLevel === idx ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="p-8 bg-white dark:bg-[#121214] border-t border-gray-200 dark:border-gray-800 space-y-4">
-                {level.topics.map((topic, tidx) => (
-                  <div key={tidx} className="bg-gray-50 dark:bg-[#1a1a1e] rounded-xl border border-gray-200 dark:border-gray-800/50 overflow-hidden">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between p-4 gap-4">
-                      <div className="flex items-center gap-3 text-lg text-gray-800 dark:text-gray-200" dir="ltr"><span className="font-semibold">{topic}</span></div>
-                      <button onClick={() => handleExplain(topic, level.level)} className="px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 bg-blue-50 text-blue-600"><Sparkles className="w-4 h-4" /> {t.explainBtn}</button>
-                    </div>
-                    {activeTopic === topic && (
-                      <div className="bg-white dark:bg-[#0e0e11] border-t border-blue-100 p-6">
-                        {loading ? <div className="flex items-center gap-3 text-blue-600"><Activity className="w-5 h-5 animate-spin" /> {t.loading}</div> : <div style={{ whiteSpace: 'pre-wrap' }}>{safeRender(explanation)}</div>}
+                {level.topics.map((topic, tidx) => {
+                  const isActive = activeTopic === topic;
+                  return (
+                    <div
+                      key={tidx}
+                      className={`rounded-xl border overflow-hidden transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-500/40'
+                          : 'bg-gray-50 dark:bg-[#1a1a1e] border-gray-200 dark:border-gray-800/50 hover:bg-blue-50/60 dark:hover:bg-blue-900/10 hover:border-blue-200 dark:hover:border-blue-500/30'
+                      }`}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center justify-between p-4 gap-4">
+                        <div className="flex items-center gap-3 text-lg" dir="ltr">
+                          <span className={`font-semibold transition-colors ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-gray-200'}`}>{topic}</span>
+                        </div>
+                        <button
+                          onClick={() => handleExplain(topic, level.level)}
+                          className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
+                            isActive
+                              ? 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
+                              : 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:bg-blue-700 active:text-white'
+                          }`}
+                        >
+                          <Sparkles className="w-4 h-4" /> {t.explainBtn}
+                        </button>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {isActive && (
+                        <div className="bg-white dark:bg-[#0e0e11] border-t border-blue-200 dark:border-blue-500/30 p-6 text-gray-800 dark:text-gray-100">
+                          {loading ? <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400"><Activity className="w-5 h-5 animate-spin" /> {t.loading}</div> : <div style={{ whiteSpace: 'pre-wrap' }}>{safeRender(explanation)}</div>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
