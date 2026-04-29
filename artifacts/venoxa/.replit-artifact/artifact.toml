@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Venoxa AI Platform"
+version = "1.0.0"
+id = "artifacts/venoxa"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24221
+
+[services.development]
+run = "pnpm --filter @workspace/venoxa run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/venoxa", "run", "build" ]
+publicDir = "artifacts/venoxa/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24221"
+BASE_PATH = "/"
