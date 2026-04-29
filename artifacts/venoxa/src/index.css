@@ -34,3 +34,12 @@ html, body, #root {
 .animate-fadeIn {
   animation: fadeIn 0.25s ease-out both;
 }
+
+/* Print: clean white background, sharp tables, page breaks between weeks */
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+  html, body, #root { background: #fff !important; color: #000 !important; }
+  .break-after-page { page-break-after: always; break-after: page; }
+  table { page-break-inside: avoid; break-inside: avoid; }
+  tr, td, th { page-break-inside: avoid; break-inside: avoid; }
+}

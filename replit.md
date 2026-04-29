@@ -12,15 +12,18 @@ Monorepo with three artifacts:
 
 ## AI provider
 
-`artifacts/api-server/src/routes/chat.ts` selects a provider in this order:
+`artifacts/api-server/src/routes/chat.ts` builds an ordered chain of every available provider at boot, then **tries them per-request**: if one fails (rate limit, network error, empty response) it transparently falls through to the next. Order:
 
-1. **Replit AI Integration** (default) — `AI_INTEGRATIONS_OPENAI_BASE_URL` + `AI_INTEGRATIONS_OPENAI_API_KEY`. No user-managed key required, charged to Replit credits. Uses `gpt-5-nano`.
-2. **OpenRouter** — `OPENROUTER_API_KEY` (must start with `sk-or-`). Uses the free `x-ai/grok-4-fast:free` model.
-3. **OpenAI direct** — `OPENAI_API_KEY` (must start with `sk-`). Uses `gpt-4o-mini`.
+1. **Google Gemini** — `GOOGLE_API_KEY` (`AIza…`). Uses `gemini-2.5-flash` to match the original Venoxa design.
+2. **Replit AI Integration** — `AI_INTEGRATIONS_OPENAI_BASE_URL` + `AI_INTEGRATIONS_OPENAI_API_KEY`. Charged to Replit credits. `gpt-5-nano`.
+3. **OpenRouter** — `OPENROUTER_API_KEY` (`sk-or-…`). Free `x-ai/grok-4-fast:free`.
+4. **OpenAI direct** — `OPENAI_API_KEY` (`sk-…`). `gpt-4o-mini`.
 
 The frontend posts `{ prompt }` to `${BASE_URL}api/chat` and receives `{ text }`.
 
-Image generation for vocabulary cards uses the free, no-key `image.pollinations.ai` service.
+## Image generation
+
+`generateImage` first asks the AI for a one-sentence concrete visual scene description for the vocabulary word, then renders it via the free, no-key `image.pollinations.ai` service (model=`flux`, 640×420, random seed). Falls back to a generic prompt if the AI brief fails.
 
 ## Notable changes vs the original source
 
