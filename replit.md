@@ -36,8 +36,12 @@ The frontend posts `{ prompt }` to `${BASE_URL}api/chat` and receives `{ text }`
 ## Study Plan setup (StudyPlan component)
 
 - **Per-skill durations**: each of Listening / Reading / Speaking / Writing has its own minute input plus a "Default" toggle (defaults: 30 / 20 / 15 / 10 min). Vocabulary and Grammar are fixed at 10 / 5 min. `effectiveSkillMins(id)` resolves the active value.
-- **Auto words/day**: `CEFR_VOCAB_TARGET = { A1:500, A2:1000, B1:1500, B2:2500, C1:4000, C2:5000 }`. Auto mode divides `(target − current)` by days remaining; clamped to 1–50. A "Manual" mode lets the user override.
-- **Persistence**: everything (target level, date, skill settings, words mode/manual, generated `planMeta`, current week) is stored under `localStorage` key `venoxa-plan-v3`. `planData` is rebuilt on every render from `planMeta.mins` so language/icon changes stay live without invalidating the saved plan.
+- **CEFR vocab data**: `CEFR_LEVEL_WORDS = { A1:609, A2:1581, B1:1850, B2:2224, C1:2481, C2:2152 }` mirrors the Venoxa public wordlists. `CEFR_VOCAB_TARGET` is the running cumulative total derived from it. `wordsDelta` sums every level above the user's current up to (and including) the target.
+- **Start + Target dates**: both are user-controlled. Start defaults to today; target must be later (validated). `daysToTarget = ceil((target − start)/day)` drives every downstream calculation.
+- **Auto words/day**: `ceil(wordsDelta / daysToTarget)` clamped to 1–80. A "Manual" mode lets the user override.
+- **Pre-generation summary card** (`planEstimate`): live tile-grid showing `totalDays`, `totalWords`, `totalRules`, hours per skill (`mins × days / 60`), and the auto-suggested words/day. Recalculates the moment any input changes.
+- **In-plan progress trackers**: 4 skill sliders (Listening/Reading/Speaking/Writing) animate as `currentWeek` advances — `pct = currentWeek / totalWeeks × 100`. Each shows completed/total hours. Two extra bars track vocabulary (`learnedWords / wordsDelta`) and grammar rules (`masteredRules / rulesDelta`).
+- **Persistence**: everything (target level, start & target dates, skill settings, words mode/manual, generated `planMeta`, current week) is stored under `localStorage` key `venoxa-plan-v3`. `planData` is rebuilt on every render from `planMeta.mins` so language/icon changes stay live without invalidating the saved plan.
 - **Dynamic level binding**: `userLevel` lives in `App` (key `userLevel`), passed into Dashboard, StudyPlan, and any AI prompts. Smart Tip and "Your Current Level" re-render whenever it changes.
 
 ## Workflows

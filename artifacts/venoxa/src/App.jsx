@@ -537,9 +537,18 @@ function PlanWeekTable({
   );
 }
 
-// Cumulative active vocabulary targets per CEFR level (Cambridge-aligned).
-// Used to auto-suggest the words-per-day pace from the user's chosen levels and target date.
-const CEFR_VOCAB_TARGET = { A1: 500, A2: 1000, B1: 1500, B2: 2500, C1: 4000, C2: 5000 };
+// Words *per CEFR level* in the Venoxa wordlists (matches the public lesson catalogue).
+const CEFR_LEVEL_WORDS = { A1: 609, A2: 1581, B1: 1850, B2: 2224, C1: 2481, C2: 2152 };
+// Cumulative active vocabulary at the end of each level (running total of CEFR_LEVEL_WORDS).
+// Used to auto-suggest the words-per-day pace from the user's chosen levels and dates.
+const CEFR_VOCAB_TARGET = (() => {
+  const order = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  let acc = 0;
+  const out = {};
+  for (const lvl of order) { acc += CEFR_LEVEL_WORDS[lvl]; out[lvl] = acc; }
+  return out;
+})();
+const LEVEL_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const DEFAULT_SKILL_MINS = { listen: 30, read: 20, speak: 15, write: 10 };
 const VOCAB_MINS = 10;
 const GRAMMAR_MINS = 5;
@@ -558,6 +567,8 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
   const stored = useMemo(() => loadStoredPlan(), []);
 
   const [targetLevel, setTargetLevel] = useState(stored?.targetLevel || 'C1');
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState(stored?.startDate || todayISO);
   const [targetDate, setTargetDate] = useState(stored?.targetDate || '');
   const [skillSettings, setSkillSettings] = useState(() => stored?.skillSettings || {
     listen: { useDefault: true, mins: DEFAULT_SKILL_MINS.listen },
@@ -577,6 +588,7 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     title: lang === 'ar' ? 'إعداد خطة المذاكرة والمستوى' : 'Set Up Study Plan & Level',
     currentLvl: lang === 'ar' ? 'مستواك الحالي' : 'Current Level',
     targetLvl: lang === 'ar' ? 'المستوى المرغوب' : 'Target Level',
+    startDateLbl: lang === 'ar' ? 'تاريخ بدء الخطة' : 'Start Date',
     dateLabel: lang === 'ar' ? 'تاريخ الوصول للهدف' : 'Target Date',
     skillsTitle: lang === 'ar' ? 'مدة كل مهارة يومياً' : 'Daily time per skill',
     skillsHint: lang === 'ar' ? 'فعّل "افتراضي" لاستخدام التوزيع الموصى به أو خصّص الدقائق يدوياً.' : 'Toggle "Default" for the recommended pace, or customise the minutes.',
@@ -599,6 +611,19 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     activity: lang === 'ar' ? 'النشاط' : 'Activity',
     summary: lang === 'ar' ? 'المجموع' : 'Summary',
     words: lang === 'ar' ? 'كلمات' : 'words',
+    estimateTitle: lang === 'ar' ? 'ما الذي ستحتاج لتعلمه' : 'What you will need to learn',
+    estimateHint: lang === 'ar' ? 'يتم حساب القيم تلقائياً من المستوى الحالي والمستوى المرغوب وتاريخ البداية والنهاية ووقت كل مهارة.' : 'Auto-calculated from your current/target level, start & end dates, and the time you allocate per skill.',
+    rules: lang === 'ar' ? 'قاعدة' : 'rules',
+    hours: lang === 'ar' ? 'ساعة' : 'hours',
+    progressTitle: lang === 'ar' ? 'تقدمك في الخطة' : 'Your plan progress',
+    weekProgress: lang === 'ar' ? 'تقدم الأسبوع' : 'Week progress',
+    vocabProgress: lang === 'ar' ? 'تقدم المفردات' : 'Vocabulary progress',
+    grammarProgress: lang === 'ar' ? 'تقدم القواعد' : 'Grammar progress',
+    learned: lang === 'ar' ? 'تم تعلمه' : 'learned',
+    mastered: lang === 'ar' ? 'تم إتقانه' : 'mastered',
+    of: lang === 'ar' ? 'من' : 'of',
+    weekOf: lang === 'ar' ? 'الأسبوع' : 'Week',
+    invalidRange: lang === 'ar' ? 'يجب أن يكون تاريخ الهدف بعد تاريخ البداية' : 'Target date must be after the start date',
     vocabHeader: lang === 'ar' ? 'كلمات اليوم' : 'Daily Vocabulary',
     grammarHeader: lang === 'ar' ? 'قاعدة اليوم' : 'Daily Grammar',
     grammarTarget: lang === 'ar' ? 'القاعدة المطلوبة دراستها' : 'Rule to study',
@@ -623,28 +648,45 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     return s.useDefault ? DEFAULT_SKILL_MINS[id] : Math.max(0, parseInt(s.mins, 10) || 0);
   };
 
-  // Auto words-per-day: split the vocabulary delta to next level over the days remaining.
-  const autoWordsPerDay = useMemo(() => {
-    if (!targetDate) return 10;
-    const start = new Date();
-    const end = new Date(targetDate);
-    if (!(end > start)) return 10;
-    const days = Math.max(1, Math.ceil((end - start) / 86400000));
-    const cur = CEFR_VOCAB_TARGET[userLevel] ?? 0;
-    const tgt = CEFR_VOCAB_TARGET[targetLevel] ?? 0;
-    const delta = Math.max(0, tgt - cur);
-    if (delta === 0) return 5;
-    return Math.max(1, Math.min(50, Math.ceil(delta / days)));
-  }, [userLevel, targetLevel, targetDate]);
-
-  const wordsDelta = Math.max(0, (CEFR_VOCAB_TARGET[targetLevel] ?? 0) - (CEFR_VOCAB_TARGET[userLevel] ?? 0));
+  // Number of days between start and target dates (inclusive of effort).
   const daysToTarget = useMemo(() => {
-    if (!targetDate) return 0;
-    const end = new Date(targetDate);
-    const start = new Date();
-    if (!(end > start)) return 0;
-    return Math.ceil((end - start) / 86400000);
-  }, [targetDate]);
+    if (!startDate || !targetDate) return 0;
+    const s = new Date(startDate);
+    const e = new Date(targetDate);
+    if (!(e > s)) return 0;
+    return Math.ceil((e - s) / 86400000);
+  }, [startDate, targetDate]);
+
+  // Total NEW words to learn = sum of CEFR_LEVEL_WORDS for every level strictly above the user's current.
+  const wordsDelta = useMemo(() => {
+    const curIdx = LEVEL_ORDER.indexOf(userLevel);
+    const tgtIdx = LEVEL_ORDER.indexOf(targetLevel);
+    if (curIdx < 0 || tgtIdx < 0 || tgtIdx <= curIdx) return 0;
+    let total = 0;
+    for (let i = curIdx + 1; i <= tgtIdx; i++) total += CEFR_LEVEL_WORDS[LEVEL_ORDER[i]];
+    return total;
+  }, [userLevel, targetLevel]);
+
+  // Total grammar rules across every level from current+1 up to target (inclusive).
+  const rulesDelta = useMemo(() => {
+    const curIdx = LEVEL_ORDER.indexOf(userLevel);
+    const tgtIdx = LEVEL_ORDER.indexOf(targetLevel);
+    if (curIdx < 0 || tgtIdx < 0 || tgtIdx <= curIdx) return 0;
+    let total = 0;
+    for (let i = curIdx + 1; i <= tgtIdx; i++) {
+      const lvlKey = LEVEL_ORDER[i];
+      const entry = GRAMMAR_LEVELS.find(g => g.level.startsWith(lvlKey));
+      if (entry) total += entry.topics.length;
+    }
+    return total;
+  }, [userLevel, targetLevel]);
+
+  // Auto words-per-day: split the vocabulary delta over the days available.
+  const autoWordsPerDay = useMemo(() => {
+    if (!daysToTarget) return 10;
+    if (wordsDelta === 0) return 5;
+    return Math.max(1, Math.min(80, Math.ceil(wordsDelta / daysToTarget)));
+  }, [wordsDelta, daysToTarget]);
 
   const wordsPerDay = planMeta?.wordsPerDay ?? (wordsMode === 'auto' ? autoWordsPerDay : Math.max(1, parseInt(wordsManual, 10) || 1));
 
@@ -669,11 +711,30 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
   useEffect(() => {
     try {
       localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify({
-        targetLevel, targetDate, skillSettings, wordsMode, wordsManual,
+        targetLevel, startDate, targetDate, skillSettings, wordsMode, wordsManual,
         planMeta, currentWeek,
       }));
     } catch { /* quota or private mode — silently ignore */ }
-  }, [targetLevel, targetDate, skillSettings, wordsMode, wordsManual, planMeta, currentWeek]);
+  }, [targetLevel, startDate, targetDate, skillSettings, wordsMode, wordsManual, planMeta, currentWeek]);
+
+  // Live pre-generation summary: total minutes per skill across the whole plan.
+  const planEstimate = useMemo(() => {
+    if (!daysToTarget) return null;
+    const wpd = wordsMode === 'auto' ? autoWordsPerDay : Math.max(1, parseInt(wordsManual, 10) || 1);
+    return {
+      totalDays: daysToTarget,
+      totalWeeks: Math.max(1, Math.ceil(daysToTarget / 7)),
+      totalWords: wordsDelta || wpd * daysToTarget,
+      wordsPerDay: wpd,
+      totalRules: rulesDelta,
+      hours: {
+        listen: (effectiveSkillMins('listen') * daysToTarget) / 60,
+        read:   (effectiveSkillMins('read')   * daysToTarget) / 60,
+        speak:  (effectiveSkillMins('speak')  * daysToTarget) / 60,
+        write:  (effectiveSkillMins('write')  * daysToTarget) / 60,
+      },
+    };
+  }, [daysToTarget, wordsDelta, rulesDelta, skillSettings, wordsMode, wordsManual, autoWordsPerDay]);
 
   const suitableVocab = useMemo(() => {
     const getLevelWeight = (l) => {
@@ -719,15 +780,15 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
       alert(t.alertTime);
       return;
     }
-    if (!targetDate) {
+    if (!startDate || !targetDate) {
       alert(t.alertDate);
       return;
     }
 
-    const start = new Date();
+    const start = new Date(startDate);
     const end = new Date(targetDate);
     if (!(end > start)) {
-      alert(t.alertDate);
+      alert(t.invalidRange);
       return;
     }
     const diffDays = Math.ceil((end - start) / 86400000);
@@ -894,7 +955,7 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
           <h2 className="text-3xl font-extrabold mb-8 text-gray-900 dark:text-white flex items-center gap-3 relative z-10">
             <Sparkles className="text-blue-600 dark:text-blue-400 w-8 h-8" /> {t.title}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 relative z-10">
             <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.currentLvl}</label>
               <select value={userLevel} onChange={(e) => setUserLevel(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
@@ -914,8 +975,13 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
             </div>
 
             <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
+              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.startDateLbl}</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
+            </div>
+
+            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.dateLabel}</label>
-              <input type="date" min={todayStr} value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
+              <input type="date" min={startDate || todayStr} value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
             </div>
           </div>
 
@@ -1022,6 +1088,37 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
             )}
           </div>
 
+          {/* Live estimate of what the user will need to learn */}
+          {planEstimate && (
+            <div className="bg-gradient-to-br from-blue-50 to-fuchsia-50 dark:from-[#0f1730] dark:to-[#22112e] border border-gray-200 dark:border-gray-700/50 p-6 rounded-2xl mb-6 relative z-10">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-blue-500" /> {t.estimateTitle}
+                </h3>
+                <span className="text-xs text-gray-500 dark:text-gray-400 max-w-md text-end">{t.estimateHint}</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[
+                  { label: t.days,                 value: planEstimate.totalDays,                color: 'text-purple-600 dark:text-purple-400',   bg: 'bg-purple-100/70 dark:bg-purple-900/20',   Icon: Calendar },
+                  { label: t.words,                value: planEstimate.totalWords.toLocaleString(),  color: 'text-fuchsia-600 dark:text-fuchsia-400', bg: 'bg-fuchsia-100/70 dark:bg-fuchsia-900/20', Icon: BookOpen },
+                  { label: t.rules,                value: planEstimate.totalRules,               color: 'text-orange-600 dark:text-orange-400',   bg: 'bg-orange-100/70 dark:bg-orange-900/20',   Icon: FileText },
+                  { label: `${t.categories.listen} (${t.hours})`, value: planEstimate.hours.listen.toFixed(1), color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100/70 dark:bg-blue-900/20',     Icon: Headphones },
+                  { label: `${t.categories.read} (${t.hours})`,   value: planEstimate.hours.read.toFixed(1),   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100/70 dark:bg-emerald-900/20', Icon: BookText },
+                  { label: `${t.categories.speak} (${t.hours})`,  value: planEstimate.hours.speak.toFixed(1),  color: 'text-pink-600 dark:text-pink-400',     bg: 'bg-pink-100/70 dark:bg-pink-900/20',     Icon: MessageSquare },
+                  { label: `${t.categories.write} (${t.hours})`,  value: planEstimate.hours.write.toFixed(1),  color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100/70 dark:bg-indigo-900/20', Icon: PenTool },
+                  { label: t.wordsTitle,           value: `${planEstimate.wordsPerDay} ${t.perDay}`, color: 'text-fuchsia-600 dark:text-fuchsia-400', bg: 'bg-fuchsia-100/70 dark:bg-fuchsia-900/20', Icon: Sparkles },
+                ].map(({ label, value, color, bg, Icon }, i) => (
+                  <div key={i} className={`${bg} rounded-xl p-3 border border-white/40 dark:border-white/5`}>
+                    <div className={`flex items-center gap-1.5 text-[11px] font-bold ${color} opacity-90 uppercase tracking-wide`}>
+                      <Icon className="w-3.5 h-3.5" /> {label}
+                    </div>
+                    <div className={`text-2xl font-extrabold ${color} mt-1`} dir="ltr">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <button onClick={generatePlan} className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-extrabold text-lg py-5 rounded-2xl transition-all hover:shadow-lg">{t.gen}</button>
         </div>
       )}
@@ -1064,6 +1161,81 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
                   <RotateCcw className="w-4 h-4" /> {t.reset}
                 </button>
              </div>
+          </div>
+
+          {/* Per-skill progress sliders — auto-advance with the current week */}
+          <div className="bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700/50 rounded-2xl p-5 mb-6 print:hidden">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-blue-500" /> {t.progressTitle}
+              </h3>
+              <span className="text-sm font-bold text-gray-600 dark:text-gray-300">
+                {t.weekOf} {currentWeek} {t.of} {planData.totalWeeks}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { id: 'listen', label: t.categories.listen, Icon: Headphones,    bar: 'from-blue-500 to-blue-400',       text: 'text-blue-600 dark:text-blue-400' },
+                { id: 'read',   label: t.categories.read,   Icon: BookText,      bar: 'from-emerald-500 to-emerald-400', text: 'text-emerald-600 dark:text-emerald-400' },
+                { id: 'speak',  label: t.categories.speak,  Icon: MessageSquare, bar: 'from-pink-500 to-pink-400',       text: 'text-pink-600 dark:text-pink-400' },
+                { id: 'write',  label: t.categories.write,  Icon: PenTool,       bar: 'from-indigo-500 to-indigo-400',   text: 'text-indigo-600 dark:text-indigo-400' },
+              ].map(({ id, label, Icon, bar, text }) => {
+                const pct = Math.round((currentWeek / planData.totalWeeks) * 100);
+                const cat = planData.categories.find(c => c.id === id);
+                const completedHours = (((currentWeek - 1) * 7 * (cat?.mins || 0)) / 60).toFixed(1);
+                const totalHours = ((planData.totalWeeks * 7 * (cat?.mins || 0)) / 60).toFixed(1);
+                return (
+                  <div key={id} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`flex items-center gap-1.5 font-bold ${text}`}>
+                        <Icon className="w-4 h-4" /> {label}
+                      </div>
+                      <span className={`text-xs font-extrabold ${text}`} dir="ltr">{pct}%</span>
+                    </div>
+                    {/* Slider-style progress bar */}
+                    <div className="relative h-2.5 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                      <div className={`absolute inset-y-0 left-0 bg-gradient-to-r ${bar} transition-all duration-500 ease-out rounded-full`} style={{ width: `${pct}%` }} />
+                      <div className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow-md border border-gray-300 transition-all duration-500 ease-out" style={{ left: `calc(${pct}% - 7px)` }} />
+                    </div>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 font-semibold" dir="ltr">
+                      {completedHours} / {totalHours} {t.hours}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Vocab + Grammar stat bars */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {(() => {
+                const completedDays = Math.max(0, (currentWeek - 1) * 7);
+                const totalDays = planData.totalWeeks * 7;
+                const learnedWords = Math.min(completedDays * planData.wordsPerDay, planMeta?.totalWords || (totalDays * planData.wordsPerDay));
+                const totalWords = wordsDelta || (totalDays * planData.wordsPerDay);
+                const wordsPct = totalWords ? Math.round((learnedWords / totalWords) * 100) : 0;
+                const totalRules = rulesDelta || planData.totalWeeks;
+                const masteredRules = Math.min(currentWeek - 1, totalRules);
+                const rulesPct = totalRules ? Math.round((masteredRules / totalRules) * 100) : 0;
+                return [
+                  { label: t.vocabProgress, done: learnedWords.toLocaleString(), total: totalWords.toLocaleString(), pct: wordsPct, suffix: t.learned, bar: 'from-fuchsia-500 to-purple-500', text: 'text-fuchsia-600 dark:text-fuchsia-400' },
+                  { label: t.grammarProgress, done: masteredRules, total: totalRules, pct: rulesPct, suffix: t.mastered, bar: 'from-orange-500 to-amber-500', text: 'text-orange-600 dark:text-orange-400' },
+                ].map((row, i) => (
+                  <div key={i} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2 text-sm font-bold">
+                      <span className={row.text}>{row.label}</span>
+                      <span className={`${row.text}`} dir="ltr">{row.pct}%</span>
+                    </div>
+                    <div className="relative h-2.5 rounded-full bg-gray-200 dark:bg-gray-800 overflow-hidden">
+                      <div className={`absolute inset-y-0 left-0 bg-gradient-to-r ${row.bar} transition-all duration-500 ease-out rounded-full`} style={{ width: `${row.pct}%` }} />
+                    </div>
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 font-semibold" dir="ltr">
+                      {row.done} / {row.total} {row.suffix}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
           </div>
 
           {/* Screen view: current week only */}
