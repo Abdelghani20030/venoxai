@@ -415,13 +415,13 @@ function PlanWeekTable({
   interactive,
 }) {
   const cellBase =
-    "border border-gray-400 dark:border-gray-700 print:border-black px-2 py-2 align-middle text-center";
+    "border border-gray-400 dark:border-gray-700 print:border-gray-500 px-2 py-2 align-middle text-center";
   const headBase =
-    "border border-gray-400 dark:border-gray-700 print:border-black bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white print:bg-gray-100 print:text-black px-2 py-2 font-bold text-sm";
+    "border border-gray-400 dark:border-gray-700 print:border-gray-600 bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm";
 
   return (
     <div className="overflow-x-auto print:overflow-visible">
-      <table className="w-full border-collapse text-sm bg-white dark:bg-[#0e0e11] print:bg-white text-gray-800 dark:text-gray-100 min-w-[760px] print:min-w-full">
+      <table className="w-full border-collapse text-sm bg-white dark:bg-[#0e0e11] text-gray-800 dark:text-gray-100 min-w-[760px] print:min-w-full">
         <thead>
           <tr>
             <th className={headBase}>{t.activity}</th>
@@ -437,7 +437,7 @@ function PlanWeekTable({
         <tbody>
           {planData.categories.map((cat) => (
             <tr key={cat.id}>
-              <td className={`${cellBase} text-start font-bold ${cat.textColor} bg-gray-50 dark:bg-[#161618] print:bg-white print:text-black`}>
+              <td className={`${cellBase} text-start font-bold ${cat.textColor} ${cat.headerBg}`}>
                 <div className="flex items-center gap-2 px-1">
                   <cat.icon className="w-4 h-4 shrink-0" />
                   <span>{cat.name}</span>
@@ -445,12 +445,11 @@ function PlanWeekTable({
               </td>
               {[0, 1, 2, 3, 4, 5, 6].map((d) => {
                 const isInteractive = interactive && (cat.id === 'vocab' || cat.id === 'grammar');
-                const baseTextClass = `${cat.textColor} print:text-black`;
-                const cellClass = `${cellBase} ${baseTextClass} font-semibold ${
+                const cellClass = `${cellBase} ${cat.textColor} ${cat.cellBg} font-semibold ${
                   isInteractive
                     ? cat.id === 'vocab'
-                      ? 'cursor-pointer hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/30 active:bg-fuchsia-200 dark:active:bg-fuchsia-800/40 transition-colors'
-                      : 'cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/30 active:bg-orange-200 dark:active:bg-orange-800/40 transition-colors'
+                      ? 'cursor-pointer hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900/30 active:bg-fuchsia-300 dark:active:bg-fuchsia-800/40 transition-colors'
+                      : 'cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/30 active:bg-orange-300 dark:active:bg-orange-800/40 transition-colors'
                     : ''
                 }`;
                 const onClick = isInteractive
@@ -484,14 +483,14 @@ function PlanWeekTable({
                   </td>
                 );
               })}
-              <td className={`${cellBase} font-bold ${cat.textColor} bg-gray-50 dark:bg-[#161618] print:bg-white print:text-black`}>
+              <td className={`${cellBase} font-bold ${cat.textColor} ${cat.headerBg}`}>
                 {formatTime(cat.mins * 7)}
               </td>
             </tr>
           ))}
 
           <tr>
-            <td className={`${cellBase} text-start font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/15 print:bg-white print:text-black`}>
+            <td className={`${cellBase} text-start font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/15`}>
               <div className="flex items-center gap-2 px-1">
                 <Layers className="w-4 h-4 shrink-0" />
                 <span>{t.spacedRep}</span>
@@ -502,7 +501,7 @@ function PlanWeekTable({
               return (
                 <td
                   key={d}
-                  className={`${cellBase} text-purple-700 dark:text-purple-300 bg-purple-50/50 dark:bg-purple-900/10 print:bg-white print:text-black text-[11px] font-semibold leading-tight`}
+                  className={`${cellBase} text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/10 text-[11px] font-semibold leading-tight`}
                   dir="ltr"
                 >
                   {phases.length === 0
@@ -511,24 +510,24 @@ function PlanWeekTable({
                 </td>
               );
             })}
-            <td className={`${cellBase} text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/15 print:bg-white print:text-black font-bold`}>
+            <td className={`${cellBase} text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/15 font-bold`}>
               <span className="opacity-40">—</span>
             </td>
           </tr>
 
           <tr>
-            <td className={`${cellBase} text-start font-bold text-gray-900 dark:text-white bg-gray-200 dark:bg-gray-800 print:bg-gray-100 print:text-black`}>
+            <td className={`${cellBase} text-start font-bold text-gray-900 dark:text-white bg-gray-200 dark:bg-gray-800`}>
               <div className="flex items-center gap-2 px-1">
                 <Clock className="w-4 h-4 shrink-0" />
                 <span>{t.categories.total}</span>
               </div>
             </td>
             {[0, 1, 2, 3, 4, 5, 6].map((d) => (
-              <td key={d} className={`${cellBase} font-bold text-gray-900 dark:text-gray-100 bg-gray-100 dark:bg-gray-800/60 print:bg-white print:text-black`}>
+              <td key={d} className={`${cellBase} font-bold text-gray-900 dark:text-gray-100 bg-gray-100 dark:bg-gray-800/60`}>
                 {formatTime(dailyTotalMins)}
               </td>
             ))}
-            <td className={`${cellBase} font-extrabold text-gray-900 dark:text-white bg-gray-300 dark:bg-gray-700 print:bg-gray-100 print:text-black`}>
+            <td className={`${cellBase} font-extrabold text-gray-900 dark:text-white bg-gray-300 dark:bg-gray-700`}>
               {formatTime(weeklyTotalMins)}
             </td>
           </tr>
@@ -538,14 +537,39 @@ function PlanWeekTable({
   );
 }
 
-function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
-  const [targetLevel, setTargetLevel] = useState('C1');
-  const [targetDate, setTargetDate] = useState('');
-  const [hours, setHours] = useState(1);
-  const [minutes, setMinutes] = useState(30);
+// Cumulative active vocabulary targets per CEFR level (Cambridge-aligned).
+// Used to auto-suggest the words-per-day pace from the user's chosen levels and target date.
+const CEFR_VOCAB_TARGET = { A1: 500, A2: 1000, B1: 1500, B2: 2500, C1: 4000, C2: 5000 };
+const DEFAULT_SKILL_MINS = { listen: 30, read: 20, speak: 15, write: 10 };
+const VOCAB_MINS = 10;
+const GRAMMAR_MINS = 5;
+const PLAN_STORAGE_KEY = 'venoxa-plan-v3';
 
-  const [planData, setPlanData] = useState(null);
-  const [currentWeek, setCurrentWeek] = useState(1);
+function loadStoredPlan() {
+  try {
+    const raw = localStorage.getItem(PLAN_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
+  const stored = useMemo(() => loadStoredPlan(), []);
+
+  const [targetLevel, setTargetLevel] = useState(stored?.targetLevel || 'C1');
+  const [targetDate, setTargetDate] = useState(stored?.targetDate || '');
+  const [skillSettings, setSkillSettings] = useState(() => stored?.skillSettings || {
+    listen: { useDefault: true, mins: DEFAULT_SKILL_MINS.listen },
+    read:   { useDefault: true, mins: DEFAULT_SKILL_MINS.read },
+    speak:  { useDefault: true, mins: DEFAULT_SKILL_MINS.speak },
+    write:  { useDefault: true, mins: DEFAULT_SKILL_MINS.write },
+  });
+  const [wordsMode, setWordsMode] = useState(stored?.wordsMode || 'auto');     // 'auto' | 'manual'
+  const [wordsManual, setWordsManual] = useState(stored?.wordsManual || 10);
+
+  const [planMeta, setPlanMeta] = useState(stored?.planMeta || null); // serialisable plan
+  const [currentWeek, setCurrentWeek] = useState(stored?.currentWeek || 1);
   const [vocabModal, setVocabModal] = useState(null);
   const [grammarModal, setGrammarModal] = useState(null);
 
@@ -554,13 +578,21 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     currentLvl: lang === 'ar' ? 'مستواك الحالي' : 'Current Level',
     targetLvl: lang === 'ar' ? 'المستوى المرغوب' : 'Target Level',
     dateLabel: lang === 'ar' ? 'تاريخ الوصول للهدف' : 'Target Date',
-    timeLabel: lang === 'ar' ? 'وقت المذاكرة اليومي' : 'Daily Study Time',
-    hPlaceholder: lang === 'ar' ? 'ساعات' : 'Hours',
-    mPlaceholder: lang === 'ar' ? 'دقائق' : 'Mins',
+    skillsTitle: lang === 'ar' ? 'مدة كل مهارة يومياً' : 'Daily time per skill',
+    skillsHint: lang === 'ar' ? 'فعّل "افتراضي" لاستخدام التوزيع الموصى به أو خصّص الدقائق يدوياً.' : 'Toggle "Default" for the recommended pace, or customise the minutes.',
+    useDefault: lang === 'ar' ? 'افتراضي' : 'Default',
+    minsUnit: lang === 'ar' ? 'دقيقة' : 'min',
+    wordsTitle: lang === 'ar' ? 'الكلمات الجديدة يومياً' : 'New words per day',
+    wordsAuto: lang === 'ar' ? 'تلقائي (حسب المستوى والتاريخ)' : 'Auto (from levels & date)',
+    wordsManualLbl: lang === 'ar' ? 'يدوي' : 'Manual',
+    wordsToLearn: lang === 'ar' ? 'كلمات يجب تعلمها' : 'words to learn',
+    autoExplain: lang === 'ar' ? 'حساب تلقائي:' : 'Auto-calculated:',
+    days: lang === 'ar' ? 'يوم' : 'days',
+    perDay: lang === 'ar' ? '/ يوم' : '/ day',
     gen: lang === 'ar' ? 'توليد الجدول الأسبوعي' : 'Generate Weekly Schedule',
     week: lang === 'ar' ? 'الأسبوع' : 'Week',
     day: lang === 'ar' ? 'اليوم' : 'Day',
-    reset: lang === 'ar' ? 'إعادة ضبط الخطة' : 'Reset Plan',
+    reset: lang === 'ar' ? 'تعديل الخطة' : 'Edit Plan',
     exportPdf: lang === 'ar' ? 'طباعة كل الأسابيع' : 'Print All Weeks',
     exportCsv: lang === 'ar' ? 'تصدير CSV' : 'Export CSV',
     jumpWeek: lang === 'ar' ? 'الانتقال إلى الأسبوع' : 'Jump to Week',
@@ -568,10 +600,9 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     summary: lang === 'ar' ? 'المجموع' : 'Summary',
     words: lang === 'ar' ? 'كلمات' : 'words',
     vocabHeader: lang === 'ar' ? 'كلمات اليوم' : 'Daily Vocabulary',
-    learnTarget: lang === 'ar' ? '10 كلمات للتعلم' : '10 words to learn',
     grammarHeader: lang === 'ar' ? 'قاعدة اليوم' : 'Daily Grammar',
     grammarTarget: lang === 'ar' ? 'القاعدة المطلوبة دراستها' : 'Rule to study',
-    alertTime: lang === 'ar' ? 'يرجى تحديد وقت المذاكرة!' : 'Please specify study time!',
+    alertTime: lang === 'ar' ? 'يرجى تحديد وقت المذاكرة لكل مهارة!' : 'Please set a study time for at least one skill!',
     alertDate: lang === 'ar' ? 'يرجى تحديد تاريخ الهدف بشكل صحيح!' : 'Please select a valid target date!',
     spacedRep: lang === 'ar' ? 'مراجعة متباعدة' : 'Spaced Review',
     categories: {
@@ -585,7 +616,64 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     }
   };
 
-  const wordsPerDay = 10;
+  // Effective minutes for each editable skill (default value when toggle is on, custom otherwise).
+  const effectiveSkillMins = (id) => {
+    const s = skillSettings[id];
+    if (!s) return DEFAULT_SKILL_MINS[id] || 0;
+    return s.useDefault ? DEFAULT_SKILL_MINS[id] : Math.max(0, parseInt(s.mins, 10) || 0);
+  };
+
+  // Auto words-per-day: split the vocabulary delta to next level over the days remaining.
+  const autoWordsPerDay = useMemo(() => {
+    if (!targetDate) return 10;
+    const start = new Date();
+    const end = new Date(targetDate);
+    if (!(end > start)) return 10;
+    const days = Math.max(1, Math.ceil((end - start) / 86400000));
+    const cur = CEFR_VOCAB_TARGET[userLevel] ?? 0;
+    const tgt = CEFR_VOCAB_TARGET[targetLevel] ?? 0;
+    const delta = Math.max(0, tgt - cur);
+    if (delta === 0) return 5;
+    return Math.max(1, Math.min(50, Math.ceil(delta / days)));
+  }, [userLevel, targetLevel, targetDate]);
+
+  const wordsDelta = Math.max(0, (CEFR_VOCAB_TARGET[targetLevel] ?? 0) - (CEFR_VOCAB_TARGET[userLevel] ?? 0));
+  const daysToTarget = useMemo(() => {
+    if (!targetDate) return 0;
+    const end = new Date(targetDate);
+    const start = new Date();
+    if (!(end > start)) return 0;
+    return Math.ceil((end - start) / 86400000);
+  }, [targetDate]);
+
+  const wordsPerDay = planMeta?.wordsPerDay ?? (wordsMode === 'auto' ? autoWordsPerDay : Math.max(1, parseInt(wordsManual, 10) || 1));
+
+  // Build the rich category list (with icons / colours) from the persisted minutes payload.
+  const categories = useMemo(() => {
+    if (!planMeta) return [];
+    const m = planMeta.mins;
+    return [
+      { id: 'listen',  name: t.categories.listen,  icon: Headphones,    mins: m.listen,  headerBg: 'bg-blue-100 dark:bg-blue-900/30',       cellBg: 'bg-blue-50 dark:bg-blue-900/10',       textColor: 'text-blue-700 dark:text-blue-400' },
+      { id: 'read',    name: t.categories.read,    icon: BookText,      mins: m.read,    headerBg: 'bg-emerald-100 dark:bg-emerald-900/30', cellBg: 'bg-emerald-50 dark:bg-emerald-900/10', textColor: 'text-emerald-700 dark:text-emerald-400' },
+      { id: 'speak',   name: t.categories.speak,   icon: MessageSquare, mins: m.speak,   headerBg: 'bg-pink-100 dark:bg-pink-900/30',       cellBg: 'bg-pink-50 dark:bg-pink-900/10',       textColor: 'text-pink-700 dark:text-pink-400' },
+      { id: 'write',   name: t.categories.write,   icon: PenTool,       mins: m.write,   headerBg: 'bg-indigo-100 dark:bg-indigo-900/30',   cellBg: 'bg-indigo-50 dark:bg-indigo-900/10',   textColor: 'text-indigo-700 dark:text-indigo-400' },
+      { id: 'vocab',   name: t.categories.vocab,   icon: BookOpen,      mins: m.vocab,   headerBg: 'bg-fuchsia-100 dark:bg-fuchsia-900/30', cellBg: 'bg-fuchsia-50 dark:bg-fuchsia-900/10', textColor: 'text-fuchsia-700 dark:text-fuchsia-400' },
+      { id: 'grammar', name: t.categories.grammar, icon: FileText,      mins: m.grammar, headerBg: 'bg-orange-100 dark:bg-orange-900/30',   cellBg: 'bg-orange-50 dark:bg-orange-900/10',   textColor: 'text-orange-700 dark:text-orange-400' },
+    ];
+  }, [planMeta, lang]);
+
+  // The shape that PlanWeekTable / older code expects.
+  const planData = planMeta ? { totalWeeks: planMeta.totalWeeks, categories, wordsPerDay } : null;
+
+  // Persist everything that should survive a page reload.
+  useEffect(() => {
+    try {
+      localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify({
+        targetLevel, targetDate, skillSettings, wordsMode, wordsManual,
+        planMeta, currentWeek,
+      }));
+    } catch { /* quota or private mode — silently ignore */ }
+  }, [targetLevel, targetDate, skillSettings, wordsMode, wordsManual, planMeta, currentWeek]);
 
   const suitableVocab = useMemo(() => {
     const getLevelWeight = (l) => {
@@ -607,7 +695,7 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
     });
 
     return filtered.length >= wordsPerDay ? filtered : globalVocab;
-  }, [globalVocab, userLevel]);
+  }, [globalVocab, userLevel, wordsPerDay]);
 
   const relevantGrammarTopics = useMemo(() => {
     const levelsToInclude = GRAMMAR_LEVELS.filter(g => {
@@ -618,7 +706,15 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
   }, [userLevel, targetLevel]);
 
   const generatePlan = () => {
-    const totalMins = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
+    const mins = {
+      listen: effectiveSkillMins('listen'),
+      read: effectiveSkillMins('read'),
+      speak: effectiveSkillMins('speak'),
+      write: effectiveSkillMins('write'),
+      vocab: VOCAB_MINS,
+      grammar: GRAMMAR_MINS,
+    };
+    const totalMins = mins.listen + mins.read + mins.speak + mins.write + mins.vocab + mins.grammar;
     if (totalMins <= 0) {
       alert(t.alertTime);
       return;
@@ -628,28 +724,32 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
       return;
     }
 
-    let calculatedWeeks = 4;
     const start = new Date();
     const end = new Date(targetDate);
-    if (end > start) {
-      const diffTime = Math.abs(end - start);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      calculatedWeeks = Math.max(1, Math.ceil(diffDays / 7));
-    } else {
+    if (!(end > start)) {
       alert(t.alertDate);
       return;
     }
+    const diffDays = Math.ceil((end - start) / 86400000);
+    const calculatedWeeks = Math.max(1, Math.ceil(diffDays / 7));
 
-    const catData = [
-      { id: 'listen', name: t.categories.listen, icon: Headphones, mins: Math.round(totalMins * 0.35), headerBg: 'bg-blue-100 dark:bg-blue-900/30', cellBg: 'bg-blue-50 dark:bg-blue-900/10', textColor: 'text-blue-700 dark:text-blue-400' },
-      { id: 'read', name: t.categories.read, icon: BookText, mins: Math.round(totalMins * 0.25), headerBg: 'bg-emerald-100 dark:bg-emerald-900/30', cellBg: 'bg-emerald-50 dark:bg-emerald-900/10', textColor: 'text-emerald-700 dark:text-emerald-400' },
-      { id: 'speak', name: t.categories.speak, icon: MessageSquare, mins: Math.round(totalMins * 0.15), headerBg: 'bg-pink-100 dark:bg-pink-900/30', cellBg: 'bg-pink-50 dark:bg-pink-900/10', textColor: 'text-pink-700 dark:text-pink-400' },
-      { id: 'write', name: t.categories.write, icon: PenTool, mins: Math.round(totalMins * 0.10), headerBg: 'bg-indigo-100 dark:bg-indigo-900/30', cellBg: 'bg-indigo-50 dark:bg-indigo-900/10', textColor: 'text-indigo-700 dark:text-indigo-400' },
-      { id: 'vocab', name: t.categories.vocab, icon: BookOpen, mins: Math.round(totalMins * 0.10), headerBg: 'bg-fuchsia-100 dark:bg-fuchsia-900/30', cellBg: 'bg-fuchsia-50 dark:bg-fuchsia-900/10', textColor: 'text-fuchsia-700 dark:text-fuchsia-400' },
-      { id: 'grammar', name: t.categories.grammar, icon: FileText, mins: Math.round(totalMins * 0.05), headerBg: 'bg-orange-100 dark:bg-orange-900/30', cellBg: 'bg-orange-50 dark:bg-orange-900/10', textColor: 'text-orange-700 dark:text-orange-400' },
-    ];
-    setPlanData({ totalWeeks: calculatedWeeks, categories: catData });
+    const wpd = wordsMode === 'auto' ? autoWordsPerDay : Math.max(1, parseInt(wordsManual, 10) || 1);
+
+    setPlanMeta({ totalWeeks: calculatedWeeks, mins, wordsPerDay: wpd });
     setCurrentWeek(1);
+  };
+
+  const setSkillDefault = (id, useDefault) => {
+    setSkillSettings(prev => ({
+      ...prev,
+      [id]: { useDefault, mins: useDefault ? DEFAULT_SKILL_MINS[id] : (prev[id]?.mins ?? DEFAULT_SKILL_MINS[id]) },
+    }));
+  };
+  const setSkillMins = (id, mins) => {
+    setSkillSettings(prev => ({
+      ...prev,
+      [id]: { useDefault: false, mins: Math.max(0, parseInt(mins, 10) || 0) },
+    }));
   };
 
   const handleNextWeek = () => {
@@ -680,7 +780,19 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
   };
 
   const handlePrint = () => {
-    window.print();
+    // Force light theme for printing — the dark theme is unreadable on paper.
+    const html = document.documentElement;
+    const wasDark = html.classList.contains('dark');
+    if (wasDark) html.classList.remove('dark');
+    const restore = () => {
+      if (wasDark) html.classList.add('dark');
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    // Allow the browser one frame to recompute styles before opening the dialog.
+    requestAnimationFrame(() => {
+      setTimeout(() => window.print(), 50);
+    });
   };
 
   const formatTime = (mins) => {
@@ -782,7 +894,7 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
           <h2 className="text-3xl font-extrabold mb-8 text-gray-900 dark:text-white flex items-center gap-3 relative z-10">
             <Sparkles className="text-blue-600 dark:text-blue-400 w-8 h-8" /> {t.title}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 relative z-10">
             <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.currentLvl}</label>
               <select value={userLevel} onChange={(e) => setUserLevel(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
@@ -805,21 +917,111 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.dateLabel}</label>
               <input type="date" min={todayStr} value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
             </div>
+          </div>
 
-            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
-              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.timeLabel}</label>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                   <input type="number" min="0" max="24" value={hours} onChange={(e) => setHours(e.target.value)} placeholder={t.hPlaceholder} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-3 text-gray-900 dark:text-white font-bold text-center focus:outline-none focus:border-blue-500" />
-                   <span className="text-xs text-gray-500 flex justify-center mt-1">{t.hPlaceholder}</span>
-                </div>
-                <div className="flex-1">
-                   <input type="number" min="0" max="59" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder={t.mPlaceholder} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-3 text-gray-900 dark:text-white font-bold text-center focus:outline-none focus:border-blue-500" />
-                   <span className="text-xs text-gray-500 flex justify-center mt-1">{t.mPlaceholder}</span>
-                </div>
-              </div>
+          {/* Per-skill durations with a Default toggle */}
+          <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 mb-6 relative z-10">
+            <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                <Clock className="w-5 h-5 text-blue-500" /> {t.skillsTitle}
+              </h3>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{t.skillsHint}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+              {[
+                { id: 'listen', label: t.categories.listen, Icon: Headphones, color: 'text-blue-600 dark:text-blue-400', ring: 'focus:border-blue-500' },
+                { id: 'read',   label: t.categories.read,   Icon: BookText,   color: 'text-emerald-600 dark:text-emerald-400', ring: 'focus:border-emerald-500' },
+                { id: 'speak',  label: t.categories.speak,  Icon: MessageSquare, color: 'text-pink-600 dark:text-pink-400', ring: 'focus:border-pink-500' },
+                { id: 'write',  label: t.categories.write,  Icon: PenTool,    color: 'text-indigo-600 dark:text-indigo-400', ring: 'focus:border-indigo-500' },
+              ].map(({ id, label, Icon, color, ring }) => {
+                const s = skillSettings[id] || { useDefault: true, mins: DEFAULT_SKILL_MINS[id] };
+                return (
+                  <div key={id} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`flex items-center gap-2 font-bold ${color}`}>
+                        <Icon className="w-4 h-4" /> {label}
+                      </div>
+                      <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <span className={`text-[11px] font-bold ${s.useDefault ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'}`}>{t.useDefault}</span>
+                        <span className="relative">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={s.useDefault}
+                            onChange={(e) => setSkillDefault(id, e.target.checked)}
+                          />
+                          <span className="block w-9 h-5 bg-gray-300 dark:bg-gray-700 rounded-full peer-checked:bg-blue-500 transition-colors"></span>
+                          <span className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></span>
+                        </span>
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max="240"
+                        value={s.useDefault ? DEFAULT_SKILL_MINS[id] : s.mins}
+                        disabled={s.useDefault}
+                        onChange={(e) => setSkillMins(id, e.target.value)}
+                        className={`w-full bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none ${ring} disabled:opacity-60 disabled:cursor-not-allowed`}
+                      />
+                      <span className="text-sm text-gray-500 dark:text-gray-400 font-semibold">{t.minsUnit}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
+
+          {/* Words per day — auto vs manual */}
+          <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 mb-8 relative z-10">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-fuchsia-500" /> {t.wordsTitle}
+              </h3>
+              <div className="inline-flex bg-white dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-xl p-1 text-sm font-bold">
+                <button
+                  onClick={() => setWordsMode('auto')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors ${wordsMode === 'auto' ? 'bg-fuchsia-500 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                >
+                  {t.wordsAuto}
+                </button>
+                <button
+                  onClick={() => setWordsMode('manual')}
+                  className={`px-3 py-1.5 rounded-lg transition-colors ${wordsMode === 'manual' ? 'bg-fuchsia-500 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                >
+                  {t.wordsManualLbl}
+                </button>
+              </div>
+            </div>
+
+            {wordsMode === 'auto' ? (
+              <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+                <div className="text-sm text-gray-600 dark:text-gray-300" dir="ltr">
+                  <span className="font-bold text-fuchsia-600 dark:text-fuchsia-400">{userLevel} → {targetLevel}</span>
+                  {' '}·{' '}
+                  <span className="font-bold">{wordsDelta}</span> {t.wordsToLearn}
+                  {daysToTarget > 0 && <> · <span className="font-bold">{daysToTarget}</span> {t.days}</>}
+                </div>
+                <div className="text-2xl font-extrabold text-fuchsia-600 dark:text-fuchsia-400" dir="ltr">
+                  {autoWordsPerDay} <span className="text-sm font-bold opacity-70">{t.perDay}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex items-center gap-3 flex-wrap">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={wordsManual}
+                  onChange={(e) => setWordsManual(e.target.value)}
+                  className="w-32 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-extrabold text-center text-2xl focus:outline-none focus:border-fuchsia-500"
+                />
+                <span className="font-bold text-gray-700 dark:text-gray-200">{t.wordsToLearn} {t.perDay}</span>
+              </div>
+            )}
+          </div>
+
           <button onClick={generatePlan} className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-extrabold text-lg py-5 rounded-2xl transition-all hover:shadow-lg">{t.gen}</button>
         </div>
       )}
@@ -858,7 +1060,7 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
                 <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-lg shadow-sm">
                   <Printer className="w-4 h-4" /> {t.exportPdf}
                 </button>
-                <button onClick={() => setPlanData(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 text-sm font-bold transition-colors bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-lg">
+                <button onClick={() => setPlanMeta(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 text-sm font-bold transition-colors bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-lg">
                   <RotateCcw className="w-4 h-4" /> {t.reset}
                 </button>
              </div>
@@ -919,7 +1121,7 @@ function StudyPlan({ userLevel, setUserLevel, lang, globalVocab }) {
                 <div className="bg-gradient-to-r from-fuchsia-600 to-purple-600 p-5 text-white flex justify-between items-center shadow-md">
                   <div>
                      <h3 className="font-bold text-xl flex items-center gap-2"><BookOpen className="w-5 h-5"/> {t.vocabHeader} ({t.day} {vocabModal.day})</h3>
-                     <p className="text-sm opacity-90 mt-1">{t.learnTarget}</p>
+                     <p className="text-sm opacity-90 mt-1">{wordsPerDay} {t.wordsToLearn}</p>
                   </div>
                   <button onClick={() => setVocabModal(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-6 h-6"/></button>
                 </div>

@@ -30,6 +30,15 @@ The frontend posts `{ prompt }` to `${BASE_URL}api/chat` and receives `{ text }`
 - `fetchFromGemini` replaced with a thin wrapper around `POST /api/chat`.
 - The direct Imagen call inside `generateImage` swapped for the Pollinations URL.
 - Tailwind v3 directives in the original CSS rewritten to v4 (`@import "tailwindcss"`).
+- Slim, thumb-only scrollbars in `index.css` (8px, rgba slate, rounded — no white track edges).
+- Print-all-weeks now strips `h-screen`/`overflow` constraints via `print:` utilities and a global `@media print` rule, and `handlePrint` temporarily removes the `dark` class so colours stay bright on paper. Plan table cells use the per-skill `cellBg` for a colourful PDF.
+
+## Study Plan setup (StudyPlan component)
+
+- **Per-skill durations**: each of Listening / Reading / Speaking / Writing has its own minute input plus a "Default" toggle (defaults: 30 / 20 / 15 / 10 min). Vocabulary and Grammar are fixed at 10 / 5 min. `effectiveSkillMins(id)` resolves the active value.
+- **Auto words/day**: `CEFR_VOCAB_TARGET = { A1:500, A2:1000, B1:1500, B2:2500, C1:4000, C2:5000 }`. Auto mode divides `(target − current)` by days remaining; clamped to 1–50. A "Manual" mode lets the user override.
+- **Persistence**: everything (target level, date, skill settings, words mode/manual, generated `planMeta`, current week) is stored under `localStorage` key `venoxa-plan-v3`. `planData` is rebuilt on every render from `planMeta.mins` so language/icon changes stay live without invalidating the saved plan.
+- **Dynamic level binding**: `userLevel` lives in `App` (key `userLevel`), passed into Dashboard, StudyPlan, and any AI prompts. Smart Tip and "Your Current Level" re-render whenever it changes.
 
 ## Workflows
 
