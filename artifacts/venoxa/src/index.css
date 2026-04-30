@@ -1,6 +1,16 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+@font-face {
+  font-family: 'The Year of The Camel';
+  src: url('/fonts/TheYearofTheCamel-ExtraBold.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+}
+
+[dir="rtl"], [dir="rtl"] * {
+  font-family: 'The Year of The Camel', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
 
 html, body, #root {
   height: 100%;
