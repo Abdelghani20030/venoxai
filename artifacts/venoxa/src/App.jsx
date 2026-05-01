@@ -161,6 +161,8 @@ export default function App() {
         return <ListeningReading type="listening" {...props} />;
       case 'reading':
         return <ListeningReading type="reading" {...props} />;
+      case 'langeek':
+        return <Langeek {...props} />;
       default:
         return <Dashboard setTab={setActiveTab} {...props} />;
     }
@@ -197,6 +199,10 @@ export default function App() {
     id: 'reading',
     label: _resolveTranslation(lang, 'القراءة (AI)', 'Reading (AI)'),
     icon: Brain
+  }, {
+    id: 'langeek',
+    label: _resolveTranslation(lang, 'لانجيك (PDF)', 'Langeek (PDF)'),
+    icon: Archive
   }];
   return <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#09090b] text-gray-100' : 'bg-gray-50 text-gray-900'} font-sans selection:bg-blue-500/30 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
       <div className={`hidden md:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-200'} border-l shadow-2xl z-10 transition-colors duration-300 print:hidden`}>
@@ -1037,7 +1043,7 @@ function StudyPlan({
           <h2 className="text-3xl font-extrabold mb-8 text-gray-900 dark:text-white flex items-center gap-3 relative z-10">
             <Sparkles className="text-blue-600 dark:text-blue-400 w-8 h-8" /> {t.title}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 relative z-50">
             <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.currentLvl}</label>
               <select value={userLevel} onChange={e => setUserLevel(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
@@ -1052,14 +1058,14 @@ function StudyPlan({
               </select>
             </div>
 
-            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
+            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center relative z-50">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.startDateLbl}</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
+              <GlassDatePicker value={startDate} onChange={setStartDate} label="Start Date" />
             </div>
 
-            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
+            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center relative z-50">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.dateLabel}</label>
-              <input type="date" min={startDate || todayStr} value={targetDate} onChange={e => setTargetDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
+              <GlassDatePicker min={startDate || todayStr} value={targetDate} onChange={setTargetDate} label="Target Date" />
             </div>
           </div>
 
@@ -1945,9 +1951,49 @@ function ListeningReading({
 }) {
   const [story, setStory] = useState('');
   const [loading, setLoading] = useState(false);
+  const getDynamicTitle = () => {
+    const isBeginner = userLevel === 'A1' || userLevel === 'A2';
+    const isInter = userLevel === 'B1' || userLevel === 'B2';
+
+    if (lang === 'ar') {
+       const skill = type === 'listening' ? 'الاستماع' : 'القراءة';
+       const adj = isBeginner ? 'الأساسي' : isInter ? 'المتوسط' : 'المتقدم';
+       return `تدريب ${skill} ${adj}`;
+    }
+
+    if (lang === 'es') return `${type === 'listening' ? 'Escucha' : 'Lectura'} ${isBeginner ? 'Básica' : isInter ? 'Intermedia' : 'Avanzada'}`;
+    if (lang === 'fr') return `${type === 'listening' ? 'Écoute' : 'Lecture'} ${isBeginner ? 'Basique' : isInter ? 'Intermédiaire' : 'Avancée'}`;
+    if (lang === 'de') return `${isBeginner ? 'Grundlegendes' : isInter ? 'Mittleres' : 'Erweitertes'} ${type === 'listening' ? 'Hören' : 'Lesen'}`;
+    if (lang === 'zh') return `${isBeginner ? '基础' : isInter ? '中级' : '高级'}${type === 'listening' ? '听力' : '阅读'}`;
+    if (lang === 'ja') return `${isBeginner ? '基礎' : isInter ? '中級' : '上級'}${type === 'listening' ? 'リスニング' : 'リーディング'}`;
+
+    const skillEn = type === 'listening' ? 'Listening' : 'Reading';
+    const adjEn = isBeginner ? 'Basic' : isInter ? 'Intermediate' : 'Advanced';
+    return `${adjEn} ${skillEn}`;
+  };
+
+  const getDynamicDesc = () => {
+    const isBeginner = userLevel === 'A1' || userLevel === 'A2';
+    const isInter = userLevel === 'B1' || userLevel === 'B2';
+
+    if (lang === 'ar') {
+       const focus = isBeginner ? 'النصوص البسيطة والأساسية' : isInter ? 'النصوص المتوسطة' : 'النصوص المعقدة';
+       return `بما أن مستواك ${userLevel}، سنركز على ${focus}.`;
+    }
+
+    if (lang === 'es') return `Dado que tu nivel es ${userLevel}, nos enfocaremos en textos ${isBeginner ? 'sencillos' : isInter ? 'intermedios' : 'complejos'}.`;
+    if (lang === 'fr') return `Étant donné que votre niveau est ${userLevel}, nous nous concentrons sur des textes ${isBeginner ? 'simples' : isInter ? 'intermédiaires' : 'complexes'}.`;
+    if (lang === 'de') return `Da dein Level ${userLevel} ist, konzentrieren wir uns auf ${isBeginner ? 'einfache' : isInter ? 'mittelschwere' : 'komplexe'} Texte.`;
+    if (lang === 'zh') return `由于您的水平是 ${userLevel}，我们将专注于${isBeginner ? '简单' : isInter ? '中级' : '复杂'}文本。`;
+    if (lang === 'ja') return `あなたのレベルは ${userLevel} なので、${isBeginner ? '簡単' : isInter ? '中級' : '複雑'}なテキストに焦点を当てます。`;
+
+    const focusEn = isBeginner ? 'simple texts' : isInter ? 'intermediate texts' : 'complex texts';
+    return `Since your level is ${userLevel}, we focus on ${focusEn}.`;
+  };
+
   const t = {
-    title: type === 'listening' ? _resolveTranslation(lang, 'تدريب الاستماع المتقدم', 'Advanced Listening') : _resolveTranslation(lang, 'تدريب القراءة المتقدم', 'Advanced Reading'),
-    desc: _resolveTranslation(lang, `بما أن مستواك ${userLevel}، سنركز على النصوص المعقدة.`, `Since your level is ${userLevel}, we focus on complex texts.`),
+    title: getDynamicTitle(),
+    desc: getDynamicDesc(),
     btn: _resolveTranslation(lang, 'ولّد نصاً جديداً', 'Generate New Text')
   };
   const handleGenerate = async () => {
@@ -2494,4 +2540,175 @@ function Speaking({
         </div>
       </div>
     </div>;
+}
+
+function Langeek({ lang, userLevel }) {
+  const t = {
+    title: _resolveTranslation(lang, 'لانجيك - كلمات من PDF', 'Langeek - PDF Words'),
+    desc: _resolveTranslation(lang, 'سيتم استخراج الكلمات من ملفات PDF وعرضها هنا قريباً.', 'Words will be extracted from PDF files and displayed here soon.'),
+    uploadBtn: _resolveTranslation(lang, 'رفع ملف PDF', 'Upload PDF')
+  };
+
+  return (
+    <div className="space-y-8 animate-fadeIn">
+      <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 md:p-12 text-white shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+        <div className="relative z-10">
+          <h2 className="text-3xl md:text-4xl font-extrabold mb-4 flex items-center gap-3">
+             <Archive className="w-8 h-8" /> {t.title}
+          </h2>
+          <p className="text-indigo-100 text-lg max-w-2xl">{t.desc}</p>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl p-10 text-center flex flex-col items-center justify-center min-h-[300px]">
+        <Archive className="w-16 h-16 text-gray-300 dark:text-gray-700 mb-4" />
+        <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md leading-relaxed text-lg font-medium">
+          {_resolveTranslation(lang, 'هذا القسم قيد الإنشاء. أرسل ملفات PDF لنقوم ببرمجة نظام الاستخراج وإضافة الكلمات هنا.', 'This section is under construction. Send the PDF files to implement the extraction system.')}
+        </p>
+        <button className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-8 py-3.5 rounded-xl font-bold flex items-center gap-2 cursor-not-allowed opacity-70">
+          <UploadCloud className="w-5 h-5" /> {t.uploadBtn}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GlassDatePicker({ value, onChange, min, label }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(value ? new Date(value) : new Date());
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen]);
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+
+  const getDaysGrid = () => {
+    let firstDay = new Date(year, month, 1).getDay(); 
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    let startOffset = firstDay === 0 ? 6 : firstDay - 1;
+    const grid = [];
+
+    for (let i = startOffset - 1; i >= 0; i--) {
+      grid.push({ day: daysInPrevMonth - i, isCurrentMonth: false, isPrevMonth: true });
+    }
+    for (let i = 1; i <= daysInMonth; i++) {
+      grid.push({ day: i, isCurrentMonth: true });
+    }
+    const remainingSlots = 42 - grid.length;
+    for (let i = 1; i <= remainingSlots; i++) {
+      grid.push({ day: i, isCurrentMonth: false, isNextMonth: true });
+    }
+    return grid;
+  };
+
+  const handlePrevMonth = (e) => { e.preventDefault(); setCurrentMonth(new Date(year, month - 1, 1)); };
+  const handleNextMonth = (e) => { e.preventDefault(); setCurrentMonth(new Date(year, month + 1, 1)); };
+
+  const handleDateClick = (item) => {
+    let newDate;
+    if (item.isPrevMonth) newDate = new Date(year, month - 1, item.day);
+    else if (item.isNextMonth) newDate = new Date(year, month + 1, item.day);
+    else newDate = new Date(year, month, item.day);
+
+    const d = new Date(newDate.getTime() - (newDate.getTimezoneOffset() * 60000));
+    onChange(d.toISOString().split('T')[0]);
+    setIsOpen(false);
+  };
+
+  const isDateDisabled = (item) => {
+    if (!min) return false;
+    let newDate;
+    if (item.isPrevMonth) newDate = new Date(year, month - 1, item.day);
+    else if (item.isNextMonth) newDate = new Date(year, month + 1, item.day);
+    else newDate = new Date(year, month, item.day);
+
+    const minDate = new Date(min);
+    newDate.setHours(0,0,0,0);
+    minDate.setHours(0,0,0,0);
+    return newDate < minDate;
+  };
+
+  const grid = getDaysGrid();
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  return (
+    <div className="relative w-full" ref={popoverRef}>
+      <button 
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold text-left flex justify-between items-center focus:outline-none focus:border-blue-500 transition-colors"
+      >
+        <span>{value || label}</span>
+        <Calendar className="w-5 h-5 text-gray-400" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-[100] mt-2 w-[280px] left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 animate-fadeIn pointer-events-auto" dir="ltr">
+
+           <div 
+             className="relative rounded-2xl p-4 bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-gray-900 dark:text-white overflow-hidden"
+           >
+
+             <div className="text-center font-extrabold text-base mb-3 pb-3 border-b border-gray-100/20 dark:border-white/10 tracking-wide">
+               {monthNames[month]} {year}
+             </div>
+
+             <div className="grid grid-cols-7 gap-1 mb-2 text-center text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wider">
+               <div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div><div>Su</div>
+             </div>
+
+             <div className="grid grid-cols-7 gap-1 gap-y-1 mb-3">
+               {grid.map((item, i) => {
+                 const disabled = isDateDisabled(item);
+                 let itemDate;
+                 if (item.isPrevMonth) itemDate = new Date(year, month - 1, item.day);
+                 else if (item.isNextMonth) itemDate = new Date(year, month + 1, item.day);
+                 else itemDate = new Date(year, month, item.day);
+
+                 const d = new Date(itemDate.getTime() - (itemDate.getTimezoneOffset() * 60000));
+                 const itemDateStr = d.toISOString().split('T')[0];
+                 const isSelected = value === itemDateStr;
+
+                 return (
+                   <button
+                     key={i}
+                     onClick={(e) => { e.preventDefault(); !disabled && handleDateClick(item); }}
+                     disabled={disabled}
+                     className={`h-7 w-7 mx-auto flex items-center justify-center rounded-lg text-xs transition-all duration-200 font-bold
+                       ${!item.isCurrentMonth ? 'text-gray-400 dark:text-gray-600' : 'text-gray-800 dark:text-gray-100'}
+                       ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-110 cursor-pointer'}
+                       ${isSelected && !disabled ? 'bg-blue-500 text-white shadow-md scale-110' : ''}
+                     `}
+                   >
+                     {item.day}
+                   </button>
+                 );
+               })}
+             </div>
+
+             <div className="flex justify-center items-center gap-3">
+                <button onClick={handlePrevMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all">
+                   <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                </button>
+                <button onClick={handleNextMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all">
+                   <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                </button>
+             </div>
+           </div>
+        </div>
+      )}
+    </div>
+  );
 }
