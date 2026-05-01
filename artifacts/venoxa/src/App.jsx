@@ -1060,14 +1060,14 @@ function StudyPlan({
               </select>
             </div>
 
-            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center relative z-50">
+            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.startDateLbl}</label>
-              <GlassDatePicker value={startDate} onChange={setStartDate} label="Start Date" />
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
             </div>
 
-            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center relative z-50">
+            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.dateLabel}</label>
-              <GlassDatePicker min={startDate || todayStr} value={targetDate} onChange={setTargetDate} label="Target Date" />
+              <input type="date" min={startDate || todayStr} value={targetDate} onChange={e => setTargetDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
             </div>
           </div>
 
@@ -2969,3 +2969,5 @@ function Langeek({
         </div>}
     </div>;
 }
+
+
