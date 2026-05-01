@@ -125,6 +125,8 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userLevel, setUserLevel] = useState(localStorage.getItem('userLevel') || 'B2');
   const [globalVocab, setGlobalVocab] = useState(DEFAULT_VOCABULARY_LIST);
+  const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
+  useEffect(() => localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(langeekVocab)), [langeekVocab]);
   const [theme, setTheme] = useState('dark');
   const [lang, setLang] = useState('ar');
   useEffect(() => {
@@ -162,7 +164,7 @@ export default function App() {
       case 'reading':
         return <ListeningReading type="reading" {...props} />;
       case 'langeek':
-        return <Langeek {...props} />;
+        return <Langeek {...props} langeekVocab={langeekVocab} setLangeekVocab={setLangeekVocab} />;
       default:
         return <Dashboard setTab={setActiveTab} {...props} />;
     }
@@ -2542,173 +2544,506 @@ function Speaking({
     </div>;
 }
 
-function Langeek({ lang, userLevel }) {
-  const t = {
-    title: _resolveTranslation(lang, 'لانجيك - كلمات من PDF', 'Langeek - PDF Words'),
-    desc: _resolveTranslation(lang, 'سيتم استخراج الكلمات من ملفات PDF وعرضها هنا قريباً.', 'Words will be extracted from PDF files and displayed here soon.'),
-    uploadBtn: _resolveTranslation(lang, 'رفع ملف PDF', 'Upload PDF')
-  };
-
-  return (
-    <div className="space-y-8 animate-fadeIn">
-      <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 md:p-12 text-white shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
-        <div className="relative z-10">
-          <h2 className="text-3xl md:text-4xl font-extrabold mb-4 flex items-center gap-3">
-             <Archive className="w-8 h-8" /> {t.title}
-          </h2>
-          <p className="text-indigo-100 text-lg max-w-2xl">{t.desc}</p>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl p-10 text-center flex flex-col items-center justify-center min-h-[300px]">
-        <Archive className="w-16 h-16 text-gray-300 dark:text-gray-700 mb-4" />
-        <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md leading-relaxed text-lg font-medium">
-          {_resolveTranslation(lang, 'هذا القسم قيد الإنشاء. أرسل ملفات PDF لنقوم ببرمجة نظام الاستخراج وإضافة الكلمات هنا.', 'This section is under construction. Send the PDF files to implement the extraction system.')}
-        </p>
-        <button className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-8 py-3.5 rounded-xl font-bold flex items-center gap-2 cursor-not-allowed opacity-70">
-          <UploadCloud className="w-5 h-5" /> {t.uploadBtn}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function GlassDatePicker({ value, onChange, min, label }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(value ? new Date(value) : new Date());
-  const popoverRef = useRef(null);
-
+function Langeek({
+  AI_KEY,
+  userLevel,
+  lang,
+  langeekVocab,
+  setLangeekVocab
+}) {
+  const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {});
+  const [vocabMode, setVocabMode] = useState('browse');
+  const [listTab, setListTab] = useState('hard');
+  const [tick, setTick] = useState(0);
   useEffect(() => {
-    const handleClick = (e) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
-        setIsOpen(false);
+    const int = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(int);
+  }, []);
+  const [levelFilter, setLevelFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeWordIndex, setActiveWordIndex] = useState(0);
+  const [showMeaning, setShowMeaning] = useState(false);
+  const [aiStory, setAiStory] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [loadingContextStory, setLoadingContextStory] = useState(false);
+  const [contextStory, setContextStory] = useState('');
+  const [cardImage, setCardImage] = useState(null);
+  const [loadingImage, setLoadingImage] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const t = {
+    browse: _resolveTranslation(lang, 'تصفح كلمات لانجيك', 'Browse Langeek Words'),
+    review: _resolveTranslation(lang, 'المراجعة المتباعدة', 'Spaced Review'),
+    lists: _resolveTranslation(lang, 'قوائم الكلمات', 'Word Lists'),
+    hard: _resolveTranslation(lang, 'صعبة', 'Hard'),
+    learning: _resolveTranslation(lang, 'قيد التعلم', 'Learning'),
+    mastered: _resolveTranslation(lang, 'متقنة', 'Mastered'),
+    emptyLists: _resolveTranslation(lang, 'لا توجد كلمات في هذه القائمة حالياً.', 'No words in this list currently.'),
+    rateWordsMsg: _resolveTranslation(lang, 'قيم الكلمات في قسم "تصفح الكلمات" لتظهر هنا.', 'Rate words in Browse mode to see them here.'),
+    contextBtn: _resolveTranslation(lang, 'اربط كل الكلمات الصعبة في قصة واحدة', 'Link Hard Words in a Story'),
+    smartCards: _resolveTranslation(lang, 'البطاقات الذكية المخصصة', 'Custom Smart Cards'),
+    totalWords: _resolveTranslation(lang, 'إجمالي الكلمات المتاحة:', 'Total Available Words:'),
+    uploadCSV: _resolveTranslation(lang, 'رفع ملف (CSV)', 'Upload CSV'),
+    searchWord: _resolveTranslation(lang, 'بحث في لانجيك', 'Search Langeek'),
+    filterLevel: _resolveTranslation(lang, 'تصفية بالمستوى', 'Filter by Level'),
+    filterCategory: _resolveTranslation(lang, 'تصفية بالموضوع', 'Filter by Topic'),
+    manualSelect: _resolveTranslation(lang, 'اختيار يدوي', 'Manual Select'),
+    noWords: _resolveTranslation(lang, 'لا توجد كلمات مطابقة', 'No matching words'),
+    reviewDone: _resolveTranslation(lang, 'أنت رائع! 🎉', 'Awesome! 🎉'),
+    reviewDoneMsg: _resolveTranslation(lang, 'لقد أنهيت جميع المراجعات المستحقة في هذا الوقت.', 'You have completed all due reviews.'),
+    comeBackLater: _resolveTranslation(lang, 'عُد لاحقاً أو تصفح لتعلم المزيد.', 'Come back later or browse to learn more.'),
+    browseLearn: _resolveTranslation(lang, 'تصفح وتعلم كلمات جديدة', 'Browse and Learn New Words'),
+    noMatch: _resolveTranslation(lang, 'لا توجد كلمات مطابقة لبحثك.', 'No words match your search.'),
+    clearFilters: _resolveTranslation(lang, 'مسح الفلاتر', 'Clear Filters'),
+    storyBtn: _resolveTranslation(lang, 'قصة للربط الذهني', 'Story for Memory'),
+    imgBtn: _resolveTranslation(lang, 'صورة توضيحية', 'Illustrative Image'),
+    synonyms: _resolveTranslation(lang, 'مرادفات:', 'Synonyms:'),
+    aiGenerated: _resolveTranslation(lang, 'مولدة بالذكاء الاصطناعي', 'AI Generated'),
+    storyTitle: _resolveTranslation(lang, 'قصة ذكية للحفظ:', 'Smart Memory Story:'),
+    clickToShow: _resolveTranslation(lang, 'انقر على البطاقة لإظهار المعنى والتقييم', 'Click the card to show meaning and rate'),
+    rateAgain: _resolveTranslation(lang, 'أعد', 'Again'),
+    rateHard: _resolveTranslation(lang, 'صعب', 'Hard'),
+    rateGood: _resolveTranslation(lang, 'جيد', 'Good'),
+    rateEasy: _resolveTranslation(lang, 'سهل', 'Easy'),
+    time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
+    time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
+    time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
+    time4d: _resolveTranslation(lang, '4 أيام', '4 days')
+  };
+  const dueCards = useMemo(() => {
+    const now = Date.now();
+    return langeekVocab.filter(card => {
+      const data = srsData[card.word];
+      if (!data) return false;
+      return data.nextReview <= now;
+    });
+  }, [langeekVocab, srsData, tick]);
+  const hardWords = useMemo(() => langeekVocab.filter(w => srsData[w.word]?.rating === 'again' || srsData[w.word]?.rating === 'hard'), [langeekVocab, srsData]);
+  const learningWords = useMemo(() => langeekVocab.filter(w => srsData[w.word]?.rating === 'good'), [langeekVocab, srsData]);
+  const masteredWords = useMemo(() => langeekVocab.filter(w => srsData[w.word]?.rating === 'easy'), [langeekVocab, srsData]);
+  const currentListView = listTab === 'hard' ? hardWords : listTab === 'learning' ? learningWords : masteredWords;
+  const parseCSVLine = line => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+  const handleFileUpload = event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = e.target.result;
+      const lines = text.split('\n');
+      const parsedData = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const rowArr = parseCSVLine(lines[i]);
+        if (rowArr.length >= 4 && rowArr[0]) {
+          parsedData.push({
+            category: rowArr[0]?.replace(/^\"|\"$/g, '') || 'General',
+            level: rowArr[1]?.replace(/^\"|\"$/g, '') || '',
+            word: rowArr[2]?.replace(/^\"|\"$/g, '') || '',
+            type: rowArr[3]?.replace(/^\"|\"$/g, '') || '',
+            meaning: rowArr[4]?.replace(/^\"|\"$/g, '') || '',
+            example: rowArr[5]?.replace(/^\"|\"$/g, '') || '',
+            synonyms: ''
+          });
+        }
+      }
+      if (parsedData.length > 0) {
+        setLangeekVocab(parsedData);
+        setLevelFilter('All');
+        setSearchQuery('');
+        setVocabMode('browse');
+        setUploadMessage(`تم رفع ${parsedData.length} كلمة بنجاح! ✅`);
+        setTimeout(() => setUploadMessage(''), 3000);
+      } else {
+        setUploadMessage('لم يتم العثور على كلمات، تأكد من صيغة الملف ❌');
       }
     };
-    if (isOpen) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [isOpen]);
-
-  const year = currentMonth.getFullYear();
-  const month = currentMonth.getMonth();
-
-  const getDaysGrid = () => {
-    let firstDay = new Date(year, month, 1).getDay(); 
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-    let startOffset = firstDay === 0 ? 6 : firstDay - 1;
-    const grid = [];
-
-    for (let i = startOffset - 1; i >= 0; i--) {
-      grid.push({ day: daysInPrevMonth - i, isCurrentMonth: false, isPrevMonth: true });
-    }
-    for (let i = 1; i <= daysInMonth; i++) {
-      grid.push({ day: i, isCurrentMonth: true });
-    }
-    const remainingSlots = 42 - grid.length;
-    for (let i = 1; i <= remainingSlots; i++) {
-      grid.push({ day: i, isCurrentMonth: false, isNextMonth: true });
-    }
-    return grid;
+    reader.readAsText(file);
   };
-
-  const handlePrevMonth = (e) => { e.preventDefault(); setCurrentMonth(new Date(year, month - 1, 1)); };
-  const handleNextMonth = (e) => { e.preventDefault(); setCurrentMonth(new Date(year, month + 1, 1)); };
-
-  const handleDateClick = (item) => {
-    let newDate;
-    if (item.isPrevMonth) newDate = new Date(year, month - 1, item.day);
-    else if (item.isNextMonth) newDate = new Date(year, month + 1, item.day);
-    else newDate = new Date(year, month, item.day);
-
-    const d = new Date(newDate.getTime() - (newDate.getTimezoneOffset() * 60000));
-    onChange(d.toISOString().split('T')[0]);
-    setIsOpen(false);
+  const filteredVocabList = useMemo(() => {
+    return langeekVocab.filter(item => {
+      const matchesLevel = levelFilter === 'All' || item.level?.toUpperCase().includes(levelFilter.toUpperCase());
+      const matchesCategory = categoryFilter === 'All' || item.category?.toUpperCase() === categoryFilter.toUpperCase();
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = item.word.toLowerCase().includes(searchLower) || item.meaning && item.meaning.toLowerCase().includes(searchLower);
+      return matchesLevel && matchesCategory && matchesSearch;
+    });
+  }, [langeekVocab, levelFilter, categoryFilter, searchQuery]);
+  const safeIndex = activeWordIndex < filteredVocabList.length ? activeWordIndex : 0;
+  const card = vocabMode === 'review' ? dueCards[0] : filteredVocabList[safeIndex];
+  useEffect(() => {
+    if (vocabMode === 'browse' && filteredVocabList.length > 0 && activeWordIndex >= filteredVocabList.length) {
+      setActiveWordIndex(0);
+    }
+  }, [filteredVocabList.length, activeWordIndex, vocabMode]);
+  const handleRate = rating => {
+    if (!card) return;
+    const now = Date.now();
+    let nextReview = now;
+    if (rating === 'again') nextReview = now + 1 * 60 * 1000;else if (rating === 'hard') nextReview = now + 10 * 60 * 1000;else if (rating === 'good') nextReview = now + 24 * 60 * 60 * 1000;else if (rating === 'easy') nextReview = now + 4 * 24 * 60 * 60 * 1000;
+    const newData = {
+      ...srsData,
+      [card.word]: {
+        nextReview,
+        rating,
+        lastReviewed: now
+      }
+    };
+    setSrsData(newData);
+    localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(newData));
+    setShowMeaning(false);
+    setAiStory('');
+    setCardImage(null);
+    if (vocabMode === 'browse') {
+      setActiveWordIndex((safeIndex + 1) % filteredVocabList.length);
+    }
   };
-
-  const isDateDisabled = (item) => {
-    if (!min) return false;
-    let newDate;
-    if (item.isPrevMonth) newDate = new Date(year, month - 1, item.day);
-    else if (item.isNextMonth) newDate = new Date(year, month + 1, item.day);
-    else newDate = new Date(year, month, item.day);
-
-    const minDate = new Date(min);
-    newDate.setHours(0,0,0,0);
-    minDate.setHours(0,0,0,0);
-    return newDate < minDate;
+  const resetWordProgress = wordString => {
+    const newData = {
+      ...srsData
+    };
+    delete newData[wordString];
+    setSrsData(newData);
+    localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(newData));
   };
+  const playAudio = (accentCode, wordToPlay = card?.word) => {
+    if (!wordToPlay || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(wordToPlay);
+    utterance.lang = accentCode;
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+  };
+  const generateStory = async () => {
+    if (loadingAi || aiStory || !card) return;
+    setLoadingAi(true);
+    try {
+      const prompt = `أنت معلم لغة إنجليزية مرح. قم بتأليف قصة قصيرة جداً ومضحكة (سطرين أو ثلاثة فقط) باللغة الإنجليزية تتضمن الكلمة "${card.word}" (والتي تعني: ${card.meaning}) لمساعدة طالب مستواه ${userLevel} على تذكرها بسهولة.
+      بعد القصة الإنجليزية، أضف سطرين باللغة ${_resolveTranslation(lang, 'العربية', 'الإنجليزية')} تشرح فيهما كيف تم استخدام الكلمة في القصة.`;
+      const responseText = await fetchFromGemini(prompt, AI_KEY);
+      const errJson = parseGeminiJSON(responseText);
+      if (errJson && errJson.error) {
+        setAiStory(errJson.error);
+      } else {
+        setAiStory(responseText);
+      }
+    } catch (err) {
+      setAiStory(t.storyError);
+    } finally {
+      setLoadingAi(false);
+    }
+  };
+  const generateImage = async () => {
+    if (loadingImage || cardImage || !card) return;
+    setLoadingImage(true);
+    try {
+      // Step 1: ask the AI for a concrete, single-scene visual description that conveys the word's meaning.
+      const briefPrompt = `In ONE short English sentence (max 18 words), describe a vivid, photorealistic single-scene image that clearly conveys the meaning of the English word "${card.word}" (which means: ${card.meaning || 'see context'}). Rules: describe one concrete visual scene with a clear subject and action, no text or letters in the image, no abstract concepts. Output ONLY the description sentence, nothing else.`;
+      let visual = '';
+      try {
+        const raw = await fetchFromGemini(briefPrompt, AI_KEY);
+        const errJson = parseGeminiJSON(raw);
+        if (!errJson || !errJson.error) {
+          visual = String(raw || '').trim().split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
+          // Strip surrounding quotes if the model wrapped them.
+          visual = visual.replace(/^["'`]+|["'`]+$/g, '').trim();
+        }
+      } catch (_) {/* fall through to default */}
+      if (!visual) {
+        visual = `A photorealistic everyday scene that visually represents the English word "${card.word}" meaning "${card.meaning || ''}".`;
+      }
+      const finalPrompt = `${visual} Photorealistic, natural lighting, clean composition, ultra detailed, no text, no letters, no captions, no watermark.`;
+      const seed = Math.floor(Math.random() * 1_000_000);
+      // Use a free, no-key image service (no quota) so this works without a paid Imagen key.
+      setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=640&height=420&nologo=true&model=flux&seed=${seed}`);
+    } catch (err) {
+      console.error("Image generation error", err);
+      const fallback = `Photorealistic image showing the meaning of the English word ${card.word} (${card.meaning || ''}), no text, no letters.`;
+      setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(fallback)}?width=640&height=420&nologo=true&model=flux`);
+    } finally {
+      setLoadingImage(false);
+    }
+  };
+  const generateContextStory = async () => {
+    if (hardWords.length === 0 || loadingContextStory) return;
+    setLoadingContextStory(true);
+    try {
+      const wordsStr = hardWords.map(w => w.word).join(', ');
+      const prompt = `You are a creative writing teacher. Use ALL of these words: [${wordsStr}] in a single short, coherent, and interesting story in English. The story should be accessible for a ${userLevel} learner. After the story, explain the context of each word in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
+      const response = await fetchFromGemini(prompt, AI_KEY);
+      const errJson = parseGeminiJSON(response);
+      if (errJson && errJson.error) {
+        setContextStory(errJson.error);
+      } else {
+        setContextStory(response);
+      }
+    } catch (e) {
+      setContextStory(t.storyError);
+    } finally {
+      setLoadingContextStory(false);
+    }
+  };
+  return <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
 
-  const grid = getDaysGrid();
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+        <button onClick={() => {
+        setVocabMode('browse');
+        setShowMeaning(false);
+        setCardImage(null);
+        setAiStory('');
+      }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'browse' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
+        <button onClick={() => {
+        setVocabMode('review');
+        setShowMeaning(false);
+        setCardImage(null);
+        setAiStory('');
+      }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${vocabMode === 'review' ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}>
+          <Layers className="w-4 h-4" /> {t.review}
+          {dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-lg">{dueCards.length}</span>}
+        </button>
+        <button onClick={() => {
+        setVocabMode('lists');
+        setShowMeaning(false);
+        setCardImage(null);
+        setAiStory('');
+      }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'lists' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
+      </div>
 
-  return (
-    <div className="relative w-full" ref={popoverRef}>
-      <button 
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold text-left flex justify-between items-center focus:outline-none focus:border-blue-500 transition-colors"
-      >
-        <span>{value || label}</span>
-        <Calendar className="w-5 h-5 text-gray-400" />
-      </button>
+      {vocabMode === 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl animate-fadeIn min-h-[500px] transition-colors">
+          <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto no-scrollbar">
+            <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.hard} ({hardWords.length})</button>
+            <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.learning} ({learningWords.length})</button>
+            <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.mastered} ({masteredWords.length})</button>
+          </div>
 
-      {isOpen && (
-        <div className="absolute z-[100] mt-2 w-[280px] left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 animate-fadeIn pointer-events-auto" dir="ltr">
+          {listTab === 'hard' && hardWords.length > 0 && <div className="mb-6">
+              <button onClick={generateContextStory} disabled={loadingContextStory} className="w-full py-4 bg-orange-50 dark:bg-orange-600/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-all shadow-sm">
+                {loadingContextStory ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> ✨ {t.contextBtn}</>}
+              </button>
+              {contextStory && <div className={`mt-4 p-5 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl border border-gray-200 dark:border-gray-700 ${_resolveTranslation(lang, 'text-right', 'text-left')} prose prose-orange dark:prose-invert max-w-none`}><div style={{
+            whiteSpace: 'pre-wrap'
+          }}>{safeRender(contextStory)}</div></div>}
+            </div>}
 
-           <div 
-             className="relative rounded-2xl p-4 bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-gray-900 dark:text-white overflow-hidden"
-           >
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+            {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateWordsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-500 transition-colors group">
+                     <div className="text-left" dir="ltr">
+                       <p className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                         {safeRender(item.word)}
+                         <button onClick={() => playAudio('en-US', item.word)} className="text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"><Volume2 className="w-4 h-4" /></button>
+                       </p>
+                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{safeRender(item.meaning)}</p>
+                     </div>
+                     <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><RotateCcw className="w-5 h-5" /></button>
+                  </div>)}
+          </div>
+        </div>}
 
-             <div className="text-center font-extrabold text-base mb-3 pb-3 border-b border-gray-100/20 dark:border-white/10 tracking-wide">
-               {monthNames[month]} {year}
+      {vocabMode === 'browse' && <>
+          <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+             <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{t.smartCards}</h2><p className="text-sm text-gray-600 dark:text-gray-400">{t.totalWords} {langeekVocab.length}</p></div>
+             <div className="mt-4 md:mt-0 flex items-center gap-3">
+               {uploadMessage && <span className="text-sm text-green-600 dark:text-green-400 font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
+               <label className="bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-500 dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm">
+                 <UploadCloud className="w-4 h-4" /> {t.uploadCSV}
+                 <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+               </label>
              </div>
-
-             <div className="grid grid-cols-7 gap-1 mb-2 text-center text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wider">
-               <div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div><div>Su</div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+             <div className="flex flex-col gap-2">
+               <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Search className="w-4 h-4 text-blue-500 dark:text-blue-400" /> {t.searchWord}</label>
+               <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
              </div>
+             <div className="flex flex-col gap-2">
+               <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-purple-500 dark:text-purple-400" /> {t.filterLevel}</label>
+               <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer">
+                 <option value="All">All Levels</option><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option><option value="C1">C1</option><option value="C2">C2</option>
+               </select>
+</div>
+<div className="flex flex-col gap-2">
+<label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-purple-500 dark:text-purple-400" /> {t.filterCategory}</label>
+<select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer">
+  <option value="All">All Topics</option>
+  {[...new Set(langeekVocab.map(v => v.category).filter(Boolean))].map(c => <option key={c} value={c}>{c}</option>)}
+</select>
 
-             <div className="grid grid-cols-7 gap-1 gap-y-1 mb-3">
-               {grid.map((item, i) => {
-                 const disabled = isDateDisabled(item);
-                 let itemDate;
-                 if (item.isPrevMonth) itemDate = new Date(year, month - 1, item.day);
-                 else if (item.isNextMonth) itemDate = new Date(year, month + 1, item.day);
-                 else itemDate = new Date(year, month, item.day);
-
-                 const d = new Date(itemDate.getTime() - (itemDate.getTimezoneOffset() * 60000));
-                 const itemDateStr = d.toISOString().split('T')[0];
-                 const isSelected = value === itemDateStr;
-
-                 return (
-                   <button
-                     key={i}
-                     onClick={(e) => { e.preventDefault(); !disabled && handleDateClick(item); }}
-                     disabled={disabled}
-                     className={`h-7 w-7 mx-auto flex items-center justify-center rounded-lg text-xs transition-all duration-200 font-bold
-                       ${!item.isCurrentMonth ? 'text-gray-400 dark:text-gray-600' : 'text-gray-800 dark:text-gray-100'}
-                       ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-110 cursor-pointer'}
-                       ${isSelected && !disabled ? 'bg-blue-500 text-white shadow-md scale-110' : ''}
-                     `}
-                   >
-                     {item.day}
-                   </button>
-                 );
-               })}
              </div>
-
-             <div className="flex justify-center items-center gap-3">
-                <button onClick={handlePrevMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all">
-                   <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-                </button>
-                <button onClick={handleNextMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all">
-                   <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-                </button>
+             <div className="flex flex-col gap-2">
+               <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><List className="w-4 h-4 text-green-500 dark:text-green-400" /> {t.manualSelect} ({filteredVocabList.length})</label>
+               <select value={safeIndex} onChange={e => {
+            setActiveWordIndex(Number(e.target.value));
+            setShowMeaning(false);
+            setAiStory('');
+            setCardImage(null);
+          }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer" dir="ltr">
+                 {filteredVocabList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredVocabList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
+               </select>
              </div>
-           </div>
-        </div>
-      )}
-    </div>
-  );
+          </div>
+        </>}
+
+      {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 shadow-2xl text-center animate-fadeIn transition-colors">
+           <div className="w-24 h-24 bg-green-50 dark:bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-green-500 dark:text-green-400" /></div>
+           <h3 className="text-3xl text-gray-900 dark:text-white font-bold mb-4">{t.reviewDone}</h3>
+           <p className="text-gray-600 dark:text-gray-400 text-lg">{t.reviewDoneMsg}</p>
+           <button onClick={() => setVocabMode('browse')} className="mt-8 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
+        </div>}
+
+      {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
+           <Search className="w-12 h-12 text-gray-400 dark:text-gray-600 mb-4" />
+           <h3 className="text-xl text-gray-600 dark:text-gray-400 font-bold">{t.noMatch}</h3>
+        </div>}
+
+      {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative shadow-2xl hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => !showMeaning && setShowMeaning(true)}>
+          <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-blue-50 dark:from-blue-900/5 to-transparent rounded-[2rem] pointer-events-none transition-colors"></div>
+          <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
+            <button onClick={e => {
+          e.stopPropagation();
+          playAudio('en-US');
+        }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
+            <button onClick={e => {
+          e.stopPropagation();
+          playAudio('en-GB');
+        }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
+          </div>
+          <div className="absolute top-6 right-6 flex flex-col gap-2 items-end">
+            <span className="bg-gray-50 dark:bg-[#1a1a1e] text-blue-600 dark:text-blue-400 border border-blue-200 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.level)}</span>
+            {card.category && card.category !== 'All' && card.category !== 'General' && <span className="bg-purple-50 dark:bg-[#1a1a1e] text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.category)}</span>}
+            {card.type && <span className="bg-emerald-50 dark:bg-[#1a1a1e] text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.type)}</span>}
+          </div>
+
+          {!showMeaning ? <div className="text-center w-full">
+               <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-white mb-6" dir="ltr">{safeRender(card.word)}</h3>
+               <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+            </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center">
+              <h3 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mt-4 leading-normal">{safeRender(card.meaning)}</h3>
+              {card.example && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-800/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+              {card.synonyms && <div className="w-full bg-gray-100 dark:bg-gray-800/30 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 dark:text-gray-400" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-blue-600 dark:text-blue-300">{safeRender(card.synonyms)}</span></div>}
+
+              <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+                {!aiStory && <button onClick={e => {
+            e.stopPropagation();
+            generateStory();
+          }} disabled={loadingAi} className="flex-1 bg-orange-50 text-orange-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
+                {!cardImage && <button onClick={e => {
+            e.stopPropagation();
+            generateImage();
+          }} disabled={loadingImage} className="flex-1 bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+              </div>
+
+              {aiStory && <div className={`bg-gray-50 dark:bg-[#1a1a1e] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{
+            whiteSpace: 'pre-wrap'
+          }}>{safeRender(aiStory)}</div></div>}
+              {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 mb-2 animate-bounce" /><span className="text-sm text-blue-600 font-bold">{t.loading}</span></div>}
+              {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg relative bg-gray-50 dark:bg-[#1a1a1e]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
+            e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found';
+          }} /></div>}
+            </div>}
+        </div>}
+
+      {showMeaning && card && vocabMode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
+          <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-[#2a1717] text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain} <span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+          <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[#2a1f15] text-orange-600 border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard} <span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+          <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[#152a1d] text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood} <span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+          <button onClick={() => handleRate('easy')} className="bg-blue-50 dark:bg-[#15202a] text-blue-600 border border-blue-200 py-3 rounded-2xl font-bold hover:bg-blue-100 flex flex-col items-center">{t.rateEasy} <span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+        </div>}
+    </div>;
+}
+function Grammar({
+  AI_KEY,
+  userLevel,
+  lang
+}) {
+  const [openLevel, setOpenLevel] = useState(0);
+  const [activeTopic, setActiveTopic] = useState(null);
+  const [explanation, setExplanation] = useState("");
+  const [loading, setLoading] = useState(false);
+  const t = {
+    title: _resolveTranslation(lang, 'القواعد الشاملة', 'Comprehensive Grammar'),
+    subtitle: _resolveTranslation(lang, '(مع معلم الذكاء الاصطناعي)', '(AI Teacher)'),
+    desc: _resolveTranslation(lang, 'مرتبة منهجياً من مستوى A1 إلى C1. اضغط على أي قاعدة ليقوم الذكاء الاصطناعي بشرحها لك.', 'Structured from A1 to C1. Click any rule for an AI-generated explanation.'),
+    explainBtn: _resolveTranslation(lang, 'اشرح لي بالذكاء الاصطناعي', 'Explain with AI'),
+    loading: _resolveTranslation(lang, 'جاري توليد الشرح والأمثلة...', 'Generating explanation and examples...'),
+    error: _resolveTranslation(lang, 'عذراً، حدث خطأ.', 'Error generating response.')
+  };
+  const handleExplain = async (topic, levelStr) => {
+    if (activeTopic === topic) return;
+    setActiveTopic(topic);
+    setExplanation("");
+    setLoading(true);
+    try {
+      const prompt = `You are an expert English grammar teacher. Explain the grammar rule: "${topic}" for a ${levelStr} level student.
+      The explanation MUST be in ${_resolveTranslation(lang, 'Arabic', 'English')}. Keep it clear, simple, and provide 3 distinct examples in English with their translation in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
+      const responseText = await fetchFromGemini(prompt, AI_KEY);
+      const errJson = parseGeminiJSON(responseText);
+      if (errJson && errJson.error) {
+        setExplanation(errJson.error);
+      } else {
+        setExplanation(responseText);
+      }
+    } catch (err) {
+      setExplanation(t.error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  return <div className="max-w-4xl mx-auto animate-fadeIn">
+      <div className="mb-10 text-center">
+         <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-3">{t.title}</h2>
+         <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
+      </div>
+      <div className="space-y-4">
+        {GRAMMAR_LEVELS.map((level, idx) => <div key={idx} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm">
+            <button onClick={() => {
+          setOpenLevel(openLevel === idx ? -1 : idx);
+          setActiveTopic(null);
+        }} className={`w-full px-8 py-6 flex justify-between items-center text-xl font-bold transition-colors ${openLevel === idx ? 'bg-gray-50 dark:bg-[#1a1a1e] text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1a1a1e] hover:text-blue-600 dark:hover:text-blue-400'}`} dir="ltr">
+              <div className="flex items-center gap-4"><div className={`w-3 h-3 rounded-full ${openLevel === idx ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-600'}`}></div>{level.level}</div>
+              <ChevronRight className={`w-6 h-6 transition-transform ${openLevel === idx ? 'rotate-90 text-blue-500' : 'text-gray-400'}`} />
+            </button>
+            <div className={`transition-all duration-500 overflow-hidden ${openLevel === idx ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="p-8 bg-white dark:bg-[#121214] border-t border-gray-200 dark:border-gray-800 space-y-4">
+                {level.topics.map((topic, tidx) => {
+              const isActive = activeTopic === topic;
+              return <div key={tidx} className={`rounded-xl border overflow-hidden transition-colors ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-500/40' : 'bg-gray-50 dark:bg-[#1a1a1e] border-gray-200 dark:border-gray-800/50 hover:bg-blue-50/60 dark:hover:bg-blue-900/10 hover:border-blue-200 dark:hover:border-blue-500/30'}`}>
+                      <div className="flex flex-col md:flex-row md:items-center justify-between p-4 gap-4">
+                        <div className="flex items-center gap-3 text-lg" dir="ltr">
+                          <span className={`font-semibold transition-colors ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-gray-200'}`}>{topic}</span>
+                        </div>
+                        <button onClick={() => handleExplain(topic, level.level)} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors ${isActive ? 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800' : 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-600 hover:text-white hover:border-blue-600 active:bg-blue-700 active:text-white'}`}>
+                          <Sparkles className="w-4 h-4" /> {t.explainBtn}
+                        </button>
+                      </div>
+                      {isActive && <div className="bg-white dark:bg-[#0e0e11] border-t border-blue-200 dark:border-blue-500/30 p-6 text-gray-800 dark:text-gray-100">
+                          {loading ? <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400"><Activity className="w-5 h-5 animate-spin" /> {t.loading}</div> : <div style={{
+                    whiteSpace: 'pre-wrap'
+                  }}>{safeRender(explanation)}</div>}
+                        </div>}
+                    </div>;
+            })}
+              </div>
+            </div>
+          </div>)}
+      </div>
+    </div>;
 }
