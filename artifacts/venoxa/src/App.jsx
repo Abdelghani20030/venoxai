@@ -1,6 +1,159 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, ChevronDown, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
+
+function LanguageDropdown({ lang, setLang, theme }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
+    if (isOpen) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen]);
+  const langs = [
+    { code: 'en', label: 'English' }, { code: 'ar', label: 'عربي' },
+    { code: 'es', label: 'Español' }, { code: 'fr', label: 'Français' },
+    { code: 'de', label: 'Deutsch' }, { code: 'zh', label: '中文' }, { code: 'ja', label: '日本語' }
+  ];
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setIsOpen(!isOpen)} className="bg-transparent font-bold outline-none cursor-pointer flex items-center gap-1 w-full justify-between">
+        {langs.find(l => l.code === lang)?.label || 'Language'}
+        <ChevronDown className="w-4 h-4" />
+      </button>
+      {isOpen && (
+        <div className={`absolute bottom-full left-0 mb-2 w-36 rounded-2xl shadow-xl overflow-hidden z-[100] ${theme === 'dark' ? 'bg-[#1a1a1e] border border-gray-700' : 'bg-white border border-gray-200'}`}>
+          {langs.map(l => (
+            <button
+              key={l.code}
+              onClick={() => { setLang(l.code); setIsOpen(false); }}
+              className={`w-full text-center px-4 py-2.5 font-bold transition-colors ${lang === l.code ? 'bg-blue-600 text-white' : theme === 'dark' ? 'text-gray-200 hover:bg-gray-800' : 'text-gray-800 hover:bg-gray-100'}`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SolidDatePicker({ value, onChange, min, label }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(value ? new Date(value) : new Date());
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen]);
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  
+  const getDaysGrid = () => {
+    let firstDay = new Date(year, month, 1).getDay(); 
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    let startOffset = firstDay === 0 ? 6 : firstDay - 1;
+    const grid = [];
+    for (let i = startOffset - 1; i >= 0; i--) grid.push({ day: daysInPrevMonth - i, isCurrentMonth: false, isPrevMonth: true });
+    for (let i = 1; i <= daysInMonth; i++) grid.push({ day: i, isCurrentMonth: true });
+    const remainingSlots = 42 - grid.length;
+    for (let i = 1; i <= remainingSlots; i++) grid.push({ day: i, isCurrentMonth: false, isNextMonth: true });
+    return grid;
+  };
+
+  const handlePrevMonth = (e) => { e.preventDefault(); setCurrentMonth(new Date(year, month - 1, 1)); };
+  const handleNextMonth = (e) => { e.preventDefault(); setCurrentMonth(new Date(year, month + 1, 1)); };
+
+  const handleDateClick = (item) => {
+    let newDate;
+    if (item.isPrevMonth) newDate = new Date(year, month - 1, item.day);
+    else if (item.isNextMonth) newDate = new Date(year, month + 1, item.day);
+    else newDate = new Date(year, month, item.day);
+    const d = new Date(newDate.getTime() - (newDate.getTimezoneOffset() * 60000));
+    onChange(d.toISOString().split('T')[0]);
+    setIsOpen(false);
+  };
+
+  const isDateDisabled = (item) => {
+    if (!min) return false;
+    let newDate;
+    if (item.isPrevMonth) newDate = new Date(year, month - 1, item.day);
+    else if (item.isNextMonth) newDate = new Date(year, month + 1, item.day);
+    else newDate = new Date(year, month, item.day);
+    const minDate = new Date(min);
+    newDate.setHours(0,0,0,0);
+    minDate.setHours(0,0,0,0);
+    return newDate < minDate;
+  };
+
+  const grid = getDaysGrid();
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  
+  return (
+    <div className="relative w-full" ref={popoverRef}>
+      <button 
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold text-left flex justify-between items-center focus:outline-none focus:border-blue-500 transition-colors"
+      >
+        <span>{value || label}</span>
+        <Calendar className="w-5 h-5 text-gray-400" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-[100] mt-2 w-[280px] left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 animate-fadeIn pointer-events-auto" dir="ltr">
+           <div className="relative rounded-2xl p-4 bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-gray-900 dark:text-white overflow-hidden">
+             <div className="text-center font-extrabold text-base mb-3 pb-3 border-b border-gray-100/20 dark:border-white/10 tracking-wide">
+               {monthNames[month]} {year}
+             </div>
+             <div className="grid grid-cols-7 gap-1 mb-2 text-center text-[11px] font-bold text-gray-500 dark:text-gray-400 tracking-wider">
+               <div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div><div>Su</div>
+             </div>
+             <div className="grid grid-cols-7 gap-1 gap-y-1 mb-3">
+               {grid.map((item, i) => {
+                 const disabled = isDateDisabled(item);
+                 let itemDate;
+                 if (item.isPrevMonth) itemDate = new Date(year, month - 1, item.day);
+                 else if (item.isNextMonth) itemDate = new Date(year, month + 1, item.day);
+                 else itemDate = new Date(year, month, item.day);
+                 const d = new Date(itemDate.getTime() - (itemDate.getTimezoneOffset() * 60000));
+                 const itemDateStr = d.toISOString().split('T')[0];
+                 const isSelected = value === itemDateStr;
+
+                 return (
+                   <button
+                     key={i}
+                     onClick={(e) => { e.preventDefault(); !disabled && handleDateClick(item); }}
+                     disabled={disabled}
+                     className={`h-7 w-7 mx-auto flex items-center justify-center rounded-lg text-xs transition-all duration-200 font-bold ${!item.isCurrentMonth ? 'text-gray-400 dark:text-gray-600' : 'text-gray-800 dark:text-gray-100'} ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-110 cursor-pointer'} ${isSelected && !disabled ? 'bg-blue-500 text-white shadow-md scale-110' : ''}`}
+                   >
+                     {item.day}
+                   </button>
+                 );
+               })}
+             </div>
+             <div className="flex justify-center items-center gap-3">
+                <button onClick={handlePrevMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all">
+                   <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                </button>
+                <button onClick={handleNextMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all">
+                   <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                </button>
+             </div>
+           </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // --- API CONFIGURATION ---
 const GEMINI_API_KEY = "proxied"; // Real key lives in backend; this just enables AI features in the UI.
@@ -233,19 +386,7 @@ export default function App() {
           </button>
           <div className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm transition-colors ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
             <Globe className="w-4 h-4" />
-            <select
-               value={lang}
-               onChange={(e) => setLang(e.target.value)}
-               className="bg-transparent font-bold outline-none cursor-pointer"
-            >
-               <option value="en" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>English</option>
-               <option value="ar" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>عربي</option>
-               <option value="es" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Español</option>
-               <option value="fr" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Français</option>
-               <option value="de" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Deutsch</option>
-               <option value="zh" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>中文</option>
-               <option value="ja" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>日本語</option>
-            </select>
+            <LanguageDropdown lang={lang} setLang={setLang} theme={theme} />
           </div>
         </div>
       </div>
@@ -279,22 +420,7 @@ export default function App() {
               <li className="pt-4 border-t border-gray-200 dark:border-gray-800">
                 <div className="w-full flex items-center px-6 py-4 rounded-xl text-lg font-bold text-gray-600 dark:text-gray-400">
                   <Globe className={`w-6 h-6 ${_resolveTranslation(lang, 'ml-4', 'mr-4')}`} />
-                  <select
-                     value={lang}
-                     onChange={(e) => {
-                       setLang(e.target.value);
-                       setIsMobileMenuOpen(false);
-                     }}
-                     className="bg-transparent font-bold outline-none cursor-pointer w-full ml-2"
-                  >
-                     <option value="en" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>English</option>
-                     <option value="ar" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>عربي (Arabic)</option>
-                     <option value="es" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Español (Spanish)</option>
-                     <option value="fr" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Français (French)</option>
-                     <option value="de" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Deutsch (German)</option>
-                     <option value="zh" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>中文 (Chinese)</option>
-                     <option value="ja" className={theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>日本語 (Japanese)</option>
-                  </select>
+                  <LanguageDropdown lang={lang} setLang={(l) => { setLang(l); setIsMobileMenuOpen(false); }} theme={theme} />
                 </div>
               </li>
             </ul>
@@ -1060,14 +1186,14 @@ function StudyPlan({
               </select>
             </div>
 
-            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
+            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center relative z-50">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.startDateLbl}</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
+              <SolidDatePicker value={startDate} onChange={setStartDate} label="Start Date" />
             </div>
 
-            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
+            <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center relative z-50">
               <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.dateLabel}</label>
-              <input type="date" min={startDate || todayStr} value={targetDate} onChange={e => setTargetDate(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500" dir="ltr" />
+              <SolidDatePicker min={startDate || todayStr} value={targetDate} onChange={setTargetDate} label="Target Date" />
             </div>
           </div>
 
@@ -1833,8 +1959,8 @@ function Vocabulary({
           {!showMeaning ? <div className="text-center w-full">
                <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-white mb-6" dir="ltr">{safeRender(card.word)}</h3>
                <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
-            </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center">
-              <h3 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mt-4 leading-normal">{safeRender(card.meaning)}</h3>
+            </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
+              <h3 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
               {card.example && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-800/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
               {card.synonyms && <div className="w-full bg-gray-100 dark:bg-gray-800/30 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 dark:text-gray-400" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-blue-600 dark:text-blue-300">{safeRender(card.synonyms)}</span></div>}
 
@@ -1956,19 +2082,19 @@ function ListeningReading({
   const getDynamicTitle = () => {
     const isBeginner = userLevel === 'A1' || userLevel === 'A2';
     const isInter = userLevel === 'B1' || userLevel === 'B2';
-
+    
     if (lang === 'ar') {
        const skill = type === 'listening' ? 'الاستماع' : 'القراءة';
        const adj = isBeginner ? 'الأساسي' : isInter ? 'المتوسط' : 'المتقدم';
        return `تدريب ${skill} ${adj}`;
     }
-
+    
     if (lang === 'es') return `${type === 'listening' ? 'Escucha' : 'Lectura'} ${isBeginner ? 'Básica' : isInter ? 'Intermedia' : 'Avanzada'}`;
     if (lang === 'fr') return `${type === 'listening' ? 'Écoute' : 'Lecture'} ${isBeginner ? 'Basique' : isInter ? 'Intermédiaire' : 'Avancée'}`;
     if (lang === 'de') return `${isBeginner ? 'Grundlegendes' : isInter ? 'Mittleres' : 'Erweitertes'} ${type === 'listening' ? 'Hören' : 'Lesen'}`;
     if (lang === 'zh') return `${isBeginner ? '基础' : isInter ? '中级' : '高级'}${type === 'listening' ? '听力' : '阅读'}`;
     if (lang === 'ja') return `${isBeginner ? '基礎' : isInter ? '中級' : '上級'}${type === 'listening' ? 'リスニング' : 'リーディング'}`;
-
+    
     const skillEn = type === 'listening' ? 'Listening' : 'Reading';
     const adjEn = isBeginner ? 'Basic' : isInter ? 'Intermediate' : 'Advanced';
     return `${adjEn} ${skillEn}`;
@@ -1977,18 +2103,18 @@ function ListeningReading({
   const getDynamicDesc = () => {
     const isBeginner = userLevel === 'A1' || userLevel === 'A2';
     const isInter = userLevel === 'B1' || userLevel === 'B2';
-
+    
     if (lang === 'ar') {
        const focus = isBeginner ? 'النصوص البسيطة والأساسية' : isInter ? 'النصوص المتوسطة' : 'النصوص المعقدة';
        return `بما أن مستواك ${userLevel}، سنركز على ${focus}.`;
     }
-
+    
     if (lang === 'es') return `Dado que tu nivel es ${userLevel}, nos enfocaremos en textos ${isBeginner ? 'sencillos' : isInter ? 'intermedios' : 'complejos'}.`;
     if (lang === 'fr') return `Étant donné que votre niveau est ${userLevel}, nous nous concentrons sur des textes ${isBeginner ? 'simples' : isInter ? 'intermédiaires' : 'complexes'}.`;
     if (lang === 'de') return `Da dein Level ${userLevel} ist, konzentrieren wir uns auf ${isBeginner ? 'einfache' : isInter ? 'mittelschwere' : 'komplexe'} Texte.`;
     if (lang === 'zh') return `由于您的水平是 ${userLevel}，我们将专注于${isBeginner ? '简单' : isInter ? '中级' : '复杂'}文本。`;
     if (lang === 'ja') return `あなたのレベルは ${userLevel} なので、${isBeginner ? '簡単' : isInter ? '中級' : '複雑'}なテキストに焦点を当てます。`;
-
+    
     const focusEn = isBeginner ? 'simple texts' : isInter ? 'intermediate texts' : 'complex texts';
     return `Since your level is ${userLevel}, we focus on ${focusEn}.`;
   };
@@ -2935,8 +3061,8 @@ function Langeek({
           {!showMeaning ? <div className="text-center w-full">
                <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-white mb-6" dir="ltr">{safeRender(card.word)}</h3>
                <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
-            </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center">
-              <h3 className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mt-4 leading-normal">{safeRender(card.meaning)}</h3>
+            </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
+              <h3 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
               {card.example && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-800/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
               {card.synonyms && <div className="w-full bg-gray-100 dark:bg-gray-800/30 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 dark:text-gray-400" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-blue-600 dark:text-blue-300">{safeRender(card.synonyms)}</span></div>}
 
@@ -2969,5 +3095,4 @@ function Langeek({
         </div>}
     </div>;
 }
-
 
