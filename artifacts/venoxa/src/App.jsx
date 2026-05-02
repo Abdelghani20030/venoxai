@@ -55,7 +55,7 @@ function SolidDatePicker({ value, onChange, min, label }) {
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
-  
+
   const getDaysGrid = () => {
     let firstDay = new Date(year, month, 1).getDay(); 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -96,7 +96,7 @@ function SolidDatePicker({ value, onChange, min, label }) {
 
   const grid = getDaysGrid();
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  
+
   return (
     <div className="relative w-full" ref={popoverRef}>
       <button 
@@ -758,6 +758,7 @@ function StudyPlan({
     }
   });
   const [wordsMode, setWordsMode] = useState(stored?.wordsMode || 'auto'); // 'auto' | 'manual'
+  const [totalInvestMinutes, setTotalInvestMinutes] = useState('');
   const [wordsManual, setWordsManual] = useState(stored?.wordsManual || 10);
   const [planMeta, setPlanMeta] = useState(stored?.planMeta || null); // serialisable plan
   const [currentWeek, setCurrentWeek] = useState(stored?.currentWeek || 1);
@@ -809,6 +810,9 @@ function StudyPlan({
     alertTime: _resolveTranslation(lang, 'يرجى تحديد وقت المذاكرة لكل مهارة!', 'Please set a study time for at least one skill!'),
     alertDate: _resolveTranslation(lang, 'يرجى تحديد تاريخ الهدف بشكل صحيح!', 'Please select a valid target date!'),
     spacedRep: _resolveTranslation(lang, 'مراجعة متباعدة', 'Spaced Review'),
+    totalInvestTitle: _resolveTranslation(lang, 'إجمالي وقت المذاكرة اليومي', 'Total Daily Study Time'),
+    totalInvestPlaceholder: _resolveTranslation(lang, 'مثلاً: 60 دقيقة', 'e.g. 60 min'),
+    divideBtn: _resolveTranslation(lang, 'تقسيم الوقت تلقائياً', 'Auto-Divide Time'),
     categories: {
       listen: _resolveTranslation(lang, 'استماع', 'Listening'),
       read: _resolveTranslation(lang, 'قراءة', 'Reading'),
@@ -1042,6 +1046,26 @@ function StudyPlan({
       }
     }));
   };
+  const handleAutoDivide = () => {
+    const total = parseInt(totalInvestMinutes, 10);
+    if (isNaN(total) || total <= 0) {
+      alert(_resolveTranslation(lang, 'يرجى إدخال وقت صحيح!', 'Please enter a valid time!'));
+      return;
+    }
+    // Simple logic to divide time based on a reasonable ratio
+    // Listening: 30%, Reading: 25%, Speaking: 25%, Writing: 20%
+    const listen = Math.round(total * 0.30);
+    const read = Math.round(total * 0.25);
+    const speak = Math.round(total * 0.25);
+    const write = total - listen - read - speak;
+
+    setSkillSettings({
+      listen: { useDefault: false, mins: listen },
+      read: { useDefault: false, mins: read },
+      speak: { useDefault: false, mins: speak },
+      write: { useDefault: false, mins: write }
+    });
+  };
   const handleNextWeek = () => {
     if (currentWeek < planData.totalWeeks) setCurrentWeek(prev => prev + 1);
   };
@@ -1203,6 +1227,26 @@ function StudyPlan({
               <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
                 <Clock className="w-5 h-5 text-blue-500" /> {t.skillsTitle}
               </h3>
+              <div className="flex items-center gap-2 bg-white dark:bg-[#0e0e11] p-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">{t.totalInvestTitle}</span>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" 
+                      placeholder={t.totalInvestPlaceholder} 
+                      value={totalInvestMinutes} 
+                      onChange={e => setTotalInvestMinutes(e.target.value)} 
+                      className="w-20 bg-transparent text-sm font-bold focus:outline-none"
+                    />
+                    <button 
+                      onClick={handleAutoDivide} 
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2 py-1 rounded-md transition-all whitespace-nowrap"
+                    >
+                      {t.divideBtn}
+                    </button>
+                  </div>
+                </div>
+              </div>
               <span className="text-xs text-gray-500 dark:text-gray-400">{t.skillsHint}</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
@@ -1942,7 +1986,7 @@ function Vocabulary({
            <h3 className="text-xl text-gray-600 dark:text-gray-400 font-bold">{t.noMatch}</h3>
         </div>}
 
-      {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative shadow-2xl hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => !showMeaning && setShowMeaning(true)}>
+      {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative shadow-2xl hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
           <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-blue-50 dark:from-blue-900/5 to-transparent rounded-[2rem] pointer-events-none transition-colors"></div>
           <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
             <button onClick={e => {
@@ -2082,19 +2126,19 @@ function ListeningReading({
   const getDynamicTitle = () => {
     const isBeginner = userLevel === 'A1' || userLevel === 'A2';
     const isInter = userLevel === 'B1' || userLevel === 'B2';
-    
+
     if (lang === 'ar') {
        const skill = type === 'listening' ? 'الاستماع' : 'القراءة';
        const adj = isBeginner ? 'الأساسي' : isInter ? 'المتوسط' : 'المتقدم';
        return `تدريب ${skill} ${adj}`;
     }
-    
+
     if (lang === 'es') return `${type === 'listening' ? 'Escucha' : 'Lectura'} ${isBeginner ? 'Básica' : isInter ? 'Intermedia' : 'Avanzada'}`;
     if (lang === 'fr') return `${type === 'listening' ? 'Écoute' : 'Lecture'} ${isBeginner ? 'Basique' : isInter ? 'Intermédiaire' : 'Avancée'}`;
     if (lang === 'de') return `${isBeginner ? 'Grundlegendes' : isInter ? 'Mittleres' : 'Erweitertes'} ${type === 'listening' ? 'Hören' : 'Lesen'}`;
     if (lang === 'zh') return `${isBeginner ? '基础' : isInter ? '中级' : '高级'}${type === 'listening' ? '听力' : '阅读'}`;
     if (lang === 'ja') return `${isBeginner ? '基礎' : isInter ? '中級' : '上級'}${type === 'listening' ? 'リスニング' : 'リーディング'}`;
-    
+
     const skillEn = type === 'listening' ? 'Listening' : 'Reading';
     const adjEn = isBeginner ? 'Basic' : isInter ? 'Intermediate' : 'Advanced';
     return `${adjEn} ${skillEn}`;
@@ -2103,18 +2147,18 @@ function ListeningReading({
   const getDynamicDesc = () => {
     const isBeginner = userLevel === 'A1' || userLevel === 'A2';
     const isInter = userLevel === 'B1' || userLevel === 'B2';
-    
+
     if (lang === 'ar') {
        const focus = isBeginner ? 'النصوص البسيطة والأساسية' : isInter ? 'النصوص المتوسطة' : 'النصوص المعقدة';
        return `بما أن مستواك ${userLevel}، سنركز على ${focus}.`;
     }
-    
+
     if (lang === 'es') return `Dado que tu nivel es ${userLevel}, nos enfocaremos en textos ${isBeginner ? 'sencillos' : isInter ? 'intermedios' : 'complejos'}.`;
     if (lang === 'fr') return `Étant donné que votre niveau est ${userLevel}, nous nous concentrons sur des textes ${isBeginner ? 'simples' : isInter ? 'intermédiaires' : 'complexes'}.`;
     if (lang === 'de') return `Da dein Level ${userLevel} ist, konzentrieren wir uns auf ${isBeginner ? 'einfache' : isInter ? 'mittelschwere' : 'komplexe'} Texte.`;
     if (lang === 'zh') return `由于您的水平是 ${userLevel}，我们将专注于${isBeginner ? '简单' : isInter ? '中级' : '复杂'}文本。`;
     if (lang === 'ja') return `あなたのレベルは ${userLevel} なので、${isBeginner ? '簡単' : isInter ? '中級' : '複雑'}なテキストに焦点を当てます。`;
-    
+
     const focusEn = isBeginner ? 'simple texts' : isInter ? 'intermediate texts' : 'complex texts';
     return `Since your level is ${userLevel}, we focus on ${focusEn}.`;
   };
@@ -2332,6 +2376,7 @@ function Speaking({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatLevel, setChatLevel] = useState(userLevel);
+  const [formality, setFormality] = useState('informal');
   const [topic, setTopic] = useState(SPEAKING_TOPICS[0]);
   const [isCallMode, setIsCallMode] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -2373,6 +2418,7 @@ function Speaking({
       Conversation history: ${history}
 
       Analyze the user's message and provide a conversational reply to keep the chat going.
+      The conversation should be ${formality === 'formal' ? 'Formal and professional (e.g. business meeting, interview)' : 'Informal and casual (e.g. talking to a friend, at a cafe)'}.
       You MUST respond in valid JSON format ONLY. Do not use markdown wrappers. Format exactly like this:
       {
         "reply": "Your natural conversational reply in English.",
@@ -2428,7 +2474,7 @@ function Speaking({
     setLoading(true);
     setMessages([]);
     try {
-      const prompt = `You are a native English conversation partner. Start a friendly conversation with a student at ${chatLevel} level about the topic: "${topic}". Ask an engaging opening question to start the chat. Return ONLY the text of your greeting, no JSON, no markdown.`;
+      const prompt = `You are a native English conversation partner. Start a ${formality === 'formal' ? 'formal and professional' : 'friendly and casual'} conversation with a student at ${chatLevel} level about the topic: "${topic}". Ask an engaging opening question to start the chat. Return ONLY the text of your greeting, no JSON, no markdown.`;
       const response = await fetchFromGemini(prompt, AI_KEY);
       const errJson = parseGeminiJSON(response);
       if (errJson && errJson.error) {
@@ -2587,6 +2633,21 @@ function Speaking({
           <button onClick={toggleCallMode} className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
             <Phone className="w-4 h-4" /> <span className="hidden sm:inline">{t.callMode}</span>
           </button>
+
+          <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm overflow-hidden">
+            <button 
+              onClick={() => setFormality('informal')} 
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${formality === 'informal' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-500 hover:text-emerald-500'}`}
+            >
+              {_resolveTranslation(lang, 'غير رسمي', 'Informal')}
+            </button>
+            <button 
+              onClick={() => setFormality('formal')} 
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${formality === 'formal' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-500 hover:text-blue-500'}`}
+            >
+              {_resolveTranslation(lang, 'رسمي', 'Formal')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -3040,7 +3101,7 @@ function Langeek({
            <h3 className="text-xl text-gray-600 dark:text-gray-400 font-bold">{t.noMatch}</h3>
         </div>}
 
-      {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative shadow-2xl hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => !showMeaning && setShowMeaning(true)}>
+      {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative shadow-2xl hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
           <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-blue-50 dark:from-blue-900/5 to-transparent rounded-[2rem] pointer-events-none transition-colors"></div>
           <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
             <button onClick={e => {
