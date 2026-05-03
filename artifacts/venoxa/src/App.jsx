@@ -3662,11 +3662,10 @@ function Speaking({
           {lastAiCallMsg ? (
             callVisibleWords.length > 0 ? (
               <p className={`text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
-                {callVisibleWords.map((word, i) => (
-                  <span key={`${lastAiCallMsg.id}-w${i}`} className="word-appear">
-                    {word}{i < callVisibleWords.length - 1 ? ' ' : ''}
-                  </span>
-                ))}
+                {callVisibleWords.flatMap((word, i) => [
+                  <span key={`${lastAiCallMsg.id}-w${i}`} className="word-appear">{word}</span>,
+                  i < callVisibleWords.length - 1 ? ' ' : null
+                ])}
               </p>
             ) : (
               <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
