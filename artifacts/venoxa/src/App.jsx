@@ -3572,31 +3572,17 @@ function Speaking({
           }`}
         />
 
-        {/* AI transcript — Gemini-style fade from bottom */}
-        <div className="w-full max-w-md text-center">
+        {/* AI transcript — rises from bottom, anchored low */}
+        <div className="w-full max-w-md flex flex-col justify-end items-center min-h-[56px]">
           {lastAiCallMsg ? (
-            <div className="max-h-[88px] overflow-hidden">
-              <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light ${isDark ? 'text-gray-500' : 'text-gray-500'}`} dir="ltr">
-                {safeRender(lastAiCallMsg.text)}
-                {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-gray-600' : 'bg-gray-400'}`} />}
-              </p>
-            </div>
+            <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
+              {safeRender(lastAiCallMsg.text)}
+              {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-white/60' : 'bg-black/40'}`} />}
+            </p>
           ) : (
-            <p className={`text-[13px] font-light ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>{t.tapMic}</p>
+            <p className={`text-[13px] font-light ${isDark ? 'text-white/20' : 'text-black/25'}`}>{t.tapMic}</p>
           )}
         </div>
-
-        {/* Correction panel — last user message's review */}
-        {(() => {
-          const lastReview = [...messages].reverse().find(m => m.role === 'user' && m.review)?.review;
-          if (!lastReview) return null;
-          return (
-            <div key="call-review" className={`w-full max-w-sm mx-auto rounded-2xl px-4 py-3 space-y-1.5 transition-colors ${isDark ? 'bg-white/[0.03] border border-white/[0.06]' : 'bg-black/[0.03] border border-black/[0.05]'}`}>
-              {lastReview.grammar && <p className={`text-[11px] leading-snug ${isDark ? 'text-gray-600' : 'text-gray-500'}`}><span className={`font-semibold ${isDark ? 'text-red-400/70' : 'text-red-500/80'}`}>Grammar · </span>{safeRender(lastReview.grammar)}</p>}
-              {lastReview.native_way && <p className={`text-[11px] leading-snug italic ${isDark ? 'text-emerald-500/60' : 'text-emerald-600/70'}`}><span className="not-italic font-semibold">Native · </span>"{safeRender(lastReview.native_way)}"</p>}
-            </div>
-          );
-        })()}
       </div>
 
       {/* ── Bottom: Sesame-style pill control bar ── */}
