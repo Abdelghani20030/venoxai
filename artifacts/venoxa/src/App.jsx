@@ -2501,7 +2501,6 @@ function Speaking({
   };
 
   const loadSession = (session) => {
-    saveCurrentSession(messages);
     currentSessionIdRef.current = session.id;
     setMessages(session.messages);
     setShowHistory(false);
@@ -2533,11 +2532,6 @@ function Speaking({
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, expandedReviewId]);
-
-  // Auto-save to session history whenever messages change
-  useEffect(() => {
-    if (messages.length > 1) saveCurrentSession(messages);
-  }, [messages]);
 
   const speakText = async text => {
     await elevenLabsSpeak(text, activeVoiceId);
@@ -2687,7 +2681,7 @@ Return compact JSON only:
             <button
               key={session.id}
               onClick={() => loadSession(session)}
-              className={`w-full text-left p-3 rounded-xl border transition-all hover:border-emerald-500/40 hover:bg-emerald-50 dark:hover:bg-emerald-500/5 group ${session.id === currentSessionIdRef.current ? 'border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/5' : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1a1a1e]'}`}
+            className={`w-full text-left p-3 rounded-xl border transition-all hover:border-emerald-500/40 hover:bg-emerald-50 dark:hover:bg-emerald-500/5 group ${session.id === currentSessionIdRef.current ? 'border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/5' : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1a1a1e]'}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -2748,7 +2742,7 @@ Return compact JSON only:
   }
 
   return <>
-    {showHistory && <HistorySidebar />}
+    {showHistory ? <HistorySidebar /> : null}
     <div className="max-w-5xl mx-auto h-[85vh] flex flex-col animate-fadeIn border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#09090b] transition-colors">
       <div className="bg-gray-50 dark:bg-[#121214] p-4 border-b border-gray-200 dark:border-gray-800 flex flex-col lg:flex-row justify-between items-center gap-3 relative z-10 transition-colors">
         <div className="flex items-center gap-3 w-full lg:w-auto">
