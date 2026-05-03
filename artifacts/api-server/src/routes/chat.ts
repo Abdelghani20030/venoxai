@@ -61,7 +61,6 @@ function buildProviders(): Provider[] {
           model,
           messages: [{ role: "user", content: prompt }],
           max_completion_tokens: 220,
-          temperature: 0.3,
         });
         return c.choices?.[0]?.message?.content ?? "";
       },
