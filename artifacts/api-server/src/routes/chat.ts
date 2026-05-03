@@ -13,10 +13,9 @@ type Provider = {
 function buildProviders(): Provider[] {
   const providers: Provider[] = [];
 
-  // 1) Google Gemini — free tier, generous quota, matches the original Venoxa design.
   const googleKey = process.env["GOOGLE_API_KEY"];
   if (googleKey && googleKey.startsWith("AIza")) {
-    const model = "gemini-2.5-flash";
+    const model = "gemini-2.5-flash-lite";
     providers.push({
       label: "google-gemini",
       model,
@@ -27,6 +26,12 @@ function buildProviders(): Provider[] {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.3,
+              topP: 0.8,
+              topK: 40,
+              maxOutputTokens: 220,
+            },
           }),
         });
         if (!resp.ok) {
@@ -43,7 +48,6 @@ function buildProviders(): Provider[] {
     });
   }
 
-  // 2) Replit-managed AI integration — billed to Replit credits.
   const replitBase = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
   const replitKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
   if (replitBase && replitKey) {
@@ -56,14 +60,14 @@ function buildProviders(): Provider[] {
         const c = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 8192,
+          max_completion_tokens: 220,
+          temperature: 0.3,
         });
         return c.choices?.[0]?.message?.content ?? "";
       },
     });
   }
 
-  // 3) OpenRouter — only if a real OpenRouter key is provided.
   const orKey = process.env["OPENROUTER_API_KEY"];
   if (orKey && orKey.startsWith("sk-or-")) {
     const client = new OpenAI({
@@ -82,14 +86,14 @@ function buildProviders(): Provider[] {
         const c = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 8192,
+          max_completion_tokens: 220,
+          temperature: 0.3,
         });
         return c.choices?.[0]?.message?.content ?? "";
       },
     });
   }
 
-  // 4) Plain OpenAI fallback.
   const oaKey = process.env["OPENAI_API_KEY"];
   if (oaKey && oaKey.startsWith("sk-")) {
     const client = new OpenAI({ apiKey: oaKey });
@@ -101,7 +105,8 @@ function buildProviders(): Provider[] {
         const c = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 8192,
+          max_completion_tokens: 220,
+          temperature: 0.3,
         });
         return c.choices?.[0]?.message?.content ?? "";
       },
@@ -124,26 +129,19 @@ async function runPrompt(prompt: string, log: Logger): Promise<string> {
   for (const p of providers) {
     try {
       const text = await p.call(prompt);
-      if (text && text.trim().length > 0) {
-        return text;
-      }
-      // Empty response -> treat as failure and try the next provider.
+      if (text && text.trim().length > 0) return text;
       lastErr = new Error(`Empty response from ${p.label}`);
       log.warn({ provider: p.label, model: p.model }, "Provider returned empty text, trying next");
     } catch (err) {
       lastErr = err;
-      log.warn(
-        { err, provider: p.label, model: p.model },
-        "Provider failed, falling back to next",
-      );
+      log.warn({ err, provider: p.label, model: p.model }, "Provider failed, falling back to next");
     }
   }
   throw lastErr ?? new Error("All AI providers failed.");
 }
 
 router.post("/chat", async (req, res) => {
-  const prompt =
-    typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
 
   if (!prompt) {
     res.status(400).json({ error: "Missing 'prompt' string in request body." });
@@ -155,9 +153,7 @@ router.post("/chat", async (req, res) => {
     res.json({ text });
   } catch (err) {
     req.log.error({ err }, "All AI providers failed for chat request");
-    res
-      .status(502)
-      .json({ error: "AI provider request failed. Please try again." });
+    res.status(502).json({ error: "AI provider request failed. Please try again." });
   }
 });
 
