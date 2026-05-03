@@ -2466,6 +2466,20 @@ function Writing({
     }
     setLoading(false);
   };
+  const startNewWriting = () => {
+    if (text.trim() || feedback) {
+      setWritingHistory(prev => [{
+        id: Date.now(),
+        input: text,
+        output: feedback?.corrected_text || '',
+        explanation: feedback?.explanation || '',
+        score: feedback?.score || '',
+        createdAt: new Date().toISOString()
+      }, ...prev].slice(0, 25));
+    }
+    setText('');
+    setFeedback(null);
+  };
   return <div className="max-w-4xl mx-auto animate-fadeIn">
     <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-10 text-center flex items-center justify-center gap-3"><PenTool className="text-purple-500 dark:text-purple-400" /> {t.title}</h2>
     <div className="flex justify-end mb-4">
@@ -2481,9 +2495,14 @@ function Writing({
       </div>)}
     </div>}
     <textarea value={text} onChange={e => setText(e.target.value)} placeholder={t.placeholder} className="w-full h-64 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-8 text-gray-900 dark:text-white text-lg focus:outline-none focus:border-purple-500 transition-all mb-6 shadow-xl" dir="ltr"></textarea>
-    <button onClick={handleCorrect} disabled={loading || !text.trim()} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-extrabold py-5 rounded-2xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50">
-      {loading ? <Activity className="animate-spin w-6 h-6 mx-auto" /> : t.btn}
-    </button>
+    <div className="flex gap-3">
+      <button onClick={startNewWriting} className="flex-1 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white font-extrabold py-5 rounded-2xl shadow-lg hover:shadow-xl transition-all">
+        New Writing
+      </button>
+      <button onClick={handleCorrect} disabled={loading || !text.trim()} className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-extrabold py-5 rounded-2xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50">
+        {loading ? <Activity className="animate-spin w-6 h-6 mx-auto" /> : t.btn}
+      </button>
+    </div>
 
     {feedback && !feedback.error && <div className="mt-10 space-y-6 animate-fadeIn">
       <div className="bg-green-50 dark:bg-[#121214] p-8 rounded-3xl border border-green-200 dark:border-green-500/20 shadow-sm">
@@ -2643,6 +2662,14 @@ function Speaking({
       setLoading(false);
     }
   };
+  useEffect(() => {
+    if (!topic) return;
+    if (messages.length > 1) {
+      const opener = `Let's talk about ${topic}. What interests you most about it?`;
+      setMessages([{ id: Date.now(), role: 'ai', text: opener }]);
+      if (autoRead) speakText(opener);
+    }
+  }, [topic]);
   const handleVoiceRecord = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
