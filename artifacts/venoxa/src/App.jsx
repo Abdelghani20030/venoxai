@@ -1483,7 +1483,8 @@ function StudyPlan({
                 placeholder={t.totalInvestPlaceholder}
                 value={totalInvestMinutes}
                 onChange={e => setTotalInvestMinutes(e.target.value)}
-                className="w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none focus:border-blue-500 shadow-sm min-w-0"
+                className="no-spinner w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none focus:border-blue-500 shadow-sm min-w-0"
+                style={{textAlign:'center'}}
               />
               <button
                 onClick={handleAutoDivide}
