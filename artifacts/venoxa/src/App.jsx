@@ -305,6 +305,13 @@ let _elevenLabsQuotaExceeded = false;
 // Tracks which TTS engine produced the last successful utterance.
 // 'elevenlabs' | 'edge' | 'browser' | null
 let _lastTTSEngine = null;
+// Global accent preference — 'uk' or 'us'. Updated by the accent toggle.
+let _voiceAccent = 'uk';
+
+const EDGE_VOICES = {
+  uk: { male: 'en-GB-RyanNeural',    female: 'en-GB-SoniaNeural' },
+  us: { male: 'en-US-AndrewNeural',  female: 'en-US-JennyNeural' },
+};
 
 /**
  * edgeTTSSpeak(text, gender)
@@ -312,11 +319,14 @@ let _lastTTSEngine = null;
  * Returns true on success, false on failure (so caller can fall back).
  */
 const edgeTTSSpeak = async (text, gender) => {
+  const accent = _voiceAccent === 'us' ? 'us' : 'uk';
+  const genderKey = gender === 'female' ? 'female' : 'male';
+  const voice = EDGE_VOICES[accent][genderKey];
   try {
     const res = await fetch('/api/edge-tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, gender: gender === 'female' ? 'female' : 'male' }),
+      body: JSON.stringify({ text, voice }),
     });
     if (!res.ok) return false;
     const blob = await res.blob();
@@ -400,7 +410,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
 
   const apiKey = await getElevenLabsKey();
 
-  if (apiKey) {
+  if (apiKey && !_elevenLabsQuotaExceeded) {
     const isArabic = hasArabicText(text);
     const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
 
@@ -3276,6 +3286,7 @@ function Speaking({
   const [callReview, setCallReview] = useState(null);
   const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
   const [ttsEngine, setTtsEngine] = useState('elevenlabs'); // 'elevenlabs' | 'edge' | 'browser'
+  const [voiceAccent, setVoiceAccent] = useState('uk'); // 'uk' | 'us'
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const saveConversationToHistory = (conversation) => {
@@ -3305,6 +3316,9 @@ function Speaking({
   }, [messages, expandedReviewId]);
   // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
   // Male: Adam (pNInz6obpgDQGcFmaJgB) — American | Female: Rachel (21m00Tcm4TlvDq8ikWAM) — American
+  // Keep module-level accent var in sync with React state
+  useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
+
   const speakText = async text => {
     const voiceId = voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID;
     await elevenLabsSpeak(text, voiceId);
@@ -3500,13 +3514,27 @@ function Speaking({
         )}
       </div>
 
-      {/* ── Top-right: level · topic + gender ── */}
-      <div className="absolute top-5 right-7 z-10 flex flex-col items-end gap-1">
+      {/* ── Top-right: level · topic + gender + accent ── */}
+      <div className="absolute top-5 right-7 z-10 flex flex-col items-end gap-1.5">
         <span className={`text-[11px] font-medium ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{chatLevel} · {topic.split('(')[0].trim()}</span>
-        <div className="flex items-center gap-1.5">
-          <button onClick={() => setVoiceGender('female')} className={`text-[11px] font-medium leading-none transition-colors ${voiceGender === 'female' ? isDark ? 'text-gray-300' : 'text-gray-600' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}>♀</button>
-          <span className={`text-[9px] ${isDark ? 'text-gray-800' : 'text-gray-300'}`}>/</span>
-          <button onClick={() => setVoiceGender('male')} className={`text-[11px] font-medium leading-none transition-colors ${voiceGender === 'male' ? isDark ? 'text-gray-300' : 'text-gray-600' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}>♂</button>
+        <div className="flex items-center gap-2">
+          {/* Gender toggle */}
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setVoiceGender('female')} className={`text-[11px] font-medium leading-none transition-colors ${voiceGender === 'female' ? isDark ? 'text-gray-300' : 'text-gray-600' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}>♀</button>
+            <span className={`text-[9px] ${isDark ? 'text-gray-800' : 'text-gray-300'}`}>/</span>
+            <button onClick={() => setVoiceGender('male')} className={`text-[11px] font-medium leading-none transition-colors ${voiceGender === 'male' ? isDark ? 'text-gray-300' : 'text-gray-600' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}>♂</button>
+          </div>
+          {/* Accent toggle */}
+          <div className={`flex items-center rounded-full px-0.5 py-0.5 gap-0.5 ${isDark ? 'bg-[#1c1c20]' : 'bg-gray-100'}`}>
+            <button
+              onClick={() => setVoiceAccent('uk')}
+              className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full transition-all duration-200 ${voiceAccent === 'uk' ? isDark ? 'bg-[#2e2e36] text-gray-200' : 'bg-white text-gray-700 shadow-sm' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}
+            >UK</button>
+            <button
+              onClick={() => setVoiceAccent('us')}
+              className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full transition-all duration-200 ${voiceAccent === 'us' ? isDark ? 'bg-[#2e2e36] text-gray-200' : 'bg-white text-gray-700 shadow-sm' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}
+            >US</button>
+          </div>
         </div>
       </div>
 
