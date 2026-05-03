@@ -423,8 +423,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
 
   if (apiKey && !_elevenLabsQuotaExceeded) {
     const isArabic = hasArabicText(text);
-    // eleven_flash_v2_5 = ElevenLabs' speed-optimised model (~75 ms latency, 3× faster than turbo)
-    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_flash_v2_5';
+    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
 
     let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
     if (isArabic) {
