@@ -274,21 +274,21 @@ const safeRender = val => {
 // backend server). This is required because ElevenLabs free-tier blocks
 // requests from server/cloud IPs (Replit production), but allows them from
 // real user browser IPs.
-const DEFAULT_ELEVENLABS_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam — American male accent
+const DEFAULT_ELEVENLABS_VOICE_ID = 'nPczCjzI2devNBz1zQrb'; // Brian — British male accent
 // English voices (not trained on Arabic — swapped out automatically for Arabic text)
-const ELEVENLABS_SARAH_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel — American female accent
-const ELEVENLABS_BRIAN_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam  — American male accent
+const ELEVENLABS_SARAH_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah — British female accent
+const ELEVENLABS_BRIAN_ID = 'nPczCjzI2devNBz1zQrb'; // Brian — British male accent
 // True multilingual voices — handle Arabic correctly with eleven_multilingual_v2
 const ARABIC_FEMALE_VOICE_ID = 'XB0fDUnXU5powFXDhCwa'; // Charlotte — multilingual female
 const ARABIC_MALE_VOICE_ID   = 'JBFqnCBsd6RMkjVDRZzb'; // George — multilingual male
 const ELEVENLABS_VOICE_OPTIONS = [
-  { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam (American ♂)' },
-  { id: '21m00Tcm4TlvDq8ikWAM', label: 'Rachel (American ♀)' },
-  { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah' },
+  { id: 'nPczCjzI2devNBz1zQrb', label: 'Brian (British ♂)' },
+  { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah (British ♀)' },
+  { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
+  { id: '21m00Tcm4TlvDq8ikWAM', label: 'Rachel' },
   { id: 'TX3LPaxmHKxFdv7VOQHJ', label: 'Liam' },
   { id: 'XB0fDUnXU5powFXDhCwa', label: 'Charlotte' },
   { id: 'Xb7hH8MSUJpSbSDYk0k2', label: 'Alice' },
-  { id: 'nPczCjzI2devNBz1zQrb', label: 'Brian' },
   { id: 'onwK4e9ZLuTAKqWW03F9', label: 'Daniel' },
   { id: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum' },
 ];
@@ -454,23 +454,23 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
       utterance.lang = 'ar-SA';
     } else {
       utterance.lang = 'en-US';
-      // Prefer American English voices — fall back to any English voice
+      // Prefer British English voices — fall back to any English voice
       const voices = window.speechSynthesis.getVoices();
       const preferred = [
-        'Google US English',
-        'Microsoft Aria Online (Natural)',   // American female (Edge/Chrome)
-        'Microsoft Guy Online (Natural)',    // American male   (Edge/Chrome)
-        'Microsoft David - English (United States)',
-        'Microsoft Zira - English (United States)',
-        'Samantha',                          // American female (macOS/iOS)
-        'Alex',                              // American male   (macOS)
-        'Google UK English Female',          // British fallback
+        'Google UK English Female',
         'Google UK English Male',
+        'Microsoft Hazel - English (Great Britain)',  // British female (Edge/Chrome)
+        'Microsoft George - English (Great Britain)', // British male   (Edge/Chrome)
+        'Daniel',                                     // British male   (macOS/iOS)
+        'Kate',                                       // British female (macOS)
+        'Microsoft Aria Online (Natural)',             // American fallback
+        'Microsoft Guy Online (Natural)',
+        'Google US English',
       ];
       const pick = preferred.reduce((found, name) =>
         found || voices.find(v => v.name === name), null)
-        || voices.find(v => v.lang === 'en-US' && v.localService === false)
-        || voices.find(v => v.lang === 'en-US')
+        || voices.find(v => v.lang === 'en-GB' && v.localService === false)
+        || voices.find(v => v.lang === 'en-GB')
         || voices.find(v => v.lang.startsWith('en'));
       if (pick) utterance.voice = pick;
     }
