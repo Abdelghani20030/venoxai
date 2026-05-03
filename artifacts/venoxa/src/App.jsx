@@ -3302,6 +3302,9 @@ function Speaking({
   const [showHistory, setShowHistory] = useState(false);
   const [voiceGender, setVoiceGender] = useState('male');
   const [callReview, setCallReview] = useState(null);
+  const [callVisibleWords, setCallVisibleWords] = useState([]);
+  const callAudioRef = useRef(null);
+  const callSyncAnimRef = useRef(null);
   const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
   const [ttsEngine, setTtsEngine] = useState('elevenlabs'); // 'elevenlabs' | 'edge' | 'browser'
   const [voiceAccent, setVoiceAccent] = useState('uk'); // 'uk' | 'us'
@@ -3345,6 +3348,82 @@ function Speaking({
     setTtsEngine(engine);
     setUsingBrowserTTS(engine !== 'elevenlabs');
   };
+
+  // Word-synced TTS for call mode — reveals transcript word-by-word as audio plays
+  const speakCallTimed = async (text) => {
+    // Cancel any in-progress call audio
+    if (callAudioRef.current) {
+      callAudioRef.current.pause();
+      callAudioRef.current = null;
+    }
+    if (callSyncAnimRef.current) {
+      cancelAnimationFrame(callSyncAnimRef.current);
+      callSyncAnimRef.current = null;
+    }
+    setCallVisibleWords([]);
+
+    try {
+      const accent = _voiceAccent === 'us' ? 'us' : 'uk';
+      const genderKey = voiceGender === 'female' ? 'female' : 'male';
+      const voice = EDGE_VOICES[accent][genderKey];
+
+      const res = await fetch('/api/edge-tts-timed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice }),
+      });
+
+      if (!res.ok) throw new Error('timed TTS failed');
+
+      const { audio: base64, words } = await res.json();
+
+      // If no word boundaries returned, show full text and play regular edge TTS
+      if (!words?.length) {
+        setCallVisibleWords(text.split(/\s+/));
+        await edgeTTSSpeak(text, voiceGender);
+        return;
+      }
+
+      // Decode base64 → blob → object URL
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      callAudioRef.current = audio;
+      setTtsEngine('edge');
+      setUsingBrowserTTS(true);
+
+      // rAF loop — reveals words as audio.currentTime advances
+      const tick = () => {
+        if (!callAudioRef.current || callAudioRef.current !== audio) return;
+        const nowMs = audio.currentTime * 1000;
+        const count = words.filter(w => w.offsetMs <= nowMs).length;
+        if (count > 0) {
+          setCallVisibleWords(words.slice(0, count).map(w => w.word));
+        }
+        if (!audio.ended && !audio.paused) {
+          callSyncAnimRef.current = requestAnimationFrame(tick);
+        }
+      };
+
+      audio.onplay = () => { callSyncAnimRef.current = requestAnimationFrame(tick); };
+      audio.onended = () => {
+        setCallVisibleWords(words.map(w => w.word));
+        URL.revokeObjectURL(url);
+        callAudioRef.current = null;
+      };
+      audio.onerror = () => { URL.revokeObjectURL(url); callAudioRef.current = null; };
+
+      await audio.play();
+    } catch {
+      // Fallback: show full text, play regular edge TTS
+      setCallVisibleWords(text.split(/\s+/));
+      edgeTTSSpeak(text, voiceGender);
+    }
+  };
+
   const handleSend = async (forcedText = null) => {
     const userMsg = forcedText || input;
     if (!userMsg.trim()) return;
@@ -3387,7 +3466,8 @@ function Speaking({
           review
         } : msg);
       });
-      if ((isCallMode || autoRead) && replyText) speakText(replyText);
+      if (isCallMode && replyText) speakCallTimed(replyText);
+      else if (autoRead && replyText) speakText(replyText);
     } catch (err) {
       setMessages(prev => prev.map(msg =>
         msg.id === aiMsgId
@@ -3466,14 +3546,19 @@ function Speaking({
       // Ending call — collect corrections from conversation
       const corrections = messages.filter(m => m.role === 'user' && m.review);
       setCallReview(corrections.length > 0 ? corrections : null);
+      // Cancel word-synced audio if active
+      if (callAudioRef.current) { callAudioRef.current.pause(); callAudioRef.current = null; }
+      if (callSyncAnimRef.current) { cancelAnimationFrame(callSyncAnimRef.current); callSyncAnimRef.current = null; }
+      setCallVisibleWords([]);
       cancelTTS();
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsRecording(false);
       setIsCallMode(false);
     } else {
       setCallReview(null);
+      setCallVisibleWords([]);
       setIsCallMode(true);
-      speakText("Call started. What would you like to talk about?");
+      speakCallTimed("Call started. What would you like to talk about?");
     }
   };
   const generateScenario = async () => {
@@ -3572,13 +3657,23 @@ function Speaking({
           }`}
         />
 
-        {/* AI transcript — rises from bottom, anchored low */}
-        <div className="w-full max-w-md flex flex-col justify-end items-center min-h-[56px]">
+        {/* AI transcript — word-by-word synced with audio */}
+        <div className="w-full max-w-md flex flex-col justify-end items-center min-h-[56px] px-4">
           {lastAiCallMsg ? (
-            <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
-              {safeRender(lastAiCallMsg.text)}
-              {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-white/60' : 'bg-black/40'}`} />}
-            </p>
+            callVisibleWords.length > 0 ? (
+              <p className={`text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
+                {callVisibleWords.map((word, i) => (
+                  <span key={`${lastAiCallMsg.id}-w${i}`} className="word-appear">
+                    {word}{i < callVisibleWords.length - 1 ? ' ' : ''}
+                  </span>
+                ))}
+              </p>
+            ) : (
+              <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
+                {safeRender(lastAiCallMsg.text)}
+                {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-white/60' : 'bg-black/40'}`} />}
+              </p>
+            )
           ) : (
             <p className={`text-[13px] font-light ${isDark ? 'text-white/20' : 'text-black/25'}`}>{t.tapMic}</p>
           )}

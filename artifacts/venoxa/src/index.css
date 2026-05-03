@@ -30,11 +30,21 @@
 
 /* ── Call transcript: smooth rise from bottom ── */
 @keyframes fadeUpIn {
-  from { opacity: 0; transform: translateY(20px); filter: blur(2px); }
-  to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .transcript-fade {
   animation: fadeUpIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Word-by-word sync: each word fades in as it's spoken ── */
+@keyframes wordAppear {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.word-appear {
+  display: inline-block;
+  animation: wordAppear 0.18s ease-out both;
 }
 
 @font-face {
