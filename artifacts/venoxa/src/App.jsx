@@ -2546,6 +2546,21 @@ function Speaking({
   const [showHistory, setShowHistory] = useState(false);
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
+  const saveConversationToHistory = (conversation) => {
+    const lastAiMessage = [...conversation].reverse().find(msg => msg.role === 'ai' && msg.text && msg.text !== t.welcome);
+    const lastUserMessage = [...conversation].reverse().find(msg => msg.role === 'user');
+    if (!lastAiMessage && !lastUserMessage) return;
+    setSpeakingHistory(prev => [{
+      id: Date.now(),
+      mode: isCallMode ? 'call' : 'chat',
+      topic,
+      level: chatLevel,
+      messages: conversation,
+      summary: lastUserMessage?.text || lastAiMessage?.text || '',
+      reply: lastAiMessage?.text || '',
+      createdAt: new Date().toISOString()
+    }, ...prev].slice(0, 25));
+  };
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({
       behavior: "smooth"
@@ -2593,14 +2608,6 @@ function Speaking({
           review
         } : msg);
       });
-      setSpeakingHistory(prev => [{
-        id: Date.now(),
-        mode: isCallMode ? 'call' : 'chat',
-        topic,
-        level: chatLevel,
-        messages: [...messages, { id: newMsgId, role: 'user', text: userMsg }, { id: aiMsgId, role: 'ai', text: replyText, review }],
-        createdAt: new Date().toISOString()
-      }, ...prev].slice(0, 25));
       if ((isCallMode || autoRead) && replyText) speakText(replyText);
     } catch (err) {
       setMessages(prev => prev.map(msg =>
@@ -2614,6 +2621,8 @@ function Speaking({
   };
   const startNewConversation = async () => {
     setLoading(true);
+    const currentConversation = [...messages];
+    saveConversationToHistory(currentConversation);
     const aiMsgId = Date.now();
     setMessages([{ id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     try {
