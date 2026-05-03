@@ -579,9 +579,9 @@ export default function App() {
     badge: langeekDueCount
   }];
   return <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#09090b] text-gray-100' : 'bg-gray-50 text-gray-900'} font-sans selection:bg-blue-500/30 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
-    <div className={`hidden md:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-200'} border-l shadow-2xl z-10 transition-colors duration-300 print:hidden`}>
-      <div className={`flex items-center justify-center h-24 border-b ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-200'}`}>
-        <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 tracking-tight">
+    <div className={`hidden lg:flex w-56 xl:w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-200'} border-l shadow-2xl z-10 transition-colors duration-300 print:hidden`}>
+      <div className={`flex items-center justify-center h-16 xl:h-24 border-b ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-200'}`}>
+        <h1 className="text-2xl xl:text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 tracking-tight">
           Venoxa<span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>.ai</span>
         </h1>
       </div>
@@ -590,7 +590,7 @@ export default function App() {
           {navItems.map(item => {
             const isActive = activeTab === item.id;
             return <li key={item.id}>
-              <button onClick={() => setActiveTab(item.id)} className={`w-full flex items-center px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : `text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200 border border-transparent`}`}>
+              <button onClick={() => setActiveTab(item.id)} className={`w-full flex items-center px-3 xl:px-4 py-2.5 xl:py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : `text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200 border border-transparent`}`}>
                 <item.icon className={`w-5 h-5 ${_resolveTranslation(lang, 'ml-3', 'mr-3')} ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'} shrink-0`} />
                 <span className="flex-1 text-start">{item.label}</span>
                 {item.badge > 0 && <span className="min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center px-1 shrink-0">{item.badge > 99 ? '99+' : item.badge}</span>}
@@ -611,7 +611,7 @@ export default function App() {
       </div>
     </div>
 
-    <div className={`md:hidden fixed top-0 left-0 right-0 h-16 ${theme === 'dark' ? 'bg-[#121214]/90 border-gray-800' : 'bg-white/90 border-gray-200'} backdrop-blur-md border-b z-50 flex items-center justify-between px-4 transition-colors print:hidden`}>
+    <div className={`lg:hidden fixed top-0 left-0 right-0 h-14 sm:h-16 ${theme === 'dark' ? 'bg-[#121214]/90 border-gray-800' : 'bg-white/90 border-gray-200'} backdrop-blur-md border-b z-50 flex items-center justify-between px-4 transition-colors print:hidden`}>
       <h1 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
         Venoxa<span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>.ai</span>
       </h1>
@@ -625,7 +625,7 @@ export default function App() {
       </div>
     </div>
 
-    {isMobileMenuOpen && <div className={`md:hidden fixed inset-0 top-16 ${theme === 'dark' ? 'bg-[#09090b] border-gray-800' : 'bg-gray-50 border-gray-200'} z-40 overflow-y-auto border-t print:hidden`}>
+    {isMobileMenuOpen && <div className={`lg:hidden fixed inset-0 top-14 sm:top-16 ${theme === 'dark' ? 'bg-[#09090b] border-gray-800' : 'bg-gray-50 border-gray-200'} z-40 overflow-y-auto border-t print:hidden`}>
       <nav className="py-4 px-4">
         <ul className="space-y-2">
           {navItems.map(item => <li key={item.id}>
@@ -647,8 +647,8 @@ export default function App() {
       </nav>
     </div>}
 
-    <div className={`flex-1 overflow-y-auto md:p-10 p-4 mt-16 md:mt-0 ${theme === 'dark' ? 'bg-[#09090b]' : 'bg-gray-50'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
-      <div className="max-w-6xl mx-auto print:max-w-none print:mx-0">
+    <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-10 mt-14 sm:mt-16 lg:mt-0 ${theme === 'dark' ? 'bg-[#09090b]' : 'bg-gray-50'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
+      <div className="max-w-6xl mx-auto w-full print:max-w-none print:mx-0">
         {renderContent()}
       </div>
     </div>
@@ -738,18 +738,18 @@ function Dashboard({
       desc: _resolveTranslation(lang, "حافظ على طلاقتك وتدرب على محادثات ومواقف مع AI.", "Maintain your fluency and practice conversations and scenarios with AI.")
     }]
   };
-  return <div className="space-y-10 animate-fadeIn">
-    <div className="relative overflow-hidden bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-8 md:p-12 shadow-2xl transition-colors duration-300">
+  return <div className="space-y-5 lg:space-y-10 animate-fadeIn">
+    <div className="relative overflow-hidden bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-5 sm:p-8 lg:p-12 shadow-2xl transition-colors duration-300">
       <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-600/10 via-purple-600/5 to-transparent pointer-events-none"></div>
       <div className="absolute -top-24 -left-24 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="flex-1 text-center md:text-start">
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-4 text-gray-900 dark:text-white leading-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold mb-3 lg:mb-4 text-gray-900 dark:text-white leading-tight">
             {t.welcome} <br /><span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">{t.currentLvl} {userLevel}</span>
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 text-lg mb-8 max-w-xl mx-auto md:mx-0 leading-relaxed">
+          <p className="text-gray-600 dark:text-gray-400 text-base lg:text-lg mb-5 lg:mb-8 max-w-xl mx-auto md:mx-0 leading-relaxed">
             {t.desc}
           </p>
           <div className="flex flex-wrap justify-center md:justify-start gap-4">
@@ -785,8 +785,8 @@ function Dashboard({
     </div>
 
     <div>
-      <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2"><Activity className="w-6 h-6 text-purple-500 dark:text-purple-400" /> {t.learningPaths}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6 flex items-center gap-2"><Activity className="w-6 h-6 text-purple-500 dark:text-purple-400" /> {t.learningPaths}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {t.paths.map(path => <DashboardCard key={path.id} {...path} onClick={() => setTab(path.id)} />)}
       </div>
     </div>
@@ -1431,13 +1431,13 @@ function StudyPlan({
   const weeklyTotalMins = dailyTotalMins * 7;
   const todayStr = new Date().toISOString().split('T')[0];
   return <div className="space-y-8 animate-fadeIn print:m-0 print:p-0">
-    {!planData && <div className="bg-white dark:bg-[#121214] p-8 md:p-12 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-2xl relative overflow-hidden transition-colors">
+    {!planData && <div className="bg-white dark:bg-[#121214] p-5 sm:p-8 lg:p-12 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-2xl relative overflow-hidden transition-colors">
       <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      <h2 className="text-3xl font-extrabold mb-8 text-gray-900 dark:text-white flex items-center gap-3 relative z-10">
+      <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-5 lg:mb-8 text-gray-900 dark:text-white flex items-center gap-3 relative z-10">
         <Sparkles className="text-blue-600 dark:text-blue-400 w-8 h-8" /> {t.title}
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 relative z-50">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5 lg:mb-8 relative z-50">
         <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
           <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.currentLvl}</label>
           <select value={userLevel} onChange={e => setUserLevel(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
@@ -1471,7 +1471,7 @@ function StudyPlan({
           </h3>
           <span className="text-xs text-gray-500 dark:text-gray-400">{t.skillsHint}</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
           {/* Smart Auto-Divide Tool */}
           <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full shadow-sm relative overflow-hidden group">
             <div className="mb-2">
@@ -2130,7 +2130,7 @@ function Vocabulary({
       setLoadingContextStory(false);
     }
   };
-  return <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
+  return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => {
@@ -2630,12 +2630,12 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
       ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
+    <div className="max-w-4xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
       {/* ── Header ── */}
       <div className="bg-white dark:bg-[#121214] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl transition-colors">
         <div className="text-center md:text-start flex-1">
-          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">{t.title}</h2>
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white mb-2">{t.title}</h2>
           <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
         </div>
         {type === 'reading' && (
@@ -2918,8 +2918,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Golden Rules + Sources ── */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-        <div className="md:col-span-3 bg-white dark:bg-[#121214] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'القواعد الذهبية', 'Golden Rules')}</h3>
+        <div className="md:col-span-3 bg-white dark:bg-[#121214] p-4 sm:p-6 lg:p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-5 lg:mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'القواعد الذهبية', 'Golden Rules')}</h3>
           <ul className="space-y-6">
             {contentSteps.map((step, idx) => (
               <li key={idx} className="flex items-start gap-4">
@@ -2930,8 +2930,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
           </ul>
         </div>
 
-        <div className="md:col-span-2 bg-white dark:bg-[#121214] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'المصادر', 'Sources')}</h3>
+        <div className="md:col-span-2 bg-white dark:bg-[#121214] p-4 sm:p-6 lg:p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-5 lg:mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'المصادر', 'Sources')}</h3>
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {currentLinks.map((link, idx) => (
               <div key={idx} className="bg-gray-50 dark:bg-[#1a1a1e] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 transition-colors shadow-sm">
@@ -3791,7 +3791,7 @@ function Langeek({
       setLoadingContextStory(false);
     }
   };
-  return <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
+  return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => {
         setVocabMode('browse');
