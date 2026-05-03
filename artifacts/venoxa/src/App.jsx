@@ -1917,7 +1917,7 @@ function Vocabulary({
         setAiStory(responseText);
       }
     } catch (err) {
-      setAiStory(t.storyError);
+      setAiStory(_resolveTranslation(lang, 'فشل إنشاء القصة.', 'Failed to generate story.'));
     } finally {
       setLoadingAi(false);
     }
@@ -1956,6 +1956,7 @@ function Vocabulary({
   const generateContextStory = async () => {
     if (hardWords.length === 0 || loadingContextStory) return;
     setLoadingContextStory(true);
+    setContextStory('');
     try {
       const wordsStr = hardWords.map(w => w.word).join(', ');
       const prompt = `You are a creative writing teacher. Use ALL of these words: [${wordsStr}] in a single short, coherent, and interesting story in English. The story should be accessible for a ${userLevel} learner. After the story, explain the context of each word in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
@@ -1967,7 +1968,7 @@ function Vocabulary({
         setContextStory(response);
       }
     } catch (e) {
-      setContextStory(t.storyError);
+      setContextStory(_resolveTranslation(lang, 'فشل إنشاء القصة.', 'Failed to generate story.'));
     } finally {
       setLoadingContextStory(false);
     }
@@ -3067,20 +3068,6 @@ function Langeek({
     }
   };
   return <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
-    <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-lg flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p className="text-sm font-bold text-gray-900 dark:text-white">Voice</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Pick a natural ElevenLabs voice</p>
-      </div>
-      <select
-        value={selectedVoiceId}
-        onChange={e => setSelectedVoiceId(e.target.value)}
-        className="w-full md:w-64 bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer"
-      >
-        {ELEVENLABS_VOICE_OPTIONS.map(voice => <option key={voice.id} value={voice.id}>{voice.label}</option>)}
-      </select>
-    </div>
-
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => {
         setVocabMode('browse');
