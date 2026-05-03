@@ -1360,15 +1360,18 @@ function StudyPlan({
     const end = globalDay * wordsPerDay;
     return `${start}-${end}`;
   };
+  // SRS review intervals (days after learning): +1, +4, +7, +12, +20
+  // Derived from the user's spaced-repetition schedule spreadsheet.
+  const SRS_REVIEW_OFFSETS = [1, 4, 7, 12, 20];
   const getSpacedRepetition = (weekIdx, dayIdx) => {
-    const globalDay = (weekIdx - 1) * 7 + dayIdx + 1;
+    const globalDay = (weekIdx - 1) * 7 + dayIdx + 1; // 1-indexed plan day
     const phases = [];
-    for (let p = 1; p <= 3; p++) {
-      const pDay = globalDay - p;
-      if (pDay >= 1) {
-        const start = (pDay - 1) * wordsPerDay + 1;
-        const end = pDay * wordsPerDay;
-        phases.push(`P${p}: ${start}-${end}`);
+    for (const offset of SRS_REVIEW_OFFSETS) {
+      const learnDay = globalDay - offset;
+      if (learnDay >= 1) {
+        const start = (learnDay - 1) * wordsPerDay + 1;
+        const end = learnDay * wordsPerDay;
+        phases.push(`${start}-${end}`);
       }
     }
     return phases;
