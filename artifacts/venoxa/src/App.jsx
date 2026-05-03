@@ -3322,50 +3322,113 @@ function Speaking({
   };
   if (isCallMode) {
     const lastAiCallMsg = [...messages].reverse().find(m => m.role === 'ai' && m.text);
-    return <div className="max-w-md mx-auto h-[80vh] flex flex-col items-center justify-between bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border border-slate-800 rounded-[2.25rem] p-6 shadow-2xl relative overflow-hidden animate-fadeIn transition-colors">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_40%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.10),transparent_35%)] pointer-events-none"></div>
+    return <div className="relative w-full h-[85vh] flex flex-col items-center justify-between py-10 px-6 animate-fadeIn overflow-hidden select-none">
 
-      <div className="text-center mt-4 relative z-10 w-full">
-        <h2 className="text-2xl font-bold text-white mb-1">Venoxa AI</h2>
-        <p className="text-blue-300 flex items-center justify-center gap-2 text-sm font-semibold">
-          <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span> {t.callActive}
-        </p>
-        <p className="text-xs text-slate-400 mt-1">Level: {chatLevel} | {topic.split('(')[0]}</p>
-        <div className="flex items-center justify-center gap-2 mt-3">
-          <button onClick={() => setVoiceGender('male')} className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${voiceGender === 'male' ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400 hover:text-slate-200'}`}>♂ Male</button>
-          <button onClick={() => setVoiceGender('female')} className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${voiceGender === 'female' ? 'bg-pink-500 text-white' : 'bg-slate-700 text-slate-400 hover:text-slate-200'}`}>♀ Female</button>
+      {/* Ambient background glow — reacts to state */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] rounded-full blur-[140px] transition-all duration-1000 ${
+          loading      ? 'w-80 h-80 bg-blue-600/20 opacity-100' :
+          isRecording  ? 'w-80 h-80 bg-red-500/15  opacity-100' :
+                         'w-64 h-64 bg-blue-500/10   opacity-60'
+        }`} />
+      </div>
+
+      {/* ── Header ──────────────────────────────────────────── */}
+      <div className="relative z-10 text-center w-full space-y-2">
+        <div className="flex items-center justify-center gap-2">
+          <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${loading ? 'bg-blue-400' : isRecording ? 'bg-red-400' : 'bg-emerald-400'}`} />
+          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.18em]">{t.callActive}</span>
+        </div>
+        <h2 className="text-3xl font-bold tracking-tight">
+          <span className="text-white">Venoxa</span>
+          <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">.ai</span>
+        </h2>
+        <p className="text-xs text-gray-600">{chatLevel} · {topic.split('(')[0].trim()}</p>
+
+        {/* Voice gender selector */}
+        <div className="flex items-center justify-center gap-1 pt-1">
+          <button onClick={() => setVoiceGender('female')} className={`px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 ${voiceGender === 'female' ? 'bg-pink-500/15 text-pink-300 ring-1 ring-pink-500/30' : 'text-gray-600 hover:text-gray-400'}`}>♀ Female</button>
+          <span className="w-px h-3 bg-gray-800 mx-1" />
+          <button onClick={() => setVoiceGender('male')} className={`px-3 py-1 rounded-full text-xs font-bold transition-all duration-200 ${voiceGender === 'male' ? 'bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30' : 'text-gray-600 hover:text-gray-400'}`}>♂ Male</button>
         </div>
       </div>
 
-      <div className="relative flex items-center justify-center w-full my-4 z-10">
-        <div className={`absolute w-44 h-44 rounded-full ${loading ? 'bg-blue-500/20 animate-ping' : isRecording ? 'bg-red-500/20 animate-ping' : 'bg-blue-500/10'}`}></div>
-        <div className={`absolute w-28 h-28 rounded-full ${loading ? 'bg-blue-400/20 animate-pulse' : isRecording ? 'bg-red-400/20 animate-pulse' : 'bg-slate-700/60'}`}></div>
-        <div className="w-20 h-20 rounded-full z-10 flex items-center justify-center bg-slate-900/90 border border-slate-700 shadow-[0_0_40px_rgba(0,0,0,0.35)]">
-          {loading ? <Activity className="w-9 h-9 text-blue-400 animate-spin" /> : isRecording ? <Mic className="w-9 h-9 text-red-400 animate-pulse" /> : <Volume2 className="w-9 h-9 text-slate-300" />}
+      {/* ── Central Orb ─────────────────────────────────────── */}
+      <div className="relative flex items-center justify-center z-10 my-2">
+        {/* Outermost ring — slow ping when active */}
+        <div className={`absolute rounded-full transition-all duration-700 ${
+          loading     ? 'w-56 h-56 border border-blue-500/10 animate-ping'  :
+          isRecording ? 'w-56 h-56 border border-red-500/10  animate-ping'  : 'w-0 h-0'
+        }`} />
+        {/* Middle ring */}
+        <div className={`absolute rounded-full border transition-all duration-500 ${
+          loading     ? 'w-48 h-48 border-blue-500/20 animate-pulse' :
+          isRecording ? 'w-48 h-48 border-red-400/20  animate-pulse' :
+                        'w-44 h-44 border-gray-800/50'
+        }`} />
+        {/* Inner ring */}
+        <div className={`absolute rounded-full border transition-all duration-400 ${
+          loading     ? 'w-36 h-36 border-blue-400/30' :
+          isRecording ? 'w-36 h-36 border-red-400/35'  :
+                        'w-32 h-32 border-gray-700/40'
+        }`} />
+        {/* Core sphere */}
+        <div className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${
+          loading
+            ? 'bg-blue-500/10 ring-1 ring-blue-500/40 shadow-[0_0_70px_rgba(59,130,246,0.35)]'
+            : isRecording
+              ? 'bg-red-500/10  ring-1 ring-red-500/40  shadow-[0_0_70px_rgba(239,68,68,0.30)]'
+              : 'bg-white/[0.03] ring-1 ring-white/10     shadow-[0_0_40px_rgba(0,0,0,0.6)]'
+        }`}>
+          {loading
+            ? <Activity  className="w-9 h-9 text-blue-400 animate-spin" />
+            : isRecording
+              ? <Mic      className="w-9 h-9 text-red-400  animate-pulse" />
+              : <Volume2  className="w-9 h-9 text-gray-500" />
+          }
         </div>
       </div>
 
-      {lastAiCallMsg && <div className="w-full relative z-10 px-1">
-        <div className="bg-slate-800/60 border border-slate-700/40 rounded-2xl p-3 max-h-24 overflow-y-auto text-center custom-scrollbar">
-          <p className="text-[10px] text-slate-400 font-extrabold mb-1 uppercase tracking-widest">AI</p>
-          <p className="text-slate-200 text-sm leading-relaxed" dir="ltr">
-            {safeRender(lastAiCallMsg.text)}
-            {lastAiCallMsg.streaming && <span className="inline-block w-[2px] h-4 bg-blue-400 ml-0.5 align-middle animate-pulse rounded-full" />}
-          </p>
-        </div>
-      </div>}
+      {/* ── AI last message ──────────────────────────────────── */}
+      <div className="relative z-10 w-full max-w-xs text-center min-h-[64px] flex flex-col items-center justify-center gap-1.5">
+        {lastAiCallMsg ? <>
+          <p className="text-[10px] text-gray-700 font-bold uppercase tracking-widest">AI</p>
+          <div className="max-h-[72px] overflow-y-auto custom-scrollbar w-full">
+            <p className="text-gray-300 text-sm leading-relaxed" dir="ltr">
+              {safeRender(lastAiCallMsg.text)}
+              {lastAiCallMsg.streaming && <span className="inline-block w-[2px] h-4 bg-blue-400 ml-0.5 align-middle animate-pulse rounded-full" />}
+            </p>
+          </div>
+        </> : <p className="text-gray-700 text-sm">{t.tapMic}</p>}
+      </div>
 
-      <div className="w-full relative z-10 flex flex-col gap-3 items-center mb-4">
-        <p className="text-slate-300 text-center text-sm min-h-6 font-medium">
+      {/* ── Status + Controls ───────────────────────────────── */}
+      <div className="relative z-10 flex flex-col items-center gap-6 w-full">
+        <p className={`text-xs font-semibold tracking-wide transition-all duration-300 ${
+          loading ? 'text-blue-400' : isRecording ? 'text-red-400' : 'text-gray-600'
+        }`}>
           {loading ? t.thinking : isRecording ? t.micOn : t.tapMic}
         </p>
-        <div className="flex items-center gap-6">
-          <button onClick={handleVoiceRecord} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${isRecording ? 'bg-red-500 text-white ring-4 ring-red-500/20' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 ring-1 ring-white/10'}`}>
-            <Mic className="w-6 h-6" />
+
+        <div className="flex items-center justify-center gap-10">
+          {/* End call */}
+          <button onClick={toggleCallMode} title={t.stopCall}
+            className="w-14 h-14 rounded-full flex items-center justify-center bg-red-500/10 hover:bg-red-500/20 text-red-400 ring-1 ring-red-500/25 hover:ring-red-500/50 transition-all duration-200 shadow-[0_0_20px_rgba(239,68,68,0.12)]">
+            <PhoneOff className="w-5 h-5" />
           </button>
-          <button onClick={toggleCallMode} title={t.stopCall} className="w-20 h-20 rounded-full flex items-center justify-center bg-red-500 hover:bg-red-600 text-white shadow-[0_0_24px_rgba(239,68,68,0.35)] transition-all">
-            <PhoneOff className="w-8 h-8" />
+
+          {/* Mic — primary action */}
+          <button onClick={handleVoiceRecord}
+            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200 ${
+              isRecording
+                ? 'bg-red-500 text-white ring-4 ring-red-500/20 shadow-[0_0_48px_rgba(239,68,68,0.45)]'
+                : 'bg-white/5 text-gray-300 ring-1 ring-white/10 hover:bg-white/10 hover:ring-white/20 shadow-[0_4px_24px_rgba(0,0,0,0.4)]'
+            }`}>
+            <Mic className={`w-8 h-8 ${isRecording ? 'animate-pulse' : ''}`} />
           </button>
+
+          {/* Spacer for visual balance */}
+          <div className="w-14 h-14" />
         </div>
       </div>
     </div>;
