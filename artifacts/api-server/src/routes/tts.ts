@@ -138,14 +138,12 @@ router.post("/tts/stream", async (req: Request, res: Response) => {
     return;
   }
 
-  // Use a natural-sounding default voice (Rachel — ElevenLabs premade voice)
-  // if the caller doesn't specify one.
-  const voiceId = selectedVoiceId || "21m00Tcm4TlvDq8ikWAM";
+  const voiceId = selectedVoiceId || "";
 
   try {
     // Call the ElevenLabs streaming TTS endpoint
     const ttsResponse = await fetch(
-      `${ELEVENLABS_BASE}/text-to-speech/${voiceId}/stream`,
+      `${ELEVENLABS_BASE}/text-to-speech/${voiceId || "21m00Tcm4TlvDq8ikWAM"}/stream`,
       {
         method: "POST",
         headers: {
