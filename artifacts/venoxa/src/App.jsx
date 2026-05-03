@@ -3303,6 +3303,7 @@ function Speaking({
   const [voiceGender, setVoiceGender] = useState('male');
   const [callReview, setCallReview] = useState(null);
   const [callVisibleWords, setCallVisibleWords] = useState([]);
+  const [callSpeakingPending, setCallSpeakingPending] = useState(false);
   const callAudioRef = useRef(null);
   const callSyncAnimRef = useRef(null);
   const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
@@ -3361,6 +3362,7 @@ function Speaking({
       callSyncAnimRef.current = null;
     }
     setCallVisibleWords([]);
+    setCallSpeakingPending(true);
 
     try {
       const accent = _voiceAccent === 'us' ? 'us' : 'uk';
@@ -3379,6 +3381,7 @@ function Speaking({
 
       // If no word boundaries returned, show full text and play regular edge TTS
       if (!words?.length) {
+        setCallSpeakingPending(false);
         setCallVisibleWords(text.split(/\s+/));
         await edgeTTSSpeak(text, voiceGender);
         return;
@@ -3410,15 +3413,21 @@ function Speaking({
 
       audio.onplay = () => { callSyncAnimRef.current = requestAnimationFrame(tick); };
       audio.onended = () => {
+        setCallSpeakingPending(false);
         setCallVisibleWords(words.map(w => w.word));
         URL.revokeObjectURL(url);
         callAudioRef.current = null;
       };
-      audio.onerror = () => { URL.revokeObjectURL(url); callAudioRef.current = null; };
+      audio.onerror = () => {
+        setCallSpeakingPending(false);
+        URL.revokeObjectURL(url);
+        callAudioRef.current = null;
+      };
 
       await audio.play();
     } catch {
       // Fallback: show full text, play regular edge TTS
+      setCallSpeakingPending(false);
       setCallVisibleWords(text.split(/\s+/));
       edgeTTSSpeak(text, voiceGender);
     }
@@ -3550,6 +3559,7 @@ function Speaking({
       if (callAudioRef.current) { callAudioRef.current.pause(); callAudioRef.current = null; }
       if (callSyncAnimRef.current) { cancelAnimationFrame(callSyncAnimRef.current); callSyncAnimRef.current = null; }
       setCallVisibleWords([]);
+      setCallSpeakingPending(false);
       cancelTTS();
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsRecording(false);
@@ -3667,7 +3677,7 @@ function Speaking({
                   i < callVisibleWords.length - 1 ? ' ' : null
                 ])}
               </p>
-            ) : (
+            ) : callSpeakingPending ? null : (
               <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
                 {safeRender(lastAiCallMsg.text)}
                 {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-white/60' : 'bg-black/40'}`} />}
