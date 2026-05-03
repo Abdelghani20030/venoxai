@@ -402,12 +402,20 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
   // Short-circuit: if quota is already exhausted skip the key-fetch round-trip
-  // and go straight to Edge TTS.
+  // and go straight to instant browser speechSynthesis.
   if (_elevenLabsQuotaExceeded) {
-    if (!hasArabicText(text)) {
-      const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
-      await edgeTTSSpeak(text, gender);
+    const isAr = hasArabicText(text);
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = isAr ? 'ar-SA' : 'en-GB';
+    if (!isAr) {
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = ['Google UK English Male','Google UK English Female','Microsoft Ryan Online (Natural) - English (United Kingdom)','Microsoft George - English (Great Britain)','Daniel','Microsoft Aria Online (Natural)','Google US English'];
+      const pick = preferred.reduce((f, n) => f || voices.find(v => v.name === n), null) || voices.find(v => v.lang === 'en-GB') || voices.find(v => v.lang.startsWith('en'));
+      if (pick) utterance.voice = pick;
     }
+    utterance.rate = 0.92;
+    utterance.onstart = () => { _lastTTSEngine = 'browser'; };
+    window.speechSynthesis.speak(utterance);
     return;
   }
 
@@ -415,7 +423,8 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
 
   if (apiKey && !_elevenLabsQuotaExceeded) {
     const isArabic = hasArabicText(text);
-    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
+    // eleven_flash_v2_5 = ElevenLabs' speed-optimised model (~75 ms latency, 3× faster than turbo)
+    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_flash_v2_5';
 
     let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
     if (isArabic) {
@@ -475,17 +484,9 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
           continue; // retry on 5xx
         }
 
-        // Success — voice worked, clear any quota flag
+        // Success — stream audio directly so playback starts on first chunk
         _elevenLabsQuotaExceeded = false;
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        _currentTTSAudio = audio;
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          if (_currentTTSAudio === audio) _currentTTSAudio = null;
-        };
-        await audio.play();
+        await _streamAudioResponse(response);
         _lastTTSEngine = 'elevenlabs';
         return; // success — skip fallback
       } catch (err) {
@@ -494,38 +495,33 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     }
   }
 
-  // Fallback #1: Microsoft Edge TTS (free, unlimited, natural US accent).
-  // Only for English text — Arabic uses browser TTS with the Arabic voice.
-  if (!hasArabicText(text)) {
-    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
-    const ok = await edgeTTSSpeak(text, gender);
-    if (ok) return;
-  }
-
-  // Fallback #2: browser speechSynthesis — pick the best available voice
+  // Fallback #1: browser speechSynthesis — zero network latency, plays instantly.
+  // Prioritised over Edge TTS so the user hears something immediately.
   if ('speechSynthesis' in window) {
     const isArabicFallback = hasArabicText(text);
     const utterance = new SpeechSynthesisUtterance(text);
     if (isArabicFallback) {
       utterance.lang = 'ar-SA';
     } else {
-      utterance.lang = 'en-US';
-      // Prefer British English voices — fall back to any English voice
+      utterance.lang = 'en-GB';
+      // Prefer high-quality online/neural voices, fall back to any English voice
       const voices = window.speechSynthesis.getVoices();
       const preferred = [
-        'Google UK English Female',
         'Google UK English Male',
-        'Microsoft Hazel - English (Great Britain)',  // British female (Edge/Chrome)
-        'Microsoft George - English (Great Britain)', // British male   (Edge/Chrome)
-        'Daniel',                                     // British male   (macOS/iOS)
-        'Kate',                                       // British female (macOS)
-        'Microsoft Aria Online (Natural)',             // American fallback
+        'Google UK English Female',
+        'Microsoft George - English (Great Britain)',
+        'Microsoft Hazel - English (Great Britain)',
+        'Microsoft Ryan Online (Natural) - English (United Kingdom)',
+        'Microsoft Sonia Online (Natural) - English (United Kingdom)',
+        'Daniel',
+        'Kate',
+        'Microsoft Aria Online (Natural)',
         'Microsoft Guy Online (Natural)',
         'Google US English',
       ];
       const pick = preferred.reduce((found, name) =>
         found || voices.find(v => v.name === name), null)
-        || voices.find(v => v.lang === 'en-GB' && v.localService === false)
+        || voices.find(v => v.lang === 'en-GB' && !v.localService)
         || voices.find(v => v.lang === 'en-GB')
         || voices.find(v => v.lang.startsWith('en'));
       if (pick) utterance.voice = pick;
@@ -534,7 +530,68 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     utterance.pitch = 1.0;
     utterance.onstart = () => { _lastTTSEngine = 'browser'; };
     window.speechSynthesis.speak(utterance);
+    return;
   }
+
+  // Fallback #2: Microsoft Edge TTS — better quality but slower (network round-trip).
+  if (!hasArabicText(text)) {
+    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
+    edgeTTSSpeak(text, gender);
+  }
+};
+
+/**
+ * _streamAudioResponse(response)
+ * Pipes a streaming fetch Response into an <audio> element via MediaSource so
+ * playback starts as soon as the first audio chunk arrives — no waiting for the
+ * full download. Falls back to blob if MediaSource doesn't support audio/mpeg
+ * (e.g. Firefox).
+ */
+const STREAM_MIME = 'audio/mpeg';
+const _streamAudioResponse = async (response) => {
+  const useMS = typeof MediaSource !== 'undefined' && MediaSource.isTypeSupported(STREAM_MIME);
+
+  if (!useMS) {
+    // Blob fallback (Firefox / older Safari)
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    _currentTTSAudio = audio;
+    audio.onended = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+    audio.onerror = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+    await audio.play();
+    return audio;
+  }
+
+  const ms = new MediaSource();
+  const url = URL.createObjectURL(ms);
+  const audio = new Audio(url);
+  _currentTTSAudio = audio;
+  audio.onended = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+  audio.onerror = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+
+  // Begin playback immediately — browser starts as soon as enough data buffers
+  const playPromise = audio.play();
+
+  await new Promise(resolve => ms.addEventListener('sourceopen', resolve, { once: true }));
+  const sb = ms.addSourceBuffer(STREAM_MIME);
+  const reader = response.body.getReader();
+
+  // Drain chunks into the SourceBuffer in the background
+  (async () => {
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) { if (ms.readyState === 'open') ms.endOfStream(); break; }
+        if (sb.updating) await new Promise(r => sb.addEventListener('updateend', r, { once: true }));
+        if (ms.readyState !== 'open') break;
+        sb.appendBuffer(value);
+      }
+    } catch { /* stream aborted or audio element gone */ }
+  })();
+
+  await playPromise;
+  return audio;
 };
 
 /**
