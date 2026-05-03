@@ -162,34 +162,75 @@ const GEMINI_API_KEY = "proxied"; // Real key lives in backend; this just enable
 const getBackticks = () => String.fromCharCode(96, 96, 96);
 
 // --- AI API HELPER (proxied through our backend) ---
+// Non-streaming version used for Langeek story/context generation.
 const fetchFromGemini = async (prompt, _apiKey) => {
   const url = `${import.meta.env.BASE_URL}api/chat`;
   try {
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 12000);
+    const timeout = window.setTimeout(() => controller.abort(), 20000);
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        prompt
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
       signal: controller.signal
     });
     window.clearTimeout(timeout);
     if (!response.ok) {
-      if (response.status === 400 || response.status === 401 || response.status === 403 || response.status === 429 || response.status === 502) {
-        return '{"error": "I’m a bit busy right now. Please try again."}';
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
+      return '{"error": "AI is busy. Please try again."}';
     }
     const data = await response.json();
     return data.text || '{"error": "No response generated."}';
   } catch (error) {
-    return '{"error": "I’m having a temporary connection issue. Please try again."}';
+    return '{"error": "Connection issue. Please try again."}';
   }
 };
+
+// Streaming version — calls /api/chat/stream, yields tokens via SSE.
+// onDelta(chunk) is called for each text chunk as it arrives.
+// Returns the full accumulated text when done.
+const streamFromAPI = async (prompt, onDelta) => {
+  const url = `${import.meta.env.BASE_URL}api/chat/stream`;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+      signal: controller.signal
+    });
+    window.clearTimeout(timeout);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let full = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const raw = line.slice(5).trim();
+        if (!raw) continue;
+        try {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed === 'string' && parsed !== '') {
+            full += parsed;
+            onDelta(parsed);
+          }
+        } catch { /* skip malformed */ }
+      }
+    }
+    return full;
+  } catch (err) {
+    window.clearTimeout(timeout);
+    throw err;
+  }
+};
+
 const parseGeminiJSON = text => {
   try {
     const start = text.indexOf('{');
@@ -2485,77 +2526,48 @@ function Speaking({
     if (!userMsg.trim()) return;
     if (!forcedText) setInput('');
     const newMsgId = Date.now();
-    setMessages(prev => [...prev, {
-      id: newMsgId,
-      role: 'user',
-      text: userMsg
-    }]);
+    const aiMsgId = newMsgId + 1;
+    setMessages(prev => [...prev, { id: newMsgId, role: 'user', text: userMsg }]);
     setLoading(true);
+    // Add a placeholder AI message immediately so the user sees it right away
+    setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     try {
       const history = messages.slice(-2).map(m => `${m.role === 'ai' ? 'AI' : 'User'}: ${m.text}`).join('\n');
-      const prompt = `Reply naturally and briefly as an English tutor.
-Level: ${chatLevel}
-Topic: ${topic}
-Style: ${formality}
-Recent: ${history}
-User: "${userMsg}"
-Return compact JSON only:
-{"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
-      const rawResponse = await fetchFromGemini(prompt, AI_KEY);
-      const jsonResponse = parseGeminiJSON(rawResponse);
-      const replyText = jsonResponse?.reply || cleanFallbackText(rawResponse);
-      const review = jsonResponse?.review || null;
-      if (jsonResponse && jsonResponse.error) {
-        setMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          role: 'system',
-          text: jsonResponse.error
-        }]);
-        if (isCallMode) speakText("Sorry, I am having trouble connecting.");
-      } else {
-        setMessages(prev => {
-          const updated = prev.map(msg => msg.id === newMsgId ? {
-            ...msg,
-            review
-          } : msg);
-          return [...updated, {
-            id: Date.now() + 1,
-            role: 'ai',
-            text: replyText
-          }];
-        });
-        if (isCallMode) speakText(replyText);
-      }
+      const prompt = `Reply naturally and briefly as an English tutor. Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Respond with only your reply text, no JSON, no formatting.`;
+      let accumulated = '';
+      await streamFromAPI(prompt, (delta) => {
+        accumulated += delta;
+        setMessages(prev => prev.map(msg =>
+          msg.id === aiMsgId ? { ...msg, text: accumulated } : msg
+        ));
+      });
+      // Mark streaming done
+      setMessages(prev => prev.map(msg =>
+        msg.id === aiMsgId ? { ...msg, streaming: false } : msg
+      ));
+      if (isCallMode && accumulated) speakText(accumulated);
     } catch (err) {
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        role: 'system',
-        text: _resolveTranslation(lang, "فشل الاتصال بالذكاء الاصطناعي.", "Error connecting to AI.")
-      }]);
+      setMessages(prev => prev.map(msg =>
+        msg.id === aiMsgId
+          ? { ...msg, text: _resolveTranslation(lang, "فشل الاتصال بالذكاء الاصطناعي.", "Error connecting to AI."), streaming: false, role: 'system' }
+          : msg
+      ));
     } finally {
       setLoading(false);
     }
   };
   const startNewConversation = async () => {
     setLoading(true);
-    setMessages([]);
+    const aiMsgId = Date.now();
+    setMessages([{ id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     try {
-      const prompt = `Start a short ${formality === 'formal' ? 'formal' : 'casual'} English conversation for a ${chatLevel} learner about "${topic}". Return one natural question only.`;
-      const response = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(response);
-      if (errJson && errJson.error) {
-        setMessages([{
-          id: Date.now(),
-          role: 'system',
-          text: errJson.error
-        }]);
-      } else {
-        setMessages([{
-          id: Date.now(),
-          role: 'ai',
-          text: cleanFallbackText(response)
-        }]);
-      }
+      const prompt = `Start a short ${formality === 'formal' ? 'formal' : 'casual'} English conversation for a ${chatLevel} learner about "${topic}". Ask one natural, engaging question only. No intro text, just the question.`;
+      let accumulated = '';
+      await streamFromAPI(prompt, (delta) => {
+        accumulated += delta;
+        setMessages([{ id: aiMsgId, role: 'ai', text: accumulated, streaming: true }]);
+      });
+      setMessages([{ id: aiMsgId, role: 'ai', text: accumulated, streaming: false }]);
     } catch (e) {
       setMessages([{
         id: Date.now(),
@@ -2722,9 +2734,12 @@ Return compact JSON only:
       {messages.map((msg, idx) => <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
         <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'}`} dir="ltr">
-          <p className="text-lg leading-relaxed">{safeRender(msg.text)}</p>
+          <p className="text-lg leading-relaxed">
+            {safeRender(msg.text)}
+            {msg.streaming && <span className="inline-block w-[2px] h-5 bg-emerald-500 ml-0.5 align-middle animate-pulse rounded-full" />}
+          </p>
 
-          {msg.role === 'ai' && <button onClick={() => speakText(msg.text)} className="mt-3 bg-white/50 dark:bg-gray-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 p-2 rounded-lg transition-colors border border-transparent hover:border-emerald-200 dark:hover:border-emerald-500/30">
+          {msg.role === 'ai' && !msg.streaming && <button onClick={() => speakText(msg.text)} className="mt-3 bg-white/50 dark:bg-gray-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 p-2 rounded-lg transition-colors border border-transparent hover:border-emerald-200 dark:hover:border-emerald-500/30">
             <Volume2 className="w-5 h-5" />
           </button>}
         </div>

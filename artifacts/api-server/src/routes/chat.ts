@@ -1,69 +1,96 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import OpenAI from "openai";
 import type { Logger } from "pino";
 
 const router: IRouter = Router();
 
-type Provider = {
+// ── Streaming provider type ───────────────────────────────────────────────────
+type StreamProvider = {
   label: string;
   model: string;
-  call: (prompt: string) => Promise<string>;
+  stream: (prompt: string, onChunk: (delta: string) => void) => Promise<void>;
 };
 
-function buildProviders(): Provider[] {
-  const providers: Provider[] = [];
+// ── Build ordered list of streaming providers ────────────────────────────────
+function buildStreamProviders(): StreamProvider[] {
+  const providers: StreamProvider[] = [];
 
-  // 1) Google Gemini — free tier, generous quota, matches the original Venoxa design.
+  // 1) Replit-managed AI — no external quota, fastest cold-start.
+  const replitBase = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
+  const replitKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
+  if (replitBase && replitKey) {
+    const client = new OpenAI({ apiKey: replitKey, baseURL: replitBase });
+    const model = "gpt-4o-mini";
+    providers.push({
+      label: "replit-ai",
+      model,
+      stream: async (prompt, onChunk) => {
+        const stream = await client.chat.completions.create({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          max_completion_tokens: 512,
+          stream: true,
+        });
+        for await (const chunk of stream) {
+          const delta = chunk.choices?.[0]?.delta?.content;
+          if (delta) onChunk(delta);
+        }
+      },
+    });
+  }
+
+  // 2) Google Gemini streaming endpoint.
   const googleKey = process.env["GOOGLE_API_KEY"];
   if (googleKey && googleKey.startsWith("AIza")) {
-    const model = "gemini-2.5-flash";
+    const model = "gemini-2.0-flash";
     providers.push({
       label: "google-gemini",
       model,
-      call: async (prompt) => {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`;
+      stream: async (prompt, onChunk) => {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${googleKey}`;
         const resp = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 512, temperature: 0.7 },
           }),
         });
         if (!resp.ok) {
           const body = await resp.text();
           throw new Error(`Gemini ${resp.status}: ${body.slice(0, 300)}`);
         }
-        const data = (await resp.json()) as {
-          candidates?: Array<{
-            content?: { parts?: Array<{ text?: string }> };
-          }>;
-        };
-        return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        const reader = resp.body!.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data:")) continue;
+            const json = line.slice(5).trim();
+            if (!json || json === "[DONE]") continue;
+            try {
+              const obj = JSON.parse(json) as {
+                candidates?: Array<{
+                  content?: { parts?: Array<{ text?: string }> };
+                }>;
+              };
+              const text = obj.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) onChunk(text);
+            } catch {
+              // malformed SSE line — skip
+            }
+          }
+        }
       },
     });
   }
 
-  // 2) Replit-managed AI integration — billed to Replit credits.
-  const replitBase = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
-  const replitKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
-  if (replitBase && replitKey) {
-    const client = new OpenAI({ apiKey: replitKey, baseURL: replitBase });
-    const model = "gpt-5-nano";
-    providers.push({
-      label: "replit-ai",
-      model,
-      call: async (prompt) => {
-        const c = await client.chat.completions.create({
-          model,
-          messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 8192,
-        });
-        return c.choices?.[0]?.message?.content ?? "";
-      },
-    });
-  }
-
-  // 3) OpenRouter — only if a real OpenRouter key is provided.
+  // 3) OpenRouter streaming fallback.
   const orKey = process.env["OPENROUTER_API_KEY"];
   if (orKey && orKey.startsWith("sk-or-")) {
     const client = new OpenAI({
@@ -74,17 +101,21 @@ function buildProviders(): Provider[] {
         "X-Title": "Venoxa AI Platform",
       },
     });
-    const model = "x-ai/grok-4-fast:free";
+    const model = "meta-llama/llama-3.1-8b-instruct:free";
     providers.push({
       label: "openrouter",
       model,
-      call: async (prompt) => {
-        const c = await client.chat.completions.create({
+      stream: async (prompt, onChunk) => {
+        const stream = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 8192,
+          max_completion_tokens: 512,
+          stream: true,
         });
-        return c.choices?.[0]?.message?.content ?? "";
+        for await (const chunk of stream) {
+          const delta = chunk.choices?.[0]?.delta?.content;
+          if (delta) onChunk(delta);
+        }
       },
     });
   }
@@ -97,13 +128,17 @@ function buildProviders(): Provider[] {
     providers.push({
       label: "openai",
       model,
-      call: async (prompt) => {
-        const c = await client.chat.completions.create({
+      stream: async (prompt, onChunk) => {
+        const s = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 8192,
+          max_completion_tokens: 512,
+          stream: true,
         });
-        return c.choices?.[0]?.message?.content ?? "";
+        for await (const chunk of s) {
+          const delta = chunk.choices?.[0]?.delta?.content;
+          if (delta) onChunk(delta);
+        }
       },
     });
   }
@@ -111,37 +146,57 @@ function buildProviders(): Provider[] {
   return providers;
 }
 
-const providers = buildProviders();
+const streamProviders = buildStreamProviders();
 
-if (providers.length === 0) {
+if (streamProviders.length === 0) {
   throw new Error(
-    "No AI provider configured. Expected GOOGLE_API_KEY (preferred), AI_INTEGRATIONS_OPENAI_*, OPENROUTER_API_KEY, or OPENAI_API_KEY.",
+    "No AI provider configured. Expected AI_INTEGRATIONS_OPENAI_*, GOOGLE_API_KEY, OPENROUTER_API_KEY, or OPENAI_API_KEY.",
   );
 }
 
-async function runPrompt(prompt: string, log: Logger): Promise<string> {
+// ── Streaming SSE endpoint ───────────────────────────────────────────────────
+router.post("/chat/stream", async (req: Request, res: Response) => {
+  const prompt =
+    typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+
+  if (!prompt) {
+    res.status(400).json({ error: "Missing 'prompt' in request body." });
+    return;
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (event: string, data: string) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
   let lastErr: unknown = null;
-  for (const p of providers) {
+  for (const provider of streamProviders) {
     try {
-      const text = await p.call(prompt);
-      if (text && text.trim().length > 0) {
-        return text;
-      }
-      // Empty response -> treat as failure and try the next provider.
-      lastErr = new Error(`Empty response from ${p.label}`);
-      log.warn({ provider: p.label, model: p.model }, "Provider returned empty text, trying next");
+      await provider.stream(prompt, (delta) => send("delta", delta));
+      send("done", "");
+      res.end();
+      return;
     } catch (err) {
       lastErr = err;
-      log.warn(
-        { err, provider: p.label, model: p.model },
-        "Provider failed, falling back to next",
+      req.log.warn(
+        { err, provider: provider.label, model: provider.model },
+        "Stream provider failed, trying next",
       );
     }
   }
-  throw lastErr ?? new Error("All AI providers failed.");
-}
 
-router.post("/chat", async (req, res) => {
+  req.log.error({ err: lastErr }, "All stream providers failed");
+  send("error", "All AI providers failed. Please try again.");
+  res.end();
+});
+
+// ── Legacy non-streaming endpoint (kept for Langeek/story uses) ──────────────
+router.post("/chat", async (req: Request, res: Response) => {
   const prompt =
     typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
 
@@ -151,13 +206,23 @@ router.post("/chat", async (req, res) => {
   }
 
   try {
-    const text = await runPrompt(prompt, req.log);
+    let text = "";
+    let lastErr: unknown = null;
+    for (const provider of streamProviders) {
+      try {
+        await provider.stream(prompt, (delta) => { text += delta; });
+        if (text.trim().length > 0) break;
+      } catch (err) {
+        lastErr = err;
+        req.log.warn({ err, provider: provider.label }, "Provider failed, trying next");
+        text = "";
+      }
+    }
+    if (!text.trim()) throw lastErr ?? new Error("All providers returned empty.");
     res.json({ text });
   } catch (err) {
     req.log.error({ err }, "All AI providers failed for chat request");
-    res
-      .status(502)
-      .json({ error: "AI provider request failed. Please try again." });
+    res.status(502).json({ error: "AI provider request failed. Please try again." });
   }
 });
 
