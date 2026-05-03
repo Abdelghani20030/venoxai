@@ -13,9 +13,7 @@
  *   1. Use the caller-supplied voice ID if one is given.
  *   2. Try to fetch the account's own voices (requires voices_read scope).
  *      Pick the first generated/cloned voice which is always accessible.
- *   3. If voices_read is not permitted, fall back through a list of
- *      well-known ElevenLabs *default* (non-library) voice IDs that ship
- *      with every account and work on the free plan.
+ *   3. Fall back to a single fast default voice.
  *   4. Cache the first working voice ID in memory for the server lifetime.
  */
 
@@ -27,19 +25,11 @@ const router: IRouter = Router();
 const ELEVENLABS_BASE = "https://api.elevenlabs.io/v1";
 
 /**
- * Well-known ElevenLabs *default* voices that ship with every account and
- * are accessible on the free plan (these are NOT library voices).
- * We try them in order until one succeeds.
+ * Default voices that we can probe quickly. This list is intentionally short
+ * to keep the first request fast.
  */
 const FREE_PLAN_FALLBACK_VOICES = [
   { id: "pNInz6obpgDQGcFmaJgB", name: "Adam" },
-  { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah" },
-  { id: "TX3LPaxmHKxFdv7VOQHJ", name: "Liam" },
-  { id: "XB0fDUnXU5powFXDhCwa", name: "Charlotte" },
-  { id: "Xb7hH8MSUJpSbSDYk0k2", name: "Alice" },
-  { id: "nPczCjzI2devNBz1zQrb", name: "Brian" },
-  { id: "onwK4e9ZLuTAKqWW03F9", name: "Daniel" },
-  { id: "N2lVS1w4EtoT3dr4eOWO", name: "Callum" },
 ];
 
 function getElevenLabsKey(): string {
@@ -57,7 +47,7 @@ function getElevenLabsKey(): string {
 // --------------------------------------------------------------------------
 
 /** Cached working voice ID — resolved lazily and reused. */
-let cachedDefaultVoiceId: string | null = null;
+let cachedDefaultVoiceId: string | null = "pNInz6obpgDQGcFmaJgB";
 
 /**
  * Tries to resolve the best default voice for this account.
@@ -65,8 +55,7 @@ let cachedDefaultVoiceId: string | null = null;
  * Priority:
  *   1. Fetch account voices (if voices_read scope is available) and pick
  *      the first generated/cloned voice.
- *   2. Fall back to FREE_PLAN_FALLBACK_VOICES — do a cheap TTS probe
- *      (1 character) against each until one returns audio (not 402/403).
+ *   2. Fall back to the fast default voice immediately.
  */
 async function resolveDefaultVoiceId(key: string): Promise<string> {
   if (cachedDefaultVoiceId) return cachedDefaultVoiceId;
@@ -101,46 +90,7 @@ async function resolveDefaultVoiceId(key: string): Promise<string> {
     // Network / parse error — fall through to probe strategy
   }
 
-  // --- Attempt 2: probe free-plan fallback voices ---
-  for (const candidate of FREE_PLAN_FALLBACK_VOICES) {
-    try {
-      const probe = await fetch(
-        `${ELEVENLABS_BASE}/text-to-speech/${candidate.id}`,
-        {
-          method: "POST",
-          headers: {
-            "xi-api-key": key,
-            "Content-Type": "application/json",
-            Accept: "audio/mpeg",
-          },
-          body: JSON.stringify({
-            text: "Hi",
-            model_id: "eleven_turbo_v2_5",
-            voice_settings: { stability: 0.2, similarity_boost: 0.9, style: 0.45, use_speaker_boost: true },
-          }),
-        },
-      );
-
-      // 402 / 403 → voice not accessible on this plan; try next
-      if (probe.status === 402 || probe.status === 403) continue;
-
-      // Any non-error status (200, even 400 for bad text) means the voice is
-      // reachable — we just need a valid voice ID.
-      if (probe.ok || probe.status < 500) {
-        // Drain response to avoid resource leak
-        await probe.body?.cancel?.();
-        cachedDefaultVoiceId = candidate.id;
-        return cachedDefaultVoiceId;
-      }
-    } catch {
-      // Network error — try next candidate
-    }
-  }
-
-  throw new Error(
-    "No accessible ElevenLabs voice found for this account. " +
-      "Please create a voice in your ElevenLabs dashboard, or upgrade to a paid plan to use premade voices.",
-  );
+  return FREE_PLAN_FALLBACK_VOICES[0].id;
 }
 
 // --------------------------------------------------------------------------
