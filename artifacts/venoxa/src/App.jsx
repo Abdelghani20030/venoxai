@@ -405,7 +405,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
 
   if (apiKey && !_elevenLabsQuotaExceeded) {
     const isArabic = hasArabicText(text);
-    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
+    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_flash_v2_5';
 
     let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
     if (isArabic) {
@@ -476,14 +476,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     }
   }
 
-  // Fallback #1: Microsoft Edge TTS — better quality, still streamed directly.
-  if (!hasArabicText(text)) {
-    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
-    const ok = await edgeTTSSpeak(text, gender);
-    if (ok) return;
-  }
-
-  // Fallback #2: browser speechSynthesis — instant local fallback.
+  // Fallback #1: browser speechSynthesis — instant local fallback.
   if ('speechSynthesis' in window) {
     const isArabicFallback = hasArabicText(text);
     const utterance = new SpeechSynthesisUtterance(text);
@@ -516,6 +509,14 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     utterance.pitch = 1.0;
     utterance.onstart = () => { _lastTTSEngine = 'browser'; };
     window.speechSynthesis.speak(utterance);
+    return;
+  }
+
+  // Fallback #2: Microsoft Edge TTS — quality backup if browser speech is unavailable.
+  if (!hasArabicText(text)) {
+    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
+    const ok = await edgeTTSSpeak(text, gender);
+    if (ok) return;
   }
 };
 
@@ -2635,7 +2636,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
       const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${DEFAULT_ELEVENLABS_VOICE_ID}/stream`, {
         method: 'POST',
         headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-        body: JSON.stringify({ text: text.slice(0, 2500), model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.85 } })
+        body: JSON.stringify({ text: text.slice(0, 2500), model_id: 'eleven_flash_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.85 } })
       });
       if (!resp.ok) throw new Error(`${resp.status}`);
       const blob = await resp.blob();
