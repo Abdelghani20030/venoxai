@@ -313,16 +313,19 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
   }
 
   try {
-    // POST to our Express backend which proxies to ElevenLabs
-    const response = await fetch(`${import.meta.env.BASE_URL}api/tts/stream`, {
+    // POST to our Express backend which proxies to ElevenLabs.
+    // IMPORTANT: Use an absolute path (/api/tts/stream) — NOT import.meta.env.BASE_URL
+    // prefixed — so Replit's router always sends this to the Express API server
+    // (port 8080, path /api) rather than the static file server in production.
+    const response = await fetch('/api/tts/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ textToSpeak: text, selectedVoiceId: voiceId }),
     });
 
     if (!response.ok) {
-      // If the backend isn't configured yet, silently fall back to the browser TTS
-      throw new Error(`TTS backend returned ${response.status}`);
+      const errBody = await response.text().catch(() => '');
+      throw new Error(`TTS backend returned ${response.status}: ${errBody.slice(0, 200)}`);
     }
 
     // Convert the streamed audio bytes into a Blob and play them
@@ -333,9 +336,9 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     audio.onended = () => URL.revokeObjectURL(audioUrl); // free memory
     await audio.play();
   } catch (err) {
-    // Graceful fallback: use the browser's built-in TTS while the ElevenLabs
-    // key is not yet set up (or network is offline).
-    console.warn('[Venoxa] ElevenLabs TTS unavailable, falling back to browser TTS:', err.message);
+    // If ElevenLabs TTS fails, log clearly so it's visible in DevTools.
+    // Only fall back to browser TTS as a last resort.
+    console.error('[Venoxa] ElevenLabs TTS failed (check ELEVENLABS_API_KEY env var and /api/tts/stream route):', err.message);
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
