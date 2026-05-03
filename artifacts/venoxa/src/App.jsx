@@ -3461,7 +3461,10 @@ function Speaking({
       const langInstruction = isArabicMsg
         ? 'The user wrote in Arabic. Reply to them in Arabic. Still review their Arabic naturally.'
         : 'Reply in English.';
-      const prompt = `Reply naturally and briefly as an English tutor. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Respond strictly as JSON only: {"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
+      const callModeInstruction = isCallMode
+        ? 'You are having a real spoken conversation. Give a natural, engaging reply of 2–4 sentences — like a real person would. Add a follow-up question or comment to keep the conversation going. Do NOT be brief or robotic.'
+        : 'Give a helpful, natural reply of 1–3 sentences.';
+      const prompt = `You are a friendly English conversation partner and tutor. ${callModeInstruction} ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Respond strictly as JSON only: {"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
       let accumulated = '';
       // For call mode: pre-fetch TTS for the first complete sentence while AI is still streaming.
       // This overlaps AI generation + TTS generation so audio starts near-instantly after streaming ends.
