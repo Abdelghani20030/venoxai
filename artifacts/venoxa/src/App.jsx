@@ -2533,7 +2533,7 @@ function Speaking({
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     try {
       const history = messages.slice(-2).map(m => `${m.role === 'ai' ? 'AI' : 'User'}: ${m.text}`).join('\n');
-      const prompt = `Reply naturally and briefly as an English tutor. Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Respond with only your reply text, no JSON, no formatting.`;
+      const prompt = `Reply naturally and briefly as an English tutor. Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Respond strictly as JSON only: {"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
       let accumulated = '';
       await streamFromAPI(prompt, (delta) => {
         accumulated += delta;
@@ -2541,11 +2541,25 @@ function Speaking({
           msg.id === aiMsgId ? { ...msg, text: accumulated } : msg
         ));
       });
-      // Mark streaming done
-      setMessages(prev => prev.map(msg =>
-        msg.id === aiMsgId ? { ...msg, streaming: false } : msg
-      ));
-      if (isCallMode && accumulated) speakText(accumulated);
+      const parsed = parseGeminiJSON(accumulated);
+      const replyText = parsed?.reply || cleanFallbackText(accumulated);
+      const review = parsed?.review || null;
+      setMessages(prev => {
+        const updated = prev.map(msg => msg.id === aiMsgId ? {
+          ...msg,
+          text: replyText,
+          streaming: false,
+          review
+        } : msg);
+        if (forcedText) {
+          return updated;
+        }
+        return updated.map(msg => msg.id === newMsgId ? {
+          ...msg,
+          review
+        } : msg);
+      });
+      if (isCallMode && replyText) speakText(replyText);
     } catch (err) {
       setMessages(prev => prev.map(msg =>
         msg.id === aiMsgId
