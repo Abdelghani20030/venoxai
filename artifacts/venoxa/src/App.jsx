@@ -2569,8 +2569,10 @@ function Speaking({
     const lastAiMessage = [...conversation].reverse().find(msg => msg.role === 'ai' && msg.text && msg.text !== t.welcome);
     const lastUserMessage = [...conversation].reverse().find(msg => msg.role === 'user');
     if (!lastAiMessage && !lastUserMessage) return;
-    const titleSource = topic || lastUserMessage?.text || lastAiMessage?.text || '';
-    const title = titleSource ? String(titleSource).split('(')[0].trim().replace(/\s+/g, ' ') : 'Conversation';
+    const firstUserText = String(lastUserMessage?.text || '').trim();
+    const firstAiText = String(lastAiMessage?.text || '').trim();
+    const source = `${topic || ''} ${firstUserText} ${firstAiText}`.trim().toLowerCase();
+    const title = source.includes('hi') || source.includes('hello') || source.includes('hey') || source.includes('greeting') ? 'Greeting' : source.includes('interview') ? 'Interview' : source.includes('travel') ? 'Travel' : source.includes('work') || source.includes('job') ? 'Work' : source.includes('study') || source.includes('learn') ? 'Study' : String(topic || 'Conversation').split('(')[0].trim().replace(/\s+/g, ' ') || 'Conversation';
     setSpeakingHistory(prev => [{
       id: Date.now(),
       mode: isCallMode ? 'call' : 'chat',
