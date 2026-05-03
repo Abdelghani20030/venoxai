@@ -275,6 +275,12 @@ const safeRender = val => {
 // requests from server/cloud IPs (Replit production), but allows them from
 // real user browser IPs.
 const DEFAULT_ELEVENLABS_VOICE_ID = 'nPczCjzI2devNBz1zQrb'; // Brian — warm, natural, free
+// English voices (not trained on Arabic — swapped out automatically for Arabic text)
+const ELEVENLABS_SARAH_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah — English female
+const ELEVENLABS_BRIAN_ID = 'nPczCjzI2devNBz1zQrb'; // Brian — English male
+// True multilingual voices — handle Arabic correctly with eleven_multilingual_v2
+const ARABIC_FEMALE_VOICE_ID = 'XB0fDUnXU5powFXDhCwa'; // Charlotte — multilingual female
+const ARABIC_MALE_VOICE_ID   = 'JBFqnCBsd6RMkjVDRZzb'; // George — multilingual male
 const ELEVENLABS_VOICE_OPTIONS = [
   { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
   { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah' },
@@ -334,11 +340,19 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
 
   if (apiKey) {
     try {
-      // Arabic uses the multilingual model so ElevenLabs pronounces it properly
-      const modelId = hasArabicText(text) ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
+      const isArabic = hasArabicText(text);
+      const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
+
+      // English voices (Sarah/Brian) can't pronounce Arabic — auto-swap to multilingual equivalents
+      let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
+      if (isArabic) {
+        if (resolvedVoiceId === ELEVENLABS_SARAH_ID) resolvedVoiceId = ARABIC_FEMALE_VOICE_ID;
+        else if (resolvedVoiceId === ELEVENLABS_BRIAN_ID || resolvedVoiceId === DEFAULT_ELEVENLABS_VOICE_ID) resolvedVoiceId = ARABIC_MALE_VOICE_ID;
+      }
+
       // Call ElevenLabs DIRECTLY from the browser using the user's IP
       const response = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId || DEFAULT_ELEVENLABS_VOICE_ID}/stream`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${resolvedVoiceId}/stream`,
         {
           method: 'POST',
           headers: {
