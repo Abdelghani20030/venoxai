@@ -860,7 +860,7 @@ function PlanWeekTable({
               if (cat.id === 'grammar') openGrammarModal(d);
             } : undefined;
             return <td key={d} className={cellClass} onClick={onClick} onContextMenu={interactive ? (e) => { e.preventDefault(); onToggleCell?.(weekNum, cat.id, d); } : undefined} title={interactive ? 'Right-click to mark done/missed' : undefined}>
-              {completion && <span className={`absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full text-white text-[13px] font-black leading-none print:hidden shadow-sm ${completion === 'done' ? 'bg-green-500' : 'bg-red-500'}`}>{completion === 'done' ? '✓' : '✗'}</span>}
+              {completion && <span className={`absolute top-1 right-1 w-4 h-4 flex items-center justify-center rounded-full text-white font-black print:hidden shadow-sm ${completion === 'done' ? 'bg-green-500' : 'bg-red-500'}`} style={{fontSize:'9px',lineHeight:'1'}}>{completion === 'done' ? '✓' : '✗'}</span>}
               {cat.id === 'vocab' ? <div className="flex flex-col items-center justify-center gap-0.5 min-h-[32px]">
                 <span className="text-sm font-extrabold tracking-tight text-center" dir="ltr">{getVocabRange(weekNum, d)}</span>
                 <span className="text-[10px] opacity-70">{cat.mins}m</span>
