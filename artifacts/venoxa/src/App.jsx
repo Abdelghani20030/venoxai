@@ -248,6 +248,20 @@ const cleanFallbackText = text => {
   const marker = getBackticks();
   return text.split(marker + 'json').join('').split(marker).join('').trim();
 };
+const hasArabicText = text => /[\u0600-\u06FF]/.test(String(text || ''));
+const speakArabicFree = text => {
+  if (!text || !('speechSynthesis' in window)) return false;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  const voices = window.speechSynthesis.getVoices();
+  const arabicVoice = voices.find(v => /^ar(-|_)?/i.test(v.lang) || /arab/i.test(v.name));
+  utterance.lang = arabicVoice?.lang || 'ar-SA';
+  utterance.voice = arabicVoice || null;
+  utterance.rate = 0.9;
+  utterance.pitch = 1;
+  window.speechSynthesis.speak(utterance);
+  return true;
+};
 const safeRender = val => {
   if (val === null || val === undefined) return '';
   if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return String(val);
@@ -294,6 +308,10 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     _currentTTSAudio = null;
   }
 
+  if (hasArabicText(text)) {
+    if (speakArabicFree(text)) return;
+  }
+
   try {
     // POST to our Express backend which proxies to ElevenLabs
     const response = await fetch(`${import.meta.env.BASE_URL}api/tts/stream`, {
@@ -321,7 +339,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
+      utterance.lang = hasArabicText(text) ? 'ar-SA' : 'en-US';
       utterance.rate = 0.95;
       window.speechSynthesis.speak(utterance);
     }
