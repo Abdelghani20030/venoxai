@@ -302,6 +302,40 @@ let _elevenLabsKeyFetchInProgress = null; // deduplicates concurrent fetches
 // Tracks whether ElevenLabs quota is currently exhausted.
 // Reset to false if a call later succeeds (e.g. after monthly reset).
 let _elevenLabsQuotaExceeded = false;
+// Tracks which TTS engine produced the last successful utterance.
+// 'elevenlabs' | 'edge' | 'browser' | null
+let _lastTTSEngine = null;
+
+/**
+ * edgeTTSSpeak(text, gender)
+ * Free, unlimited Microsoft Edge TTS via the api-server proxy.
+ * Returns true on success, false on failure (so caller can fall back).
+ */
+const edgeTTSSpeak = async (text, gender) => {
+  try {
+    const res = await fetch('/api/edge-tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, gender: gender === 'female' ? 'female' : 'male' }),
+    });
+    if (!res.ok) return false;
+    const blob = await res.blob();
+    if (!blob || blob.size === 0) return false;
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    _currentTTSAudio = audio;
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      if (_currentTTSAudio === audio) _currentTTSAudio = null;
+    };
+    await audio.play();
+    _lastTTSEngine = 'edge';
+    return true;
+  } catch (err) {
+    console.warn('[Venoxa] Edge TTS failed:', err.message);
+    return false;
+  }
+};
 
 const getElevenLabsKey = async () => {
   // Return cached key if we already have one
@@ -439,6 +473,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
           if (_currentTTSAudio === audio) _currentTTSAudio = null;
         };
         await audio.play();
+        _lastTTSEngine = 'elevenlabs';
         return; // success — skip fallback
       } catch (err) {
         console.warn(`[Venoxa] ElevenLabs network error (attempt ${attempt + 1}):`, err.message);
@@ -446,7 +481,15 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     }
   }
 
-  // Fallback: browser speechSynthesis — pick the best available English voice
+  // Fallback #1: Microsoft Edge TTS (free, unlimited, natural US accent).
+  // Only for English text — Arabic uses browser TTS with the Arabic voice.
+  if (!hasArabicText(text)) {
+    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
+    const ok = await edgeTTSSpeak(text, gender);
+    if (ok) return;
+  }
+
+  // Fallback #2: browser speechSynthesis — pick the best available voice
   if ('speechSynthesis' in window) {
     const isArabicFallback = hasArabicText(text);
     const utterance = new SpeechSynthesisUtterance(text);
@@ -476,6 +519,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     }
     utterance.rate = 0.92;
     utterance.pitch = 1.0;
+    utterance.onstart = () => { _lastTTSEngine = 'browser'; };
     window.speechSynthesis.speak(utterance);
   }
 };
@@ -3213,6 +3257,7 @@ function Speaking({
   const [voiceGender, setVoiceGender] = useState('male');
   const [callReview, setCallReview] = useState(null);
   const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
+  const [ttsEngine, setTtsEngine] = useState('elevenlabs'); // 'elevenlabs' | 'edge' | 'browser'
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const saveConversationToHistory = (conversation) => {
@@ -3246,7 +3291,9 @@ function Speaking({
     const voiceId = voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID;
     await elevenLabsSpeak(text, voiceId);
     // Update TTS mode indicator after each call
-    setUsingBrowserTTS(_elevenLabsQuotaExceeded || !_elevenLabsKey);
+    const engine = _lastTTSEngine || (_elevenLabsQuotaExceeded || !_elevenLabsKey ? 'edge' : 'elevenlabs');
+    setTtsEngine(engine);
+    setUsingBrowserTTS(engine !== 'elevenlabs');
   };
   const handleSend = async (forcedText = null) => {
     const userMsg = forcedText || input;
@@ -3420,11 +3467,17 @@ function Speaking({
         </div>
         {usingBrowserTTS && (
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-            isDark
-              ? 'text-amber-400/70 border-amber-400/20 bg-amber-400/5'
-              : 'text-amber-600/70 border-amber-400/30 bg-amber-50'
-          }`} title="ElevenLabs voice credits exhausted — using browser voice">
-            Browser voice
+            ttsEngine === 'edge'
+              ? (isDark
+                  ? 'text-sky-400/80 border-sky-400/25 bg-sky-400/5'
+                  : 'text-sky-600/80 border-sky-400/30 bg-sky-50')
+              : (isDark
+                  ? 'text-amber-400/70 border-amber-400/20 bg-amber-400/5'
+                  : 'text-amber-600/70 border-amber-400/30 bg-amber-50')
+          }`} title={ttsEngine === 'edge'
+              ? 'Using Microsoft Edge neural voice (free, unlimited)'
+              : 'Using browser voice'}>
+            {ttsEngine === 'edge' ? 'Edge voice' : 'Browser voice'}
           </span>
         )}
       </div>
