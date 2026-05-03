@@ -274,7 +274,7 @@ const safeRender = val => {
 // backend server). This is required because ElevenLabs free-tier blocks
 // requests from server/cloud IPs (Replit production), but allows them from
 // real user browser IPs.
-const DEFAULT_ELEVENLABS_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam — confirmed working
+const DEFAULT_ELEVENLABS_VOICE_ID = 'nPczCjzI2devNBz1zQrb'; // Brian — warm, natural, free
 const ELEVENLABS_VOICE_OPTIONS = [
   { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
   { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah' },
