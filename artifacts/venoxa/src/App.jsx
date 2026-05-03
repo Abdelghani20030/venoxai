@@ -2837,7 +2837,7 @@ function Speaking({
       </div>}
       {messages.map((msg, idx) => <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
-        <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative text-center ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'}`} dir="ltr">
+        <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none text-right' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none text-right'}`} dir="ltr">
           <p className="text-lg leading-relaxed">
             {safeRender(msg.text)}
             {msg.streaming && <span className="inline-block w-[2px] h-5 bg-emerald-500 ml-0.5 align-middle animate-pulse rounded-full" />}
@@ -2848,36 +2848,36 @@ function Speaking({
           </button>}
         </div>
 
-        {msg.role === 'user' && msg.review && <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-lg animate-fadeIn transition-colors text-center">
-          <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1e] hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center text-sm font-bold text-gray-700 dark:text-gray-300 transition-colors gap-2 text-center">
+        {msg.role === 'user' && msg.review && <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-lg animate-fadeIn transition-colors">
+          <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1e] hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center text-sm font-bold text-gray-700 dark:text-gray-300 transition-colors">
             <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-4 h-4" /> {t.corrected}</span>
             <ChevronRight className={`w-4 h-4 transition-transform ${expandedReviewId === msg.id ? 'rotate-90' : ''}`} />
           </button>
 
           {expandedReviewId === msg.id && <div className="p-4 space-y-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214]">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm text-center">
+              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
                 <p className="text-xs text-gray-500 mb-1 font-bold">{t.clarity}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.clarity)}</p>
               </div>
-              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm text-center">
+              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
                 <p className="text-xs text-gray-500 mb-1 font-bold">{t.grammar}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.grammar)}</p>
               </div>
-              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm text-center">
+              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
                 <p className="text-xs text-gray-500 mb-1 font-bold">{t.fluency}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.fluency)}</p>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-emerald-50 dark:from-emerald-500/10 to-blue-50 dark:to-blue-500/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-500/20 relative shadow-sm text-center">
-              <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center justify-center gap-2">
+            <div className="bg-gradient-to-r from-emerald-50 dark:from-emerald-500/10 to-blue-50 dark:to-blue-500/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-500/20 relative shadow-sm">
+              <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-2">
                 <Target className="w-4 h-4" /> {t.native}
               </h4>
-              <p className="text-lg text-gray-900 dark:text-white font-medium text-center" dir="ltr">"{safeRender(msg.review.native_way)}"</p>
+              <p className="text-lg text-gray-900 dark:text-white font-medium" dir="ltr">"{safeRender(msg.review.native_way)}"</p>
 
-              <div className="mt-4 flex gap-3 justify-center">
-                <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 justify-center transition shadow-md">
+              <div className="mt-4 flex gap-3">
+                <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-md">
                   <Play className="w-4 h-4" /> {t.listen}
                 </button>
               </div>
