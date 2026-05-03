@@ -27,10 +27,10 @@ function buildProviders(): Provider[] {
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
-              temperature: 0.3,
-              topP: 0.8,
-              topK: 40,
-              maxOutputTokens: 220,
+              temperature: 0.2,
+              topP: 0.9,
+              topK: 20,
+              maxOutputTokens: 160,
             },
           }),
         });
@@ -60,7 +60,7 @@ function buildProviders(): Provider[] {
         const c = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 220,
+          max_completion_tokens: 160,
         });
         return c.choices?.[0]?.message?.content ?? "";
       },
@@ -85,8 +85,8 @@ function buildProviders(): Provider[] {
         const c = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 220,
-          temperature: 0.3,
+          max_completion_tokens: 160,
+          temperature: 0.2,
         });
         return c.choices?.[0]?.message?.content ?? "";
       },
@@ -104,8 +104,8 @@ function buildProviders(): Provider[] {
         const c = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 220,
-          temperature: 0.3,
+          max_completion_tokens: 160,
+          temperature: 0.2,
         });
         return c.choices?.[0]?.message?.content ?? "";
       },
