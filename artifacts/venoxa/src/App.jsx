@@ -274,7 +274,7 @@ const safeRender = val => {
 // backend server). This is required because ElevenLabs free-tier blocks
 // requests from server/cloud IPs (Replit production), but allows them from
 // real user browser IPs.
-const DEFAULT_ELEVENLABS_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam
+const DEFAULT_ELEVENLABS_VOICE_ID = '4201kqq0xqkset5tq80p5rgykx3j';
 const ELEVENLABS_VOICE_OPTIONS = [
   { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
   { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah' },
@@ -2666,7 +2666,11 @@ function Speaking({
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     try {
       const history = messages.slice(-2).map(m => `${m.role === 'ai' ? 'AI' : 'User'}: ${m.text}`).join('\n');
-      const prompt = `Reply naturally and briefly as an English tutor. Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Respond strictly as JSON only: {"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
+      const isArabicMsg = hasArabicText(userMsg);
+      const langInstruction = isArabicMsg
+        ? 'The user wrote in Arabic. Reply to them in Arabic. Still review their Arabic naturally.'
+        : 'Reply in English.';
+      const prompt = `Reply naturally and briefly as an English tutor. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Respond strictly as JSON only: {"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
       let accumulated = '';
       await streamFromAPI(prompt, (delta) => {
         accumulated += delta;
