@@ -329,16 +329,13 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
   // Arabic text: always use free browser TTS with Arabic voice
-  if (hasArabicText(text)) {
-    speakArabicFree(text);
-    return;
-  }
-
   // Fetch the API key from backend config (cached after first call)
   const apiKey = await getElevenLabsKey();
 
   if (apiKey) {
     try {
+      // Arabic uses the multilingual model so ElevenLabs pronounces it properly
+      const modelId = hasArabicText(text) ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
       // Call ElevenLabs DIRECTLY from the browser using the user's IP
       const response = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${voiceId || DEFAULT_ELEVENLABS_VOICE_ID}/stream`,
@@ -351,11 +348,11 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
           },
           body: JSON.stringify({
             text,
-            model_id: 'eleven_turbo_v2_5',
+            model_id: modelId,
             voice_settings: {
-              stability: 0.2,
+              stability: 0.35,
               similarity_boost: 0.9,
-              style: 0.45,
+              style: 0.4,
               use_speaker_boost: true,
             },
           }),
@@ -467,6 +464,25 @@ export default function App() {
   useEffect(() => localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(langeekVocab)), [langeekVocab]);
   useEffect(() => localStorage.setItem('venoxa_speaking_history', JSON.stringify(speakingHistory)), [speakingHistory]);
   useEffect(() => localStorage.setItem('venoxa_writing_history', JSON.stringify(writingHistory)), [writingHistory]);
+  const [srsRefreshTick, setSrsRefreshTick] = useState(0);
+  useEffect(() => {
+    const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
+    return () => clearInterval(int);
+  }, []);
+  const vocabDueCount = useMemo(() => {
+    try {
+      const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};
+      const now = Date.now();
+      return globalVocab.filter(w => { const d = srs[w.word]; return d && d.nextReview <= now; }).length;
+    } catch { return 0; }
+  }, [globalVocab, srsRefreshTick]);
+  const langeekDueCount = useMemo(() => {
+    try {
+      const srs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {};
+      const now = Date.now();
+      return langeekVocab.filter(w => { const d = srs[w.word]; return d && d.nextReview <= now; }).length;
+    } catch { return 0; }
+  }, [langeekVocab, srsRefreshTick]);
   const [theme, setTheme] = useState('dark');
   const [lang, setLang] = useState('ar');
   useEffect(() => {
@@ -520,7 +536,8 @@ export default function App() {
   }, {
     id: 'vocab',
     label: _resolveTranslation(lang, 'الكلمات والمراجعة', 'Vocabulary (SRS)'),
-    icon: BookOpen
+    icon: BookOpen,
+    badge: vocabDueCount
   }, {
     id: 'writing',
     label: _resolveTranslation(lang, 'الكتابة (AI)', 'Writing (AI)'),
@@ -544,7 +561,8 @@ export default function App() {
   }, {
     id: 'langeek',
     label: _resolveTranslation(lang, 'لانجيك (PDF)', 'Langeek (PDF)'),
-    icon: Archive
+    icon: Archive,
+    badge: langeekDueCount
   }];
   return <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#09090b] text-gray-100' : 'bg-gray-50 text-gray-900'} font-sans selection:bg-blue-500/30 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
     <div className={`hidden md:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-200'} border-l shadow-2xl z-10 transition-colors duration-300 print:hidden`}>
@@ -559,8 +577,9 @@ export default function App() {
             const isActive = activeTab === item.id;
             return <li key={item.id}>
               <button onClick={() => setActiveTab(item.id)} className={`w-full flex items-center px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : `text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200 border border-transparent`}`}>
-                <item.icon className={`w-5 h-5 ${_resolveTranslation(lang, 'ml-3', 'mr-3')} ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'}`} />
-                {item.label}
+                <item.icon className={`w-5 h-5 ${_resolveTranslation(lang, 'ml-3', 'mr-3')} ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'} shrink-0`} />
+                <span className="flex-1 text-start">{item.label}</span>
+                {item.badge > 0 && <span className="min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center px-1 shrink-0">{item.badge > 99 ? '99+' : item.badge}</span>}
               </button>
             </li>;
           })}
@@ -791,9 +810,11 @@ function PlanWeekTable({
   weeklyTotalMins,
   openVocabModal,
   openGrammarModal,
-  interactive
+  interactive,
+  completedCells,
+  onToggleCell
 }) {
-  const cellBase = "border border-gray-400 dark:border-gray-700 print:border-gray-500 px-2 py-2 align-middle text-center";
+  const cellBase = "border border-gray-400 dark:border-gray-700 print:border-gray-500 px-2 py-2 align-middle text-center relative";
   const headBase = "border border-gray-400 dark:border-gray-700 print:border-gray-600 bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm";
   return <div className="overflow-x-auto print:overflow-visible">
     <table className="w-full border-collapse text-sm bg-white dark:bg-[#0e0e11] text-gray-800 dark:text-gray-100 min-w-[760px] print:min-w-full">
@@ -816,22 +837,25 @@ function PlanWeekTable({
             </div>
           </td>
           {[0, 1, 2, 3, 4, 5, 6].map(d => {
+            const cellKey = `${weekNum}-${cat.id}-${d}`;
+            const completion = completedCells?.[cellKey];
             const isInteractive = interactive && (cat.id === 'vocab' || cat.id === 'grammar');
             const cellClass = `${cellBase} ${cat.textColor} ${cat.cellBg} font-semibold ${isInteractive ? cat.id === 'vocab' ? 'cursor-pointer hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900/30 active:bg-fuchsia-300 dark:active:bg-fuchsia-800/40 transition-colors' : 'cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/30 active:bg-orange-300 dark:active:bg-orange-800/40 transition-colors' : ''}`;
             const onClick = isInteractive ? () => {
               if (cat.id === 'vocab') openVocabModal(d);
               if (cat.id === 'grammar') openGrammarModal(d);
             } : undefined;
-            return <td key={d} className={cellClass} onClick={onClick}>
-              {cat.id === 'vocab' ? <div className="flex flex-col items-center gap-0.5">
-                <span className="text-sm font-extrabold tracking-tight" dir="ltr">{getVocabRange(weekNum, d)}</span>
+            return <td key={d} className={cellClass} onClick={onClick} onContextMenu={interactive ? (e) => { e.preventDefault(); onToggleCell?.(weekNum, cat.id, d); } : undefined} title={interactive ? 'Right-click to mark done/missed' : undefined}>
+              {completion && <span className={`absolute top-0.5 right-0.5 text-[11px] font-black leading-none print:hidden ${completion === 'done' ? 'text-green-500' : 'text-red-500'}`}>{completion === 'done' ? '✓' : '✗'}</span>}
+              {cat.id === 'vocab' ? <div className="flex flex-col items-center justify-center gap-0.5 min-h-[32px]">
+                <span className="text-sm font-extrabold tracking-tight text-center" dir="ltr">{getVocabRange(weekNum, d)}</span>
                 <span className="text-[10px] opacity-70">{cat.mins}m</span>
-              </div> : cat.id === 'grammar' ? <div className="flex flex-col items-center gap-0.5">
-                <span className="text-[10px] font-bold leading-tight px-0.5 line-clamp-2 overflow-hidden" dir="ltr" title={relevantGrammarTopics[((weekNum - 1) * 7 + d) % relevantGrammarTopics.length]}>
+              </div> : cat.id === 'grammar' ? <div className="flex flex-col items-center justify-center gap-0.5 min-h-[32px]">
+                <span className="text-[10px] font-bold leading-tight px-0.5 line-clamp-2 overflow-hidden text-center" dir="ltr" title={relevantGrammarTopics[((weekNum - 1) * 7 + d) % relevantGrammarTopics.length]}>
                   {relevantGrammarTopics[((weekNum - 1) * 7 + d) % relevantGrammarTopics.length]}
                 </span>
                 <span className="text-[10px] opacity-70">{cat.mins}m</span>
-              </div> : <span className="text-sm">{cat.mins}m</span>}
+              </div> : <div className="flex items-center justify-center min-h-[32px]"><span className="text-sm">{cat.mins}m</span></div>}
             </td>;
           })}
           <td className={`${cellBase} font-bold ${cat.textColor} ${cat.headerBg}`}>
@@ -951,6 +975,20 @@ function StudyPlan({
   const [currentWeek, setCurrentWeek] = useState(stored?.currentWeek || 1);
   const [vocabModal, setVocabModal] = useState(null);
   const [grammarModal, setGrammarModal] = useState(null);
+  const [completedCells, setCompletedCells] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {}; } catch { return {}; }
+  });
+  const toggleCellCompletion = (weekNum, catId, dayIdx) => {
+    const key = `${weekNum}-${catId}-${dayIdx}`;
+    setCompletedCells(prev => {
+      const current = prev[key];
+      const next = current === 'done' ? 'missed' : current === 'missed' ? null : 'done';
+      const newData = { ...prev };
+      if (next === null) delete newData[key]; else newData[key] = next;
+      localStorage.setItem('venoxa_completed_cells', JSON.stringify(newData));
+      return newData;
+    });
+  };
   const t = {
     title: _resolveTranslation(lang, 'إعداد خطة المذاكرة والمستوى', 'Set Up Study Plan & Level'),
     currentLvl: _resolveTranslation(lang, 'مستواك الحالي', 'Current Level'),
@@ -1760,7 +1798,7 @@ function StudyPlan({
 
       {/* Screen view: current week only */}
       <div className="print:hidden">
-        <PlanWeekTable weekNum={currentWeek} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} relevantGrammarTopics={relevantGrammarTopics} t={t} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive />
+        <PlanWeekTable weekNum={currentWeek} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} relevantGrammarTopics={relevantGrammarTopics} t={t} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive completedCells={completedCells} onToggleCell={toggleCellCompletion} />
       </div>
 
       {/* Print view: every week, page break between */}
@@ -1773,7 +1811,7 @@ function StudyPlan({
           length: planData.totalWeeks
         }, (_, i) => i + 1).map(w => <div key={w} className={w < planData.totalWeeks ? 'mb-6 break-after-page' : 'mb-6'}>
           <h2 className="text-lg font-bold text-black mb-2 text-center">{t.week} {w}</h2>
-          <PlanWeekTable weekNum={w} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} relevantGrammarTopics={relevantGrammarTopics} t={t} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive={false} />
+          <PlanWeekTable weekNum={w} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} relevantGrammarTopics={relevantGrammarTopics} t={t} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive={false} completedCells={completedCells} />
         </div>)}
       </div>
 
@@ -2482,6 +2520,18 @@ function Writing({
   const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [writingTopic, setWritingTopic] = useState('');
+  const [writingQuestion, setWritingQuestion] = useState('');
+  const [loadingQuestion, setLoadingQuestion] = useState(false);
+  useEffect(() => {
+    if (!writingTopic) { setWritingQuestion(''); return; }
+    setLoadingQuestion(true);
+    const prompt = `Generate a clear and engaging writing prompt question about the topic: "${writingTopic.split('(')[0].trim()}" for an English language learner. Make it one direct question that encourages 2-3 paragraphs of writing. Return only the question text, nothing else.`;
+    fetchFromGemini(prompt, AI_KEY).then(response => {
+      setWritingQuestion(cleanFallbackText(response));
+      setLoadingQuestion(false);
+    }).catch(() => { setWritingQuestion(''); setLoadingQuestion(false); });
+  }, [writingTopic]);
   const t = {
     title: _resolveTranslation(lang, 'مصحح الكتابة المتقدم', 'Advanced AI Corrector'),
     placeholder: _resolveTranslation(lang, "اكتب مقالاً قصيراً هنا (مثلاً عن طموحاتك)...", "Write a short essay here..."),
@@ -2554,7 +2604,20 @@ function Writing({
         <p className="text-sm text-purple-600 dark:text-purple-400 font-bold" dir="ltr">{safeRender(item.output)}</p>
       </div>)}
     </div>}
-    <textarea value={text} onChange={e => setText(e.target.value)} placeholder={t.placeholder} className="w-full h-64 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-8 text-gray-900 dark:text-white text-lg focus:outline-none focus:border-purple-500 transition-all mb-6 shadow-xl" dir="ltr"></textarea>
+
+    <div className="mb-4">
+      <select value={writingTopic} onChange={e => setWritingTopic(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3 text-gray-900 dark:text-white text-sm font-bold focus:outline-none focus:border-purple-500 transition-all shadow-sm appearance-none">
+        <option value="">{_resolveTranslation(lang, '— اختر موضوعاً لتوليد سؤال تلقائي (اختياري) —', '— Choose a topic to auto-generate a writing prompt (optional) —')}</option>
+        {SPEAKING_TOPICS.map(tp => <option key={tp} value={tp}>{tp}</option>)}
+      </select>
+      {loadingQuestion && <p className="mt-2 text-sm text-purple-500 dark:text-purple-400 animate-pulse font-medium flex items-center gap-2"><Activity className="w-4 h-4 animate-spin" /> Generating writing prompt...</p>}
+      {writingQuestion && !loadingQuestion && <div className="mt-3 p-4 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 rounded-2xl animate-fadeIn">
+        <p className="text-xs font-extrabold text-purple-500 dark:text-purple-400 uppercase tracking-wider mb-1.5">Writing Prompt</p>
+        <p className="text-gray-900 dark:text-white font-medium leading-relaxed" dir="ltr">{writingQuestion}</p>
+      </div>}
+    </div>
+
+    <textarea value={text} onChange={e => setText(e.target.value)} placeholder={writingQuestion || t.placeholder} className="w-full h-64 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-8 text-gray-900 dark:text-white text-lg focus:outline-none focus:border-purple-500 transition-all mb-6 shadow-xl" dir="ltr"></textarea>
     <div className="flex gap-3">
       <button onClick={startNewWriting} className="flex-1 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white font-extrabold py-5 rounded-2xl shadow-lg hover:shadow-xl transition-all">
         New Writing
@@ -2623,6 +2686,8 @@ function Speaking({
   const [loadingScenario, setLoadingScenario] = useState(false);
   const [autoRead, setAutoRead] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
+  const [voiceGender, setVoiceGender] = useState('male');
+  const [callReview, setCallReview] = useState(null);
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const saveConversationToHistory = (conversation) => {
@@ -2651,8 +2716,10 @@ function Speaking({
     });
   }, [messages, expandedReviewId]);
   // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
+  // Male: Brian (nPczCjzI2devNBz1zQrb) | Female: Sarah (EXAVITQu4vr4xnSDxMaL)
   const speakText = async text => {
-    await elevenLabsSpeak(text);
+    const voiceId = voiceGender === 'female' ? 'EXAVITQu4vr4xnSDxMaL' : 'nPczCjzI2devNBz1zQrb';
+    await elevenLabsSpeak(text, voiceId);
   };
   const handleSend = async (forcedText = null) => {
     const userMsg = forcedText || input;
@@ -2771,14 +2838,18 @@ function Speaking({
     recognition.start();
   };
   const toggleCallMode = () => {
-    setIsCallMode(!isCallMode);
-    if (!isCallMode) {
-      speakText("Call started. What would you like to talk about?");
-    } else {
-      // Stop any ElevenLabs audio and browser TTS
+    if (isCallMode) {
+      // Ending call — collect corrections from conversation
+      const corrections = messages.filter(m => m.role === 'user' && m.review);
+      setCallReview(corrections.length > 0 ? corrections : null);
       cancelTTS();
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsRecording(false);
+      setIsCallMode(false);
+    } else {
+      setCallReview(null);
+      setIsCallMode(true);
+      speakText("Call started. What would you like to talk about?");
     }
   };
   const generateScenario = async () => {
@@ -2809,27 +2880,42 @@ function Speaking({
     }
   };
   if (isCallMode) {
+    const lastAiCallMsg = [...messages].reverse().find(m => m.role === 'ai' && m.text);
     return <div className="max-w-md mx-auto h-[80vh] flex flex-col items-center justify-between bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border border-slate-800 rounded-[2.25rem] p-6 shadow-2xl relative overflow-hidden animate-fadeIn transition-colors">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_40%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.10),transparent_35%)] pointer-events-none"></div>
 
-      <div className="text-center mt-6 relative z-10">
-        <h2 className="text-2xl font-bold text-white mb-2">Venoxa AI</h2>
+      <div className="text-center mt-4 relative z-10 w-full">
+        <h2 className="text-2xl font-bold text-white mb-1">Venoxa AI</h2>
         <p className="text-blue-300 flex items-center justify-center gap-2 text-sm font-semibold">
           <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span> {t.callActive}
         </p>
-        <p className="text-xs text-slate-400 mt-2">Level: {chatLevel} | {topic.split('(')[0]}</p>
-      </div>
-
-      <div className="relative flex items-center justify-center w-full my-10 z-10">
-        <div className={`absolute w-52 h-52 rounded-full ${loading ? 'bg-blue-500/20 animate-ping' : isRecording ? 'bg-red-500/20 animate-ping' : 'bg-blue-500/10'}`}></div>
-        <div className={`absolute w-36 h-36 rounded-full ${loading ? 'bg-blue-400/20 animate-pulse' : isRecording ? 'bg-red-400/20 animate-pulse' : 'bg-slate-700/60'}`}></div>
-        <div className="w-24 h-24 rounded-full z-10 flex items-center justify-center bg-slate-900/90 border border-slate-700 shadow-[0_0_40px_rgba(0,0,0,0.35)]">
-          {loading ? <Activity className="w-10 h-10 text-blue-400 animate-spin" /> : isRecording ? <Mic className="w-10 h-10 text-red-400 animate-pulse" /> : <Volume2 className="w-10 h-10 text-slate-300" />}
+        <p className="text-xs text-slate-400 mt-1">Level: {chatLevel} | {topic.split('(')[0]}</p>
+        <div className="flex items-center justify-center gap-2 mt-3">
+          <button onClick={() => setVoiceGender('male')} className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${voiceGender === 'male' ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400 hover:text-slate-200'}`}>♂ Male</button>
+          <button onClick={() => setVoiceGender('female')} className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${voiceGender === 'female' ? 'bg-pink-500 text-white' : 'bg-slate-700 text-slate-400 hover:text-slate-200'}`}>♀ Female</button>
         </div>
       </div>
 
-      <div className="w-full relative z-10 flex flex-col gap-6 items-center mb-8">
-        <p className="text-slate-300 text-center text-sm min-h-8 font-medium">
+      <div className="relative flex items-center justify-center w-full my-4 z-10">
+        <div className={`absolute w-44 h-44 rounded-full ${loading ? 'bg-blue-500/20 animate-ping' : isRecording ? 'bg-red-500/20 animate-ping' : 'bg-blue-500/10'}`}></div>
+        <div className={`absolute w-28 h-28 rounded-full ${loading ? 'bg-blue-400/20 animate-pulse' : isRecording ? 'bg-red-400/20 animate-pulse' : 'bg-slate-700/60'}`}></div>
+        <div className="w-20 h-20 rounded-full z-10 flex items-center justify-center bg-slate-900/90 border border-slate-700 shadow-[0_0_40px_rgba(0,0,0,0.35)]">
+          {loading ? <Activity className="w-9 h-9 text-blue-400 animate-spin" /> : isRecording ? <Mic className="w-9 h-9 text-red-400 animate-pulse" /> : <Volume2 className="w-9 h-9 text-slate-300" />}
+        </div>
+      </div>
+
+      {lastAiCallMsg && <div className="w-full relative z-10 px-1">
+        <div className="bg-slate-800/60 border border-slate-700/40 rounded-2xl p-3 max-h-24 overflow-y-auto text-center custom-scrollbar">
+          <p className="text-[10px] text-slate-400 font-extrabold mb-1 uppercase tracking-widest">AI</p>
+          <p className="text-slate-200 text-sm leading-relaxed" dir="ltr">
+            {safeRender(lastAiCallMsg.text)}
+            {lastAiCallMsg.streaming && <span className="inline-block w-[2px] h-4 bg-blue-400 ml-0.5 align-middle animate-pulse rounded-full" />}
+          </p>
+        </div>
+      </div>}
+
+      <div className="w-full relative z-10 flex flex-col gap-3 items-center mb-4">
+        <p className="text-slate-300 text-center text-sm min-h-6 font-medium">
           {loading ? t.thinking : isRecording ? t.micOn : t.tapMic}
         </p>
         <div className="flex items-center gap-6">
@@ -2843,7 +2929,7 @@ function Speaking({
       </div>
     </div>;
   }
-  return <div className="max-w-5xl mx-auto h-[85vh] flex flex-col animate-fadeIn border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#09090b] transition-colors">
+  return <><div className="max-w-5xl mx-auto h-[85vh] flex flex-col animate-fadeIn border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#09090b] transition-colors">
     <div className="bg-gray-50 dark:bg-[#121214] p-5 border-b border-gray-200 dark:border-gray-800 flex flex-col lg:flex-row justify-between items-center gap-4 relative z-10 transition-colors">
       <div className="flex items-center gap-4 w-full lg:w-auto">
         <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-200 dark:border-emerald-500/20 shrink-0">
@@ -2876,6 +2962,10 @@ function Speaking({
         <button onClick={() => setAutoRead(v => !v)} className={`px-3 py-2 rounded-lg text-sm font-bold transition-all border ${autoRead ? 'bg-blue-600 text-white border-blue-500' : 'bg-white dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'}`}>
           {autoRead ? 'Auto-read On' : 'Auto-read Off'}
         </button>
+        <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm">
+          <button onClick={() => setVoiceGender('male')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'male' ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-blue-500'}`}>♂</button>
+          <button onClick={() => setVoiceGender('female')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'female' ? 'bg-pink-500 text-white' : 'text-gray-500 hover:text-pink-500'}`}>♀</button>
+        </div>
         <button onClick={() => setShowHistory(v => !v)} className="px-3 py-2 rounded-lg text-sm font-bold transition-all border bg-white dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700">
           History
         </button>
@@ -2983,7 +3073,25 @@ function Speaking({
         </button>
       </div>
     </div>
-  </div>;
+  </div>
+  {callReview && <div className="max-w-5xl mx-auto mt-6 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl animate-fadeIn">
+    <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 text-white flex justify-between items-center">
+      <h3 className="font-extrabold text-lg flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Call Corrections Review</h3>
+      <button onClick={() => setCallReview(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+    </div>
+    <div className="p-5 space-y-4">
+      {callReview.map((msg, i) => <div key={i} className="p-4 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl border border-gray-200 dark:border-gray-800">
+        <p className="text-xs text-gray-500 font-extrabold uppercase tracking-wider mb-2">You said:</p>
+        <p className="text-gray-900 dark:text-white font-medium mb-3" dir="ltr">"{safeRender(msg.text)}"</p>
+        {msg.review && <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+          {msg.review.grammar && <div className="p-2.5 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl"><p className="font-bold text-red-600 dark:text-red-400 text-xs mb-1">Grammar</p><p className="text-gray-800 dark:text-gray-200">{safeRender(msg.review.grammar)}</p></div>}
+          {msg.review.clarity && <div className="p-2.5 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl"><p className="font-bold text-blue-600 dark:text-blue-400 text-xs mb-1">Clarity</p><p className="text-gray-800 dark:text-gray-200">{safeRender(msg.review.clarity)}</p></div>}
+          {msg.review.native_way && <div className="p-2.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-xl"><p className="font-bold text-emerald-600 dark:text-emerald-400 text-xs mb-1">Native way</p><p className="text-gray-800 dark:text-gray-200 italic">"{safeRender(msg.review.native_way)}"</p></div>}
+        </div>}
+      </div>)}
+    </div>
+  </div>}
+  </>;
 }
 
 function Langeek({
