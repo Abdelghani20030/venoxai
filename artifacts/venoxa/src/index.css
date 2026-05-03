@@ -25,6 +25,16 @@ html, body, #root {
   color-scheme: dark;
 }
 
+/* Hide number input spinners */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner {
+  -moz-appearance: textfield;
+}
+
 /* Sleek, slim scrollbars across the whole app — no sharp white edges. */
 * {
   scrollbar-width: thin;
