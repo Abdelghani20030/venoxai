@@ -2473,6 +2473,7 @@ function Speaking({
   const [isRecording, setIsRecording] = useState(false);
   const [expandedReviewId, setExpandedReviewId] = useState(null);
   const [loadingScenario, setLoadingScenario] = useState(false);
+  const autoReadRef = useRef(true);
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
   useEffect(() => {
@@ -2515,6 +2516,7 @@ Return compact JSON only:
         }]);
         if (isCallMode) speakText("Sorry, I am having trouble connecting.");
       } else if (jsonResponse && jsonResponse.reply) {
+        const replyText = jsonResponse.reply;
         setMessages(prev => {
           const updated = prev.map(msg => msg.id === newMsgId ? {
             ...msg,
@@ -2523,10 +2525,10 @@ Return compact JSON only:
           return [...updated, {
             id: Date.now() + 1,
             role: 'ai',
-            text: jsonResponse.reply
+            text: replyText
           }];
         });
-        if (isCallMode) speakText(jsonResponse.reply);
+        if (isCallMode || autoReadRef.current) speakText(replyText);
       } else {
         const fallbackText = cleanFallbackText(rawResponse);
         setMessages(prev => [...prev, {
@@ -2534,7 +2536,7 @@ Return compact JSON only:
           role: 'ai',
           text: fallbackText
         }]);
-        if (isCallMode) speakText(fallbackText);
+        if (isCallMode || autoReadRef.current) speakText(fallbackText);
       }
     } catch (err) {
       setMessages(prev => [...prev, {
