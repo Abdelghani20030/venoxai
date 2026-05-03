@@ -270,9 +270,11 @@ const safeRender = val => {
 };
 
 // --- ELEVENLABS TTS HELPER ---
-// Default voice: "Rachel" (ElevenLabs premade, natural American English).
-// The user can override this by passing a different voice ID.
-const DEFAULT_ELEVENLABS_VOICE_ID = '4201kqq0xqkset5tq80p5rgykx3j';
+// TTS calls are made DIRECTLY from the browser to ElevenLabs (not through the
+// backend server). This is required because ElevenLabs free-tier blocks
+// requests from server/cloud IPs (Replit production), but allows them from
+// real user browser IPs.
+const DEFAULT_ELEVENLABS_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam
 const ELEVENLABS_VOICE_OPTIONS = [
   { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
   { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah' },
@@ -284,20 +286,37 @@ const ELEVENLABS_VOICE_OPTIONS = [
   { id: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum' },
 ];
 
+// Cached ElevenLabs API key fetched once from the backend config endpoint.
+let _elevenLabsKey = null;
+let _elevenLabsKeyFetched = false;
+
+const getElevenLabsKey = async () => {
+  if (_elevenLabsKeyFetched) return _elevenLabsKey;
+  try {
+    const res = await fetch('/api/config');
+    if (res.ok) {
+      const data = await res.json();
+      _elevenLabsKey = data.elevenLabsApiKey || null;
+    }
+  } catch {
+    _elevenLabsKey = null;
+  }
+  _elevenLabsKeyFetched = true;
+  return _elevenLabsKey;
+};
+
 // Keeps a reference to the current Audio element so we can cancel it before
-// starting a new utterance (mirrors the old speechSynthesis.cancel() pattern).
+// starting a new utterance.
 let _currentTTSAudio = null;
 
 /**
  * elevenLabsSpeak(text, voiceId?)
  *
- * Calls our backend /api/tts/stream endpoint, receives an audio/mpeg blob,
- * and plays it via a plain <Audio> object.  Falls back to the browser's
- * built-in speechSynthesis if the backend returns an error (e.g. API key
- * not configured yet).
+ * Calls ElevenLabs DIRECTLY from the browser (not through the backend server)
+ * so the request comes from the user's real IP — avoiding the free-tier
+ * server-IP block. Falls back to browser speechSynthesis if the key is absent.
  *
- * @param {string} text     - The English text to read aloud.
- * @param {string} [voiceId] - Optional ElevenLabs voice ID.
+ * Arabic text always uses the free browser TTS with the correct Arabic voice.
  */
 const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
   if (!text || !text.trim()) return;
@@ -307,45 +326,65 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     _currentTTSAudio.pause();
     _currentTTSAudio = null;
   }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
+  // Arabic text: always use free browser TTS with Arabic voice
   if (hasArabicText(text)) {
-    if (speakArabicFree(text)) return;
+    speakArabicFree(text);
+    return;
   }
 
-  try {
-    // POST to our Express backend which proxies to ElevenLabs.
-    // IMPORTANT: Use an absolute path (/api/tts/stream) — NOT import.meta.env.BASE_URL
-    // prefixed — so Replit's router always sends this to the Express API server
-    // (port 8080, path /api) rather than the static file server in production.
-    const response = await fetch('/api/tts/stream', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ textToSpeak: text, selectedVoiceId: voiceId }),
-    });
+  // Fetch the API key from backend config (cached after first call)
+  const apiKey = await getElevenLabsKey();
 
-    if (!response.ok) {
-      const errBody = await response.text().catch(() => '');
-      throw new Error(`TTS backend returned ${response.status}: ${errBody.slice(0, 200)}`);
-    }
+  if (apiKey) {
+    try {
+      // Call ElevenLabs DIRECTLY from the browser using the user's IP
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId || DEFAULT_ELEVENLABS_VOICE_ID}/stream`,
+        {
+          method: 'POST',
+          headers: {
+            'xi-api-key': apiKey,
+            'Content-Type': 'application/json',
+            Accept: 'audio/mpeg',
+          },
+          body: JSON.stringify({
+            text,
+            model_id: 'eleven_turbo_v2_5',
+            voice_settings: {
+              stability: 0.2,
+              similarity_boost: 0.9,
+              style: 0.45,
+              use_speaker_boost: true,
+            },
+          }),
+        }
+      );
 
-    // Convert the streamed audio bytes into a Blob and play them
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-    const audio = new Audio(audioUrl);
-    _currentTTSAudio = audio;
-    audio.onended = () => URL.revokeObjectURL(audioUrl); // free memory
-    await audio.play();
-  } catch (err) {
-    // If ElevenLabs TTS fails, log clearly so it's visible in DevTools.
-    // Only fall back to browser TTS as a last resort.
-    console.error('[Venoxa] ElevenLabs TTS failed (check ELEVENLABS_API_KEY env var and /api/tts/stream route):', err.message);
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = hasArabicText(text) ? 'ar-SA' : 'en-US';
-      utterance.rate = 0.95;
-      window.speechSynthesis.speak(utterance);
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => '');
+        throw new Error(`ElevenLabs returned ${response.status}: ${errBody.slice(0, 200)}`);
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      _currentTTSAudio = audio;
+      audio.onended = () => URL.revokeObjectURL(audioUrl);
+      await audio.play();
+      return;
+    } catch (err) {
+      console.error('[Venoxa] ElevenLabs direct TTS failed, falling back to browser TTS:', err.message);
     }
+  }
+
+  // Fallback: browser speechSynthesis
+  if ('speechSynthesis' in window) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.95;
+    window.speechSynthesis.speak(utterance);
   }
 };
 
