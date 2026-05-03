@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, ChevronDown, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, History, Trash2, User, UserCircle2 } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, ChevronDown, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 
 function LanguageDropdown({ lang, setLang, theme }) {
@@ -221,20 +221,16 @@ const safeRender = val => {
 // Default voice: "Rachel" (ElevenLabs premade, natural American English).
 // The user can override this by passing a different voice ID.
 const DEFAULT_ELEVENLABS_VOICE_ID = '';
-// Free ElevenLabs voices - male/female pairing for the gender toggle
-const VOICE_MALE_ID = 'nPczCjzI2devNBz1zQrb';   // Brian – professional British male
-const VOICE_FEMALE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah – professional American female
 const ELEVENLABS_VOICE_OPTIONS = [
-  { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam', gender: 'male' },
-  { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah', gender: 'female' },
-  { id: 'TX3LPaxmHKxFdv7VOQHJ', label: 'Liam', gender: 'male' },
-  { id: 'XB0fDUnXU5powFXDhCwa', label: 'Charlotte', gender: 'female' },
-  { id: 'Xb7hH8MSUJpSbSDYk0k2', label: 'Alice', gender: 'female' },
-  { id: 'nPczCjzI2devNBz1zQrb', label: 'Brian', gender: 'male' },
-  { id: 'onwK4e9ZLuTAKqWW03F9', label: 'Daniel', gender: 'male' },
-  { id: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum', gender: 'male' },
+  { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
+  { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah' },
+  { id: 'TX3LPaxmHKxFdv7VOQHJ', label: 'Liam' },
+  { id: 'XB0fDUnXU5powFXDhCwa', label: 'Charlotte' },
+  { id: 'Xb7hH8MSUJpSbSDYk0k2', label: 'Alice' },
+  { id: 'nPczCjzI2devNBz1zQrb', label: 'Brian' },
+  { id: 'onwK4e9ZLuTAKqWW03F9', label: 'Daniel' },
+  { id: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum' },
 ];
-const SPEAKING_SESSIONS_KEY = 'venoxa_speaking_sessions';
 
 // Keeps a reference to the current Audio element so we can cancel it before
 // starting a new utterance (mirrors the old speechSynthesis.cancel() pattern).
@@ -1921,7 +1917,7 @@ function Vocabulary({
         setAiStory(responseText);
       }
     } catch (err) {
-      setAiStory(_resolveTranslation(lang, 'فشل إنشاء القصة.', 'Failed to generate story.'));
+      setAiStory(t.storyError);
     } finally {
       setLoadingAi(false);
     }
@@ -1960,7 +1956,6 @@ function Vocabulary({
   const generateContextStory = async () => {
     if (hardWords.length === 0 || loadingContextStory) return;
     setLoadingContextStory(true);
-    setContextStory('');
     try {
       const wordsStr = hardWords.map(w => w.word).join(', ');
       const prompt = `You are a creative writing teacher. Use ALL of these words: [${wordsStr}] in a single short, coherent, and interesting story in English. The story should be accessible for a ${userLevel} learner. After the story, explain the context of each word in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
@@ -1972,7 +1967,7 @@ function Vocabulary({
         setContextStory(response);
       }
     } catch (e) {
-      setContextStory(_resolveTranslation(lang, 'فشل إنشاء القصة.', 'Failed to generate story.'));
+      setContextStory(t.storyError);
     } finally {
       setLoadingContextStory(false);
     }
@@ -2461,61 +2456,14 @@ function Speaking({
     micOn: _resolveTranslation(lang, 'تحدث الآن، الميكروفون مفتوح...', 'Speak now, microphone is open...'),
     tapMic: _resolveTranslation(lang, 'اضغط للتحدث', 'Tap to speak'),
     callActive: _resolveTranslation(lang, 'مكالمة قيد الإجراء...', 'Call in progress...'),
-    stopCall: _resolveTranslation(lang, 'إنهاء المكالمة', 'End Call'),
-    history: _resolveTranslation(lang, 'السجل', 'History'),
-    noHistory: _resolveTranslation(lang, 'لا توجد محادثات سابقة', 'No previous conversations'),
-    deleteSession: _resolveTranslation(lang, 'حذف', 'Delete'),
-    male: _resolveTranslation(lang, 'رجل', 'Male'),
-    female: _resolveTranslation(lang, 'امرأة', 'Female'),
+    stopCall: _resolveTranslation(lang, 'إنهاء المكالمة', 'End Call')
   };
-
-  // Voice gender (persisted)
-  const [voiceGender, setVoiceGender] = useState(() => localStorage.getItem('venoxa_voice_gender') || 'female');
-  useEffect(() => { localStorage.setItem('venoxa_voice_gender', voiceGender); }, [voiceGender]);
-  const activeVoiceId = voiceGender === 'male' ? VOICE_MALE_ID : VOICE_FEMALE_ID;
-
-  // Session history
-  const [sessions, setSessions] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(SPEAKING_SESSIONS_KEY)) || []; } catch { return []; }
-  });
-  const [showHistory, setShowHistory] = useState(false);
-  const currentSessionIdRef = useRef(Date.now());
-
-  const saveCurrentSession = (msgs) => {
-    const meaningful = msgs.filter(m => m.role !== 'system');
-    if (meaningful.length < 2) return;
-    const firstUser = meaningful.find(m => m.role === 'user');
-    const title = firstUser ? firstUser.text.slice(0, 50) : 'Session';
-    const session = {
-      id: currentSessionIdRef.current,
-      title,
-      timestamp: Date.now(),
-      messages: msgs,
-    };
-    setSessions(prev => {
-      const without = prev.filter(s => s.id !== session.id);
-      const updated = [session, ...without].slice(0, 30);
-      localStorage.setItem(SPEAKING_SESSIONS_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const loadSession = (session) => {
-    currentSessionIdRef.current = session.id;
-    setMessages(session.messages);
-    setShowHistory(false);
-  };
-
-  const deleteSession = (id, e) => {
-    e.stopPropagation();
-    setSessions(prev => {
-      const updated = prev.filter(s => s.id !== id);
-      localStorage.setItem(SPEAKING_SESSIONS_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const [messages, setMessages] = useState([{ id: 1, role: 'ai', text: t.welcome }]);
+  const [messages, setMessages] = useState([{
+    id: 1,
+    role: 'ai',
+    text: t.welcome
+  }]);
+  const [selectedVoiceId, setSelectedVoiceId] = useState(DEFAULT_ELEVENLABS_VOICE_ID || ELEVENLABS_VOICE_OPTIONS[0].id);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatLevel, setChatLevel] = useState(userLevel);
@@ -2525,24 +2473,27 @@ function Speaking({
   const [isRecording, setIsRecording] = useState(false);
   const [expandedReviewId, setExpandedReviewId] = useState(null);
   const [loadingScenario, setLoadingScenario] = useState(false);
-  const autoReadRef = useRef(true);
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
-
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    chatEndRef.current?.scrollIntoView({
+      behavior: "smooth"
+    });
   }, [messages, expandedReviewId]);
-
+  // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
   const speakText = async text => {
-    await elevenLabsSpeak(text, activeVoiceId);
+    await elevenLabsSpeak(text);
   };
-
   const handleSend = async (forcedText = null) => {
     const userMsg = forcedText || input;
     if (!userMsg.trim()) return;
     if (!forcedText) setInput('');
     const newMsgId = Date.now();
-    setMessages(prev => [...prev, { id: newMsgId, role: 'user', text: userMsg }]);
+    setMessages(prev => [...prev, {
+      id: newMsgId,
+      role: 'user',
+      text: userMsg
+    }]);
     setLoading(true);
     try {
       const history = messages.slice(-4).map(m => `${m.role === 'ai' ? 'AI' : 'User'}: ${m.text}`).join('\n');
@@ -2557,30 +2508,45 @@ Return compact JSON only:
       const rawResponse = await fetchFromGemini(prompt, AI_KEY);
       const jsonResponse = parseGeminiJSON(rawResponse);
       if (jsonResponse && jsonResponse.error) {
-        setMessages(prev => [...prev, { id: Date.now() + 1, role: 'system', text: jsonResponse.error }]);
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          role: 'system',
+          text: jsonResponse.error
+        }]);
         if (isCallMode) speakText("Sorry, I am having trouble connecting.");
       } else if (jsonResponse && jsonResponse.reply) {
-        const replyText = jsonResponse.reply;
         setMessages(prev => {
-          const updated = prev.map(msg => msg.id === newMsgId ? { ...msg, review: jsonResponse.review } : msg);
-          return [...updated, { id: Date.now() + 1, role: 'ai', text: replyText }];
+          const updated = prev.map(msg => msg.id === newMsgId ? {
+            ...msg,
+            review: jsonResponse.review
+          } : msg);
+          return [...updated, {
+            id: Date.now() + 1,
+            role: 'ai',
+            text: jsonResponse.reply
+          }];
         });
-        if (isCallMode || autoReadRef.current) speakText(replyText);
+        if (isCallMode) speakText(jsonResponse.reply);
       } else {
         const fallbackText = cleanFallbackText(rawResponse);
-        setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: fallbackText }]);
-        if (isCallMode || autoReadRef.current) speakText(fallbackText);
+        setMessages(prev => [...prev, {
+          id: Date.now() + 1,
+          role: 'ai',
+          text: fallbackText
+        }]);
+        if (isCallMode) speakText(fallbackText);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { id: Date.now() + 1, role: 'system', text: _resolveTranslation(lang, "فشل الاتصال بالذكاء الاصطناعي.", "Error connecting to AI.") }]);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        role: 'system',
+        text: _resolveTranslation(lang, "فشل الاتصال بالذكاء الاصطناعي.", "Error connecting to AI.")
+      }]);
     } finally {
       setLoading(false);
     }
   };
-
   const startNewConversation = async () => {
-    saveCurrentSession(messages);
-    currentSessionIdRef.current = Date.now();
     setLoading(true);
     setMessages([]);
     try {
@@ -2588,17 +2554,28 @@ Return compact JSON only:
       const response = await fetchFromGemini(prompt, AI_KEY);
       const errJson = parseGeminiJSON(response);
       if (errJson && errJson.error) {
-        setMessages([{ id: Date.now(), role: 'system', text: errJson.error }]);
+        setMessages([{
+          id: Date.now(),
+          role: 'system',
+          text: errJson.error
+        }]);
       } else {
-        setMessages([{ id: Date.now(), role: 'ai', text: cleanFallbackText(response) }]);
+        setMessages([{
+          id: Date.now(),
+          role: 'ai',
+          text: cleanFallbackText(response)
+        }]);
       }
     } catch (e) {
-      setMessages([{ id: Date.now(), role: 'system', text: _resolveTranslation(lang, "فشل الاتصال.", "Connection failed.") }]);
+      setMessages([{
+        id: Date.now(),
+        role: 'system',
+        text: _resolveTranslation(lang, "فشل الاتصال.", "Connection failed.")
+      }]);
     } finally {
       setLoading(false);
     }
   };
-
   const handleVoiceRecord = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -2617,7 +2594,11 @@ Return compact JSON only:
     recognition.onstart = () => setIsRecording(true);
     recognition.onresult = event => {
       const transcript = event.results[0][0].transcript;
-      if (isCallMode) { handleSend(transcript); } else { setInput(prev => prev + ' ' + transcript); }
+      if (isCallMode) {
+        handleSend(transcript);
+      } else {
+        setInput(prev => prev + ' ' + transcript);
+      }
     };
     recognition.onerror = () => {
       setIsRecording(false);
@@ -2626,18 +2607,17 @@ Return compact JSON only:
     recognition.onend = () => setIsRecording(false);
     recognition.start();
   };
-
   const toggleCallMode = () => {
     setIsCallMode(!isCallMode);
     if (!isCallMode) {
       speakText("Call started. What would you like to talk about?");
     } else {
+      // Stop any ElevenLabs audio and browser TTS
       cancelTTS();
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsRecording(false);
     }
   };
-
   const generateScenario = async () => {
     setLoadingScenario(true);
     try {
@@ -2647,9 +2627,17 @@ Return compact JSON only:
       const response = await fetchFromGemini(prompt, AI_KEY);
       const errJson = parseGeminiJSON(response);
       if (errJson && errJson.error) {
-        setMessages(prev => [...prev, { id: Date.now(), role: 'system', text: errJson.error }]);
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          role: 'system',
+          text: errJson.error
+        }]);
       } else {
-        setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: response }]);
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          role: 'ai',
+          text: response
+        }]);
       }
     } catch (e) {
       console.error(e);
@@ -2657,67 +2645,18 @@ Return compact JSON only:
       setLoadingScenario(false);
     }
   };
-
-  // ── History sidebar ──────────────────────────────────────────────────────
-  const HistorySidebar = () => (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowHistory(false)} />
-      <div className="relative w-80 max-w-[90vw] h-full bg-white dark:bg-[#121214] border-r border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col animate-slideInLeft">
-        <div className="p-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-          <h3 className="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
-            <History className="w-5 h-5 text-emerald-500" /> {t.history}
-          </h3>
-          <button onClick={() => setShowHistory(false)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {sessions.length === 0 ? (
-            <div className="text-center text-gray-400 py-16 flex flex-col items-center gap-3">
-              <MessageSquare className="w-10 h-10 opacity-30" />
-              <p className="text-sm">{t.noHistory}</p>
-            </div>
-          ) : sessions.map(session => (
-            <button
-              key={session.id}
-              onClick={() => loadSession(session)}
-            className={`w-full text-left p-3 rounded-xl border transition-all hover:border-emerald-500/40 hover:bg-emerald-50 dark:hover:bg-emerald-500/5 group ${session.id === currentSessionIdRef.current ? 'border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/5' : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1a1a1e]'}`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{session.title}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {new Date(session.timestamp).toLocaleDateString()} · {session.messages.filter(m => m.role === 'user').length} msgs
-                  </p>
-                </div>
-                <button
-                  onClick={(e) => deleteSession(session.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-500/20 hover:text-red-500 text-gray-400 rounded-lg transition-all"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
   if (isCallMode) {
     return <div className="max-w-md mx-auto h-[80vh] flex flex-col items-center justify-between bg-gradient-to-b from-blue-50 dark:from-[#121214] to-white dark:to-[#09090b] border border-blue-100 dark:border-gray-800 rounded-[3rem] p-8 shadow-2xl relative overflow-hidden animate-fadeIn transition-colors">
       <div className="absolute top-0 left-0 w-full h-full bg-blue-500/5 pointer-events-none"></div>
+
       <div className="text-center mt-10 relative z-10">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Venoxa AI</h2>
         <p className="text-blue-600 dark:text-blue-400 flex items-center justify-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-500 animate-pulse"></span> {t.callActive}
         </p>
         <p className="text-sm text-gray-500 mt-2">Level: {chatLevel} | {topic.split('(')[0]}</p>
-        <p className="text-xs text-gray-400 mt-1 flex items-center justify-center gap-1">
-          {voiceGender === 'male' ? <User className="w-3 h-3" /> : <UserCircle2 className="w-3 h-3" />}
-          {voiceGender === 'male' ? 'Brian' : 'Sarah'}
-        </p>
       </div>
+
       <div className="relative flex items-center justify-center w-full my-12 z-10">
         <div className={`absolute w-48 h-48 rounded-full ${loading ? 'bg-blue-500/20 animate-ping' : isRecording ? 'bg-red-500/20 animate-ping' : 'bg-gray-200 dark:bg-gray-800/50'}`}></div>
         <div className={`absolute w-36 h-36 rounded-full ${loading ? 'bg-blue-500/30 animate-pulse' : isRecording ? 'bg-red-500/30 animate-pulse' : 'bg-gray-300 dark:bg-gray-700/50'}`}></div>
@@ -2725,6 +2664,7 @@ Return compact JSON only:
           {loading ? <Activity className="w-10 h-10 text-blue-500 dark:text-blue-400 animate-spin" /> : isRecording ? <Mic className="w-10 h-10 text-red-500 animate-pulse" /> : <Volume2 className="w-10 h-10 text-gray-400" />}
         </div>
       </div>
+
       <div className="w-full relative z-10 flex flex-col gap-6 items-center mb-10">
         <p className="text-gray-500 dark:text-gray-400 text-center text-sm h-8 font-medium">
           {loading ? t.thinking : isRecording ? t.micOn : t.tapMic}
@@ -2740,132 +2680,132 @@ Return compact JSON only:
       </div>
     </div>;
   }
-
-  return <>
-    {showHistory ? <HistorySidebar /> : null}
-    <div className="max-w-5xl mx-auto h-[85vh] flex flex-col animate-fadeIn border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#09090b] transition-colors">
-      <div className="bg-gray-50 dark:bg-[#121214] p-4 border-b border-gray-200 dark:border-gray-800 flex flex-col lg:flex-row justify-between items-center gap-3 relative z-10 transition-colors">
-        <div className="flex items-center gap-3 w-full lg:w-auto">
-          <button onClick={() => setShowHistory(true)} className="p-2.5 bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500/50 text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all shadow-sm" title={t.history}>
-            <History className="w-5 h-5" />
-          </button>
-          <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-200 dark:border-emerald-500/20 shrink-0">
-            <MessageSquare className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t.title}</h2>
+  return <div className="max-w-5xl mx-auto h-[85vh] flex flex-col animate-fadeIn border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#09090b] transition-colors">
+    <div className="bg-gray-50 dark:bg-[#121214] p-5 border-b border-gray-200 dark:border-gray-800 flex flex-col lg:flex-row justify-between items-center gap-4 relative z-10 transition-colors">
+      <div className="flex items-center gap-4 w-full lg:w-auto">
+        <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-200 dark:border-emerald-500/20 shrink-0">
+          <MessageSquare className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
         </div>
-
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-          {/* Voice gender toggle */}
-          <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm">
-            <button
-              onClick={() => setVoiceGender('male')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'male' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-500 hover:text-blue-500'}`}
-            >
-              <User className="w-3.5 h-3.5" /> {t.male}
-            </button>
-            <button
-              onClick={() => setVoiceGender('female')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'female' ? 'bg-pink-500 text-white shadow-sm' : 'text-gray-500 hover:text-pink-500'}`}
-            >
-              <UserCircle2 className="w-3.5 h-3.5" /> {t.female}
-            </button>
-          </div>
-
-          <select value={chatLevel} onChange={e => setChatLevel(e.target.value)} className="bg-white dark:bg-[#1a1a1e] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none shadow-sm">
-            {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => <option key={lvl} value={lvl}>Level {lvl}</option>)}
-          </select>
-          <select value={topic} onChange={e => setTopic(e.target.value)} className="bg-white dark:bg-[#1a1a1e] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none max-w-[140px] truncate shadow-sm">
-            {SPEAKING_TOPICS.map(topicName => <option key={topicName} value={topicName}>{topicName}</option>)}
-          </select>
-
-          <button onClick={startNewConversation} disabled={loading} className="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
-            {loading ? <Activity className="w-4 h-4 animate-spin" /> : <><RotateCcw className="w-4 h-4" /> <span className="hidden sm:inline">{t.newChat}</span></>}
-          </button>
-          <button onClick={generateScenario} disabled={loadingScenario} className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
-            {loadingScenario ? <Activity className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">{t.roleplay}</span></>}
-          </button>
-          <button onClick={toggleCallMode} className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
-            <Phone className="w-4 h-4" /> <span className="hidden sm:inline">{t.callMode}</span>
-          </button>
-          <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm overflow-hidden">
-            <button onClick={() => setFormality('informal')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${formality === 'informal' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-500 hover:text-emerald-500'}`}>
-              {_resolveTranslation(lang, 'غير رسمي', 'Informal')}
-            </button>
-            <button onClick={() => setFormality('formal')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${formality === 'formal' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-500 hover:text-blue-500'}`}>
-              {_resolveTranslation(lang, 'رسمي', 'Formal')}
-            </button>
-          </div>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">{t.title}</h2>
         </div>
       </div>
 
-      <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] dark:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] scroll-smooth">
-        {messages.map((msg) => <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-          <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'}`} dir="ltr">
-            <p className="text-lg leading-relaxed">{safeRender(msg.text)}</p>
-            {msg.role === 'ai' && <button onClick={() => speakText(msg.text)} className="mt-3 bg-white/50 dark:bg-gray-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 p-2 rounded-lg transition-colors border border-transparent hover:border-emerald-200 dark:hover:border-emerald-500/30">
-              <Volume2 className="w-5 h-5" />
-            </button>}
-          </div>
+      <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+        <select value={chatLevel} onChange={e => setChatLevel(e.target.value)} className="bg-white dark:bg-[#1a1a1e] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none shadow-sm">
+          {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => <option key={lvl} value={lvl}>Level {lvl}</option>)}
+        </select>
+        <select value={topic} onChange={e => setTopic(e.target.value)} className="bg-white dark:bg-[#1a1a1e] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none max-w-[150px] truncate shadow-sm">
+          {SPEAKING_TOPICS.map(topicName => <option key={topicName} value={topicName}>{topicName}</option>)}
+        </select>
 
-          {msg.role === 'user' && msg.review && <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-lg animate-fadeIn transition-colors">
-            <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1e] hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center text-sm font-bold text-gray-700 dark:text-gray-300 transition-colors">
-              <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-4 h-4" /> {t.corrected}</span>
-              <ChevronRight className={`w-4 h-4 transition-transform ${expandedReviewId === msg.id ? 'rotate-90' : ''}`} />
-            </button>
-            {expandedReviewId === msg.id && <div className="p-4 space-y-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214]">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-                  <p className="text-xs text-gray-500 mb-1 font-bold">{t.clarity}</p>
-                  <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.clarity)}</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-                  <p className="text-xs text-gray-500 mb-1 font-bold">{t.grammar}</p>
-                  <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.grammar)}</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-                  <p className="text-xs text-gray-500 mb-1 font-bold">{t.fluency}</p>
-                  <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.fluency)}</p>
-                </div>
-              </div>
-              <div className="bg-gradient-to-r from-emerald-50 dark:from-emerald-500/10 to-blue-50 dark:to-blue-500/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-500/20 relative shadow-sm">
-                <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-2">
-                  <Target className="w-4 h-4" /> {t.native}
-                </h4>
-                <p className="text-lg text-gray-900 dark:text-white font-medium" dir="ltr">"{safeRender(msg.review.native_way)}"</p>
-                <div className="mt-4 flex gap-3">
-                  <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-md">
-                    <Play className="w-4 h-4" /> {t.listen}
-                  </button>
-                </div>
-              </div>
-            </div>}
-          </div>}
-        </div>)}
-        {loading && <div className="flex justify-start">
-          <div className="bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 p-5 rounded-2xl rounded-bl-none flex items-center gap-3 shadow-sm">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-          </div>
-        </div>}
-        <div ref={chatEndRef} />
-      </div>
+        <button onClick={startNewConversation} disabled={loading} className="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
+          {loading ? <Activity className="w-4 h-4 animate-spin" /> : <><RotateCcw className="w-4 h-4" /> <span className="hidden sm:inline">{t.newChat}</span></>}
+        </button>
 
-      <div className="bg-gray-50 dark:bg-[#121214] p-5 border-t border-gray-200 dark:border-gray-800 relative z-10 transition-colors">
-        <div className="flex items-center gap-3 bg-white dark:bg-[#1a1a1e] border border-gray-300 dark:border-gray-700 rounded-full p-2 focus-within:border-emerald-500/50 focus-within:shadow-[0_0_15px_rgba(16,185,129,0.1)] transition-all relative shadow-sm">
-          <button onClick={handleVoiceRecord} className={`p-3.5 rounded-full transition-colors flex items-center justify-center ${isRecording ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 animate-pulse' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-emerald-600 dark:text-emerald-400'}`} title={isRecording ? "Stop Recording" : "Record Voice"}>
-            {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        <button onClick={generateScenario} disabled={loadingScenario} className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
+          {loadingScenario ? <Activity className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">{t.roleplay}</span></>}
+        </button>
+
+        <button onClick={toggleCallMode} className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
+          <Phone className="w-4 h-4" /> <span className="hidden sm:inline">{t.callMode}</span>
+        </button>
+
+        <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm overflow-hidden">
+          <button
+            onClick={() => setFormality('informal')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${formality === 'informal' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-500 hover:text-emerald-500'}`}
+          >
+            {_resolveTranslation(lang, 'غير رسمي', 'Informal')}
           </button>
-          {isRecording && <span className="absolute right-16 text-xs text-red-500 dark:text-red-400 font-bold animate-pulse">Listening...</span>}
-          <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder={isRecording ? "" : t.placeholder} className="flex-1 bg-transparent border-none text-gray-900 dark:text-white text-lg px-2 focus:outline-none focus:ring-0 placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-50" dir="ltr" disabled={isRecording} />
-          <button onClick={() => handleSend()} disabled={loading || !input.trim()} className="p-3.5 bg-emerald-500 hover:bg-emerald-600 rounded-full text-white transition-colors disabled:opacity-50 shadow-md">
-            <Send className="w-5 h-5 ml-[-2px]" />
+          <button
+            onClick={() => setFormality('formal')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${formality === 'formal' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-500 hover:text-blue-500'}`}
+          >
+            {_resolveTranslation(lang, 'رسمي', 'Formal')}
           </button>
         </div>
       </div>
     </div>
-  </>;
+
+    <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] dark:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] scroll-smooth">
+      {messages.map((msg, idx) => <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+
+        <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'}`} dir="ltr">
+          <p className="text-lg leading-relaxed">{safeRender(msg.text)}</p>
+
+          {msg.role === 'ai' && <button onClick={() => speakText(msg.text)} className="mt-3 bg-white/50 dark:bg-gray-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-gray-500 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 p-2 rounded-lg transition-colors border border-transparent hover:border-emerald-200 dark:hover:border-emerald-500/30">
+            <Volume2 className="w-5 h-5" />
+          </button>}
+        </div>
+
+        {msg.role === 'user' && msg.review && <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-lg animate-fadeIn transition-colors">
+          <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1e] hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center text-sm font-bold text-gray-700 dark:text-gray-300 transition-colors">
+            <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-4 h-4" /> {t.corrected}</span>
+            <ChevronRight className={`w-4 h-4 transition-transform ${expandedReviewId === msg.id ? 'rotate-90' : ''}`} />
+          </button>
+
+          {expandedReviewId === msg.id && <div className="p-4 space-y-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214]">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                <p className="text-xs text-gray-500 mb-1 font-bold">{t.clarity}</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.clarity)}</p>
+              </div>
+              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                <p className="text-xs text-gray-500 mb-1 font-bold">{t.grammar}</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.grammar)}</p>
+              </div>
+              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                <p className="text-xs text-gray-500 mb-1 font-bold">{t.fluency}</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.fluency)}</p>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-emerald-50 dark:from-emerald-500/10 to-blue-50 dark:to-blue-500/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-500/20 relative shadow-sm">
+              <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-2">
+                <Target className="w-4 h-4" /> {t.native}
+              </h4>
+              <p className="text-lg text-gray-900 dark:text-white font-medium" dir="ltr">"{safeRender(msg.review.native_way)}"</p>
+
+              <div className="mt-4 flex gap-3">
+                <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-md">
+                  <Play className="w-4 h-4" /> {t.listen}
+                </button>
+              </div>
+            </div>
+          </div>}
+        </div>}
+      </div>)}
+      {loading && <div className="flex justify-start">
+        <div className="bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 p-5 rounded-2xl rounded-bl-none flex items-center gap-3 shadow-sm">
+          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
+          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{
+            animationDelay: '0.2s'
+          }}></div>
+          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{
+            animationDelay: '0.4s'
+          }}></div>
+        </div>
+      </div>}
+      <div ref={chatEndRef} />
+    </div>
+
+    <div className="bg-gray-50 dark:bg-[#121214] p-5 border-t border-gray-200 dark:border-gray-800 relative z-10 transition-colors">
+      <div className="flex items-center gap-3 bg-white dark:bg-[#1a1a1e] border border-gray-300 dark:border-gray-700 rounded-full p-2 focus-within:border-emerald-500/50 focus-within:shadow-[0_0_15px_rgba(16,185,129,0.1)] transition-all relative shadow-sm">
+
+        <button onClick={handleVoiceRecord} className={`p-3.5 rounded-full transition-colors flex items-center justify-center ${isRecording ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 animate-pulse' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-emerald-600 dark:text-emerald-400'}`} title={isRecording ? "Stop Recording" : "Record Voice"}>
+          {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        </button>
+
+        {isRecording && <span className="absolute right-16 text-xs text-red-500 dark:text-red-400 font-bold animate-pulse">Listening...</span>}
+
+        <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder={isRecording ? "" : t.placeholder} className="flex-1 bg-transparent border-none text-gray-900 dark:text-white text-lg px-2 focus:outline-none focus:ring-0 placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-50" dir="ltr" disabled={isRecording} />
+        <button onClick={() => handleSend()} disabled={loading || !input.trim()} className="p-3.5 bg-emerald-500 hover:bg-emerald-600 rounded-full text-white transition-colors disabled:opacity-50 shadow-md">
+          <Send className="w-5 h-5 ml-[-2px]" />
+        </button>
+      </div>
+    </div>
+  </div>;
 }
 
 function Langeek({
@@ -3125,6 +3065,20 @@ function Langeek({
     }
   };
   return <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
+    <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-lg flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p className="text-sm font-bold text-gray-900 dark:text-white">Voice</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Pick a natural ElevenLabs voice</p>
+      </div>
+      <select
+        value={selectedVoiceId}
+        onChange={e => setSelectedVoiceId(e.target.value)}
+        className="w-full md:w-64 bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer"
+      >
+        {ELEVENLABS_VOICE_OPTIONS.map(voice => <option key={voice.id} value={voice.id}>{voice.label}</option>)}
+      </select>
+    </div>
+
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => {
         setVocabMode('browse');
