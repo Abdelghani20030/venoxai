@@ -514,7 +514,8 @@ export default function App() {
       userLevel,
       setUserLevel,
       AI_KEY: GEMINI_API_KEY,
-      lang
+      lang,
+      theme
     };
     switch (activeTab) {
       case 'dashboard':
@@ -3089,6 +3090,7 @@ function Speaking({
   AI_KEY,
   userLevel,
   lang,
+  theme,
   speakingHistory,
   setSpeakingHistory
 }) {
@@ -3322,103 +3324,85 @@ function Speaking({
   };
   if (isCallMode) {
     const lastAiCallMsg = [...messages].reverse().find(m => m.role === 'ai' && m.text);
-    return <div className="relative w-full h-[85vh] flex flex-col bg-[#111113] rounded-2xl overflow-hidden animate-fadeIn select-none">
+    const blobClass = loading ? 'blob-speak' : isRecording ? 'blob-listen' : 'blob-idle';
+    const isDark = theme === 'dark';
+    return <div className={`relative w-full h-[85vh] flex flex-col rounded-2xl overflow-hidden animate-fadeIn select-none transition-colors duration-300 ${isDark ? 'bg-[#0e0e10]' : 'bg-[#f2f2ee]'}`}>
 
-      {/* ── Top bar: secondary info at top-left, status top-right ── */}
-      <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-6 pt-6 z-10">
-        {/* Level + voice gender — compact, top-left */}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] text-gray-600 font-medium tracking-wide">{chatLevel} · {topic.split('(')[0].trim()}</span>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setVoiceGender('female')} className={`text-[11px] font-medium transition-colors duration-200 ${voiceGender === 'female' ? 'text-gray-300' : 'text-gray-700 hover:text-gray-500'}`}>♀</button>
-            <span className="text-gray-800 text-[10px]">/</span>
-            <button onClick={() => setVoiceGender('male')} className={`text-[11px] font-medium transition-colors duration-200 ${voiceGender === 'male' ? 'text-gray-300' : 'text-gray-700 hover:text-gray-500'}`}>♂</button>
-          </div>
-        </div>
-        {/* Live status — top-right */}
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${loading ? 'bg-blue-400' : isRecording ? 'bg-red-400' : 'bg-emerald-500'}`} />
-          <span className="text-[11px] text-gray-600 font-medium uppercase tracking-[0.15em]">
-            {loading ? 'thinking' : isRecording ? 'listening' : 'live'}
-          </span>
+      {/* ── Top-left: LIVE status ── */}
+      <div className="absolute top-6 left-7 z-10 flex items-center gap-2">
+        <span className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>LIVE</span>
+        <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${loading ? 'bg-amber-400' : isRecording ? 'bg-red-400' : 'bg-emerald-400'}`} />
+      </div>
+
+      {/* ── Top-right: level · topic + gender ── */}
+      <div className="absolute top-5 right-7 z-10 flex flex-col items-end gap-1">
+        <span className={`text-[11px] font-medium ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{chatLevel} · {topic.split('(')[0].trim()}</span>
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => setVoiceGender('female')} className={`text-[11px] font-medium leading-none transition-colors ${voiceGender === 'female' ? isDark ? 'text-gray-300' : 'text-gray-600' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}>♀</button>
+          <span className={`text-[9px] ${isDark ? 'text-gray-800' : 'text-gray-300'}`}>/</span>
+          <button onClick={() => setVoiceGender('male')} className={`text-[11px] font-medium leading-none transition-colors ${voiceGender === 'male' ? isDark ? 'text-gray-300' : 'text-gray-600' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}>♂</button>
         </div>
       </div>
 
-      {/* ── Center: orb + transcript ── */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-10 px-8">
+      {/* ── Center: blob + transcript ── */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-9 px-10">
 
-        {/* Orb */}
-        <div className="relative flex items-center justify-center">
-          {/* Soft ambient glow */}
-          <div className={`absolute rounded-full blur-[90px] transition-all duration-1000 ${
-            loading     ? 'w-52 h-52 bg-blue-500/15' :
-            isRecording ? 'w-52 h-52 bg-red-500/12'  :
-                          'w-44 h-44 bg-white/[0.03]'
-          }`} />
-          {/* Outer ring — breathes when active */}
-          <div className={`absolute rounded-full border transition-all duration-700 ${
-            loading     ? 'w-44 h-44 border-blue-500/12 animate-pulse' :
-            isRecording ? 'w-44 h-44 border-red-400/12  animate-pulse' :
-                          'w-40 h-40 border-white/[0.04]'
-          }`} />
-          {/* Inner ring */}
-          <div className={`absolute rounded-full border transition-all duration-500 ${
-            loading     ? 'w-32 h-32 border-blue-400/20' :
-            isRecording ? 'w-32 h-32 border-red-400/22'  :
-                          'w-28 h-28 border-white/[0.06]'
-          }`} />
-          {/* Core */}
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-400 ${
-            loading     ? 'bg-[#1a1f2e] ring-1 ring-blue-500/25 shadow-[0_0_50px_rgba(59,130,246,0.18)]' :
-            isRecording ? 'bg-[#1f1a1a] ring-1 ring-red-400/25  shadow-[0_0_50px_rgba(239,68,68,0.16)]'  :
-                          'bg-[#1a1a1c] ring-1 ring-white/[0.07]'
-          }`}>
-            {loading
-              ? <Activity className="w-8 h-8 text-blue-400/70 animate-spin" />
-              : isRecording
-                ? <Mic className="w-8 h-8 text-red-400/70 animate-pulse" />
-                : <Volume2 className="w-8 h-8 text-gray-600" />}
-          </div>
-        </div>
+        {/* Sesame-style morphing blob — no rings, no icons, pure shape */}
+        <div
+          className={`w-28 h-28 transition-colors duration-700 ${blobClass} ${
+            isDark
+              ? loading     ? 'bg-[#2a3a5a]'
+                : isRecording ? 'bg-[#4a2828]'
+                : 'bg-[#28282e]'
+              : loading     ? 'bg-[#a0b4d0]'
+                : isRecording ? 'bg-[#d0a0a0]'
+                : 'bg-[#a4b49a]'
+          }`}
+        />
 
-        {/* AI transcript */}
-        <div className="w-full max-w-[320px] text-center">
+        {/* AI transcript — soft, centered, no box */}
+        <div className="w-full max-w-md text-center">
           {lastAiCallMsg ? (
-            <div className="max-h-[80px] overflow-y-auto custom-scrollbar">
-              <p className="text-gray-500 text-[13px] leading-relaxed font-light" dir="ltr">
+            <div className="max-h-[88px] overflow-y-auto custom-scrollbar">
+              <p className={`text-[13px] leading-[1.75] font-light ${isDark ? 'text-gray-500' : 'text-gray-500'}`} dir="ltr">
                 {safeRender(lastAiCallMsg.text)}
-                {lastAiCallMsg.streaming && <span className="inline-block w-[2px] h-3.5 bg-gray-600 ml-0.5 align-middle animate-pulse rounded-full" />}
+                {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-gray-600' : 'bg-gray-400'}`} />}
               </p>
             </div>
           ) : (
-            <p className="text-gray-700 text-[13px] font-light">{t.tapMic}</p>
+            <p className={`text-[13px] font-light ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>{t.tapMic}</p>
           )}
         </div>
-
-        {/* Status hint */}
-        {(loading || isRecording) && <p className={`text-[11px] font-medium tracking-wide -mt-4 transition-colors ${loading ? 'text-blue-500/60' : 'text-red-400/60'}`}>
-          {loading ? t.thinking : t.micOn}
-        </p>}
       </div>
 
-      {/* ── Bottom controls — pinned to very bottom, centered ── */}
-      <div className="flex items-center justify-center gap-7 pb-10 pt-6">
-        {/* End call — smaller, destructive but subdued */}
-        <button onClick={toggleCallMode} title={t.stopCall}
-          className="w-14 h-14 rounded-full flex items-center justify-center bg-red-500/10 text-red-400/80 hover:bg-red-500/18 hover:text-red-300 transition-all duration-200">
-          <PhoneOff className="w-5 h-5" />
-        </button>
-        {/* Mic — primary */}
-        <button onClick={handleVoiceRecord}
-          className={`w-[72px] h-[72px] rounded-full flex items-center justify-center transition-all duration-200 ${
+      {/* ── Bottom: Sesame-style pill control bar ── */}
+      <div className="flex justify-center pb-10 pt-4">
+        <div className={`inline-flex items-center rounded-2xl px-1.5 py-1.5 gap-0.5 transition-colors duration-300 ${
+          isDark
+            ? 'bg-[#1c1c20] shadow-[0_2px_20px_rgba(0,0,0,0.5)]'
+            : 'bg-white shadow-[0_4px_24px_rgba(0,0,0,0.10)]'
+        }`}>
+          {/* Mute / Mic button */}
+          <button onClick={handleVoiceRecord} className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-medium transition-all duration-200 ${
             isRecording
-              ? 'bg-red-500 text-white shadow-[0_0_40px_rgba(239,68,68,0.30)] ring-4 ring-red-500/15'
-              : 'bg-[#232326] text-gray-400 ring-1 ring-white/[0.07] hover:bg-[#2a2a2e] hover:text-gray-200'
+              ? isDark ? 'bg-red-500/15 text-red-300' : 'bg-red-50 text-red-500'
+              : isDark ? 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
           }`}>
-          <Mic className={`w-7 h-7 ${isRecording ? 'animate-pulse' : ''}`} />
-        </button>
-        {/* Balance spacer */}
-        <div className="w-14 h-14" />
+            <Mic className={`w-4 h-4 flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`} />
+            <span>{isRecording ? _resolveTranslation(lang, 'جاري الاستماع', 'Listening') : _resolveTranslation(lang, 'صامت', 'Mute')}</span>
+          </button>
+
+          {/* Divider */}
+          <div className={`w-px h-5 mx-0.5 flex-shrink-0 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} />
+
+          {/* End call button */}
+          <button onClick={toggleCallMode} className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+            isDark ? 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+          }`}>
+            <span className="w-3 h-3 bg-red-500 rounded-[3px] flex-shrink-0" />
+            <span>{t.stopCall}</span>
+          </button>
+        </div>
       </div>
     </div>;
   }
