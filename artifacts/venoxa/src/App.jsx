@@ -2802,11 +2802,6 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
           <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap justify-center md:justify-end">
-          {/* UK/US accent toggle */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1 border border-gray-200 dark:border-gray-700">
-            <button onClick={() => setVoiceAccent('uk')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇬🇧 UK</button>
-            <button onClick={() => setVoiceAccent('us')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇺🇸 US</button>
-          </div>
           {type === 'reading' && (
             <button onClick={handleGenerate} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition whitespace-nowrap">
               {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
