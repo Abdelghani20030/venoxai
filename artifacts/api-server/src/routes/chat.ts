@@ -28,7 +28,7 @@ function buildStreamProviders(): StreamProvider[] {
         const stream = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 512,
+          max_completion_tokens: 200,
           stream: true,
         });
         for await (const chunk of stream) {
@@ -53,7 +53,7 @@ function buildStreamProviders(): StreamProvider[] {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 512, temperature: 0.7 },
+            generationConfig: { maxOutputTokens: 200, temperature: 0.7 },
           }),
         });
         if (!resp.ok) {
@@ -132,7 +132,7 @@ function buildStreamProviders(): StreamProvider[] {
         const s = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 512,
+          max_completion_tokens: 200,
           stream: true,
         });
         for await (const chunk of s) {
