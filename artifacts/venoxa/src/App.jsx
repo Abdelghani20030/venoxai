@@ -402,7 +402,11 @@ export default function App() {
   const [userLevel, setUserLevel] = useState(localStorage.getItem('userLevel') || 'B2');
   const [globalVocab, setGlobalVocab] = useState(DEFAULT_VOCABULARY_LIST);
   const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
+  const [speakingHistory, setSpeakingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_speaking_history')) || []);
+  const [writingHistory, setWritingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_writing_history')) || []);
   useEffect(() => localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(langeekVocab)), [langeekVocab]);
+  useEffect(() => localStorage.setItem('venoxa_speaking_history', JSON.stringify(speakingHistory)), [speakingHistory]);
+  useEffect(() => localStorage.setItem('venoxa_writing_history', JSON.stringify(writingHistory)), [writingHistory]);
   const [theme, setTheme] = useState('dark');
   const [lang, setLang] = useState('ar');
   useEffect(() => {
@@ -432,9 +436,9 @@ export default function App() {
       case 'grammar':
         return <Grammar {...props} />;
       case 'writing':
-        return <Writing {...props} />;
+        return <Writing {...props} writingHistory={writingHistory} setWritingHistory={setWritingHistory} />;
       case 'speaking':
-        return <Speaking {...props} />;
+        return <Speaking {...props} speakingHistory={speakingHistory} setSpeakingHistory={setSpeakingHistory} />;
       case 'listening':
         return <ListeningReading type="listening" {...props} />;
       case 'reading':
@@ -2410,17 +2414,22 @@ function ListeningReading({
 }
 function Writing({
   AI_KEY,
-  lang
+  lang,
+  writingHistory,
+  setWritingHistory
 }) {
   const [text, setText] = useState('');
   const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const t = {
     title: _resolveTranslation(lang, 'مصحح الكتابة المتقدم', 'Advanced AI Corrector'),
     placeholder: _resolveTranslation(lang, "اكتب مقالاً قصيراً هنا (مثلاً عن طموحاتك)...", "Write a short essay here..."),
     btn: _resolveTranslation(lang, "تحليل وتصحيح النص ✨", "Analyze & Correct Text ✨"),
     corrected: _resolveTranslation(lang, "النص المصحح", "Corrected Text"),
-    explanation: _resolveTranslation(lang, "الشرح:", "Explanation:")
+    explanation: _resolveTranslation(lang, "الشرح:", "Explanation:"),
+    history: _resolveTranslation(lang, "السجل", "History"),
+    emptyHistory: _resolveTranslation(lang, "لا يوجد سجل بعد.", "No history yet.")
   };
   const handleCorrect = async () => {
     if (!text.trim()) return;
@@ -2435,11 +2444,20 @@ function Writing({
         });
       } else {
         const safeRaw = raw || "";
-        setFeedback(json || {
+        const nextFeedback = json || {
           corrected_text: cleanFallbackText(safeRaw),
           explanation: _resolveTranslation(lang, "مشكلة في التنسيق.", "Formatting issue."),
           score: ""
-        });
+        };
+        setFeedback(nextFeedback);
+        setWritingHistory(prev => [{
+          id: Date.now(),
+          input: text,
+          output: nextFeedback.corrected_text || '',
+          explanation: nextFeedback.explanation || '',
+          score: nextFeedback.score || '',
+          createdAt: new Date().toISOString()
+        }, ...prev].slice(0, 25));
       }
     } catch (e) {
       setFeedback({
@@ -2450,6 +2468,18 @@ function Writing({
   };
   return <div className="max-w-4xl mx-auto animate-fadeIn">
     <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-10 text-center flex items-center justify-center gap-3"><PenTool className="text-purple-500 dark:text-purple-400" /> {t.title}</h2>
+    <div className="flex justify-end mb-4">
+      <button onClick={() => setShowHistory(v => !v)} className="text-sm font-bold px-4 py-2 rounded-xl bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300">
+        {t.history}
+      </button>
+    </div>
+    {showHistory && <div className="mb-6 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-5 space-y-4 shadow-lg">
+      {writingHistory.length === 0 ? <p className="text-gray-500 dark:text-gray-400">{t.emptyHistory}</p> : writingHistory.map(item => <div key={item.id} className="p-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800">
+        <p className="text-xs text-gray-500 mb-2">{new Date(item.createdAt).toLocaleString()}</p>
+        <p className="text-sm text-gray-900 dark:text-white mb-2" dir="ltr">{safeRender(item.input)}</p>
+        <p className="text-sm text-purple-600 dark:text-purple-400 font-bold" dir="ltr">{safeRender(item.output)}</p>
+      </div>)}
+    </div>}
     <textarea value={text} onChange={e => setText(e.target.value)} placeholder={t.placeholder} className="w-full h-64 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-8 text-gray-900 dark:text-white text-lg focus:outline-none focus:border-purple-500 transition-all mb-6 shadow-xl" dir="ltr"></textarea>
     <button onClick={handleCorrect} disabled={loading || !text.trim()} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-extrabold py-5 rounded-2xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50">
       {loading ? <Activity className="animate-spin w-6 h-6 mx-auto" /> : t.btn}
@@ -2475,7 +2505,9 @@ function Writing({
 function Speaking({
   AI_KEY,
   userLevel,
-  lang
+  lang,
+  speakingHistory,
+  setSpeakingHistory
 }) {
   const t = {
     welcome: _resolveTranslation(lang, `مرحباً بك! بناءً على تقييمك، مهاراتك في التحدث ممتازة (${userLevel}). لنتدرب على بعض المواضيع المتقدمة.`, `Hello! Your speaking skills are evaluated at ${userLevel}. Let's practice some advanced topics.`),
@@ -2510,6 +2542,8 @@ function Speaking({
   const [isRecording, setIsRecording] = useState(false);
   const [expandedReviewId, setExpandedReviewId] = useState(null);
   const [loadingScenario, setLoadingScenario] = useState(false);
+  const [autoRead, setAutoRead] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
   useEffect(() => {
@@ -2559,7 +2593,15 @@ function Speaking({
           review
         } : msg);
       });
-      if (isCallMode && replyText) speakText(replyText);
+      setSpeakingHistory(prev => [{
+        id: Date.now(),
+        mode: isCallMode ? 'call' : 'chat',
+        topic,
+        level: chatLevel,
+        messages: [...messages, { id: newMsgId, role: 'user', text: userMsg }, { id: aiMsgId, role: 'ai', text: replyText, review }],
+        createdAt: new Date().toISOString()
+      }, ...prev].slice(0, 25));
+      if ((isCallMode || autoRead) && replyText) speakText(replyText);
     } catch (err) {
       setMessages(prev => prev.map(msg =>
         msg.id === aiMsgId
@@ -2726,6 +2768,12 @@ function Speaking({
         <button onClick={toggleCallMode} className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
           <Phone className="w-4 h-4" /> <span className="hidden sm:inline">{t.callMode}</span>
         </button>
+        <button onClick={() => setAutoRead(v => !v)} className={`px-3 py-2 rounded-lg text-sm font-bold transition-all border ${autoRead ? 'bg-blue-600 text-white border-blue-500' : 'bg-white dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'}`}>
+          {autoRead ? 'Auto-read On' : 'Auto-read Off'}
+        </button>
+        <button onClick={() => setShowHistory(v => !v)} className="px-3 py-2 rounded-lg text-sm font-bold transition-all border bg-white dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700">
+          History
+        </button>
 
         <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm overflow-hidden">
           <button
@@ -2745,6 +2793,12 @@ function Speaking({
     </div>
 
     <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] dark:bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] scroll-smooth">
+      {showHistory && <div className="mb-4 bg-white/90 dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-4 shadow-lg">
+        {speakingHistory.length === 0 ? <p className="text-gray-500 dark:text-gray-400">No history yet.</p> : speakingHistory.map(item => <button key={item.id} onClick={() => setMessages(item.messages || [])} className="w-full text-left p-3 rounded-2xl border border-gray-200 dark:border-gray-800 mb-3 last:mb-0 bg-gray-50 dark:bg-[#1a1a1e]">
+          <p className="text-xs text-gray-500">{new Date(item.createdAt).toLocaleString()}</p>
+          <p className="font-bold text-gray-900 dark:text-white">{item.topic}</p>
+        </button>)}
+      </div>}
       {messages.map((msg, idx) => <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
         <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'}`} dir="ltr">
