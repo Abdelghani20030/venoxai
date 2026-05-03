@@ -3436,8 +3436,11 @@ function Speaking({
           review
         } : msg);
       });
-      if (isCallMode && replyText) speakText(replyText);
-      else if (autoRead && replyText) speakText(replyText);
+      if (isCallMode && replyText) {
+        elevenLabsSpeak(replyText, voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID);
+      } else if (autoRead && replyText) {
+        speakText(replyText);
+      }
     } catch (err) {
       setMessages(prev => prev.map(msg =>
         msg.id === aiMsgId
