@@ -272,7 +272,7 @@ const safeRender = val => {
 // --- ELEVENLABS TTS HELPER ---
 // Default voice: "Rachel" (ElevenLabs premade, natural American English).
 // The user can override this by passing a different voice ID.
-const DEFAULT_ELEVENLABS_VOICE_ID = '';
+const DEFAULT_ELEVENLABS_VOICE_ID = '4201kqq0xqkset5tq80p5rgykx3j';
 const ELEVENLABS_VOICE_OPTIONS = [
   { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
   { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah' },
@@ -1442,7 +1442,7 @@ function StudyPlan({
             return <div key={id} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full">
               <div className="flex items-center justify-between gap-4 mb-2">
                 <div className={`flex items-center gap-2 font-bold ${color} min-w-0`}>
-                  <Icon className="w-4 h-4 shrink-0" /> 
+                  <Icon className="w-4 h-4 shrink-0" />
                   <span className="text-xs sm:text-sm leading-tight truncate">{label}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
