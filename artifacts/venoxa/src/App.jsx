@@ -3303,11 +3303,8 @@ function Speaking({
   const [voiceGender, setVoiceGender] = useState('male');
   const [callReview, setCallReview] = useState(null);
   const [callVisibleWords, setCallVisibleWords] = useState([]);
-  const [callTTSPending, setCallTTSPending] = useState(false);
-  const [showTranscript, setShowTranscript] = useState(true);
   const callAudioRef = useRef(null);
   const callSyncAnimRef = useRef(null);
-  const callPrefetchRef = useRef(null); // { promise } for sentence pre-fetch during streaming
   const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
   const [ttsEngine, setTtsEngine] = useState('elevenlabs'); // 'elevenlabs' | 'edge' | 'browser'
   const [voiceAccent, setVoiceAccent] = useState('uk'); // 'uk' | 'us'
@@ -3352,9 +3349,8 @@ function Speaking({
     setUsingBrowserTTS(engine !== 'elevenlabs');
   };
 
-  // Word-synced TTS for call mode — reveals transcript word-by-word as audio plays.
-  // Pass a pre-fetched dataPromise to skip the network wait entirely (for instant start).
-  const speakCallTimed = async (text, dataPromise = null) => {
+  // Word-synced TTS for call mode — reveals transcript word-by-word as audio plays
+  const speakCallTimed = async (text) => {
     // Cancel any in-progress call audio
     if (callAudioRef.current) {
       callAudioRef.current.pause();
@@ -3365,33 +3361,24 @@ function Speaking({
       callSyncAnimRef.current = null;
     }
     setCallVisibleWords([]);
-    setCallTTSPending(true);
 
     try {
       const accent = _voiceAccent === 'us' ? 'us' : 'uk';
       const genderKey = voiceGender === 'female' ? 'female' : 'male';
       const voice = EDGE_VOICES[accent][genderKey];
 
-      // Use pre-fetched data if provided, else fetch now
-      let data = null;
-      if (dataPromise) {
-        data = await dataPromise;
-      }
-      if (!data) {
-        const res = await fetch('/api/edge-tts-timed', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text, voice }),
-        });
-        if (!res.ok) throw new Error('timed TTS failed');
-        data = await res.json();
-      }
+      const res = await fetch('/api/edge-tts-timed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice }),
+      });
 
-      const { audio: base64, words } = data;
+      if (!res.ok) throw new Error('timed TTS failed');
+
+      const { audio: base64, words } = await res.json();
 
       // If no word boundaries returned, show full text and play regular edge TTS
       if (!words?.length) {
-        setCallTTSPending(false);
         setCallVisibleWords(text.split(/\s+/));
         await edgeTTSSpeak(text, voiceGender);
         return;
@@ -3421,25 +3408,17 @@ function Speaking({
         }
       };
 
-      audio.onplay = () => {
-        setCallTTSPending(false);
-        callSyncAnimRef.current = requestAnimationFrame(tick);
-      };
+      audio.onplay = () => { callSyncAnimRef.current = requestAnimationFrame(tick); };
       audio.onended = () => {
         setCallVisibleWords(words.map(w => w.word));
         URL.revokeObjectURL(url);
         callAudioRef.current = null;
       };
-      audio.onerror = () => {
-        URL.revokeObjectURL(url);
-        callAudioRef.current = null;
-        setCallTTSPending(false);
-      };
+      audio.onerror = () => { URL.revokeObjectURL(url); callAudioRef.current = null; };
 
       await audio.play();
     } catch {
       // Fallback: show full text, play regular edge TTS
-      setCallTTSPending(false);
       setCallVisibleWords(text.split(/\s+/));
       edgeTTSSpeak(text, voiceGender);
     }
@@ -3463,41 +3442,11 @@ function Speaking({
         : 'Reply in English.';
       const prompt = `Reply naturally and briefly as an English tutor. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Respond strictly as JSON only: {"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
       let accumulated = '';
-      // For call mode: pre-fetch TTS for the first complete sentence while AI is still streaming.
-      // This overlaps AI generation + TTS generation so audio starts near-instantly after streaming ends.
-      callPrefetchRef.current = null;
-      const REPLY_PREFIX = '"reply":"';
-      let prefetchStarted = false;
       await streamFromAPI(prompt, (delta) => {
         accumulated += delta;
         setMessages(prev => prev.map(msg =>
           msg.id === aiMsgId ? { ...msg, text: accumulated } : msg
         ));
-        // Detect first complete sentence inside the JSON "reply" field and pre-fetch TTS
-        if (isCallMode && !prefetchStarted) {
-          const startIdx = accumulated.indexOf(REPLY_PREFIX);
-          if (startIdx !== -1) {
-            const afterReply = accumulated.slice(startIdx + REPLY_PREFIX.length);
-            const sentenceMatch = afterReply.match(/^(.{8,}?[.!?])\s/);
-            if (sentenceMatch) {
-              prefetchStarted = true;
-              const sentence = sentenceMatch[1].replace(/\\n/g, ' ').replace(/\\"/g, '"').trim();
-              if (sentence.length > 4) {
-                const accent = _voiceAccent === 'us' ? 'us' : 'uk';
-                const genderKey = voiceGender === 'female' ? 'female' : 'male';
-                const voice = EDGE_VOICES[accent][genderKey];
-                callPrefetchRef.current = {
-                  text: sentence,
-                  promise: fetch('/api/edge-tts-timed', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: sentence, voice }),
-                  }).then(r => r.ok ? r.json() : null).catch(() => null),
-                };
-              }
-            }
-          }
-        }
       });
       const parsed = parseGeminiJSON(accumulated);
       const replyText = parsed?.reply || cleanFallbackText(accumulated);
@@ -3517,12 +3466,7 @@ function Speaking({
           review
         } : msg);
       });
-      if (isCallMode && replyText) {
-        // Use pre-fetched audio if the sentence matches the full reply (most common for short replies)
-        const prefetch = callPrefetchRef.current;
-        const prefetchMatches = prefetch && replyText.trim().startsWith(prefetch.text);
-        speakCallTimed(replyText, prefetchMatches ? prefetch.promise : null);
-      }
+      if (isCallMode && replyText) speakCallTimed(replyText);
       else if (autoRead && replyText) speakText(replyText);
     } catch (err) {
       setMessages(prev => prev.map(msg =>
@@ -3606,8 +3550,6 @@ function Speaking({
       if (callAudioRef.current) { callAudioRef.current.pause(); callAudioRef.current = null; }
       if (callSyncAnimRef.current) { cancelAnimationFrame(callSyncAnimRef.current); callSyncAnimRef.current = null; }
       setCallVisibleWords([]);
-      setCallTTSPending(false);
-      callPrefetchRef.current = null;
       cancelTTS();
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsRecording(false);
@@ -3717,20 +3659,22 @@ function Speaking({
 
         {/* AI transcript — word-by-word synced with audio */}
         <div className="w-full max-w-md flex flex-col justify-end items-center min-h-[56px] px-4">
-          {showTranscript && (
+          {lastAiCallMsg ? (
             callVisibleWords.length > 0 ? (
               <p className={`text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
                 {callVisibleWords.flatMap((word, i) => [
-                  <span key={`${(lastAiCallMsg?.id ?? 0)}-w${i}`} className="word-appear">{word}</span>,
+                  <span key={`${lastAiCallMsg.id}-w${i}`} className="word-appear">{word}</span>,
                   i < callVisibleWords.length - 1 ? ' ' : null
                 ])}
               </p>
-            ) : callTTSPending ? (
-              /* Subtle loading dots — no text flash before words appear */
-              <span className={`text-[11px] tracking-widest ${isDark ? 'text-white/20' : 'text-black/20'}`}>···</span>
-            ) : lastAiCallMsg ? null : (
-              <p className={`text-[13px] font-light ${isDark ? 'text-white/20' : 'text-black/25'}`}>{t.tapMic}</p>
+            ) : (
+              <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
+                {safeRender(lastAiCallMsg.text)}
+                {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-white/60' : 'bg-black/40'}`} />}
+              </p>
             )
+          ) : (
+            <p className={`text-[13px] font-light ${isDark ? 'text-white/20' : 'text-black/25'}`}>{t.tapMic}</p>
           )}
         </div>
       </div>
@@ -3750,25 +3694,6 @@ function Speaking({
           }`}>
             <Mic className={`w-4 h-4 flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`} />
             <span>{isRecording ? _resolveTranslation(lang, 'جاري الاستماع', 'Listening') : _resolveTranslation(lang, 'صامت', 'Mute')}</span>
-          </button>
-
-          {/* Divider */}
-          <div className={`w-px h-5 mx-0.5 flex-shrink-0 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} />
-
-          {/* Transcript (CC) toggle */}
-          <button
-            onClick={() => setShowTranscript(v => !v)}
-            title={showTranscript ? 'Hide transcript' : 'Show transcript'}
-            className={`flex items-center gap-1.5 px-4 py-3 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-              showTranscript
-                ? isDark ? 'bg-white/[0.08] text-gray-200' : 'bg-gray-100 text-gray-700'
-                : isDark ? 'text-gray-600 hover:bg-white/[0.05] hover:text-gray-400' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
-            }`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 flex-shrink-0">
-              <path fillRule="evenodd" d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75ZM2 10a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10Zm0 5.25a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-            </svg>
-            <span>CC</span>
           </button>
 
           {/* Divider */}
