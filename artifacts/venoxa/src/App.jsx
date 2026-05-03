@@ -221,6 +221,16 @@ const safeRender = val => {
 // Default voice: "Rachel" (ElevenLabs premade, natural American English).
 // The user can override this by passing a different voice ID.
 const DEFAULT_ELEVENLABS_VOICE_ID = '';
+const ELEVENLABS_VOICE_OPTIONS = [
+  { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
+  { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah' },
+  { id: 'TX3LPaxmHKxFdv7VOQHJ', label: 'Liam' },
+  { id: 'XB0fDUnXU5powFXDhCwa', label: 'Charlotte' },
+  { id: 'Xb7hH8MSUJpSbSDYk0k2', label: 'Alice' },
+  { id: 'nPczCjzI2devNBz1zQrb', label: 'Brian' },
+  { id: 'onwK4e9ZLuTAKqWW03F9', label: 'Daniel' },
+  { id: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum' },
+];
 
 // Keeps a reference to the current Audio element so we can cancel it before
 // starting a new utterance (mirrors the old speechSynthesis.cancel() pattern).
@@ -2453,6 +2463,7 @@ function Speaking({
     role: 'ai',
     text: t.welcome
   }]);
+  const [selectedVoiceId, setSelectedVoiceId] = useState(DEFAULT_ELEVENLABS_VOICE_ID || ELEVENLABS_VOICE_OPTIONS[0].id);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatLevel, setChatLevel] = useState(userLevel);
@@ -3064,6 +3075,19 @@ function Langeek({
     }
   };
   return <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
+    <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-lg flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p className="text-sm font-bold text-gray-900 dark:text-white">Voice</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Pick a natural ElevenLabs voice</p>
+      </div>
+      <select
+        value={selectedVoiceId}
+        onChange={e => setSelectedVoiceId(e.target.value)}
+        className="w-full md:w-64 bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer"
+      >
+        {ELEVENLABS_VOICE_OPTIONS.map(voice => <option key={voice.id} value={voice.id}>{voice.label}</option>)}
+      </select>
+    </div>
 
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => {
