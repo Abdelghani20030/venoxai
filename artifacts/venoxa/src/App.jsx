@@ -2740,34 +2740,34 @@ function Speaking({
     }
   };
   if (isCallMode) {
-    return <div className="max-w-md mx-auto h-[80vh] flex flex-col items-center justify-between bg-gradient-to-b from-blue-50 dark:from-[#121214] to-white dark:to-[#09090b] border border-blue-100 dark:border-gray-800 rounded-[3rem] p-8 shadow-2xl relative overflow-hidden animate-fadeIn transition-colors">
-      <div className="absolute top-0 left-0 w-full h-full bg-blue-500/5 pointer-events-none"></div>
+    return <div className="max-w-md mx-auto h-[80vh] flex flex-col items-center justify-between bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border border-slate-800 rounded-[2.25rem] p-6 shadow-2xl relative overflow-hidden animate-fadeIn transition-colors">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_40%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.10),transparent_35%)] pointer-events-none"></div>
 
-      <div className="text-center mt-10 relative z-10">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Venoxa AI</h2>
-        <p className="text-blue-600 dark:text-blue-400 flex items-center justify-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-500 animate-pulse"></span> {t.callActive}
+      <div className="text-center mt-6 relative z-10">
+        <h2 className="text-2xl font-bold text-white mb-2">Venoxa AI</h2>
+        <p className="text-blue-300 flex items-center justify-center gap-2 text-sm font-semibold">
+          <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span> {t.callActive}
         </p>
-        <p className="text-sm text-gray-500 mt-2">Level: {chatLevel} | {topic.split('(')[0]}</p>
+        <p className="text-xs text-slate-400 mt-2">Level: {chatLevel} | {topic.split('(')[0]}</p>
       </div>
 
-      <div className="relative flex items-center justify-center w-full my-12 z-10">
-        <div className={`absolute w-48 h-48 rounded-full ${loading ? 'bg-blue-500/20 animate-ping' : isRecording ? 'bg-red-500/20 animate-ping' : 'bg-gray-200 dark:bg-gray-800/50'}`}></div>
-        <div className={`absolute w-36 h-36 rounded-full ${loading ? 'bg-blue-500/30 animate-pulse' : isRecording ? 'bg-red-500/30 animate-pulse' : 'bg-gray-300 dark:bg-gray-700/50'}`}></div>
-        <div className="w-24 h-24 bg-white dark:bg-[#1a1a1e] rounded-full z-10 flex items-center justify-center shadow-xl border border-gray-100 dark:border-gray-700">
-          {loading ? <Activity className="w-10 h-10 text-blue-500 dark:text-blue-400 animate-spin" /> : isRecording ? <Mic className="w-10 h-10 text-red-500 animate-pulse" /> : <Volume2 className="w-10 h-10 text-gray-400" />}
+      <div className="relative flex items-center justify-center w-full my-10 z-10">
+        <div className={`absolute w-52 h-52 rounded-full ${loading ? 'bg-blue-500/20 animate-ping' : isRecording ? 'bg-red-500/20 animate-ping' : 'bg-blue-500/10'}`}></div>
+        <div className={`absolute w-36 h-36 rounded-full ${loading ? 'bg-blue-400/20 animate-pulse' : isRecording ? 'bg-red-400/20 animate-pulse' : 'bg-slate-700/60'}`}></div>
+        <div className="w-24 h-24 rounded-full z-10 flex items-center justify-center bg-slate-900/90 border border-slate-700 shadow-[0_0_40px_rgba(0,0,0,0.35)]">
+          {loading ? <Activity className="w-10 h-10 text-blue-400 animate-spin" /> : isRecording ? <Mic className="w-10 h-10 text-red-400 animate-pulse" /> : <Volume2 className="w-10 h-10 text-slate-300" />}
         </div>
       </div>
 
-      <div className="w-full relative z-10 flex flex-col gap-6 items-center mb-10">
-        <p className="text-gray-500 dark:text-gray-400 text-center text-sm h-8 font-medium">
+      <div className="w-full relative z-10 flex flex-col gap-6 items-center mb-8">
+        <p className="text-slate-300 text-center text-sm min-h-8 font-medium">
           {loading ? t.thinking : isRecording ? t.micOn : t.tapMic}
         </p>
-        <div className="flex items-center gap-8">
-          <button onClick={handleVoiceRecord} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${isRecording ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 border border-red-300 dark:border-red-500/50' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+        <div className="flex items-center gap-6">
+          <button onClick={handleVoiceRecord} className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${isRecording ? 'bg-red-500 text-white ring-4 ring-red-500/20' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 ring-1 ring-white/10'}`}>
             <Mic className="w-6 h-6" />
           </button>
-          <button onClick={toggleCallMode} title={t.stopCall} className="w-20 h-20 rounded-full flex items-center justify-center bg-red-500 hover:bg-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-all">
+          <button onClick={toggleCallMode} title={t.stopCall} className="w-20 h-20 rounded-full flex items-center justify-center bg-red-500 hover:bg-red-600 text-white shadow-[0_0_24px_rgba(239,68,68,0.35)] transition-all">
             <PhoneOff className="w-8 h-8" />
           </button>
         </div>
@@ -2837,7 +2837,7 @@ function Speaking({
       </div>}
       {messages.map((msg, idx) => <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
-        <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'}`} dir="ltr">
+        <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative text-center ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'}`} dir="ltr">
           <p className="text-lg leading-relaxed">
             {safeRender(msg.text)}
             {msg.streaming && <span className="inline-block w-[2px] h-5 bg-emerald-500 ml-0.5 align-middle animate-pulse rounded-full" />}
@@ -2848,36 +2848,36 @@ function Speaking({
           </button>}
         </div>
 
-        {msg.role === 'user' && msg.review && <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-lg animate-fadeIn transition-colors">
-          <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1e] hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center text-sm font-bold text-gray-700 dark:text-gray-300 transition-colors">
+        {msg.role === 'user' && msg.review && <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-lg animate-fadeIn transition-colors text-center">
+          <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1e] hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center text-sm font-bold text-gray-700 dark:text-gray-300 transition-colors gap-2 text-center">
             <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-4 h-4" /> {t.corrected}</span>
             <ChevronRight className={`w-4 h-4 transition-transform ${expandedReviewId === msg.id ? 'rotate-90' : ''}`} />
           </button>
 
           {expandedReviewId === msg.id && <div className="p-4 space-y-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214]">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm text-center">
                 <p className="text-xs text-gray-500 mb-1 font-bold">{t.clarity}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.clarity)}</p>
               </div>
-              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm text-center">
                 <p className="text-xs text-gray-500 mb-1 font-bold">{t.grammar}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.grammar)}</p>
               </div>
-              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm text-center">
                 <p className="text-xs text-gray-500 mb-1 font-bold">{t.fluency}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.fluency)}</p>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-emerald-50 dark:from-emerald-500/10 to-blue-50 dark:to-blue-500/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-500/20 relative shadow-sm">
-              <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-2">
+            <div className="bg-gradient-to-r from-emerald-50 dark:from-emerald-500/10 to-blue-50 dark:to-blue-500/10 p-4 rounded-xl border border-emerald-100 dark:border-emerald-500/20 relative shadow-sm text-center">
+              <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-400 mb-2 flex items-center justify-center gap-2">
                 <Target className="w-4 h-4" /> {t.native}
               </h4>
-              <p className="text-lg text-gray-900 dark:text-white font-medium" dir="ltr">"{safeRender(msg.review.native_way)}"</p>
+              <p className="text-lg text-gray-900 dark:text-white font-medium text-center" dir="ltr">"{safeRender(msg.review.native_way)}"</p>
 
-              <div className="mt-4 flex gap-3">
-                <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-md">
+              <div className="mt-4 flex gap-3 justify-center">
+                <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 justify-center transition shadow-md">
                   <Play className="w-4 h-4" /> {t.listen}
                 </button>
               </div>
@@ -2908,7 +2908,7 @@ function Speaking({
 
         {isRecording && <span className="absolute right-16 text-xs text-red-500 dark:text-red-400 font-bold animate-pulse">Listening...</span>}
 
-        <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder={isRecording ? "" : t.placeholder} className="flex-1 bg-transparent border-none text-gray-900 dark:text-white text-lg px-2 focus:outline-none focus:ring-0 placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-50" dir="ltr" disabled={isRecording} />
+        <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder={isRecording ? "" : t.placeholder} className="flex-1 bg-transparent border-none text-center text-gray-900 dark:text-white text-lg px-2 focus:outline-none focus:ring-0 placeholder-gray-400 dark:placeholder-gray-500 disabled:opacity-50" dir="ltr" disabled={isRecording} />
         <button onClick={() => handleSend()} disabled={loading || !input.trim()} className="p-3.5 bg-emerald-500 hover:bg-emerald-600 rounded-full text-white transition-colors disabled:opacity-50 shadow-md">
           <Send className="w-5 h-5 ml-[-2px]" />
         </button>
