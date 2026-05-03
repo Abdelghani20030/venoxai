@@ -318,10 +318,10 @@ const EDGE_VOICES = {
  * Free, unlimited Microsoft Edge TTS via the api-server proxy.
  * Returns true on success, false on failure (so caller can fall back).
  */
-const edgeTTSSpeak = async (text, gender) => {
+const edgeTTSSpeak = async (text, gender, voiceOverride) => {
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
-  const voice = EDGE_VOICES[accent][genderKey];
+  const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
   try {
     const res = await fetch('/api/edge-tts', {
       method: 'POST',
@@ -2191,10 +2191,13 @@ function Vocabulary({
     setSrsData(newData);
     localStorage.setItem('venoxa_srs_data', JSON.stringify(newData));
   };
-  // Play a word's pronunciation using ElevenLabs (falls back to browser TTS)
-  const playAudio = async (_accentCode, wordToPlay = card?.word) => {
+  // Play a word's pronunciation — respects the accent code directly
+  const playAudio = async (accentCode, wordToPlay = card?.word) => {
     if (!wordToPlay) return;
-    await elevenLabsSpeak(wordToPlay);
+    const voiceName = accentCode === 'en-US' ? EDGE_VOICES.us.male
+      : accentCode === 'en-GB' ? EDGE_VOICES.uk.male
+      : undefined;
+    await edgeTTSSpeak(wordToPlay, 'male', voiceName);
   };
 
   const generateStory = async () => {
@@ -2528,6 +2531,9 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
   const [dictAudioState, setDictAudioState] = useState('idle');
   const dictAudioRef = useRef(null);
 
+  const [voiceAccent, setVoiceAccent] = useState('uk');
+  useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
+
   const LISTEN_TOPICS = [
     'Daily Life & Routines', 'Travel & Culture', 'Technology & AI',
     'Health & Wellness', 'Environment & Climate', 'Work & Career',
@@ -2586,7 +2592,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
   const fetchAudioEl = async (text, speed) => {
     try {
       const key = typeof getElevenLabsKey === 'function' ? await getElevenLabsKey() : null;
-      if (!key) throw new Error('no key');
+      if (!key || _elevenLabsQuotaExceeded) throw new Error('no key or quota exceeded');
       const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${DEFAULT_ELEVENLABS_VOICE_ID}/stream`, {
         method: 'POST',
         headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
@@ -2792,11 +2798,18 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white mb-2">{t.title}</h2>
           <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
         </div>
-        {type === 'reading' && (
-          <button onClick={handleGenerate} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition whitespace-nowrap">
-            {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
-          </button>
-        )}
+        <div className="flex items-center gap-3 flex-wrap justify-center md:justify-end">
+          {/* UK/US accent toggle */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1 border border-gray-200 dark:border-gray-700">
+            <button onClick={() => setVoiceAccent('uk')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇬🇧 UK</button>
+            <button onClick={() => setVoiceAccent('us')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇺🇸 US</button>
+          </div>
+          {type === 'reading' && (
+            <button onClick={handleGenerate} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition whitespace-nowrap">
+              {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Listening: topic / length / generate controls ── */}
@@ -2830,6 +2843,11 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
               {loading ? <Activity className="animate-spin w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
               {_resolveTranslation(lang, 'ولّد نصاً', 'Generate')}
             </button>
+            {/* UK/US accent toggle for listening */}
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1 border border-gray-200 dark:border-gray-700 ml-auto">
+              <button onClick={() => setVoiceAccent('uk')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇬🇧 UK</button>
+              <button onClick={() => setVoiceAccent('us')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇺🇸 US</button>
+            </div>
           </div>
         </div>
       )}
@@ -3554,11 +3572,11 @@ function Speaking({
           }`}
         />
 
-        {/* AI transcript — soft, centered, no box */}
+        {/* AI transcript — Gemini-style fade from bottom */}
         <div className="w-full max-w-md text-center">
           {lastAiCallMsg ? (
-            <div className="max-h-[88px] overflow-y-auto custom-scrollbar">
-              <p className={`text-[13px] leading-[1.75] font-light ${isDark ? 'text-gray-500' : 'text-gray-500'}`} dir="ltr">
+            <div className="max-h-[88px] overflow-hidden">
+              <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light ${isDark ? 'text-gray-500' : 'text-gray-500'}`} dir="ltr">
                 {safeRender(lastAiCallMsg.text)}
                 {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-gray-600' : 'bg-gray-400'}`} />}
               </p>
@@ -3567,6 +3585,18 @@ function Speaking({
             <p className={`text-[13px] font-light ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>{t.tapMic}</p>
           )}
         </div>
+
+        {/* Correction panel — last user message's review */}
+        {(() => {
+          const lastReview = [...messages].reverse().find(m => m.role === 'user' && m.review)?.review;
+          if (!lastReview) return null;
+          return (
+            <div key="call-review" className={`w-full max-w-sm mx-auto rounded-2xl px-4 py-3 space-y-1.5 transition-colors ${isDark ? 'bg-white/[0.03] border border-white/[0.06]' : 'bg-black/[0.03] border border-black/[0.05]'}`}>
+              {lastReview.grammar && <p className={`text-[11px] leading-snug ${isDark ? 'text-gray-600' : 'text-gray-500'}`}><span className={`font-semibold ${isDark ? 'text-red-400/70' : 'text-red-500/80'}`}>Grammar · </span>{safeRender(lastReview.grammar)}</p>}
+              {lastReview.native_way && <p className={`text-[11px] leading-snug italic ${isDark ? 'text-emerald-500/60' : 'text-emerald-600/70'}`}><span className="not-italic font-semibold">Native · </span>"{safeRender(lastReview.native_way)}"</p>}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Bottom: Sesame-style pill control bar ── */}
@@ -3636,6 +3666,10 @@ function Speaking({
         <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm">
           <button onClick={() => setVoiceGender('male')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'male' ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-blue-500'}`}>♂</button>
           <button onClick={() => setVoiceGender('female')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'female' ? 'bg-pink-500 text-white' : 'text-gray-500 hover:text-pink-500'}`}>♀</button>
+        </div>
+        <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm">
+          <button onClick={() => setVoiceAccent('uk')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceAccent === 'uk' ? 'bg-indigo-500 text-white' : 'text-gray-500 hover:text-indigo-500'}`}>🇬🇧</button>
+          <button onClick={() => setVoiceAccent('us')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceAccent === 'us' ? 'bg-indigo-500 text-white' : 'text-gray-500 hover:text-indigo-500'}`}>🇺🇸</button>
         </div>
         <button onClick={() => setShowHistory(v => !v)} className="px-3 py-2 rounded-lg text-sm font-bold transition-all border bg-white dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700">
           History
@@ -3946,10 +3980,13 @@ function Langeek({
     setSrsData(newData);
     localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(newData));
   };
-  // Play a word's pronunciation using ElevenLabs (falls back to browser TTS)
-  const playAudio = async (_accentCode, wordToPlay = card?.word) => {
+  // Play a word's pronunciation — respects the accent code directly
+  const playAudio = async (accentCode, wordToPlay = card?.word) => {
     if (!wordToPlay) return;
-    await elevenLabsSpeak(wordToPlay);
+    const voiceName = accentCode === 'en-US' ? EDGE_VOICES.us.male
+      : accentCode === 'en-GB' ? EDGE_VOICES.uk.male
+      : undefined;
+    await edgeTTSSpeak(wordToPlay, 'male', voiceName);
   };
 
   const generateStory = async () => {
