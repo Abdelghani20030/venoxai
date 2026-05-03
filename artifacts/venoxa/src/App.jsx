@@ -274,15 +274,16 @@ const safeRender = val => {
 // backend server). This is required because ElevenLabs free-tier blocks
 // requests from server/cloud IPs (Replit production), but allows them from
 // real user browser IPs.
-const DEFAULT_ELEVENLABS_VOICE_ID = 'nPczCjzI2devNBz1zQrb'; // Brian — warm, natural, free
+const DEFAULT_ELEVENLABS_VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam — American male accent
 // English voices (not trained on Arabic — swapped out automatically for Arabic text)
-const ELEVENLABS_SARAH_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah — English female
-const ELEVENLABS_BRIAN_ID = 'nPczCjzI2devNBz1zQrb'; // Brian — English male
+const ELEVENLABS_SARAH_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel — American female accent
+const ELEVENLABS_BRIAN_ID = 'pNInz6obpgDQGcFmaJgB'; // Adam  — American male accent
 // True multilingual voices — handle Arabic correctly with eleven_multilingual_v2
 const ARABIC_FEMALE_VOICE_ID = 'XB0fDUnXU5powFXDhCwa'; // Charlotte — multilingual female
 const ARABIC_MALE_VOICE_ID   = 'JBFqnCBsd6RMkjVDRZzb'; // George — multilingual male
 const ELEVENLABS_VOICE_OPTIONS = [
-  { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
+  { id: 'pNInz6obpgDQGcFmaJgB', label: 'Adam (American ♂)' },
+  { id: '21m00Tcm4TlvDq8ikWAM', label: 'Rachel (American ♀)' },
   { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah' },
   { id: 'TX3LPaxmHKxFdv7VOQHJ', label: 'Liam' },
   { id: 'XB0fDUnXU5powFXDhCwa', label: 'Charlotte' },
@@ -453,16 +454,23 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
       utterance.lang = 'ar-SA';
     } else {
       utterance.lang = 'en-US';
-      // Try to pick a high-quality voice (Google/Microsoft Neural voices sound best)
+      // Prefer American English voices — fall back to any English voice
       const voices = window.speechSynthesis.getVoices();
       const preferred = [
-        'Google UK English Female', 'Google UK English Male',
-        'Google US English', 'Microsoft Aria Online (Natural)',
-        'Microsoft Guy Online (Natural)', 'Karen', 'Daniel',
+        'Google US English',
+        'Microsoft Aria Online (Natural)',   // American female (Edge/Chrome)
+        'Microsoft Guy Online (Natural)',    // American male   (Edge/Chrome)
+        'Microsoft David - English (United States)',
+        'Microsoft Zira - English (United States)',
+        'Samantha',                          // American female (macOS/iOS)
+        'Alex',                              // American male   (macOS)
+        'Google UK English Female',          // British fallback
+        'Google UK English Male',
       ];
       const pick = preferred.reduce((found, name) =>
         found || voices.find(v => v.name === name), null)
-        || voices.find(v => v.lang.startsWith('en') && v.localService === false)
+        || voices.find(v => v.lang === 'en-US' && v.localService === false)
+        || voices.find(v => v.lang === 'en-US')
         || voices.find(v => v.lang.startsWith('en'));
       if (pick) utterance.voice = pick;
     }
@@ -2525,7 +2533,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
     try {
       const key = typeof getElevenLabsKey === 'function' ? await getElevenLabsKey() : null;
       if (!key) throw new Error('no key');
-      const resp = await fetch('https://api.elevenlabs.io/v1/text-to-speech/nPczCjzI2devNBz1zQrb/stream', {
+      const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${DEFAULT_ELEVENLABS_VOICE_ID}/stream`, {
         method: 'POST',
         headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
         body: JSON.stringify({ text: text.slice(0, 2500), model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.85 } })
@@ -3233,9 +3241,9 @@ function Speaking({
     });
   }, [messages, expandedReviewId]);
   // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
-  // Male: Brian (nPczCjzI2devNBz1zQrb) | Female: Sarah (EXAVITQu4vr4xnSDxMaL)
+  // Male: Adam (pNInz6obpgDQGcFmaJgB) — American | Female: Rachel (21m00Tcm4TlvDq8ikWAM) — American
   const speakText = async text => {
-    const voiceId = voiceGender === 'female' ? 'EXAVITQu4vr4xnSDxMaL' : 'nPczCjzI2devNBz1zQrb';
+    const voiceId = voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID;
     await elevenLabsSpeak(text, voiceId);
     // Update TTS mode indicator after each call
     setUsingBrowserTTS(_elevenLabsQuotaExceeded || !_elevenLabsKey);
