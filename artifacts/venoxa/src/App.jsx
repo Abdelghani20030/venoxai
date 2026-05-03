@@ -1545,9 +1545,9 @@ function StudyPlan({
                   </label>
                 </div>
               </div>
-              <div className="flex items-center justify-center gap-2 mt-auto">
-                <input type="number" min="0" max="240" value={s.useDefault ? DEFAULT_SKILL_MINS[id] : s.mins} disabled={s.useDefault} onChange={e => setSkillMins(id, e.target.value)} className={`w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none ${ring} disabled:opacity-60 disabled:cursor-not-allowed min-w-0`} />
-                <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold whitespace-nowrap">{t.minsUnit}</span>
+              <div className="flex flex-col items-center justify-center gap-1 mt-auto w-full">
+                <input type="number" min="0" max="240" value={s.useDefault ? DEFAULT_SKILL_MINS[id] : s.mins} disabled={s.useDefault} onChange={e => setSkillMins(id, e.target.value)} className={`w-full max-w-[90px] h-12 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white font-extrabold text-center text-2xl focus:outline-none ${ring} disabled:opacity-60 disabled:cursor-not-allowed`} style={{textAlign:'center'}} />
+                <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold">{t.minsUnit}</span>
               </div>
             </div>;
           })}
