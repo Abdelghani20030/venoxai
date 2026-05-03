@@ -220,7 +220,7 @@ const safeRender = val => {
 // --- ELEVENLABS TTS HELPER ---
 // Default voice: "Rachel" (ElevenLabs premade, natural American English).
 // The user can override this by passing a different voice ID.
-const DEFAULT_ELEVENLABS_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
+const DEFAULT_ELEVENLABS_VOICE_ID = '';
 
 // Keeps a reference to the current Audio element so we can cancel it before
 // starting a new utterance (mirrors the old speechSynthesis.cancel() pattern).
