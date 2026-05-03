@@ -579,21 +579,21 @@ export default function App() {
     badge: langeekDueCount
   }];
   return <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#09090b] text-gray-100' : 'bg-gray-50 text-gray-900'} font-sans selection:bg-blue-500/30 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
-    <div className={`hidden lg:flex w-56 xl:w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-200'} border-l shadow-2xl z-10 transition-colors duration-300 print:hidden`}>
-      <div className={`flex items-center justify-center h-16 xl:h-24 border-b ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-200'}`}>
-        <h1 className="text-2xl xl:text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 tracking-tight">
+    <div className={`hidden lg:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-200'} border-l shadow-2xl z-10 transition-colors duration-300 print:hidden`}>
+      <div className={`flex items-center justify-center h-16 border-b ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-200'}`}>
+        <h1 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 tracking-tight">
           Venoxa<span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>.ai</span>
         </h1>
       </div>
-      <nav className="flex-1 overflow-y-auto py-6 px-3">
-        <ul className="space-y-2">
+      <nav className="flex-1 overflow-y-auto py-4 px-2">
+        <ul className="space-y-1">
           {navItems.map(item => {
             const isActive = activeTab === item.id;
             return <li key={item.id}>
-              <button onClick={() => setActiveTab(item.id)} className={`w-full flex items-center px-3 xl:px-4 py-2.5 xl:py-3.5 rounded-xl text-sm font-semibold transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : `text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200 border border-transparent`}`}>
-                <item.icon className={`w-5 h-5 ${_resolveTranslation(lang, 'ml-3', 'mr-3')} ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'} shrink-0`} />
-                <span className="flex-1 text-start">{item.label}</span>
-                {item.badge > 0 && <span className="min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center px-1 shrink-0">{item.badge > 99 ? '99+' : item.badge}</span>}
+              <button onClick={() => setActiveTab(item.id)} className={`w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : `text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200 border border-transparent`}`}>
+                <item.icon className={`w-4 h-4 shrink-0 ${_resolveTranslation(lang, 'ml-2.5', 'mr-2.5')} ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'}`} />
+                <span className="flex-1 min-w-0 text-start truncate">{item.label}</span>
+                {item.badge > 0 && <span className="min-w-[18px] h-[18px] bg-red-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center px-1 shrink-0 ms-1">{item.badge > 99 ? '99+' : item.badge}</span>}
               </button>
             </li>;
           })}
