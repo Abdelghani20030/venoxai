@@ -2569,10 +2569,13 @@ function Speaking({
     const lastAiMessage = [...conversation].reverse().find(msg => msg.role === 'ai' && msg.text && msg.text !== t.welcome);
     const lastUserMessage = [...conversation].reverse().find(msg => msg.role === 'user');
     if (!lastAiMessage && !lastUserMessage) return;
+    const titleSource = topic || lastUserMessage?.text || lastAiMessage?.text || '';
+    const title = titleSource ? String(titleSource).split('(')[0].trim().replace(/\s+/g, ' ') : 'Conversation';
     setSpeakingHistory(prev => [{
       id: Date.now(),
       mode: isCallMode ? 'call' : 'chat',
       topic,
+      title,
       level: chatLevel,
       messages: conversation,
       summary: lastUserMessage?.text || lastAiMessage?.text || '',
@@ -2832,7 +2835,7 @@ function Speaking({
       {showHistory && <div className="mb-4 bg-white/90 dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-4 shadow-lg">
         {speakingHistory.length === 0 ? <p className="text-gray-500 dark:text-gray-400">No history yet.</p> : speakingHistory.map(item => <button key={item.id} onClick={() => setMessages(item.messages || [])} className="w-full text-left p-3 rounded-2xl border border-gray-200 dark:border-gray-800 mb-3 last:mb-0 bg-gray-50 dark:bg-[#1a1a1e]">
           <p className="text-xs text-gray-500">{new Date(item.createdAt).toLocaleString()}</p>
-          <p className="font-bold text-gray-900 dark:text-white">{item.topic}</p>
+          <p className="font-bold text-gray-900 dark:text-white">{item.title || item.topic}</p>
         </button>)}
       </div>}
       {messages.map((msg, idx) => <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
