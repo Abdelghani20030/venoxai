@@ -28,6 +28,15 @@
 .blob-speak  { animation: blob-speak  0.9s ease-in-out infinite; }
 .blob-listen { animation: blob-listen 0.6s ease-in-out infinite; }
 
+/* ── Call transcript: Gemini-style fade-up-in ── */
+@keyframes fadeUpIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.transcript-fade {
+  animation: fadeUpIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @font-face {
   font-family: 'The Year of The Camel';
   src: url('/fonts/TheYearofTheCamel-ExtraBold.otf') format('opentype');
