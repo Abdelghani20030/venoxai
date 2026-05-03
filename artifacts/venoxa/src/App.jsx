@@ -292,23 +292,52 @@ const ELEVENLABS_VOICE_OPTIONS = [
   { id: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum' },
 ];
 
-// Cached ElevenLabs API key fetched once from the backend config endpoint.
+// Cached ElevenLabs API key fetched from the backend config endpoint.
+// Only cached once we actually receive a non-empty key — so transient
+// server-down failures at page load don't permanently disable ElevenLabs.
 let _elevenLabsKey = null;
 let _elevenLabsKeyFetched = false;
+let _elevenLabsKeyFetchInProgress = null; // deduplicates concurrent fetches
+// Tracks whether ElevenLabs quota is currently exhausted.
+// Reset to false if a call later succeeds (e.g. after monthly reset).
+let _elevenLabsQuotaExceeded = false;
 
 const getElevenLabsKey = async () => {
-  if (_elevenLabsKeyFetched) return _elevenLabsKey;
-  try {
-    const res = await fetch('/api/config');
-    if (res.ok) {
-      const data = await res.json();
-      _elevenLabsKey = data.elevenLabsApiKey || null;
+  // Return cached key if we already have one
+  if (_elevenLabsKeyFetched && _elevenLabsKey) return _elevenLabsKey;
+
+  // Deduplicate concurrent fetches (e.g. two TTS calls fired at once)
+  if (_elevenLabsKeyFetchInProgress) return _elevenLabsKeyFetchInProgress;
+
+  _elevenLabsKeyFetchInProgress = (async () => {
+    // Try up to 3 times with a short delay so a briefly-restarting server
+    // doesn't permanently break TTS for the whole session.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 800 * attempt));
+        const res = await fetch('/api/config');
+        if (res.ok) {
+          const data = await res.json();
+          const key = data.elevenLabsApiKey || null;
+          if (key) {
+            _elevenLabsKey = key;
+            _elevenLabsKeyFetched = true;
+            return key;
+          }
+        }
+      } catch {
+        // network error — will retry
+      }
     }
-  } catch {
-    _elevenLabsKey = null;
-  }
-  _elevenLabsKeyFetched = true;
-  return _elevenLabsKey;
+    // All attempts failed or returned no key — don't permanently cache null
+    // so the next TTS call will try again.
+    _elevenLabsKeyFetchInProgress = null;
+    return null;
+  })();
+
+  const result = await _elevenLabsKeyFetchInProgress;
+  _elevenLabsKeyFetchInProgress = null;
+  return result;
 };
 
 // Keeps a reference to the current Audio element so we can cancel it before
@@ -334,67 +363,111 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
-  // Arabic text: always use free browser TTS with Arabic voice
-  // Fetch the API key from backend config (cached after first call)
   const apiKey = await getElevenLabsKey();
 
   if (apiKey) {
-    try {
-      const isArabic = hasArabicText(text);
-      const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
+    const isArabic = hasArabicText(text);
+    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
 
-      // English voices (Sarah/Brian) can't pronounce Arabic — auto-swap to multilingual equivalents
-      let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
-      if (isArabic) {
-        if (resolvedVoiceId === ELEVENLABS_SARAH_ID) resolvedVoiceId = ARABIC_FEMALE_VOICE_ID;
-        else if (resolvedVoiceId === ELEVENLABS_BRIAN_ID || resolvedVoiceId === DEFAULT_ELEVENLABS_VOICE_ID) resolvedVoiceId = ARABIC_MALE_VOICE_ID;
-      }
+    let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
+    if (isArabic) {
+      if (resolvedVoiceId === ELEVENLABS_SARAH_ID) resolvedVoiceId = ARABIC_FEMALE_VOICE_ID;
+      else if (resolvedVoiceId === ELEVENLABS_BRIAN_ID || resolvedVoiceId === DEFAULT_ELEVENLABS_VOICE_ID) resolvedVoiceId = ARABIC_MALE_VOICE_ID;
+    }
 
-      // Call ElevenLabs DIRECTLY from the browser using the user's IP
-      const response = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${resolvedVoiceId}/stream`,
-        {
-          method: 'POST',
-          headers: {
-            'xi-api-key': apiKey,
-            'Content-Type': 'application/json',
-            Accept: 'audio/mpeg',
-          },
-          body: JSON.stringify({
-            text,
-            model_id: modelId,
-            voice_settings: {
-              stability: 0.35,
-              similarity_boost: 0.9,
-              style: 0.4,
-              use_speaker_boost: true,
+    // Retry up to 2 times on transient server errors (5xx, network hiccups).
+    // Do NOT retry on 401 (bad key) or 429 (quota) — those are persistent.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 600));
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${resolvedVoiceId}/stream`,
+          {
+            method: 'POST',
+            headers: {
+              'xi-api-key': apiKey,
+              'Content-Type': 'application/json',
+              Accept: 'audio/mpeg',
             },
-          }),
+            body: JSON.stringify({
+              text,
+              model_id: modelId,
+              voice_settings: {
+                stability: 0.35,
+                similarity_boost: 0.9,
+                style: 0.4,
+                use_speaker_boost: true,
+              },
+            }),
+          }
+        );
+
+        if (response.status === 401) {
+          const errBody = await response.text().catch(() => '');
+          const isQuota = errBody.includes('quota_exceeded');
+          if (isQuota) {
+            _elevenLabsQuotaExceeded = true;
+            console.warn('[Venoxa] ElevenLabs quota exhausted — falling back to browser TTS.');
+          } else {
+            // Truly invalid key — clear cache so next call re-fetches
+            _elevenLabsKey = null;
+            _elevenLabsKeyFetched = false;
+            console.warn('[Venoxa] ElevenLabs 401 invalid key — clearing cache.');
+          }
+          break;
         }
-      );
+        if (response.status === 429) {
+          _elevenLabsQuotaExceeded = true;
+          console.warn('[Venoxa] ElevenLabs 429 — rate limited. Falling back to browser TTS.');
+          break;
+        }
+        if (!response.ok) {
+          const errBody = await response.text().catch(() => '');
+          console.warn(`[Venoxa] ElevenLabs ${response.status} (attempt ${attempt + 1}):`, errBody.slice(0, 120));
+          continue; // retry on 5xx
+        }
 
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => '');
-        throw new Error(`ElevenLabs returned ${response.status}: ${errBody.slice(0, 200)}`);
+        // Success — voice worked, clear any quota flag
+        _elevenLabsQuotaExceeded = false;
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        _currentTTSAudio = audio;
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (_currentTTSAudio === audio) _currentTTSAudio = null;
+        };
+        await audio.play();
+        return; // success — skip fallback
+      } catch (err) {
+        console.warn(`[Venoxa] ElevenLabs network error (attempt ${attempt + 1}):`, err.message);
       }
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      _currentTTSAudio = audio;
-      audio.onended = () => URL.revokeObjectURL(audioUrl);
-      await audio.play();
-      return;
-    } catch (err) {
-      console.error('[Venoxa] ElevenLabs direct TTS failed, falling back to browser TTS:', err.message);
     }
   }
 
-  // Fallback: browser speechSynthesis
+  // Fallback: browser speechSynthesis — pick the best available English voice
   if ('speechSynthesis' in window) {
+    const isArabicFallback = hasArabicText(text);
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.95;
+    if (isArabicFallback) {
+      utterance.lang = 'ar-SA';
+    } else {
+      utterance.lang = 'en-US';
+      // Try to pick a high-quality voice (Google/Microsoft Neural voices sound best)
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = [
+        'Google UK English Female', 'Google UK English Male',
+        'Google US English', 'Microsoft Aria Online (Natural)',
+        'Microsoft Guy Online (Natural)', 'Karen', 'Daniel',
+      ];
+      const pick = preferred.reduce((found, name) =>
+        found || voices.find(v => v.name === name), null)
+        || voices.find(v => v.lang.startsWith('en') && v.localService === false)
+        || voices.find(v => v.lang.startsWith('en'));
+      if (pick) utterance.voice = pick;
+    }
+    utterance.rate = 0.92;
+    utterance.pitch = 1.0;
     window.speechSynthesis.speak(utterance);
   }
 };
@@ -3131,6 +3204,7 @@ function Speaking({
   const [showHistory, setShowHistory] = useState(false);
   const [voiceGender, setVoiceGender] = useState('male');
   const [callReview, setCallReview] = useState(null);
+  const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const saveConversationToHistory = (conversation) => {
@@ -3163,6 +3237,8 @@ function Speaking({
   const speakText = async text => {
     const voiceId = voiceGender === 'female' ? 'EXAVITQu4vr4xnSDxMaL' : 'nPczCjzI2devNBz1zQrb';
     await elevenLabsSpeak(text, voiceId);
+    // Update TTS mode indicator after each call
+    setUsingBrowserTTS(_elevenLabsQuotaExceeded || !_elevenLabsKey);
   };
   const handleSend = async (forcedText = null) => {
     const userMsg = forcedText || input;
@@ -3328,10 +3404,21 @@ function Speaking({
     const isDark = theme === 'dark';
     return <div className={`relative w-full h-[85vh] flex flex-col rounded-2xl overflow-hidden animate-fadeIn select-none transition-colors duration-300 ${isDark ? 'bg-[#0e0e10]' : 'bg-[#f2f2ee]'}`}>
 
-      {/* ── Top-left: LIVE status ── */}
-      <div className="absolute top-6 left-7 z-10 flex items-center gap-2">
-        <span className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>LIVE</span>
-        <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${loading ? 'bg-amber-400' : isRecording ? 'bg-red-400' : 'bg-emerald-400'}`} />
+      {/* ── Top-left: LIVE status + voice mode pill ── */}
+      <div className="absolute top-6 left-7 z-10 flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>LIVE</span>
+          <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${loading ? 'bg-amber-400' : isRecording ? 'bg-red-400' : 'bg-emerald-400'}`} />
+        </div>
+        {usingBrowserTTS && (
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+            isDark
+              ? 'text-amber-400/70 border-amber-400/20 bg-amber-400/5'
+              : 'text-amber-600/70 border-amber-400/30 bg-amber-50'
+          }`} title="ElevenLabs voice credits exhausted — using browser voice">
+            Browser voice
+          </span>
+        )}
       </div>
 
       {/* ── Top-right: level · topic + gender ── */}
