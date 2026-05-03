@@ -2496,25 +2496,15 @@ function Speaking({
     }]);
     setLoading(true);
     try {
-      const history = messages.map(m => `${m.role === 'ai' ? 'AI' : 'User'}: ${m.text}`).join('\n');
-      const prompt = `You are a native English conversation partner and expert language tutor.
-      User Level: ${chatLevel}. Topic: ${topic}.
-
-      The user just said: "${userMsg}"
-      Conversation history: ${history}
-
-      Analyze the user's message and provide a conversational reply to keep the chat going.
-      The conversation should be ${formality === 'formal' ? 'Formal and professional (e.g. business meeting, interview)' : 'Informal and casual (e.g. talking to a friend, at a cafe)'}.
-      You MUST respond in valid JSON format ONLY. Do not use markdown wrappers. Format exactly like this:
-      {
-        "reply": "Your natural conversational reply in English.",
-        "review": {
-          "clarity": "Feedback on clarity in ${_resolveTranslation(lang, 'Arabic', 'English')}.",
-          "grammar": "Feedback on grammar in ${_resolveTranslation(lang, 'Arabic', 'English')}.",
-          "fluency": "Feedback on natural flow and fluency in ${_resolveTranslation(lang, 'Arabic', 'English')}.",
-          "native_way": "How a native speaker would express the exact same idea naturally in English."
-        }
-      }`;
+      const history = messages.slice(-4).map(m => `${m.role === 'ai' ? 'AI' : 'User'}: ${m.text}`).join('\n');
+      const prompt = `Reply naturally and briefly as an English tutor.
+Level: ${chatLevel}
+Topic: ${topic}
+Style: ${formality}
+Recent: ${history}
+User: "${userMsg}"
+Return compact JSON only:
+{"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
       const rawResponse = await fetchFromGemini(prompt, AI_KEY);
       const jsonResponse = parseGeminiJSON(rawResponse);
       if (jsonResponse && jsonResponse.error) {
@@ -2560,7 +2550,7 @@ function Speaking({
     setLoading(true);
     setMessages([]);
     try {
-      const prompt = `You are a native English conversation partner. Start a ${formality === 'formal' ? 'formal and professional' : 'friendly and casual'} conversation with a student at ${chatLevel} level about the topic: "${topic}". Ask an engaging opening question to start the chat. Return ONLY the text of your greeting, no JSON, no markdown.`;
+      const prompt = `Start a short ${formality === 'formal' ? 'formal' : 'casual'} English conversation for a ${chatLevel} learner about "${topic}". Return one natural question only.`;
       const response = await fetchFromGemini(prompt, AI_KEY);
       const errJson = parseGeminiJSON(response);
       if (errJson && errJson.error) {
