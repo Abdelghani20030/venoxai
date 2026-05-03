@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, ChevronDown, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 
-function LevelSelector({ value, onChange, options, theme }) {
+function LanguageDropdown({ lang, setLang, theme }) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -10,29 +10,28 @@ function LevelSelector({ value, onChange, options, theme }) {
     if (isOpen) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen]);
-
+  const langs = [
+    { code: 'en', label: 'English' }, { code: 'ar', label: 'عربي' },
+    { code: 'es', label: 'Español' }, { code: 'fr', label: 'Français' },
+    { code: 'de', label: 'Deutsch' }, { code: 'zh', label: '中文' }, { code: 'ja', label: '日本語' }
+  ];
   return (
-    <div className="relative w-full" ref={ref}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold flex items-center justify-between transition-all hover:border-blue-500 shadow-sm outline-none ${isOpen ? 'ring-2 ring-blue-500/20 border-blue-500' : ''}`}
-      >
-        <span className="flex-1 text-center">{value}</span>
-        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-500' : 'text-gray-400'}`} />
+    <div className="relative" ref={ref}>
+      <button onClick={() => setIsOpen(!isOpen)} className="bg-transparent font-bold outline-none cursor-pointer flex items-center gap-1 w-full justify-between">
+        {langs.find(l => l.code === lang)?.label || 'Language'}
+        <ChevronDown className="w-4 h-4" />
       </button>
       {isOpen && (
-        <div className={`absolute top-full left-0 mt-2 w-full rounded-2xl shadow-2xl overflow-hidden z-[100] animate-fadeIn ${theme === 'dark' ? 'bg-[#1a1a1e] border border-gray-700 shadow-black/50' : 'bg-white border border-gray-200'}`}>
-          <div className="py-1 max-h-60 overflow-y-auto">
-            {options.map(l => (
-              <button
-                key={l}
-                onClick={() => { onChange(l); setIsOpen(false); }}
-                className={`w-full text-center px-4 py-3 font-bold transition-all ${value === l ? 'bg-blue-600 text-white' : theme === 'dark' ? 'text-gray-200 hover:bg-white/5' : 'text-gray-800 hover:bg-gray-50'}`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
+        <div className={`absolute bottom-full left-0 mb-2 w-36 rounded-2xl shadow-xl overflow-hidden z-[100] ${theme === 'dark' ? 'bg-[#1a1a1e] border border-gray-700' : 'bg-white border border-gray-200'}`}>
+          {langs.map(l => (
+            <button
+              key={l.code}
+              onClick={() => { setLang(l.code); setIsOpen(false); }}
+              className={`w-full text-center px-4 py-2.5 font-bold transition-colors ${lang === l.code ? 'bg-blue-600 text-white' : theme === 'dark' ? 'text-gray-200 hover:bg-gray-800' : 'text-gray-800 hover:bg-gray-100'}`}
+            >
+              {l.label}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -216,6 +215,81 @@ const safeRender = val => {
   if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return String(val);
   if (typeof val === 'object') return JSON.stringify(val);
   return String(val);
+};
+
+// --- ELEVENLABS TTS HELPER ---
+// Default voice: "Rachel" (ElevenLabs premade, natural American English).
+// The user can override this by passing a different voice ID.
+const DEFAULT_ELEVENLABS_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
+
+// Keeps a reference to the current Audio element so we can cancel it before
+// starting a new utterance (mirrors the old speechSynthesis.cancel() pattern).
+let _currentTTSAudio = null;
+
+/**
+ * elevenLabsSpeak(text, voiceId?)
+ *
+ * Calls our backend /api/tts/stream endpoint, receives an audio/mpeg blob,
+ * and plays it via a plain <Audio> object.  Falls back to the browser's
+ * built-in speechSynthesis if the backend returns an error (e.g. API key
+ * not configured yet).
+ *
+ * @param {string} text     - The English text to read aloud.
+ * @param {string} [voiceId] - Optional ElevenLabs voice ID.
+ */
+const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
+  if (!text || !text.trim()) return;
+
+  // Stop any currently-playing TTS audio
+  if (_currentTTSAudio) {
+    _currentTTSAudio.pause();
+    _currentTTSAudio = null;
+  }
+
+  try {
+    // POST to our Express backend which proxies to ElevenLabs
+    const response = await fetch(`${import.meta.env.BASE_URL}api/tts/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ textToSpeak: text, selectedVoiceId: voiceId }),
+    });
+
+    if (!response.ok) {
+      // If the backend isn't configured yet, silently fall back to the browser TTS
+      throw new Error(`TTS backend returned ${response.status}`);
+    }
+
+    // Convert the streamed audio bytes into a Blob and play them
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    _currentTTSAudio = audio;
+    audio.onended = () => URL.revokeObjectURL(audioUrl); // free memory
+    await audio.play();
+  } catch (err) {
+    // Graceful fallback: use the browser's built-in TTS while the ElevenLabs
+    // key is not yet set up (or network is offline).
+    console.warn('[Venoxa] ElevenLabs TTS unavailable, falling back to browser TTS:', err.message);
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.rate = 0.95;
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+};
+
+/**
+ * cancelTTS()
+ * Stops any in-progress ElevenLabs audio playback.
+ */
+const cancelTTS = () => {
+  if (_currentTTSAudio) {
+    _currentTTSAudio.pause();
+    _currentTTSAudio = null;
+  }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 };
 
 // --- DATA ---
@@ -1199,12 +1273,16 @@ function StudyPlan({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 relative z-50">
         <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
           <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.currentLvl}</label>
-          <LevelSelector value={userLevel} onChange={setUserLevel} options={['A1', 'A2', 'B1', 'B2', 'C1', 'C2']} theme={theme} />
+          <select value={userLevel} onChange={e => setUserLevel(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
+            {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
         </div>
 
         <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
           <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.targetLvl}</label>
-          <LevelSelector value={targetLevel} onChange={setTargetLevel} options={['A2', 'B1', 'B2', 'C1', 'C2']} theme={theme} />
+          <select value={targetLevel} onChange={e => setTargetLevel(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
+            {['A2', 'B1', 'B2', 'C1', 'C2'].map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
         </div>
 
         <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center relative z-50">
@@ -1235,20 +1313,20 @@ function StudyPlan({
                 <span className="text-[12px] sm:text-[13px] leading-tight font-extrabold uppercase tracking-tight">{t.totalInvestTitle}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 mt-auto">
+            <div className="flex items-center justify-center gap-2 mt-auto">
               <input
                 type="number"
                 placeholder={t.totalInvestPlaceholder}
                 value={totalInvestMinutes}
                 onChange={e => setTotalInvestMinutes(e.target.value)}
-                className="w-full h-11 bg-white dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none focus:border-blue-500 shadow-sm min-w-0"
+                className="w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none focus:border-blue-500 shadow-sm min-w-0"
               />
               <button
                 onClick={handleAutoDivide}
-                className="bg-blue-600 hover:bg-blue-700 text-white w-11 h-11 rounded-lg transition-all shadow-md active:scale-95 flex items-center justify-center shrink-0"
+                className="bg-gray-100 dark:bg-[#0e0e11] hover:bg-gray-200 dark:hover:bg-black text-blue-600 dark:text-blue-400 w-11 h-11 rounded-lg transition-all border border-gray-200 dark:border-gray-700 shadow-sm active:scale-95 flex items-center justify-center shrink-0"
                 title={t.divideBtn}
               >
-                <Zap className="w-5 h-5 fill-white" />
+                <Zap className="w-5 h-5 fill-current" />
               </button>
             </div>
           </div>
@@ -1290,12 +1368,12 @@ function StudyPlan({
             };
             return <div key={id} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full">
               <div className="flex items-center justify-between gap-4 mb-2">
-                <div className={`flex items-center gap-1.5 font-bold ${color} min-w-0`}>
+                <div className={`flex items-center gap-2 font-bold ${color} min-w-0`}>
                   <Icon className="w-4 h-4 shrink-0" /> 
-                  <span className="text-[11px] sm:text-xs leading-tight font-extrabold">{label}</span>
+                  <span className="text-xs sm:text-sm leading-tight truncate">{label}</span>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className={`text-[9px] font-bold uppercase tracking-tight hidden md:inline ${s.useDefault ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>{t.useDefault}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-[9px] font-bold uppercase tracking-tight ${s.useDefault ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`}>{t.useDefault}</span>
                   <label className="relative inline-flex items-center cursor-pointer select-none">
                     <input type="checkbox" className="sr-only peer" checked={s.useDefault} onChange={e => setSkillDefault(id, e.target.checked)} />
                     <span className="block w-8 h-4 bg-gray-300 dark:bg-gray-700 rounded-full peer-checked:bg-blue-500 transition-colors"></span>
@@ -1303,8 +1381,8 @@ function StudyPlan({
                   </label>
                 </div>
               </div>
-              <div className="flex items-center gap-2 mt-auto">
-                <input type="number" min="0" max="240" value={s.useDefault ? DEFAULT_SKILL_MINS[id] : s.mins} disabled={s.useDefault} onChange={e => setSkillMins(id, e.target.value)} className={`w-full h-11 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none ${ring} disabled:opacity-60 disabled:cursor-not-allowed min-w-0`} />
+              <div className="flex items-center justify-center gap-2 mt-auto">
+                <input type="number" min="0" max="240" value={s.useDefault ? DEFAULT_SKILL_MINS[id] : s.mins} disabled={s.useDefault} onChange={e => setSkillMins(id, e.target.value)} className={`w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none ${ring} disabled:opacity-60 disabled:cursor-not-allowed min-w-0`} />
                 <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold whitespace-nowrap">{t.minsUnit}</span>
               </div>
             </div>;
@@ -1809,14 +1887,12 @@ function Vocabulary({
     setSrsData(newData);
     localStorage.setItem('venoxa_srs_data', JSON.stringify(newData));
   };
-  const playAudio = (accentCode, wordToPlay = card?.word) => {
-    if (!wordToPlay || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(wordToPlay);
-    utterance.lang = accentCode;
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
+  // Play a word's pronunciation using ElevenLabs (falls back to browser TTS)
+  const playAudio = async (_accentCode, wordToPlay = card?.word) => {
+    if (!wordToPlay) return;
+    await elevenLabsSpeak(wordToPlay);
   };
+
   const generateStory = async () => {
     if (loadingAi || aiStory || !card) return;
     setLoadingAi(true);
@@ -2393,14 +2469,9 @@ function Speaking({
       behavior: "smooth"
     });
   }, [messages, expandedReviewId]);
-  const speakText = text => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.95;
-      window.speechSynthesis.speak(utterance);
-    }
+  // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
+  const speakText = async text => {
+    await elevenLabsSpeak(text);
   };
   const handleSend = async (forcedText = null) => {
     const userMsg = forcedText || input;
@@ -2540,7 +2611,8 @@ function Speaking({
     if (!isCallMode) {
       speakText("Call started. What would you like to talk about?");
     } else {
-      window.speechSynthesis.cancel();
+      // Stop any ElevenLabs audio and browser TTS
+      cancelTTS();
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsRecording(false);
     }
@@ -2916,14 +2988,12 @@ function Langeek({
     setSrsData(newData);
     localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(newData));
   };
-  const playAudio = (accentCode, wordToPlay = card?.word) => {
-    if (!wordToPlay || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(wordToPlay);
-    utterance.lang = accentCode;
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
+  // Play a word's pronunciation using ElevenLabs (falls back to browser TTS)
+  const playAudio = async (_accentCode, wordToPlay = card?.word) => {
+    if (!wordToPlay) return;
+    await elevenLabsSpeak(wordToPlay);
   };
+
   const generateStory = async () => {
     if (loadingAi || aiStory || !card) return;
     setLoadingAi(true);
