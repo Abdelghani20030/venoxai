@@ -323,21 +323,14 @@ const edgeTTSSpeak = async (text, gender, voiceOverride) => {
   const genderKey = gender === 'female' ? 'female' : 'male';
   const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
   try {
-    const res = await fetch('/api/edge-tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice }),
-    });
-    if (!res.ok) return false;
-    const blob = await res.blob();
-    if (!blob || blob.size === 0) return false;
-    const url = URL.createObjectURL(blob);
+    // Use GET endpoint so the browser <audio> element streams and plays
+    // progressively — no waiting for the full audio to download.
+    const params = new URLSearchParams({ text, voice });
+    const url = `/api/edge-tts?${params}`;
     const audio = new Audio(url);
     _currentTTSAudio = audio;
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      if (_currentTTSAudio === audio) _currentTTSAudio = null;
-    };
+    audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+    audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
     await audio.play();
     _lastTTSEngine = 'edge';
     return true;
@@ -407,6 +400,16 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     _currentTTSAudio = null;
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+  // Short-circuit: if quota is already exhausted skip the key-fetch round-trip
+  // and go straight to Edge TTS.
+  if (_elevenLabsQuotaExceeded) {
+    if (!hasArabicText(text)) {
+      const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
+      await edgeTTSSpeak(text, gender);
+    }
+    return;
+  }
 
   const apiKey = await getElevenLabsKey();
 
@@ -3337,6 +3340,14 @@ function Speaking({
   // Male: Adam (pNInz6obpgDQGcFmaJgB) — American | Female: Rachel (21m00Tcm4TlvDq8ikWAM) — American
   // Keep module-level accent var in sync with React state
   useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
+
+  // Pre-warm the Edge TTS WebSocket connection as soon as the component mounts
+  // so the first speech request skips the ~300ms WebSocket handshake latency.
+  useEffect(() => {
+    const accent = _voiceAccent === 'us' ? 'us' : 'uk';
+    const voice = EDGE_VOICES[accent][voiceGender === 'female' ? 'female' : 'male'];
+    fetch(`/api/edge-tts-warmup?voice=${encodeURIComponent(voice)}`).catch(() => {});
+  }, []);
 
   const speakText = async text => {
     const voiceId = voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID;
