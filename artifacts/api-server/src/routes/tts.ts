@@ -115,8 +115,8 @@ async function resolveDefaultVoiceId(key: string): Promise<string> {
           },
           body: JSON.stringify({
             text: "Hi",
-            model_id: "eleven_multilingual_v2",
-            voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+            model_id: "eleven_turbo_v2_5",
+            voice_settings: { stability: 0.2, similarity_boost: 0.9, style: 0.45, use_speaker_boost: true },
           }),
         },
       );
@@ -246,11 +246,11 @@ router.post("/tts/stream", async (req: Request, res: Response) => {
         },
         body: JSON.stringify({
           text: textToSpeak,
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_turbo_v2_5",
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.0,
+            stability: 0.2,
+            similarity_boost: 0.9,
+            style: 0.45,
             use_speaker_boost: true,
           },
         }),
