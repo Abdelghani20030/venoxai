@@ -164,33 +164,30 @@ const getBackticks = () => String.fromCharCode(96, 96, 96);
 // --- AI API HELPER (proxied through our backend) ---
 const fetchFromGemini = async (prompt, _apiKey) => {
   const url = `${import.meta.env.BASE_URL}api/chat`;
-  let retries = 3;
-  let delays = [1000, 2000, 4000];
-  for (let i = 0; i <= retries; i++) {
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          prompt
-        })
-      });
-      if (!response.ok) {
-        if (response.status === 400 || response.status === 401 || response.status === 403) {
-          return '{"error": "Backend rejected the request. Please check the server configuration."}';
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+  try {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prompt
+      }),
+      signal: controller.signal
+    });
+    window.clearTimeout(timeout);
+    if (!response.ok) {
+      if (response.status === 400 || response.status === 401 || response.status === 403 || response.status === 429 || response.status === 502) {
+        return '{"error": "I’m a bit busy right now. Please try again."}';
       }
-      const data = await response.json();
-      return data.text || '{"error": "No response generated."}';
-    } catch (error) {
-      if (i === retries) {
-        return '{"error": "Connection failed. Please check your network."}';
-      }
-      await new Promise(res => setTimeout(res, delays[i]));
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+    const data = await response.json();
+    return data.text || '{"error": "No response generated."}';
+  } catch (error) {
+    return '{"error": "I’m having a temporary connection issue. Please try again."}';
   }
 };
 const parseGeminiJSON = text => {
@@ -2463,7 +2460,6 @@ function Speaking({
     role: 'ai',
     text: t.welcome
   }]);
-  const [selectedVoiceId, setSelectedVoiceId] = useState(DEFAULT_ELEVENLABS_VOICE_ID || ELEVENLABS_VOICE_OPTIONS[0].id);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatLevel, setChatLevel] = useState(userLevel);
@@ -2496,7 +2492,7 @@ function Speaking({
     }]);
     setLoading(true);
     try {
-      const history = messages.slice(-4).map(m => `${m.role === 'ai' ? 'AI' : 'User'}: ${m.text}`).join('\n');
+      const history = messages.slice(-2).map(m => `${m.role === 'ai' ? 'AI' : 'User'}: ${m.text}`).join('\n');
       const prompt = `Reply naturally and briefly as an English tutor.
 Level: ${chatLevel}
 Topic: ${topic}
@@ -2507,6 +2503,8 @@ Return compact JSON only:
 {"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
       const rawResponse = await fetchFromGemini(prompt, AI_KEY);
       const jsonResponse = parseGeminiJSON(rawResponse);
+      const replyText = jsonResponse?.reply || cleanFallbackText(rawResponse);
+      const review = jsonResponse?.review || null;
       if (jsonResponse && jsonResponse.error) {
         setMessages(prev => [...prev, {
           id: Date.now() + 1,
@@ -2514,27 +2512,19 @@ Return compact JSON only:
           text: jsonResponse.error
         }]);
         if (isCallMode) speakText("Sorry, I am having trouble connecting.");
-      } else if (jsonResponse && jsonResponse.reply) {
+      } else {
         setMessages(prev => {
           const updated = prev.map(msg => msg.id === newMsgId ? {
             ...msg,
-            review: jsonResponse.review
+            review
           } : msg);
           return [...updated, {
             id: Date.now() + 1,
             role: 'ai',
-            text: jsonResponse.reply
+            text: replyText
           }];
         });
-        if (isCallMode) speakText(jsonResponse.reply);
-      } else {
-        const fallbackText = cleanFallbackText(rawResponse);
-        setMessages(prev => [...prev, {
-          id: Date.now() + 1,
-          role: 'ai',
-          text: fallbackText
-        }]);
-        if (isCallMode) speakText(fallbackText);
+        if (isCallMode) speakText(replyText);
       }
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -3065,20 +3055,6 @@ function Langeek({
     }
   };
   return <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn">
-    <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 shadow-lg flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <p className="text-sm font-bold text-gray-900 dark:text-white">Voice</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Pick a natural ElevenLabs voice</p>
-      </div>
-      <select
-        value={selectedVoiceId}
-        onChange={e => setSelectedVoiceId(e.target.value)}
-        className="w-full md:w-64 bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer"
-      >
-        {ELEVENLABS_VOICE_OPTIONS.map(voice => <option key={voice.id} value={voice.id}>{voice.label}</option>)}
-      </select>
-    </div>
-
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => {
         setVocabMode('browse');
