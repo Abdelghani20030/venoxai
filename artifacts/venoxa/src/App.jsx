@@ -401,24 +401,6 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
-  // Short-circuit: if quota is already exhausted skip the key-fetch round-trip
-  // and go straight to instant browser speechSynthesis.
-  if (_elevenLabsQuotaExceeded) {
-    const isAr = hasArabicText(text);
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = isAr ? 'ar-SA' : 'en-GB';
-    if (!isAr) {
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = ['Google UK English Male','Google UK English Female','Microsoft Ryan Online (Natural) - English (United Kingdom)','Microsoft George - English (Great Britain)','Daniel','Microsoft Aria Online (Natural)','Google US English'];
-      const pick = preferred.reduce((f, n) => f || voices.find(v => v.name === n), null) || voices.find(v => v.lang === 'en-GB') || voices.find(v => v.lang.startsWith('en'));
-      if (pick) utterance.voice = pick;
-    }
-    utterance.rate = 0.92;
-    utterance.onstart = () => { _lastTTSEngine = 'browser'; };
-    window.speechSynthesis.speak(utterance);
-    return;
-  }
-
   const apiKey = await getElevenLabsKey();
 
   if (apiKey && !_elevenLabsQuotaExceeded) {
@@ -494,8 +476,14 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     }
   }
 
-  // Fallback #1: browser speechSynthesis — zero network latency, plays instantly.
-  // Prioritised over Edge TTS so the user hears something immediately.
+  // Fallback #1: Microsoft Edge TTS — better quality, still streamed directly.
+  if (!hasArabicText(text)) {
+    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
+    const ok = await edgeTTSSpeak(text, gender);
+    if (ok) return;
+  }
+
+  // Fallback #2: browser speechSynthesis — instant local fallback.
   if ('speechSynthesis' in window) {
     const isArabicFallback = hasArabicText(text);
     const utterance = new SpeechSynthesisUtterance(text);
@@ -503,7 +491,6 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
       utterance.lang = 'ar-SA';
     } else {
       utterance.lang = 'en-GB';
-      // Prefer high-quality online/neural voices, fall back to any English voice
       const voices = window.speechSynthesis.getVoices();
       const preferred = [
         'Google UK English Male',
@@ -529,13 +516,6 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     utterance.pitch = 1.0;
     utterance.onstart = () => { _lastTTSEngine = 'browser'; };
     window.speechSynthesis.speak(utterance);
-    return;
-  }
-
-  // Fallback #2: Microsoft Edge TTS — better quality but slower (network round-trip).
-  if (!hasArabicText(text)) {
-    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
-    edgeTTSSpeak(text, gender);
   }
 };
 
