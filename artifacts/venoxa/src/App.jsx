@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, ChevronDown, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, ChevronDown, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 
 function LanguageDropdown({ lang, setLang, theme }) {
@@ -2363,30 +2363,55 @@ function Grammar({
     </div>
   </div>;
 }
-function ListeningReading({
-  type,
-  AI_KEY,
-  userLevel,
-  lang
-}) {
+function ListeningReading({ type, AI_KEY, userLevel, lang }) {
   const [story, setStory] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Topic + length
+  const [listenTopic, setListenTopic] = useState('');
+  const [listenLength, setListenLength] = useState('medium');
+
+  // Full-passage audio player
+  const [audioState, setAudioState] = useState('idle'); // idle | loading | playing | paused
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const audioRef = useRef(null);
+  const audioBlobUrlRef = useRef(null);
+
+  // Comprehension quiz
+  const [quiz, setQuiz] = useState(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [userAnswers, setUserAnswers] = useState({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+
+  // Dictation mode
+  const [dictMode, setDictMode] = useState(false);
+  const [dictSentences, setDictSentences] = useState([]);
+  const [dictIdx, setDictIdx] = useState(0);
+  const [dictInput, setDictInput] = useState('');
+  const [dictResults, setDictResults] = useState([]);
+  const [dictAudioState, setDictAudioState] = useState('idle');
+  const dictAudioRef = useRef(null);
+
+  const LISTEN_TOPICS = [
+    'Daily Life & Routines', 'Travel & Culture', 'Technology & AI',
+    'Health & Wellness', 'Environment & Climate', 'Work & Career',
+    'Education & Learning', 'Food & Cooking', 'Sports & Fitness', 'Science & Discovery'
+  ];
+  const WORD_COUNTS = { short: 80, medium: 150, long: 250 };
+
   const getDynamicTitle = () => {
     const isBeginner = userLevel === 'A1' || userLevel === 'A2';
     const isInter = userLevel === 'B1' || userLevel === 'B2';
-
     if (lang === 'ar') {
       const skill = type === 'listening' ? 'الاستماع' : 'القراءة';
       const adj = isBeginner ? 'الأساسي' : isInter ? 'المتوسط' : 'المتقدم';
       return `تدريب ${skill} ${adj}`;
     }
-
     if (lang === 'es') return `${type === 'listening' ? 'Escucha' : 'Lectura'} ${isBeginner ? 'Básica' : isInter ? 'Intermedia' : 'Avanzada'}`;
     if (lang === 'fr') return `${type === 'listening' ? 'Écoute' : 'Lecture'} ${isBeginner ? 'Basique' : isInter ? 'Intermédiaire' : 'Avancée'}`;
     if (lang === 'de') return `${isBeginner ? 'Grundlegendes' : isInter ? 'Mittleres' : 'Erweitertes'} ${type === 'listening' ? 'Hören' : 'Lesen'}`;
     if (lang === 'zh') return `${isBeginner ? '基础' : isInter ? '中级' : '高级'}${type === 'listening' ? '听力' : '阅读'}`;
     if (lang === 'ja') return `${isBeginner ? '基礎' : isInter ? '中級' : '上級'}${type === 'listening' ? 'リスニング' : 'リーディング'}`;
-
     const skillEn = type === 'listening' ? 'Listening' : 'Reading';
     const adjEn = isBeginner ? 'Basic' : isInter ? 'Intermediate' : 'Advanced';
     return `${adjEn} ${skillEn}`;
@@ -2395,18 +2420,15 @@ function ListeningReading({
   const getDynamicDesc = () => {
     const isBeginner = userLevel === 'A1' || userLevel === 'A2';
     const isInter = userLevel === 'B1' || userLevel === 'B2';
-
     if (lang === 'ar') {
       const focus = isBeginner ? 'النصوص البسيطة والأساسية' : isInter ? 'النصوص المتوسطة' : 'النصوص المعقدة';
       return `بما أن مستواك ${userLevel}، سنركز على ${focus}.`;
     }
-
     if (lang === 'es') return `Dado que tu nivel es ${userLevel}, nos enfocaremos en textos ${isBeginner ? 'sencillos' : isInter ? 'intermedios' : 'complejos'}.`;
     if (lang === 'fr') return `Étant donné que votre niveau est ${userLevel}, nous nous concentrons sur des textes ${isBeginner ? 'simples' : isInter ? 'intermédiaires' : 'complexes'}.`;
     if (lang === 'de') return `Da dein Level ${userLevel} ist, konzentrieren wir uns auf ${isBeginner ? 'einfache' : isInter ? 'mittelschwere' : 'komplexe'} Texte.`;
     if (lang === 'zh') return `由于您的水平是 ${userLevel}，我们将专注于${isBeginner ? '简单' : isInter ? '中级' : '复杂'}文本。`;
     if (lang === 'ja') return `あなたのレベルは ${userLevel} なので、${isBeginner ? '簡単' : isInter ? '中級' : '複雑'}なテキストに焦点を当てます。`;
-
     const focusEn = isBeginner ? 'simple texts' : isInter ? 'intermediate texts' : 'complex texts';
     return `Since your level is ${userLevel}, we focus on ${focusEn}.`;
   };
@@ -2416,117 +2438,518 @@ function ListeningReading({
     desc: getDynamicDesc(),
     btn: _resolveTranslation(lang, 'ولّد نصاً جديداً', 'Generate New Text')
   };
+
+  // ── Stop all audio ─────────────────────────────────────────────────
+  const stopAudio = () => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if (audioBlobUrlRef.current) { URL.revokeObjectURL(audioBlobUrlRef.current); audioBlobUrlRef.current = null; }
+    setAudioState('idle');
+  };
+
+  // ── Fetch ElevenLabs audio and return Audio element ─────────────────
+  const fetchAudioEl = async (text, speed) => {
+    try {
+      const key = typeof getElevenLabsKey === 'function' ? await getElevenLabsKey() : null;
+      if (!key) throw new Error('no key');
+      const resp = await fetch('https://api.elevenlabs.io/v1/text-to-speech/nPczCjzI2devNBz1zQrb/stream', {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+        body: JSON.stringify({ text: text.slice(0, 2500), model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.85 } })
+      });
+      if (!resp.ok) throw new Error(`${resp.status}`);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.playbackRate = speed;
+      return { audio, url };
+    } catch {
+      return null;
+    }
+  };
+
+  // ── Generate passage ───────────────────────────────────────────────
   const handleGenerate = async () => {
     setLoading(true);
+    setStory('');
+    setQuiz(null);
+    setUserAnswers({});
+    setQuizSubmitted(false);
+    setDictMode(false);
+    setDictResults([]);
+    stopAudio();
     try {
-      const prompt = `Write a 150-word interesting story/text for a ${userLevel} level student. Topic: Global challenges. Language: English. Include a short vocabulary list with ${_resolveTranslation(lang, 'Arabic', 'simple English')} meanings.`;
+      const topicText = listenTopic || 'Daily Life';
+      const wc = WORD_COUNTS[listenLength] || 150;
+      const prompt = type === 'listening'
+        ? `Write a natural, engaging ${wc}-word spoken passage (podcast-style monologue or short story) for a ${userLevel} English learner. Topic: "${topicText}". Use vocabulary and grammar appropriate for ${userLevel} level. Write naturally flowing speech. No bullet points, no headers, no markdown. Plain text only.`
+        : `Write a ${wc}-word story/passage for a ${userLevel} English learner. Topic: "${topicText}". Include a short vocabulary list at the end with ${lang === 'ar' ? 'Arabic' : 'simple English'} meanings. Plain text, no markdown.`;
       const response = await fetchFromGemini(prompt, AI_KEY);
       const errJson = parseGeminiJSON(response);
-      if (errJson && errJson.error) {
-        setStory(errJson.error);
-      } else {
-        setStory(response);
-      }
-    } catch (e) {
-      setStory("Error generating content.");
-    }
+      setStory(errJson?.error ? errJson.error : cleanFallbackText(response));
+    } catch { setStory('Error generating content.'); }
     setLoading(false);
   };
-  const listeningLinks = [{
-    level: _resolveTranslation(lang, "مبتدئ (A1-A2)", "Beginner (A1-A2)"),
-    name: "Spotlight English podcast",
-    url: "https://spotlightenglish.com/"
-  }, {
-    level: _resolveTranslation(lang, "تحت المتوسط (B1)", "Pre-Intermediate (B1)"),
-    name: "The LevelUp English Podcast",
-    url: "https://www.levelupenglish.school/podcast/"
-  }, {
-    level: _resolveTranslation(lang, "تحت المتوسط (B1)", "Pre-Intermediate (B1)"),
-    name: "British Council",
-    url: "https://learnenglish.britishcouncil.org/general-english/audio-series/podcasts"
-  }, {
-    level: _resolveTranslation(lang, "متوسط (B1-B2)", "Intermediate (B1-B2)"),
-    name: "Luke’s English Podcast",
-    url: "https://teacherluke.co.uk/archive-of-episodes-1-149/"
-  }, {
-    level: _resolveTranslation(lang, "متوسط (B1-B2)", "Intermediate (B1-B2)"),
-    name: "All ears English Podcast",
-    url: "https://www.allearsenglish.com/"
-  }, {
-    level: _resolveTranslation(lang, "فوق المتوسط (B2)", "Upper-Intermediate (B2)"),
-    name: "Ted talks",
-    url: "https://youtube.com/@TED?si=8y1RTw0ImlDO7By9"
-  }, {
-    level: _resolveTranslation(lang, "فوق المتوسط (B2)", "Upper-Intermediate (B2)"),
-    name: "BBC sounds",
-    url: "https://www.bbc.co.uk/sounds/podcasts"
-  }, {
-    level: _resolveTranslation(lang, "متقدم (C1-C2)", "Advanced (C1-C2)"),
-    name: "This American life",
-    url: "https://www.thisamericanlife.org/archive"
-  }];
-  const readingLinks = [{
-    level: "Level 1",
-    name: "The Adventures of Tom Sawyer",
-    url: "#"
-  }, {
-    level: "Level 2",
-    name: "Sherlock Holmes Short Stories",
-    url: "#"
-  }, {
-    level: "Level 3",
-    name: "The Call of the Wild",
-    url: "#"
-  }];
+
+  // ── Play / Pause full passage ──────────────────────────────────────
+  const handlePlayPause = async () => {
+    if (audioState === 'playing' && audioRef.current) {
+      audioRef.current.pause();
+      setAudioState('paused');
+      return;
+    }
+    if (audioState === 'paused' && audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed;
+      audioRef.current.play();
+      setAudioState('playing');
+      return;
+    }
+    setAudioState('loading');
+    stopAudio();
+    const result = await fetchAudioEl(story, playbackSpeed);
+    if (result) {
+      const { audio, url } = result;
+      audioBlobUrlRef.current = url;
+      audio.onended = () => { URL.revokeObjectURL(url); audioBlobUrlRef.current = null; setAudioState('idle'); };
+      audio.onerror = () => setAudioState('idle');
+      audioRef.current = audio;
+      await audio.play();
+      setAudioState('playing');
+    } else {
+      window.speechSynthesis?.cancel();
+      const u = new SpeechSynthesisUtterance(story);
+      u.rate = playbackSpeed;
+      u.onend = () => setAudioState('idle');
+      window.speechSynthesis?.speak(u);
+      setAudioState('playing');
+    }
+  };
+
+  const handleSpeedChange = (speed) => {
+    setPlaybackSpeed(speed);
+    if (audioRef.current) audioRef.current.playbackRate = speed;
+  };
+
+  // ── Comprehension quiz ─────────────────────────────────────────────
+  const handleGenerateQuiz = async () => {
+    if (!story) return;
+    setQuizLoading(true);
+    setQuiz(null);
+    setUserAnswers({});
+    setQuizSubmitted(false);
+    try {
+      const prompt = `Based on this passage, create exactly 3 multiple-choice comprehension questions. Return ONLY valid JSON with no extra text: {"questions":[{"q":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A"}]}. The "answer" field must be only the letter A, B, C, or D. Passage: "${story.slice(0, 900)}"`;
+      const raw = await fetchFromGemini(prompt, AI_KEY);
+      const json = parseGeminiJSON(raw);
+      setQuiz(json?.questions?.length ? json.questions : []);
+    } catch { setQuiz([]); }
+    setQuizLoading(false);
+  };
+
+  const quizScore = quizSubmitted && quiz
+    ? quiz.filter((q, i) => userAnswers[i] === q.answer).length
+    : 0;
+
+  // ── Dictation ──────────────────────────────────────────────────────
+  const startDictation = () => {
+    if (!story) return;
+    stopAudio();
+    const sents = story.match(/[^.!?]+[.!?]+/g)
+      ?.map(s => s.trim())
+      .filter(s => s.length > 15 && s.split(' ').length > 3) || [];
+    setDictSentences(sents.slice(0, 8));
+    setDictIdx(0);
+    setDictInput('');
+    setDictResults([]);
+    setDictMode(true);
+    setQuiz(null);
+  };
+
+  const playDictSentence = async (text) => {
+    if (dictAudioRef.current) { dictAudioRef.current.pause(); dictAudioRef.current = null; }
+    setDictAudioState('loading');
+    const result = await fetchAudioEl(text, 0.85);
+    if (result) {
+      const { audio, url } = result;
+      audio.onended = () => { URL.revokeObjectURL(url); setDictAudioState('idle'); };
+      dictAudioRef.current = audio;
+      await audio.play();
+      setDictAudioState('playing');
+    } else {
+      window.speechSynthesis?.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.85;
+      u.onend = () => setDictAudioState('idle');
+      window.speechSynthesis?.speak(u);
+      setDictAudioState('playing');
+    }
+  };
+
+  const checkDictAnswer = () => {
+    const expected = dictSentences[dictIdx] || '';
+    const typed = dictInput.trim();
+    const expWords = expected.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ').filter(Boolean);
+    const typWords = typed.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ').filter(Boolean);
+    const correct = expWords.filter((w, i) => typWords[i] === w).length;
+    const score = expWords.length > 0 ? Math.round((correct / expWords.length) * 100) : 0;
+    setDictResults(prev => [...prev, { expected, typed, score }]);
+    setDictInput('');
+    setDictIdx(prev => prev + 1);
+  };
+
+  const avgDictScore = dictResults.length
+    ? Math.round(dictResults.reduce((a, r) => a + r.score, 0) / dictResults.length)
+    : 0;
+
+  const listeningLinks = [
+    { level: _resolveTranslation(lang, "مبتدئ (A1-A2)", "Beginner (A1-A2)"), name: "Spotlight English podcast", url: "https://spotlightenglish.com/" },
+    { level: _resolveTranslation(lang, "تحت المتوسط (B1)", "Pre-Intermediate (B1)"), name: "The LevelUp English Podcast", url: "https://www.levelupenglish.school/podcast/" },
+    { level: _resolveTranslation(lang, "تحت المتوسط (B1)", "Pre-Intermediate (B1)"), name: "British Council", url: "https://learnenglish.britishcouncil.org/general-english/audio-series/podcasts" },
+    { level: _resolveTranslation(lang, "متوسط (B1-B2)", "Intermediate (B1-B2)"), name: "Luke's English Podcast", url: "https://teacherluke.co.uk/archive-of-episodes-1-149/" },
+    { level: _resolveTranslation(lang, "متوسط (B1-B2)", "Intermediate (B1-B2)"), name: "All Ears English Podcast", url: "https://www.allearsenglish.com/" },
+    { level: _resolveTranslation(lang, "فوق المتوسط (B2)", "Upper-Intermediate (B2)"), name: "TED Talks", url: "https://youtube.com/@TED?si=8y1RTw0ImlDO7By9" },
+    { level: _resolveTranslation(lang, "فوق المتوسط (B2)", "Upper-Intermediate (B2)"), name: "BBC Sounds", url: "https://www.bbc.co.uk/sounds/podcasts" },
+    { level: _resolveTranslation(lang, "متقدم (C1-C2)", "Advanced (C1-C2)"), name: "This American Life", url: "https://www.thisamericanlife.org/archive" }
+  ];
+  const readingLinks = [
+    { level: "Level 1", name: "The Adventures of Tom Sawyer", url: "#" },
+    { level: "Level 2", name: "Sherlock Holmes Short Stories", url: "#" },
+    { level: "Level 3", name: "The Call of the Wild", url: "#" }
+  ];
   const currentLinks = type === 'listening' ? listeningLinks : readingLinks;
-  const contentSteps = type === 'listening' ? [_resolveTranslation(lang, "اسمع بودكاست بدلاً من الأفلام أو الأغاني (لأن التركيز يكون على الصوت فقط).", "Listen to podcasts instead of movies or songs."), _resolveTranslation(lang, "لا تترجم ولا تقرأ النص أثناء الاستماع لتعويد الأذن.", "Do not translate or read transcripts while listening."), _resolveTranslation(lang, "اسمع المقطع مرة واحدة فقط لتجنب الملل.", "Listen to the track only once to avoid boredom."), _resolveTranslation(lang, "اختار مصدر تكون نسبة فهمك له 30%-50% للتطور السريع.", "Choose a source where you understand 30%-50%.")] : [_resolveTranslation(lang, "اقرأ قصص وروايات مبسطة (Graded Readers).", "Read simplified graded readers."), _resolveTranslation(lang, "اقرأ بدون ترجمة فورية لتعويد العقل على سرعة ربط المعنى.", "Read without immediate translation."), _resolveTranslation(lang, "يجب أن تكون نسبة فهمك للقصة 30%-50%.", "You should understand 30%-50% of the story.")];
-  return <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
-    <div className="bg-white dark:bg-[#121214] p-10 rounded-3xl border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl transition-colors">
-      <div className="text-center md:text-start flex-1">
-        <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">{t.title}</h2>
-        <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
-      </div>
-      {type === 'reading' && <button onClick={handleGenerate} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition whitespace-nowrap">
-        {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
-      </button>}
-    </div>
+  const contentSteps = type === 'listening'
+    ? [
+        _resolveTranslation(lang, "اسمع بودكاست بدلاً من الأفلام أو الأغاني (لأن التركيز يكون على الصوت فقط).", "Listen to podcasts instead of movies or songs."),
+        _resolveTranslation(lang, "لا تترجم ولا تقرأ النص أثناء الاستماع لتعويد الأذن.", "Do not translate or read transcripts while listening."),
+        _resolveTranslation(lang, "اسمع المقطع مرة واحدة فقط لتجنب الملل.", "Listen to the track only once to avoid boredom."),
+        _resolveTranslation(lang, "اختار مصدر تكون نسبة فهمك له 30%-50% للتطور السريع.", "Choose a source where you understand 30%-50%.")
+      ]
+    : [
+        _resolveTranslation(lang, "اقرأ قصص وروايات مبسطة (Graded Readers).", "Read simplified graded readers."),
+        _resolveTranslation(lang, "اقرأ بدون ترجمة فورية لتعويد العقل على سرعة ربط المعنى.", "Read without immediate translation."),
+        _resolveTranslation(lang, "يجب أن تكون نسبة فهمك للقصة 30%-50%.", "You should understand 30%-50% of the story.")
+      ];
 
-    {story && type === 'reading' && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 text-lg leading-loose font-medium text-gray-800 dark:text-gray-200 shadow-inner" dir="ltr" style={{
-      whiteSpace: 'pre-wrap'
-    }}>
-      {safeRender(story)}
-    </div>}
+  return (
+    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
 
-    <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-      <div className="md:col-span-3 bg-white dark:bg-[#121214] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
-        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'القواعد الذهبية', 'Golden Rules')}</h3>
-        <ul className="space-y-6">
-          {contentSteps.map((step, idx) => <li key={idx} className="flex items-start gap-4">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold`}>
-              {idx + 1}
-            </div>
-            <span className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">{step}</span>
-          </li>)}
-        </ul>
+      {/* ── Header ── */}
+      <div className="bg-white dark:bg-[#121214] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl transition-colors">
+        <div className="text-center md:text-start flex-1">
+          <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-2">{t.title}</h2>
+          <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
+        </div>
+        {type === 'reading' && (
+          <button onClick={handleGenerate} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition whitespace-nowrap">
+            {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
+          </button>
+        )}
       </div>
 
-      <div className="md:col-span-2 bg-white dark:bg-[#121214] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
-        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'المصادر', 'Sources')}</h3>
-        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-          {currentLinks.map((link, idx) => <div key={idx} className="bg-gray-50 dark:bg-[#1a1a1e] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 transition-colors shadow-sm">
-            <div className="text-left mb-3" dir="ltr">
-              <p className="font-bold text-gray-900 dark:text-gray-100 text-lg">{link.name}</p>
-              <span className="inline-block mt-1 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/10 px-2 py-1 rounded">{link.level}</span>
+      {/* ── Listening: topic / length / generate controls ── */}
+      {type === 'listening' && (
+        <div className="bg-white dark:bg-[#121214] p-6 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={listenTopic}
+              onChange={e => setListenTopic(e.target.value)}
+              className="flex-1 min-w-[160px] bg-gray-100 dark:bg-[#1a1a1e] border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">{_resolveTranslation(lang, 'اختر موضوعاً...', 'Pick a topic...')}</option>
+              {LISTEN_TOPICS.map(tp => <option key={tp} value={tp}>{tp}</option>)}
+            </select>
+
+            <div className="flex gap-1 bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1">
+              {['short', 'medium', 'long'].map(l => (
+                <button
+                  key={l}
+                  onClick={() => setListenLength(l)}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-bold capitalize transition ${listenLength === l ? 'bg-blue-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
+                >{l}</button>
+              ))}
             </div>
-            <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-full py-2 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-white rounded-xl text-sm font-bold transition-colors">
-              {_resolveTranslation(lang, 'تصفح المصدر', 'Visit Source')}
-            </a>
-          </div>)}
+
+            <button
+              onClick={handleGenerate}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition shadow-lg whitespace-nowrap"
+            >
+              {loading ? <Activity className="animate-spin w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+              {_resolveTranslation(lang, 'ولّد نصاً', 'Generate')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Listening: passage + player ── */}
+      {story && type === 'listening' && (
+        <div className="bg-white dark:bg-[#121214] p-6 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
+
+          {/* Player bar */}
+          <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-gray-100 dark:border-gray-800">
+            <button
+              onClick={handlePlayPause}
+              disabled={audioState === 'loading'}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl font-bold transition shadow"
+            >
+              {audioState === 'loading' ? <Activity className="animate-spin w-4 h-4" /> : audioState === 'playing' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {audioState === 'loading' ? _resolveTranslation(lang, 'جاري التحميل...', 'Loading...') : audioState === 'playing' ? _resolveTranslation(lang, 'إيقاف مؤقت', 'Pause') : _resolveTranslation(lang, 'تشغيل', 'Play')}
+            </button>
+
+            {audioState !== 'idle' && (
+              <button onClick={stopAudio} className="flex items-center gap-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                <RotateCcw className="w-3.5 h-3.5" /> {_resolveTranslation(lang, 'إيقاف', 'Stop')}
+              </button>
+            )}
+
+            <div className="flex gap-1 ml-auto bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1">
+              {[0.75, 1, 1.25, 1.5].map(s => (
+                <button
+                  key={s}
+                  onClick={() => handleSpeedChange(s)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${playbackSpeed === s ? 'bg-blue-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'}`}
+                >{s}×</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Passage text */}
+          <div dir="ltr" className="text-base leading-8 text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-medium mb-6">
+            {story}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <button
+              onClick={handleGenerateQuiz}
+              disabled={quizLoading}
+              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-bold text-sm transition shadow"
+            >
+              {quizLoading ? <Activity className="animate-spin w-4 h-4" /> : <HelpCircle className="w-4 h-4" />}
+              {_resolveTranslation(lang, 'اختبر الفهم', 'Quiz Me')}
+            </button>
+            <button
+              onClick={startDictation}
+              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm transition shadow"
+            >
+              <Mic className="w-4 h-4" />
+              {_resolveTranslation(lang, 'وضع الإملاء', 'Dictation Mode')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Comprehension Quiz ── */}
+      {quiz !== null && !dictMode && (
+        <div className="bg-white dark:bg-[#121214] p-6 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
+          <h3 className="text-xl font-extrabold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-purple-500" />
+            {_resolveTranslation(lang, 'أسئلة الفهم', 'Comprehension Quiz')}
+          </h3>
+          {quiz.length === 0 ? (
+            <p className="text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'تعذّر توليد الأسئلة، حاول مجدداً.', 'Could not generate questions. Try again.')}</p>
+          ) : (
+            <>
+              {quiz.map((q, i) => (
+                <div key={i} className="mb-6">
+                  <p className="font-bold text-gray-900 dark:text-white mb-3 text-base">{i + 1}. {q.q}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {(q.options || []).map((opt, j) => {
+                      const letter = ['A', 'B', 'C', 'D'][j];
+                      const isSelected = userAnswers[i] === letter;
+                      const isCorrect = quizSubmitted && letter === q.answer;
+                      const isWrong = quizSubmitted && isSelected && letter !== q.answer;
+                      return (
+                        <button
+                          key={j}
+                          disabled={quizSubmitted}
+                          onClick={() => !quizSubmitted && setUserAnswers(prev => ({ ...prev, [i]: letter }))}
+                          className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition ${
+                            isCorrect ? 'bg-green-100 dark:bg-green-900/30 border-green-500 text-green-800 dark:text-green-300' :
+                            isWrong ? 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-800 dark:text-red-300' :
+                            isSelected ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500 text-blue-800 dark:text-blue-300' :
+                            'bg-gray-50 dark:bg-[#1a1a1e] border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:border-blue-400'
+                          }`}
+                        >
+                          {opt}
+                          {isCorrect && <CheckCircle2 className="inline w-4 h-4 ml-2 text-green-600" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              {!quizSubmitted ? (
+                <button
+                  onClick={() => setQuizSubmitted(true)}
+                  disabled={Object.keys(userAnswers).length < quiz.length}
+                  className="mt-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-xl font-bold transition shadow"
+                >
+                  {_resolveTranslation(lang, 'إرسال الإجابات', 'Submit Answers')}
+                </button>
+              ) : (
+                <div className={`mt-4 p-5 rounded-2xl text-center font-extrabold text-lg ${quizScore === quiz.length ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : quizScore >= quiz.length / 2 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
+                  {quizScore === quiz.length ? '🎉 ' : quizScore >= quiz.length / 2 ? '👍 ' : '📚 '}
+                  {_resolveTranslation(lang, `نتيجتك: ${quizScore} / ${quiz.length}`, `Score: ${quizScore} / ${quiz.length}`)}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Dictation Mode ── */}
+      {dictMode && (
+        <div className="bg-white dark:bg-[#121214] p-6 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+              <Mic className="w-5 h-5 text-green-500" />
+              {_resolveTranslation(lang, 'وضع الإملاء', 'Dictation Mode')}
+            </h3>
+            <button onClick={() => setDictMode(false)} className="px-4 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+              {_resolveTranslation(lang, 'إغلاق', 'Close')}
+            </button>
+          </div>
+
+          {dictIdx < dictSentences.length ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                <span>{_resolveTranslation(lang, `جملة ${dictIdx + 1} من ${dictSentences.length}`, `Sentence ${dictIdx + 1} of ${dictSentences.length}`)}</span>
+                <div className="h-1.5 flex-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${(dictIdx / dictSentences.length) * 100}%` }} />
+                </div>
+              </div>
+
+              <button
+                onClick={() => playDictSentence(dictSentences[dictIdx])}
+                disabled={dictAudioState === 'loading'}
+                className="flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white rounded-xl font-bold transition shadow"
+              >
+                {dictAudioState === 'loading' ? <Activity className="animate-spin w-4 h-4" /> : dictAudioState === 'playing' ? <Volume2 className="w-4 h-4 animate-pulse" /> : <Play className="w-4 h-4" />}
+                {dictAudioState === 'idle' ? _resolveTranslation(lang, 'استمع للجملة', 'Play Sentence') : dictAudioState === 'loading' ? _resolveTranslation(lang, 'جاري التحميل...', 'Loading...') : _resolveTranslation(lang, 'يتم التشغيل...', 'Playing...')}
+              </button>
+
+              <textarea
+                value={dictInput}
+                onChange={e => setDictInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && dictInput.trim()) { e.preventDefault(); checkDictAnswer(); } }}
+                placeholder={_resolveTranslation(lang, 'اكتب ما سمعته...', 'Type what you heard...')}
+                rows={2}
+                className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                dir="ltr"
+              />
+
+              <button
+                onClick={checkDictAnswer}
+                disabled={!dictInput.trim()}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-bold transition shadow"
+              >
+                {_resolveTranslation(lang, 'تحقق', 'Check')}
+              </button>
+
+              {dictResults.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {dictResults.map((r, i) => (
+                    <div key={i} className={`p-3 rounded-xl text-sm ${r.score >= 80 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`font-bold ${r.score >= 80 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>{r.score}%</span>
+                        <span className="text-gray-500 dark:text-gray-400 text-xs">{_resolveTranslation(lang, `جملة ${i + 1}`, `Sentence ${i + 1}`)}</span>
+                      </div>
+                      <div dir="ltr" className="text-gray-600 dark:text-gray-400 text-xs"><span className="font-semibold">{_resolveTranslation(lang, 'الصحيح:', 'Expected:')}</span> {r.expected}</div>
+                      <div dir="ltr" className="text-gray-800 dark:text-gray-200 text-xs mt-0.5"><span className="font-semibold">{_resolveTranslation(lang, 'كتبت:', 'You wrote:')}</span> {r.typed}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className={`p-6 rounded-2xl text-center font-extrabold text-2xl ${avgDictScore >= 80 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : avgDictScore >= 50 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
+                {avgDictScore >= 80 ? '🎉 ' : avgDictScore >= 50 ? '👍 ' : '📚 '}
+                {_resolveTranslation(lang, `متوسط الدقة: ${avgDictScore}%`, `Average Accuracy: ${avgDictScore}%`)}
+              </div>
+              <div className="space-y-2">
+                {dictResults.map((r, i) => (
+                  <div key={i} className={`p-3 rounded-xl text-sm ${r.score >= 80 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`font-bold ${r.score >= 80 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>{r.score}%</span>
+                      <span className="text-gray-500 dark:text-gray-400 text-xs">{_resolveTranslation(lang, `جملة ${i + 1}`, `Sentence ${i + 1}`)}</span>
+                    </div>
+                    <div dir="ltr" className="text-gray-600 dark:text-gray-400 text-xs"><span className="font-semibold">{_resolveTranslation(lang, 'الصحيح:', 'Expected:')}</span> {r.expected}</div>
+                    <div dir="ltr" className="text-gray-800 dark:text-gray-200 text-xs mt-0.5"><span className="font-semibold">{_resolveTranslation(lang, 'كتبت:', 'You wrote:')}</span> {r.typed}</div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={startDictation} className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition shadow flex items-center gap-2">
+                <RotateCcw className="w-4 h-4" /> {_resolveTranslation(lang, 'أعد المحاولة', 'Try Again')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Reading: passage + read-aloud ── */}
+      {story && type === 'reading' && (
+        <div className="bg-gray-50 dark:bg-[#1a1a1e] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-inner">
+          <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={handlePlayPause}
+              disabled={audioState === 'loading'}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-4 py-2 rounded-xl font-bold text-sm transition shadow"
+            >
+              {audioState === 'loading' ? <Activity className="animate-spin w-4 h-4" /> : audioState === 'playing' ? <Pause className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              {audioState === 'loading' ? _resolveTranslation(lang, 'جاري التحميل...', 'Loading...') : audioState === 'playing' ? _resolveTranslation(lang, 'إيقاف مؤقت', 'Pause') : _resolveTranslation(lang, 'قراءة بصوت', 'Read Aloud')}
+            </button>
+            {audioState !== 'idle' && (
+              <button onClick={stopAudio} className="px-3 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <div className="flex gap-1 ml-auto bg-gray-200 dark:bg-gray-800 rounded-xl p-1">
+              {[0.75, 1, 1.25, 1.5].map(s => (
+                <button key={s} onClick={() => handleSpeedChange(s)} className={`px-3 py-1 rounded-lg text-xs font-bold transition ${playbackSpeed === s ? 'bg-blue-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>{s}×</button>
+              ))}
+            </div>
+          </div>
+          <div dir="ltr" className="text-lg leading-loose font-medium text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+            {safeRender(story)}
+          </div>
+        </div>
+      )}
+
+      {/* ── Golden Rules + Sources ── */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+        <div className="md:col-span-3 bg-white dark:bg-[#121214] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'القواعد الذهبية', 'Golden Rules')}</h3>
+          <ul className="space-y-6">
+            {contentSteps.map((step, idx) => (
+              <li key={idx} className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold">{idx + 1}</div>
+                <span className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">{step}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="md:col-span-2 bg-white dark:bg-[#121214] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 shadow-xl transition-colors">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'المصادر', 'Sources')}</h3>
+          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {currentLinks.map((link, idx) => (
+              <div key={idx} className="bg-gray-50 dark:bg-[#1a1a1e] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 transition-colors shadow-sm">
+                <div className="text-left mb-3" dir="ltr">
+                  <p className="font-bold text-gray-900 dark:text-gray-100 text-lg">{link.name}</p>
+                  <span className="inline-block mt-1 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/10 px-2 py-1 rounded">{link.level}</span>
+                </div>
+                <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-full py-2 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-white rounded-xl text-sm font-bold transition-colors">
+                  {_resolveTranslation(lang, 'تصفح المصدر', 'Visit Source')}
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
 
-  </div>;
+    </div>
+  );
 }
 function Writing({
   AI_KEY,
