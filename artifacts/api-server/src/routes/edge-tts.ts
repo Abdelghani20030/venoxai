@@ -14,8 +14,8 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 
 const router: IRouter = Router();
 
-const VOICE_MALE = "en-US-GuyNeural";
-const VOICE_FEMALE = "en-US-AriaNeural";
+const VOICE_MALE = "en-GB-RyanNeural";
+const VOICE_FEMALE = "en-GB-SoniaNeural";
 
 router.post("/edge-tts", async (req: Request, res: Response) => {
   const text =

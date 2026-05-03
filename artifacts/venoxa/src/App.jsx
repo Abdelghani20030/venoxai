@@ -2642,11 +2642,20 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
       setAudioState('playing');
     } else {
       window.speechSynthesis?.cancel();
-      const u = new SpeechSynthesisUtterance(story);
-      u.rate = playbackSpeed;
-      u.onend = () => setAudioState('idle');
-      window.speechSynthesis?.speak(u);
-      setAudioState('playing');
+      const ok = await edgeTTSSpeak(story, 'male');
+      if (ok) {
+        setAudioState('playing');
+        if (_currentTTSAudio) {
+          _currentTTSAudio.playbackRate = playbackSpeed;
+          _currentTTSAudio.onended = () => setAudioState('idle');
+        }
+      } else {
+        const u = new SpeechSynthesisUtterance(story);
+        u.rate = playbackSpeed;
+        u.onend = () => setAudioState('idle');
+        window.speechSynthesis?.speak(u);
+        setAudioState('playing');
+      }
     }
   };
 
@@ -2702,11 +2711,20 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
       setDictAudioState('playing');
     } else {
       window.speechSynthesis?.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 0.85;
-      u.onend = () => setDictAudioState('idle');
-      window.speechSynthesis?.speak(u);
-      setDictAudioState('playing');
+      const ok = await edgeTTSSpeak(text, 'male');
+      if (ok) {
+        setDictAudioState('playing');
+        if (_currentTTSAudio) {
+          _currentTTSAudio.playbackRate = 0.85;
+          _currentTTSAudio.onended = () => setDictAudioState('idle');
+        }
+      } else {
+        const u = new SpeechSynthesisUtterance(text);
+        u.rate = 0.85;
+        u.onend = () => setDictAudioState('idle');
+        window.speechSynthesis?.speak(u);
+        setDictAudioState('playing');
+      }
     }
   };
 
