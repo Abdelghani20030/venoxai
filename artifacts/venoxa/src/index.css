@@ -166,13 +166,12 @@ html, body, #root {
   table {
     border-collapse: collapse !important;
     border-spacing: 0 !important;
+    border: 2px solid #000 !important;
   }
-  th, td {
-    border: 1px solid #000 !important;
-    background-clip: padding-box !important;
-  }
-  table, thead, tbody, tr, th, td {
+  thead, tbody, tfoot, tr, th, td {
+    border: 1.5px solid #000 !important;
     border-color: #000 !important;
+    outline: none !important;
   }
   /* Ensure WebKit prints background colors so the styled table reads properly. */
   * {

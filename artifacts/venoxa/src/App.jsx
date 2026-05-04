@@ -1018,8 +1018,8 @@ function PlanWeekTable({
   completedCells,
   onToggleCell
 }) {
-  const cellBase = "border border-gray-400 dark:border-gray-700 print:border-gray-500 px-2 py-2 align-middle text-center relative";
-  const headBase = "border border-gray-400 dark:border-gray-700 print:border-gray-600 bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm";
+  const cellBase = "border border-gray-400 dark:border-gray-700 px-2 py-2 align-middle text-center relative";
+  const headBase = "border border-gray-400 dark:border-gray-700 bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm";
   return <div className="overflow-x-auto print:overflow-visible">
     <table className="w-full border-collapse text-sm bg-white dark:bg-[#0e0e11] text-gray-800 dark:text-gray-100 min-w-[760px] print:min-w-full">
       <thead>
