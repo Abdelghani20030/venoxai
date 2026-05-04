@@ -48,9 +48,11 @@ function setCooldown(key: string, ms: number) {
 // Only models confirmed available (200 or 429) for this account.
 // 404 models are excluded — they waste time and have no endpoints.
 const OR_MODELS = [
-  "meta-llama/llama-3.2-3b-instruct:free",   // 3B — smallest, fastest
-  "google/gemma-3-27b-it:free",               // 27B — confirmed OK
-  "meta-llama/llama-3.3-70b-instruct:free",   // 70B — best quality
+  "openai/gpt-oss-20b:free",                 // confirmed OK — fast
+  "openai/gpt-oss-120b:free",               // confirmed OK — best quality
+  "meta-llama/llama-3.2-3b-instruct:free",   // 3B — fastest when not rate-limited
+  "google/gemma-3-27b-it:free",               // 27B — fallback
+  "meta-llama/llama-3.3-70b-instruct:free",   // 70B — last resort
 ];
 
 function buildOpenRouterProvider(orKey: string): ProviderEntry | null {
@@ -185,9 +187,9 @@ function buildGeminiProvider(googleKey: string): ProviderEntry | null {
             throw err;
           }
           if (msg.includes("429")) {
-            // quota exhausted — skip this model for 15 s so it recovers quickly
-            setCooldown(modelKey, 15_000);
-            log?.(`gemini model ${model} quota — skipping 15 s`);
+            // quota exhausted — skip for 60 s (Gemini's RPM window is 1 min)
+            setCooldown(modelKey, 60_000);
+            log?.(`gemini model ${model} quota — skipping 60 s`);
           } else if (msg.includes("404")) {
             // model not available for this project — skip permanently for this session
             setCooldown(modelKey, 60 * 60_000);
@@ -255,15 +257,10 @@ function buildProviders(): ProviderEntry[] {
   const geminiProvider = buildGeminiProvider(googleKey);
   if (geminiProvider) list.push(geminiProvider);
 
-  // 3. OpenRouter — automatic fallback when Gemini quota is exhausted
+  // 2. OpenRouter — fallback when Gemini quota is exhausted
   const orKey = process.env["OPENROUTER_API_KEY"] ?? "";
   const orProvider = buildOpenRouterProvider(orKey);
   if (orProvider) list.push(orProvider);
-
-  // 4. Plain OpenAI
-  const oaKey = process.env["OPENAI_API_KEY"] ?? "";
-  const oaProvider = buildOpenAIProvider(oaKey, "openai");
-  if (oaProvider) list.push(oaProvider);
 
   return list;
 }
