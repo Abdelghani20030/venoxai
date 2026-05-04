@@ -476,7 +476,14 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     }
   }
 
-  // Fallback #1: browser speechSynthesis — instant local fallback.
+  // Fallback #1: Microsoft Edge TTS — quality backup if ElevenLabs is unavailable.
+  if (!hasArabicText(text)) {
+    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
+    const ok = await edgeTTSSpeak(text, gender);
+    if (ok) return;
+  }
+
+  // Fallback #2: browser speechSynthesis — instant local fallback.
   if ('speechSynthesis' in window) {
     const isArabicFallback = hasArabicText(text);
     const utterance = new SpeechSynthesisUtterance(text);
@@ -510,13 +517,6 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     utterance.onstart = () => { _lastTTSEngine = 'browser'; };
     window.speechSynthesis.speak(utterance);
     return;
-  }
-
-  // Fallback #2: Microsoft Edge TTS — quality backup if browser speech is unavailable.
-  if (!hasArabicText(text)) {
-    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
-    const ok = await edgeTTSSpeak(text, gender);
-    if (ok) return;
   }
 };
 
