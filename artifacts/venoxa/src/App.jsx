@@ -647,6 +647,8 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userLevel, setUserLevel] = useState(localStorage.getItem('userLevel') || 'B2');
   const [globalVocab, setGlobalVocab] = useState(DEFAULT_VOCABULARY_LIST);
+  const [phrasalVocab, setPhrasalVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_phrasal_vocab')) || []);
+  const [idiomsVocab, setIdiomsVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_vocab')) || []);
   const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
   const [speakingHistory, setSpeakingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_speaking_history')) || []);
   const [writingHistory, setWritingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_writing_history')) || []);
@@ -699,6 +701,10 @@ export default function App() {
         return <StudyPlan {...props} globalVocab={globalVocab} />;
       case 'vocab':
         return <Vocabulary {...props} globalVocab={globalVocab} setGlobalVocab={setGlobalVocab} />;
+      case 'phrasal':
+        return <PhrasalVerbs {...props} phrasalVocab={phrasalVocab} setPhrasalVocab={setPhrasalVocab} />;
+      case 'idioms':
+        return <IdiomsSlang {...props} idiomsVocab={idiomsVocab} setIdiomsVocab={setIdiomsVocab} />;
       case 'grammar':
         return <Grammar {...props} />;
       case 'writing':
@@ -728,6 +734,14 @@ export default function App() {
     label: _resolveTranslation(lang, 'الكلمات والمراجعة', 'Vocabulary (SRS)'),
     icon: BookOpen,
     badge: vocabDueCount
+  }, {
+    id: 'phrasal',
+    label: _resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs'),
+    icon: BookText
+  }, {
+    id: 'idioms',
+    label: _resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang'),
+    icon: Quote
   }, {
     id: 'writing',
     label: _resolveTranslation(lang, 'الكتابة (AI)', 'Writing (AI)'),
@@ -2464,6 +2478,385 @@ function Vocabulary({
     </div>}
   </div>;
 }
+function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }) {
+  const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_phrasal_srs')) || {});
+  const [mode, setMode] = useState('browse');
+  const [listTab, setListTab] = useState('hard');
+  const [tick, setTick] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeWordIndex, setActiveWordIndex] = useState(0);
+  const [showMeaning, setShowMeaning] = useState(false);
+  const [aiStory, setAiStory] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [cardImage, setCardImage] = useState(null);
+  const [loadingImage, setLoadingImage] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  useEffect(() => { const int = setInterval(() => setTick(t => t + 1), 60000); return () => clearInterval(int); }, []);
+  const t = {
+    browse: _resolveTranslation(lang, 'تصفح', 'Browse'),
+    review: _resolveTranslation(lang, 'المراجعة المتباعدة', 'Spaced Review'),
+    lists: _resolveTranslation(lang, 'القوائم', 'Lists'),
+    hard: _resolveTranslation(lang, 'صعبة', 'Hard'),
+    learning: _resolveTranslation(lang, 'قيد التعلم', 'Learning'),
+    mastered: _resolveTranslation(lang, 'متقنة', 'Mastered'),
+    uploadCSV: _resolveTranslation(lang, 'رفع ملف (CSV)', 'Upload CSV'),
+    searchWord: _resolveTranslation(lang, 'بحث', 'Search'),
+    manualSelect: _resolveTranslation(lang, 'اختيار يدوي', 'Manual Select'),
+    noWords: _resolveTranslation(lang, 'لا توجد عناصر مطابقة', 'No matching items'),
+    reviewDone: _resolveTranslation(lang, 'أنت رائع! 🎉', 'Awesome! 🎉'),
+    reviewDoneMsg: _resolveTranslation(lang, 'أنهيت جميع المراجعات المستحقة.', 'All due reviews completed.'),
+    browseLearn: _resolveTranslation(lang, 'تصفح وتعلم', 'Browse and Learn'),
+    clickToShow: _resolveTranslation(lang, 'انقر لإظهار المعنى والتقييم', 'Click to show meaning and rate'),
+    rateAgain: _resolveTranslation(lang, 'أعد', 'Again'),
+    rateHard: _resolveTranslation(lang, 'صعب', 'Hard'),
+    rateGood: _resolveTranslation(lang, 'جيد', 'Good'),
+    rateEasy: _resolveTranslation(lang, 'سهل', 'Easy'),
+    time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
+    time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
+    time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
+    time4d: _resolveTranslation(lang, '4 أيام', '4 days'),
+    storyBtn: _resolveTranslation(lang, 'قصة للربط الذهني', 'Story for Memory'),
+    imgBtn: _resolveTranslation(lang, 'صورة توضيحية', 'Illustrative Image'),
+    totalItems: _resolveTranslation(lang, 'إجمالي الأفعال:', 'Total phrasal verbs:'),
+    emptyLists: _resolveTranslation(lang, 'لا توجد عناصر في هذه القائمة.', 'No items in this list.'),
+    rateItemsMsg: _resolveTranslation(lang, 'قيم العناصر في قسم "تصفح" لتظهر هنا.', 'Rate items in Browse mode to see them here.'),
+    csvHint: _resolveTranslation(lang, 'الصيغة: الفعل المركب، المعنى، الجملة', 'Format: phrasal verb, meaning, sentence'),
+  };
+  const dueCards = useMemo(() => { const now = Date.now(); return phrasalVocab.filter(c => { const d = srsData[c.word]; return d && d.nextReview <= now; }); }, [phrasalVocab, srsData, tick]);
+  const hardWords = useMemo(() => phrasalVocab.filter(w => srsData[w.word]?.rating === 'again' || srsData[w.word]?.rating === 'hard'), [phrasalVocab, srsData]);
+  const learningWords = useMemo(() => phrasalVocab.filter(w => srsData[w.word]?.rating === 'good'), [phrasalVocab, srsData]);
+  const masteredWords = useMemo(() => phrasalVocab.filter(w => srsData[w.word]?.rating === 'easy'), [phrasalVocab, srsData]);
+  const currentListView = listTab === 'hard' ? hardWords : listTab === 'learning' ? learningWords : masteredWords;
+  const parseCSVLine = line => { const result = []; let current = ''; let inQuotes = false; for (let i = 0; i < line.length; i++) { const char = line[i]; if (char === '"' && line[i + 1] === '"') { current += '"'; i++; } else if (char === '"') { inQuotes = !inQuotes; } else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; } else { current += char; } } result.push(current.trim()); return result; };
+  const handleFileUpload = event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const lines = e.target.result.split('\n');
+      const parsedData = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const r = parseCSVLine(lines[i]);
+        if (r.length >= 2 && r[0]) parsedData.push({ word: r[0].replace(/^"|"$/g, ''), meaning: r[1]?.replace(/^"|"$/g, '') || '', example: r[2]?.replace(/^"|"$/g, '') || '' });
+      }
+      if (parsedData.length > 0) {
+        setPhrasalVocab(parsedData);
+        localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(parsedData));
+        setSearchQuery(''); setMode('browse');
+        setUploadMessage(`✅ ${parsedData.length} phrasal verbs uploaded!`);
+        setTimeout(() => setUploadMessage(''), 3000);
+      } else { setUploadMessage('❌ No data found. Check CSV format.'); }
+    };
+    reader.readAsText(file);
+  };
+  const filteredList = useMemo(() => { const s = searchQuery.toLowerCase(); return phrasalVocab.filter(item => item.word.toLowerCase().includes(s) || (item.meaning && item.meaning.toLowerCase().includes(s))); }, [phrasalVocab, searchQuery]);
+  const safeIndex = activeWordIndex < filteredList.length ? activeWordIndex : 0;
+  const card = mode === 'review' ? dueCards[0] : filteredList[safeIndex];
+  useEffect(() => { if (mode === 'browse' && filteredList.length > 0 && activeWordIndex >= filteredList.length) setActiveWordIndex(0); }, [filteredList.length, activeWordIndex, mode]);
+  const handleRate = rating => {
+    if (!card) return;
+    const now = Date.now();
+    let nextReview = rating === 'again' ? now + 60000 : rating === 'hard' ? now + 600000 : rating === 'good' ? now + 86400000 : now + 345600000;
+    const newData = { ...srsData, [card.word]: { nextReview, rating, lastReviewed: now } };
+    setSrsData(newData); localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(newData));
+    setShowMeaning(false); setAiStory(''); setCardImage(null);
+    if (mode === 'browse') setActiveWordIndex((safeIndex + 1) % filteredList.length);
+  };
+  const resetWordProgress = wordStr => { const d = { ...srsData }; delete d[wordStr]; setSrsData(d); localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(d)); };
+  const playAudio = async (w = card?.word) => { if (!w) return; await edgeTTSSpeak(w, 'male'); };
+  const generateStory = async () => {
+    if (loadingAi || aiStory || !card) return;
+    setLoadingAi(true);
+    try {
+      const prompt = `You are a fun English teacher. Write a vivid, memorable 2-3 line story in English using the phrasal verb "${card.word}" (meaning: ${card.meaning}) to help a ${userLevel} learner remember it. Then add a brief ${_resolveTranslation(lang, 'Arabic', 'English')} note explaining how the phrasal verb was used.`;
+      const res = await fetchFromGemini(prompt, AI_KEY);
+      const errJson = parseGeminiJSON(res);
+      setAiStory(errJson?.error ? errJson.error : res);
+    } catch { setAiStory('Error generating story.'); } finally { setLoadingAi(false); }
+  };
+  const generateImage = async () => {
+    if (loadingImage || cardImage || !card) return;
+    setLoadingImage(true);
+    try {
+      const briefPrompt = `In ONE short English sentence (max 18 words), describe a vivid photorealistic scene that shows the meaning of the phrasal verb "${card.word}" (${card.meaning}). One concrete visual scene, no text.`;
+      let visual = '';
+      try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw||'').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g,'').trim()||''; } catch {}
+      if (!visual) visual = `A scene showing the phrasal verb "${card.word}" meaning "${card.meaning}"`;
+      const seed = Math.floor(Math.random() * 1_000_000);
+      setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(visual + ' Photorealistic, natural lighting, no text.')}?width=640&height=420&nologo=true&model=flux&seed=${seed}`);
+    } catch { setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(`Phrasal verb ${card?.word}`)}?width=640&height=420&nologo=true&model=flux`); } finally { setLoadingImage(false); }
+  };
+  return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
+      <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-lg">{dueCards.length}</span>}</button>
+      <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
+    </div>
+    {mode === 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto no-scrollbar">
+        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.hard} ({hardWords.length})</button>
+        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.learning} ({learningWords.length})</button>
+        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.mastered} ({masteredWords.length})</button>
+      </div>
+      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 transition-colors">
+          <div className="text-left" dir="ltr">
+            <p className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">{safeRender(item.word)}<button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-blue-500 transition-colors"><Volume2 className="w-4 h-4" /></button></p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{safeRender(item.meaning)}</p>
+          </div>
+          <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><RotateCcw className="w-5 h-5" /></button>
+        </div>)}
+      </div>
+    </div>}
+    {mode === 'browse' && <>
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{_resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs')}</h2><p className="text-sm text-gray-600 dark:text-gray-400">{t.totalItems} {phrasalVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
+        <div className="mt-4 md:mt-0 flex items-center gap-3">
+          {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
+          <label className="bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-500 dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Search className="w-4 h-4 text-blue-500" /> {t.searchWord}</label>
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><List className="w-4 h-4 text-green-500" /> {t.manualSelect} ({filteredList.length})</label>
+          <select value={safeIndex} onChange={e => { setActiveWordIndex(Number(e.target.value)); setShowMeaning(false); setAiStory(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none appearance-none cursor-pointer" dir="ltr">
+            {filteredList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
+          </select>
+        </div>
+      </div>
+    </>}
+    {mode === 'review' && !card && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 shadow-2xl text-center animate-fadeIn transition-colors">
+      <div className="w-24 h-24 bg-green-50 dark:bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-green-500 dark:text-green-400" /></div>
+      <h3 className="text-3xl text-gray-900 dark:text-white font-bold mb-4">{t.reviewDone}</h3>
+      <p className="text-gray-600 dark:text-gray-400 text-lg">{t.reviewDoneMsg}</p>
+      <button onClick={() => setMode('browse')} className="mt-8 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
+    </div>}
+    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
+      <Search className="w-12 h-12 text-gray-400 dark:text-gray-600 mb-4" /><h3 className="text-xl text-gray-600 dark:text-gray-400 font-bold">{t.noWords}</h3>
+    </div>}
+    {card && mode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative shadow-2xl hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+      <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-blue-50 dark:from-blue-900/5 to-transparent rounded-[2rem] pointer-events-none" />
+      <div className="absolute top-6 left-6 z-10">
+        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
+      </div>
+      {!showMeaning ? <div className="text-center w-full">
+        <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-white mb-6" dir="ltr">{safeRender(card.word)}</h3>
+        <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+      </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
+        <h3 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        {card.example && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-800/50 w-full"><p className="text-lg text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+          {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-orange-50 text-orange-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
+          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+        </div>
+        {aiStory && <div className="bg-gray-50 dark:bg-[#1a1a1e] border-l-4 border-orange-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 animate-bounce" /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+      </div>}
+    </div>}
+    {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-[#2a1717] text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain}<span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[#2a1f15] text-orange-600 border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard}<span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[#152a1d] text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood}<span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('easy')} className="bg-blue-50 dark:bg-[#15202a] text-blue-600 border border-blue-200 py-3 rounded-2xl font-bold hover:bg-blue-100 flex flex-col items-center">{t.rateEasy}<span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+    </div>}
+  </div>;
+}
+
+function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
+  const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_srs')) || {});
+  const [mode, setMode] = useState('browse');
+  const [listTab, setListTab] = useState('hard');
+  const [tick, setTick] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeWordIndex, setActiveWordIndex] = useState(0);
+  const [showMeaning, setShowMeaning] = useState(false);
+  const [aiSentence, setAiSentence] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [cardImage, setCardImage] = useState(null);
+  const [loadingImage, setLoadingImage] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  useEffect(() => { const int = setInterval(() => setTick(t => t + 1), 60000); return () => clearInterval(int); }, []);
+  const t = {
+    browse: _resolveTranslation(lang, 'تصفح', 'Browse'),
+    review: _resolveTranslation(lang, 'المراجعة المتباعدة', 'Spaced Review'),
+    lists: _resolveTranslation(lang, 'القوائم', 'Lists'),
+    hard: _resolveTranslation(lang, 'صعبة', 'Hard'),
+    learning: _resolveTranslation(lang, 'قيد التعلم', 'Learning'),
+    mastered: _resolveTranslation(lang, 'متقنة', 'Mastered'),
+    uploadCSV: _resolveTranslation(lang, 'رفع ملف (CSV)', 'Upload CSV'),
+    searchWord: _resolveTranslation(lang, 'بحث', 'Search'),
+    manualSelect: _resolveTranslation(lang, 'اختيار يدوي', 'Manual Select'),
+    noWords: _resolveTranslation(lang, 'لا توجد عناصر مطابقة', 'No matching items'),
+    reviewDone: _resolveTranslation(lang, 'أنت رائع! 🎉', 'Awesome! 🎉'),
+    reviewDoneMsg: _resolveTranslation(lang, 'أنهيت جميع المراجعات المستحقة.', 'All due reviews completed.'),
+    browseLearn: _resolveTranslation(lang, 'تصفح وتعلم', 'Browse and Learn'),
+    clickToShow: _resolveTranslation(lang, 'انقر لإظهار المعنى والتقييم', 'Click to show meaning and rate'),
+    rateAgain: _resolveTranslation(lang, 'أعد', 'Again'),
+    rateHard: _resolveTranslation(lang, 'صعب', 'Hard'),
+    rateGood: _resolveTranslation(lang, 'جيد', 'Good'),
+    rateEasy: _resolveTranslation(lang, 'سهل', 'Easy'),
+    time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
+    time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
+    time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
+    time4d: _resolveTranslation(lang, '4 أيام', '4 days'),
+    genSentenceBtn: _resolveTranslation(lang, 'توليد جملة بالذكاء الاصطناعي', 'Generate a Sentence (AI)'),
+    imgBtn: _resolveTranslation(lang, 'صورة توضيحية', 'Illustrative Image'),
+    totalItems: _resolveTranslation(lang, 'إجمالي التعابير:', 'Total idioms/slang:'),
+    emptyLists: _resolveTranslation(lang, 'لا توجد عناصر في هذه القائمة.', 'No items in this list.'),
+    rateItemsMsg: _resolveTranslation(lang, 'قيم العناصر في قسم "تصفح" لتظهر هنا.', 'Rate items in Browse mode to see them here.'),
+    csvHint: _resolveTranslation(lang, 'الصيغة: التعبير، المعنى', 'Format: idiom/slang, meaning'),
+  };
+  const dueCards = useMemo(() => { const now = Date.now(); return idiomsVocab.filter(c => { const d = srsData[c.word]; return d && d.nextReview <= now; }); }, [idiomsVocab, srsData, tick]);
+  const hardWords = useMemo(() => idiomsVocab.filter(w => srsData[w.word]?.rating === 'again' || srsData[w.word]?.rating === 'hard'), [idiomsVocab, srsData]);
+  const learningWords = useMemo(() => idiomsVocab.filter(w => srsData[w.word]?.rating === 'good'), [idiomsVocab, srsData]);
+  const masteredWords = useMemo(() => idiomsVocab.filter(w => srsData[w.word]?.rating === 'easy'), [idiomsVocab, srsData]);
+  const currentListView = listTab === 'hard' ? hardWords : listTab === 'learning' ? learningWords : masteredWords;
+  const parseCSVLine = line => { const result = []; let current = ''; let inQuotes = false; for (let i = 0; i < line.length; i++) { const char = line[i]; if (char === '"' && line[i + 1] === '"') { current += '"'; i++; } else if (char === '"') { inQuotes = !inQuotes; } else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; } else { current += char; } } result.push(current.trim()); return result; };
+  const handleFileUpload = event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const lines = e.target.result.split('\n');
+      const parsedData = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const r = parseCSVLine(lines[i]);
+        if (r.length >= 2 && r[0]) parsedData.push({ word: r[0].replace(/^"|"$/g, ''), meaning: r[1]?.replace(/^"|"$/g, '') || '' });
+      }
+      if (parsedData.length > 0) {
+        setIdiomsVocab(parsedData);
+        localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(parsedData));
+        setSearchQuery(''); setMode('browse');
+        setUploadMessage(`✅ ${parsedData.length} idioms/slang uploaded!`);
+        setTimeout(() => setUploadMessage(''), 3000);
+      } else { setUploadMessage('❌ No data found. Check CSV format.'); }
+    };
+    reader.readAsText(file);
+  };
+  const filteredList = useMemo(() => { const s = searchQuery.toLowerCase(); return idiomsVocab.filter(item => item.word.toLowerCase().includes(s) || (item.meaning && item.meaning.toLowerCase().includes(s))); }, [idiomsVocab, searchQuery]);
+  const safeIndex = activeWordIndex < filteredList.length ? activeWordIndex : 0;
+  const card = mode === 'review' ? dueCards[0] : filteredList[safeIndex];
+  useEffect(() => { if (mode === 'browse' && filteredList.length > 0 && activeWordIndex >= filteredList.length) setActiveWordIndex(0); }, [filteredList.length, activeWordIndex, mode]);
+  const handleRate = rating => {
+    if (!card) return;
+    const now = Date.now();
+    let nextReview = rating === 'again' ? now + 60000 : rating === 'hard' ? now + 600000 : rating === 'good' ? now + 86400000 : now + 345600000;
+    const newData = { ...srsData, [card.word]: { nextReview, rating, lastReviewed: now } };
+    setSrsData(newData); localStorage.setItem('venoxa_idioms_srs', JSON.stringify(newData));
+    setShowMeaning(false); setAiSentence(''); setCardImage(null);
+    if (mode === 'browse') setActiveWordIndex((safeIndex + 1) % filteredList.length);
+  };
+  const resetWordProgress = wordStr => { const d = { ...srsData }; delete d[wordStr]; setSrsData(d); localStorage.setItem('venoxa_idioms_srs', JSON.stringify(d)); };
+  const playAudio = async (w = card?.word) => { if (!w) return; await edgeTTSSpeak(w, 'male'); };
+  const generateSentence = async () => {
+    if (loadingAi || aiSentence || !card) return;
+    setLoadingAi(true);
+    try {
+      const prompt = `Create one natural, realistic English sentence using the idiom or slang expression "${card.word}" (which means: ${card.meaning}). The sentence should be suitable for a ${userLevel} learner. After the English sentence, add a short ${_resolveTranslation(lang, 'Arabic', 'English')} note explaining how the expression is used in context. Output the sentence first, then the note on a new line.`;
+      const res = await fetchFromGemini(prompt, AI_KEY);
+      const errJson = parseGeminiJSON(res);
+      setAiSentence(errJson?.error ? errJson.error : res);
+    } catch { setAiSentence('Error generating sentence.'); } finally { setLoadingAi(false); }
+  };
+  const generateImage = async () => {
+    if (loadingImage || cardImage || !card) return;
+    setLoadingImage(true);
+    try {
+      const briefPrompt = `In ONE short English sentence (max 18 words), describe a vivid photorealistic scene that visually shows the meaning of "${card.word}" (${card.meaning}). One concrete visual, no text.`;
+      let visual = '';
+      try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw||'').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g,'').trim()||''; } catch {}
+      if (!visual) visual = `A scene showing the meaning of "${card.word}" meaning "${card.meaning}"`;
+      const seed = Math.floor(Math.random() * 1_000_000);
+      setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(visual + ' Photorealistic, natural lighting, no text.')}?width=640&height=420&nologo=true&model=flux&seed=${seed}`);
+    } catch { setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(`Illustration ${card?.word}`)}?width=640&height=420&nologo=true&model=flux`); } finally { setLoadingImage(false); }
+  };
+  return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
+      <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-lg">{dueCards.length}</span>}</button>
+      <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
+    </div>
+    {mode === 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-6 md:p-8 shadow-2xl animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto no-scrollbar">
+        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.hard} ({hardWords.length})</button>
+        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.learning} ({learningWords.length})</button>
+        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.mastered} ({masteredWords.length})</button>
+      </div>
+      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 transition-colors">
+          <div className="text-left" dir="ltr">
+            <p className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">{safeRender(item.word)}<button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-blue-500 transition-colors"><Volume2 className="w-4 h-4" /></button></p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{safeRender(item.meaning)}</p>
+          </div>
+          <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><RotateCcw className="w-5 h-5" /></button>
+        </div>)}
+      </div>
+    </div>}
+    {mode === 'browse' && <>
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{_resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang')}</h2><p className="text-sm text-gray-600 dark:text-gray-400">{t.totalItems} {idiomsVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
+        <div className="mt-4 md:mt-0 flex items-center gap-3">
+          {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
+          <label className="bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-500 dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Search className="w-4 h-4 text-blue-500" /> {t.searchWord}</label>
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><List className="w-4 h-4 text-green-500" /> {t.manualSelect} ({filteredList.length})</label>
+          <select value={safeIndex} onChange={e => { setActiveWordIndex(Number(e.target.value)); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none appearance-none cursor-pointer" dir="ltr">
+            {filteredList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
+          </select>
+        </div>
+      </div>
+    </>}
+    {mode === 'review' && !card && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 shadow-2xl text-center animate-fadeIn transition-colors">
+      <div className="w-24 h-24 bg-green-50 dark:bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-green-500 dark:text-green-400" /></div>
+      <h3 className="text-3xl text-gray-900 dark:text-white font-bold mb-4">{t.reviewDone}</h3>
+      <p className="text-gray-600 dark:text-gray-400 text-lg">{t.reviewDoneMsg}</p>
+      <button onClick={() => setMode('browse')} className="mt-8 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
+    </div>}
+    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
+      <Search className="w-12 h-12 text-gray-400 dark:text-gray-600 mb-4" /><h3 className="text-xl text-gray-600 dark:text-gray-400 font-bold">{t.noWords}</h3>
+    </div>}
+    {card && mode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-[2rem] min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative shadow-2xl hover:border-purple-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+      <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-purple-50 dark:from-purple-900/5 to-transparent rounded-[2rem] pointer-events-none" />
+      <div className="absolute top-6 left-6 z-10">
+        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-purple-600 dark:text-purple-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
+      </div>
+      {!showMeaning ? <div className="text-center w-full">
+        <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-white mb-6" dir="ltr">{safeRender(card.word)}</h3>
+        <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+      </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
+        <h3 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+          {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-purple-50 text-purple-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> {t.genSentenceBtn}</>}</button>}
+          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+        </div>
+        {aiSentence && <div className="bg-gray-50 dark:bg-[#1a1a1e] border-l-4 border-purple-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-purple-400 animate-bounce" /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+      </div>}
+    </div>}
+    {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-[#2a1717] text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain}<span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[#2a1f15] text-orange-600 border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard}<span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[#152a1d] text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood}<span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('easy')} className="bg-blue-50 dark:bg-[#15202a] text-blue-600 border border-blue-200 py-3 rounded-2xl font-bold hover:bg-blue-100 flex flex-col items-center">{t.rateEasy}<span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+    </div>}
+  </div>;
+}
+
 function Grammar({
   AI_KEY,
   userLevel,
@@ -3335,6 +3728,7 @@ function Speaking({
   const [formality, setFormality] = useState('informal');
   const [topic, setTopic] = useState(SPEAKING_TOPICS[0]);
   const [isCallMode, setIsCallMode] = useState(false);
+  const [showCallTranscript, setShowCallTranscript] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [expandedReviewId, setExpandedReviewId] = useState(null);
   const [loadingScenario, setLoadingScenario] = useState(false);
@@ -3636,13 +4030,17 @@ function Speaking({
 
         {/* AI transcript — fades up when a new message arrives */}
         <div className="w-full max-w-md flex flex-col justify-end items-center min-h-[56px] px-4">
-          {lastAiCallMsg ? (
-            <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
-              {safeRender(lastAiCallMsg.text)}
-              {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-white/60' : 'bg-black/40'}`} />}
-            </p>
+          {showCallTranscript ? (
+            lastAiCallMsg ? (
+              <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
+                {safeRender(lastAiCallMsg.text)}
+                {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-white/60' : 'bg-black/40'}`} />}
+              </p>
+            ) : (
+              <p className={`text-[13px] font-light ${isDark ? 'text-white/20' : 'text-black/25'}`}>{t.tapMic}</p>
+            )
           ) : (
-            <p className={`text-[13px] font-light ${isDark ? 'text-white/20' : 'text-black/25'}`}>{t.tapMic}</p>
+            <p className={`text-[13px] font-light ${isDark ? 'text-white/20' : 'text-black/25'}`}>{_resolveTranslation(lang, 'النص مخفي', 'Transcript off')}</p>
           )}
         </div>
       </div>
@@ -3662,6 +4060,19 @@ function Speaking({
           }`}>
             <Mic className={`w-4 h-4 flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`} />
             <span>{isRecording ? _resolveTranslation(lang, 'جاري الاستماع', 'Listening') : _resolveTranslation(lang, 'صامت', 'Mute')}</span>
+          </button>
+
+          {/* Divider */}
+          <div className={`w-px h-5 mx-0.5 flex-shrink-0 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} />
+
+          {/* Transcript toggle */}
+          <button onClick={() => setShowCallTranscript(v => !v)} className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+            showCallTranscript
+              ? isDark ? 'text-gray-300 bg-white/[0.06]' : 'text-gray-700 bg-gray-100'
+              : isDark ? 'text-gray-600 hover:bg-white/[0.05] hover:text-gray-400' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
+          }`}>
+            <FileText className="w-4 h-4 flex-shrink-0" />
+            <span>{showCallTranscript ? _resolveTranslation(lang, 'النص: تشغيل', 'Text: On') : _resolveTranslation(lang, 'النص: إيقاف', 'Text: Off')}</span>
           </button>
 
           {/* Divider */}
