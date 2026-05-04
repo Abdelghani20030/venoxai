@@ -3,6 +3,27 @@ import OpenAI from "openai";
 
 const router: IRouter = Router();
 
+// ── Response cache ─────────────────────────────────────────────────────────────
+// Avoids redundant AI calls when the same prompt fires within 2 minutes.
+const responseCache = new Map<string, { text: string; expires: number }>();
+const CACHE_TTL_MS = 2 * 60_000;
+const CACHE_MAX = 100;
+
+function getCached(prompt: string): string | null {
+  const entry = responseCache.get(prompt);
+  if (!entry) return null;
+  if (Date.now() > entry.expires) { responseCache.delete(prompt); return null; }
+  return entry.text;
+}
+
+function setCache(prompt: string, text: string) {
+  if (responseCache.size >= CACHE_MAX) {
+    const first = responseCache.keys().next().value;
+    if (first) responseCache.delete(first);
+  }
+  responseCache.set(prompt, { text, expires: Date.now() + CACHE_TTL_MS });
+}
+
 // ── Circuit breaker ───────────────────────────────────────────────────────────
 // Tracks when a provider/model should be skipped until (epoch ms).
 const cooldowns = new Map<string, number>();
@@ -74,8 +95,8 @@ function buildOpenRouterProvider(orKey: string): ProviderEntry | null {
             throw err;
           }
           if (msg.includes("429") || msg.includes("rate") || msg.includes("limit")) {
-            setCooldown(modelKey, 60_000);
-            log?.(`openrouter model ${model} rate-limited — skipping 60 s`);
+            setCooldown(modelKey, 15_000);
+            log?.(`openrouter model ${model} rate-limited — skipping 15 s`);
           }
           lastErr = err;
         }
@@ -110,7 +131,12 @@ function buildGeminiProvider(googleKey: string): ProviderEntry | null {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
+        generationConfig: {
+          maxOutputTokens: 2048,
+          temperature: 0.7,
+          // Disable thinking mode on 2.5 models — cuts latency from 5-8s to <1s
+          ...(model.startsWith("gemini-2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+        },
       }),
     });
     if (!resp.ok) {
@@ -159,9 +185,9 @@ function buildGeminiProvider(googleKey: string): ProviderEntry | null {
             throw err;
           }
           if (msg.includes("429")) {
-            // quota exhausted — skip this model for 60 s, no sleep
-            setCooldown(modelKey, 60_000);
-            log?.(`gemini model ${model} quota — skipping 60 s`);
+            // quota exhausted — skip this model for 15 s so it recovers quickly
+            setCooldown(modelKey, 15_000);
+            log?.(`gemini model ${model} quota — skipping 15 s`);
           } else if (msg.includes("404")) {
             // model not available for this project — skip permanently for this session
             setCooldown(modelKey, 60 * 60_000);
@@ -223,15 +249,7 @@ type ProviderEntry = {
 function buildProviders(): ProviderEntry[] {
   const list: ProviderEntry[] = [];
 
-  // 1. Replit-managed proxy
-  const replitBase = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
-  const replitKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
-  if (replitBase && replitKey) {
-    const p = buildOpenAIProvider(replitKey, "replit-ai", replitBase);
-    if (p) list.push(p);
-  }
-
-  // 2. Google Gemini — fastest, primary AI provider
+  // 1. Google Gemini — fastest, primary AI provider
   const googleKey =
     process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? "";
   const geminiProvider = buildGeminiProvider(googleKey);
@@ -302,13 +320,24 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
   const send = (event: string, data: string) =>
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
+  // Serve from cache instantly as a single delta
+  const hit = getCached(prompt);
+  if (hit) {
+    send("delta", hit);
+    send("done", "");
+    res.end();
+    return;
+  }
+
   try {
+    let full = "";
     await runWithFallback(
       prompt,
-      (delta) => send("delta", delta),
+      (delta) => { full += delta; send("delta", delta); },
       (msg, meta) => req.log.warn(meta, msg),
       (msg, meta) => req.log.error(meta, msg),
     );
+    if (full.trim()) setCache(prompt, full);
     send("done", "");
   } catch {
     send("error", "All AI providers failed. Please try again.");
@@ -325,6 +354,10 @@ router.post("/chat", async (req: Request, res: Response) => {
     return;
   }
 
+  // Serve from cache
+  const hit = getCached(prompt);
+  if (hit) { res.json({ text: hit }); return; }
+
   try {
     let text = "";
     await runWithFallback(
@@ -334,6 +367,7 @@ router.post("/chat", async (req: Request, res: Response) => {
       (msg, meta) => req.log.error(meta, msg),
     );
     if (!text.trim()) throw new Error("All providers returned empty content.");
+    setCache(prompt, text);
     res.json({ text });
   } catch (err) {
     req.log.error({ err }, "Chat request failed");
