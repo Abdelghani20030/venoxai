@@ -232,16 +232,16 @@ function buildProviders(): ProviderEntry[] {
     if (p) list.push(p);
   }
 
-  // 2. OpenRouter — free models with per-minute rate limits
-  const orKey = process.env["OPENROUTER_API_KEY"] ?? "";
-  const orProvider = buildOpenRouterProvider(orKey);
-  if (orProvider) list.push(orProvider);
-
-  // 3. Google Gemini
+  // 2. Google Gemini — fastest, primary AI provider
   const googleKey =
     process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? "";
   const geminiProvider = buildGeminiProvider(googleKey);
   if (geminiProvider) list.push(geminiProvider);
+
+  // 3. OpenRouter — automatic fallback when Gemini quota is exhausted
+  const orKey = process.env["OPENROUTER_API_KEY"] ?? "";
+  const orProvider = buildOpenRouterProvider(orKey);
+  if (orProvider) list.push(orProvider);
 
   // 4. Plain OpenAI
   const oaKey = process.env["OPENAI_API_KEY"] ?? "";
