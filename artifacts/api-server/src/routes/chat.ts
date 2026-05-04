@@ -1,6 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import OpenAI from "openai";
-import type { Logger } from "pino";
 
 const router: IRouter = Router();
 
@@ -15,12 +14,12 @@ type StreamProvider = {
 function buildStreamProviders(): StreamProvider[] {
   const providers: StreamProvider[] = [];
 
-  // 1) Replit-managed AI — no external quota, fastest cold-start.
+  // 1) Replit-managed AI proxy.
   const replitBase = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
   const replitKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
   if (replitBase && replitKey) {
     const client = new OpenAI({ apiKey: replitKey, baseURL: replitBase });
-    const model = "gpt-5-mini";
+    const model = "gpt-4o-mini";
     providers.push({
       label: "replit-ai",
       model,
@@ -39,16 +38,63 @@ function buildStreamProviders(): StreamProvider[] {
     });
   }
 
-  // 2) Google Gemini streaming endpoint — tries multiple models with retry on 429.
+  // 2) OpenRouter — generous free models, no daily quota limits.
+  //    Accept any non-empty key (no prefix restriction).
+  const orKey = process.env["OPENROUTER_API_KEY"];
+  if (orKey && orKey.trim().length > 10) {
+    const client = new OpenAI({
+      apiKey: orKey.trim(),
+      baseURL: "https://openrouter.ai/api/v1",
+      defaultHeaders: {
+        "HTTP-Referer": "https://venoxa.replit.app",
+        "X-Title": "Venoxa AI Platform",
+      },
+    });
+    // Try multiple free models in order
+    const orModels = [
+      "google/gemma-3-27b-it:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "meta-llama/llama-3.1-8b-instruct:free",
+      "mistralai/mistral-7b-instruct:free",
+    ];
+    providers.push({
+      label: "openrouter",
+      model: orModels[0],
+      stream: async (prompt, onChunk) => {
+        let lastErr: unknown;
+        for (const model of orModels) {
+          try {
+            const stream = await client.chat.completions.create({
+              model,
+              messages: [{ role: "user", content: prompt }],
+              max_completion_tokens: 8192,
+              stream: true,
+            });
+            for await (const chunk of stream) {
+              const delta = chunk.choices?.[0]?.delta?.content;
+              if (delta) onChunk(delta);
+            }
+            return;
+          } catch (err) {
+            lastErr = err;
+            continue;
+          }
+        }
+        throw lastErr;
+      },
+    });
+  }
+
+  // 3) Google Gemini — tries multiple models, retries on 429.
   const googleKey = process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"];
-  if (googleKey && googleKey.startsWith("AIza")) {
-    // Models ordered by free-tier availability; all are tried on any error.
+  if (googleKey && googleKey.trim().startsWith("AIza")) {
+    const key = googleKey.trim();
+    // All models on v1beta (supports both 2.x and 1.5 series).
     const geminiModels = [
       "gemini-2.0-flash-lite",
       "gemini-2.0-flash",
       "gemini-1.5-flash",
       "gemini-1.5-flash-8b",
-      "gemini-1.0-pro",
     ];
 
     const callGeminiModel = async (
@@ -56,9 +102,7 @@ function buildStreamProviders(): StreamProvider[] {
       prompt: string,
       onChunk: (delta: string) => void,
     ): Promise<void> => {
-      // 1.5-series models moved to stable v1; 2.x models stay on v1beta.
-      const apiVersion = model.startsWith("gemini-1") ? "v1" : "v1beta";
-      const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:streamGenerateContent?alt=sse&key=${googleKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${key}`;
       const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -69,7 +113,7 @@ function buildStreamProviders(): StreamProvider[] {
       });
       if (!resp.ok) {
         const body = await resp.text();
-        throw new Error(`Gemini ${resp.status}: ${body.slice(0, 300)}`);
+        throw new Error(`Gemini ${resp.status} (${model}): ${body.slice(0, 300)}`);
       }
       const reader = resp.body!.getReader();
       const decoder = new TextDecoder();
@@ -111,7 +155,6 @@ function buildStreamProviders(): StreamProvider[] {
           } catch (err: unknown) {
             lastErr = err;
             const msg = err instanceof Error ? err.message : String(err);
-            // On rate-limit wait before next model; on any other error try next immediately.
             if (msg.includes("429")) {
               await new Promise((r) => setTimeout(r, 2000));
             }
@@ -123,40 +166,10 @@ function buildStreamProviders(): StreamProvider[] {
     });
   }
 
-  // 3) OpenRouter streaming fallback.
-  const orKey = process.env["OPENROUTER_API_KEY"];
-  if (orKey && orKey.startsWith("sk-or-")) {
-    const client = new OpenAI({
-      apiKey: orKey,
-      baseURL: "https://openrouter.ai/api/v1",
-      defaultHeaders: {
-        "HTTP-Referer": "https://venoxa.replit.app",
-        "X-Title": "Venoxa AI Platform",
-      },
-    });
-    const model = "meta-llama/llama-3.1-8b-instruct:free";
-    providers.push({
-      label: "openrouter",
-      model,
-      stream: async (prompt, onChunk) => {
-        const stream = await client.chat.completions.create({
-          model,
-          messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 512,
-          stream: true,
-        });
-        for await (const chunk of stream) {
-          const delta = chunk.choices?.[0]?.delta?.content;
-          if (delta) onChunk(delta);
-        }
-      },
-    });
-  }
-
-  // 4) Plain OpenAI fallback.
+  // 4) Plain OpenAI — accept any non-empty key.
   const oaKey = process.env["OPENAI_API_KEY"];
-  if (oaKey && oaKey.startsWith("sk-")) {
-    const client = new OpenAI({ apiKey: oaKey });
+  if (oaKey && oaKey.trim().length > 10) {
+    const client = new OpenAI({ apiKey: oaKey.trim() });
     const model = "gpt-4o-mini";
     providers.push({
       label: "openai",
@@ -165,7 +178,7 @@ function buildStreamProviders(): StreamProvider[] {
         const s = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 200,
+          max_completion_tokens: 8192,
           stream: true,
         });
         for await (const chunk of s) {
@@ -183,7 +196,7 @@ const streamProviders = buildStreamProviders();
 
 if (streamProviders.length === 0) {
   throw new Error(
-    "No AI provider configured. Expected AI_INTEGRATIONS_OPENAI_*, GOOGLE_API_KEY, OPENROUTER_API_KEY, or OPENAI_API_KEY.",
+    "No AI provider configured. Set OPENROUTER_API_KEY, GOOGLE_API_KEY, or OPENAI_API_KEY.",
   );
 }
 
@@ -228,7 +241,7 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
   res.end();
 });
 
-// ── Legacy non-streaming endpoint (kept for Langeek/story uses) ──────────────
+// ── Non-streaming endpoint ────────────────────────────────────────────────────
 router.post("/chat", async (req: Request, res: Response) => {
   const prompt =
     typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
@@ -243,7 +256,9 @@ router.post("/chat", async (req: Request, res: Response) => {
     let lastErr: unknown = null;
     for (const provider of streamProviders) {
       try {
-        await provider.stream(prompt, (delta) => { text += delta; });
+        await provider.stream(prompt, (delta) => {
+          text += delta;
+        });
         if (text.trim().length > 0) break;
       } catch (err) {
         lastErr = err;
