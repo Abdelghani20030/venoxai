@@ -2674,6 +2674,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
   const [listTab, setListTab] = useState('hard');
   const [tick, setTick] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [topicFilter, setTopicFilter] = useState('All');
   const [activeWordIndex, setActiveWordIndex] = useState(0);
   const [showMeaning, setShowMeaning] = useState(false);
   const [aiSentence, setAiSentence] = useState('');
@@ -2691,7 +2692,9 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
     mastered: _resolveTranslation(lang, 'متقنة', 'Mastered'),
     uploadCSV: _resolveTranslation(lang, 'رفع ملف (CSV)', 'Upload CSV'),
     searchWord: _resolveTranslation(lang, 'بحث', 'Search'),
+    filterTopic: _resolveTranslation(lang, 'تصفية بالموضوع', 'Filter by Topic'),
     manualSelect: _resolveTranslation(lang, 'اختيار يدوي', 'Manual Select'),
+    allTopics: _resolveTranslation(lang, 'كل المواضيع', 'All Topics'),
     noWords: _resolveTranslation(lang, 'لا توجد عناصر مطابقة', 'No matching items'),
     reviewDone: _resolveTranslation(lang, 'أنت رائع! 🎉', 'Awesome! 🎉'),
     reviewDoneMsg: _resolveTranslation(lang, 'أنهيت جميع المراجعات المستحقة.', 'All due reviews completed.'),
@@ -2710,37 +2713,81 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
     totalItems: _resolveTranslation(lang, 'إجمالي التعابير:', 'Total idioms/slang:'),
     emptyLists: _resolveTranslation(lang, 'لا توجد عناصر في هذه القائمة.', 'No items in this list.'),
     rateItemsMsg: _resolveTranslation(lang, 'قيم العناصر في قسم "تصفح" لتظهر هنا.', 'Rate items in Browse mode to see them here.'),
-    csvHint: _resolveTranslation(lang, 'الصيغة: التعبير، المعنى', 'Format: idiom/slang, meaning'),
+    csvHint: _resolveTranslation(lang, 'الصيغة: الموضوع؛ التعبير؛ المعنى؛ الجملة', 'Format: Topic; Slang; Meaning; Sentence'),
   };
+
+  // Unique topics derived from the vocab list
+  const allTopics = useMemo(() => {
+    const topics = [...new Set(idiomsVocab.map(w => w.topic).filter(Boolean))].sort();
+    return topics;
+  }, [idiomsVocab]);
+
   const dueCards = useMemo(() => { const now = Date.now(); return idiomsVocab.filter(c => { const d = srsData[c.word]; return d && d.nextReview <= now; }); }, [idiomsVocab, srsData, tick]);
   const hardWords = useMemo(() => idiomsVocab.filter(w => srsData[w.word]?.rating === 'again' || srsData[w.word]?.rating === 'hard'), [idiomsVocab, srsData]);
   const learningWords = useMemo(() => idiomsVocab.filter(w => srsData[w.word]?.rating === 'good'), [idiomsVocab, srsData]);
   const masteredWords = useMemo(() => idiomsVocab.filter(w => srsData[w.word]?.rating === 'easy'), [idiomsVocab, srsData]);
   const currentListView = listTab === 'hard' ? hardWords : listTab === 'learning' ? learningWords : masteredWords;
-  const parseCSVLine = line => { const result = []; let current = ''; let inQuotes = false; for (let i = 0; i < line.length; i++) { const char = line[i]; if (char === '"' && line[i + 1] === '"') { current += '"'; i++; } else if (char === '"') { inQuotes = !inQuotes; } else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; } else { current += char; } } result.push(current.trim()); return result; };
+
+  // Parse semicolon-delimited CSV line, handling quoted fields
+  const parseCSVLine = (line, sep = ';') => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (char === '"') { inQuotes = !inQuotes; }
+      else if (char === sep && !inQuotes) { result.push(current.trim()); current = ''; }
+      else { current += char; }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
   const handleFileUpload = event => {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
-      const lines = e.target.result.split('\n');
+      const rawText = e.target.result;
+      const lines = rawText.split('\n');
+      // Auto-detect delimiter from header line
+      const header = lines[0] || '';
+      const sep = header.includes(';') ? ';' : ',';
       const parsedData = [];
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
-        const r = parseCSVLine(lines[i]);
-        if (r.length >= 2 && r[0]) parsedData.push({ word: r[0].replace(/^"|"$/g, ''), meaning: r[1]?.replace(/^"|"$/g, '') || '' });
+        const r = parseCSVLine(lines[i], sep);
+        // Columns: Topic(0) ; Slang(1) ; Meaning(2) ; Sentence(3)
+        if (r.length >= 3 && r[1]) {
+          parsedData.push({
+            topic: r[0]?.replace(/^"|"$/g, '').trim() || '',
+            word: r[1].replace(/^"|"$/g, '').trim(),
+            meaning: r[2]?.replace(/^"|"$/g, '').trim() || '',
+            example: r[3]?.replace(/^"|"$/g, '').trim() || '',
+          });
+        }
       }
       if (parsedData.length > 0) {
         setIdiomsVocab(parsedData);
         localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(parsedData));
-        setSearchQuery(''); setMode('browse');
+        setSearchQuery(''); setTopicFilter('All'); setMode('browse');
         setUploadMessage(`✅ ${parsedData.length} idioms/slang uploaded!`);
         setTimeout(() => setUploadMessage(''), 3000);
       } else { setUploadMessage('❌ No data found. Check CSV format.'); }
     };
     reader.readAsText(file);
   };
-  const filteredList = useMemo(() => { const s = searchQuery.toLowerCase(); return idiomsVocab.filter(item => item.word.toLowerCase().includes(s) || (item.meaning && item.meaning.toLowerCase().includes(s))); }, [idiomsVocab, searchQuery]);
+
+  const filteredList = useMemo(() => {
+    const s = searchQuery.toLowerCase();
+    return idiomsVocab.filter(item => {
+      const matchesTopic = topicFilter === 'All' || item.topic === topicFilter;
+      const matchesSearch = item.word.toLowerCase().includes(s) || (item.meaning && item.meaning.toLowerCase().includes(s));
+      return matchesTopic && matchesSearch;
+    });
+  }, [idiomsVocab, searchQuery, topicFilter]);
+
   const safeIndex = activeWordIndex < filteredList.length ? activeWordIndex : 0;
   const card = mode === 'review' ? dueCards[0] : filteredList[safeIndex];
   useEffect(() => { if (mode === 'browse' && filteredList.length > 0 && activeWordIndex >= filteredList.length) setActiveWordIndex(0); }, [filteredList.length, activeWordIndex, mode]);
@@ -2792,7 +2839,10 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 transition-colors">
           <div className="text-left" dir="ltr">
-            <p className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">{safeRender(item.word)}<button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-blue-500 transition-colors"><Volume2 className="w-4 h-4" /></button></p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">{safeRender(item.word)}<button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-blue-500 transition-colors"><Volume2 className="w-4 h-4" /></button></p>
+              {item.topic && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20">{safeRender(item.topic)}</span>}
+            </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{safeRender(item.meaning)}</p>
           </div>
           <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><RotateCcw className="w-5 h-5" /></button>
@@ -2807,10 +2857,17 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
           <label className="bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-500 dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Search className="w-4 h-4 text-blue-500" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-purple-500" /> {t.filterTopic}</label>
+          <select value={topicFilter} onChange={e => { setTopicFilter(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors">
+            <option value="All">{t.allTopics}</option>
+            {allTopics.map(topic => <option key={topic} value={topic}>{topic}</option>)}
+          </select>
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><List className="w-4 h-4 text-green-500" /> {t.manualSelect} ({filteredList.length})</label>
@@ -2834,11 +2891,13 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
       <div className="absolute top-6 left-6 z-10">
         <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-purple-600 dark:text-purple-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
       </div>
+      {card.topic && <span className="absolute top-6 right-6 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.topic)}</span>}
       {!showMeaning ? <div className="text-center w-full">
         <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-white mb-6" dir="ltr">{safeRender(card.word)}</h3>
         <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
         <h3 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        {card.example && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-800/50 w-full"><p className="text-lg text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
           {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-purple-50 text-purple-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> {t.genSentenceBtn}</>}</button>}
           {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
