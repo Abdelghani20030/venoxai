@@ -20,7 +20,7 @@ function buildStreamProviders(): StreamProvider[] {
   const replitKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
   if (replitBase && replitKey) {
     const client = new OpenAI({ apiKey: replitKey, baseURL: replitBase });
-    const model = "gpt-4o-mini";
+    const model = "gpt-5-mini";
     providers.push({
       label: "replit-ai",
       model,
@@ -28,7 +28,7 @@ function buildStreamProviders(): StreamProvider[] {
         const stream = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 200,
+          max_completion_tokens: 8192,
           stream: true,
         });
         for await (const chunk of stream) {
@@ -46,8 +46,9 @@ function buildStreamProviders(): StreamProvider[] {
     const geminiModels = [
       "gemini-2.0-flash-lite",
       "gemini-2.0-flash",
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash-8b-latest",
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-8b",
+      "gemini-1.0-pro",
     ];
 
     const callGeminiModel = async (
@@ -55,7 +56,9 @@ function buildStreamProviders(): StreamProvider[] {
       prompt: string,
       onChunk: (delta: string) => void,
     ): Promise<void> => {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${googleKey}`;
+      // 1.5-series models moved to stable v1; 2.x models stay on v1beta.
+      const apiVersion = model.startsWith("gemini-1") ? "v1" : "v1beta";
+      const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${model}:streamGenerateContent?alt=sse&key=${googleKey}`;
       const resp = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
