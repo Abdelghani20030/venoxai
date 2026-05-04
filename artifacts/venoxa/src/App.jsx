@@ -176,7 +176,8 @@ const fetchFromGemini = async (prompt, _apiKey) => {
     });
     window.clearTimeout(timeout);
     if (!response.ok) {
-      return '{"error": "AI is busy. Please try again."}';
+      const body = await response.text();
+      return body || '{"error": "AI is busy. Please try again."}';
     }
     const data = await response.json();
     return data.text || '{"error": "No response generated."}';
