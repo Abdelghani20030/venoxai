@@ -837,8 +837,8 @@ export default function App() {
       </nav>
     </div>}
 
-    <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-10 mt-14 sm:mt-16 lg:mt-0 ${theme === 'dark' ? 'bg-[#09090b]' : 'bg-gray-50'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
-      <div className="max-w-6xl mx-auto w-full print:max-w-none print:mx-0">
+    <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 mt-14 sm:mt-16 lg:mt-0 ${theme === 'dark' ? 'bg-[#09090b]' : 'bg-gray-50'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
+      <div className="w-full print:max-w-none print:mx-0">
         {renderContent()}
       </div>
     </div>
@@ -2338,7 +2338,7 @@ function Vocabulary({
       setCollocationData(errJson?.error ? errJson.error : res);
     } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
   };
-  return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
+  return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => {
@@ -2604,7 +2604,7 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }
       setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(visual + ' Photorealistic, natural lighting, no text.')}?width=640&height=420&nologo=true&model=flux&seed=${seed}`);
     } catch { setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(`Phrasal verb ${card?.word}`)}?width=640&height=420&nologo=true&model=flux`); } finally { setLoadingImage(false); }
   };
-  return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
+  return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
       <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-lg">{dueCards.length}</span>}</button>
@@ -2841,7 +2841,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
       setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(visual + ' Photorealistic, natural lighting, no text.')}?width=640&height=420&nologo=true&model=flux&seed=${seed}`);
     } catch { setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(`Illustration ${card?.word}`)}?width=640&height=420&nologo=true&model=flux`); } finally { setLoadingImage(false); }
   };
-  return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
+  return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
       <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-lg">{dueCards.length}</span>}</button>
@@ -2971,7 +2971,7 @@ function Grammar({
       setLoading(false);
     }
   };
-  return <div className="max-w-4xl mx-auto animate-fadeIn">
+  return <div className="w-full animate-fadeIn">
     <div className="mb-10 text-center">
       <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-3">{t.title}</h2>
       <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
@@ -3315,7 +3315,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
       ];
 
   return (
-    <div className="max-w-4xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
+    <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
       {/* ── Header ── */}
       <div className="bg-white dark:bg-[#121214] p-8 rounded-3xl border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl transition-colors">
@@ -3729,7 +3729,7 @@ function Writing({
     setText('');
     setFeedback(null);
   };
-  return <div className="max-w-4xl mx-auto animate-fadeIn">
+  return <div className="w-full animate-fadeIn">
     <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-10 text-center flex items-center justify-center gap-3"><PenTool className="text-purple-500 dark:text-purple-400" /> {t.title}</h2>
     <div className="flex justify-end mb-4">
       <button onClick={() => setShowHistory(v => !v)} className="text-sm font-bold px-4 py-2 rounded-xl bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300">
@@ -4182,7 +4182,7 @@ function Speaking({
       </div>
     </div>;
   }
-  return <><div className="max-w-5xl mx-auto h-[85vh] flex flex-col animate-fadeIn border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#09090b] transition-colors">
+  return <><div className="w-full h-[90vh] flex flex-col animate-fadeIn border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#09090b] transition-colors">
     <div className="bg-gray-50 dark:bg-[#121214] p-5 border-b border-gray-200 dark:border-gray-800 flex flex-col lg:flex-row justify-between items-center gap-4 relative z-10 transition-colors">
       <div className="flex items-center gap-4 w-full lg:w-auto">
         <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-200 dark:border-emerald-500/20 shrink-0">
@@ -4331,7 +4331,7 @@ function Speaking({
       </div>
     </div>
   </div>
-  {callReview && <div className="max-w-5xl mx-auto mt-6 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl animate-fadeIn">
+  {callReview && <div className="w-full mt-6 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-2xl animate-fadeIn">
     <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 text-white flex justify-between items-center">
       <h3 className="font-extrabold text-lg flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Call Corrections Review</h3>
       <button onClick={() => setCallReview(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
@@ -4625,7 +4625,7 @@ function Langeek({
       setCollocationData(errJson?.error ? errJson.error : res);
     } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
   };
-  return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
+  return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
       <button onClick={() => {
         setVocabMode('browse');
