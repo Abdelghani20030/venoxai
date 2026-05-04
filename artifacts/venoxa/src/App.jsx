@@ -405,7 +405,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
 
   if (apiKey && !_elevenLabsQuotaExceeded) {
     const isArabic = hasArabicText(text);
-    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_flash_v2_5';
+    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
 
     let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
     if (isArabic) {
@@ -2636,7 +2636,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
       const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${DEFAULT_ELEVENLABS_VOICE_ID}/stream`, {
         method: 'POST',
         headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-        body: JSON.stringify({ text: text.slice(0, 2500), model_id: 'eleven_flash_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.85 } })
+        body: JSON.stringify({ text: text.slice(0, 2500), model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.85 } })
       });
       if (!resp.ok) throw new Error(`${resp.status}`);
       const blob = await resp.blob();
