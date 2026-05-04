@@ -3,178 +3,191 @@ import OpenAI from "openai";
 
 const router: IRouter = Router();
 
-// ── Streaming provider type ───────────────────────────────────────────────────
-type StreamProvider = {
-  label: string;
-  model: string;
-  stream: (prompt: string, onChunk: (delta: string) => void) => Promise<void>;
-};
+// ── Circuit breaker ───────────────────────────────────────────────────────────
+// Tracks when a provider/model should be skipped until (epoch ms).
+const cooldowns = new Map<string, number>();
 
-// ── Build ordered list of streaming providers ────────────────────────────────
-function buildStreamProviders(): StreamProvider[] {
-  const providers: StreamProvider[] = [];
-
-  // 1) Replit-managed AI proxy.
-  const replitBase = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
-  const replitKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
-  if (replitBase && replitKey) {
-    const client = new OpenAI({ apiKey: replitKey, baseURL: replitBase });
-    const model = "gpt-4o-mini";
-    providers.push({
-      label: "replit-ai",
-      model,
-      stream: async (prompt, onChunk) => {
-        const stream = await client.chat.completions.create({
-          model,
-          messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 8192,
-          stream: true,
-        });
-        for await (const chunk of stream) {
-          const delta = chunk.choices?.[0]?.delta?.content;
-          if (delta) onChunk(delta);
-        }
-      },
-    });
+function isCooledDown(key: string): boolean {
+  const until = cooldowns.get(key);
+  if (!until) return false;
+  if (Date.now() > until) {
+    cooldowns.delete(key);
+    return false;
   }
+  return true;
+}
 
-  // 2) OpenRouter — generous free models, no daily quota limits.
-  //    Accept any non-empty key (no prefix restriction).
-  const orKey = process.env["OPENROUTER_API_KEY"];
-  if (orKey && orKey.trim().length > 10) {
-    const client = new OpenAI({
-      apiKey: orKey.trim(),
-      baseURL: "https://openrouter.ai/api/v1",
-      defaultHeaders: {
-        "HTTP-Referer": "https://venoxa.replit.app",
-        "X-Title": "Venoxa AI Platform",
-      },
-    });
-    // Try multiple free models in order
-    const orModels = [
-      "google/gemma-3-27b-it:free",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "meta-llama/llama-3.1-8b-instruct:free",
-      "mistralai/mistral-7b-instruct:free",
-    ];
-    providers.push({
-      label: "openrouter",
-      model: orModels[0],
-      stream: async (prompt, onChunk) => {
-        let lastErr: unknown;
-        for (const model of orModels) {
-          try {
-            const stream = await client.chat.completions.create({
-              model,
-              messages: [{ role: "user", content: prompt }],
-              max_completion_tokens: 8192,
-              stream: true,
-            });
-            for await (const chunk of stream) {
-              const delta = chunk.choices?.[0]?.delta?.content;
-              if (delta) onChunk(delta);
-            }
-            return;
-          } catch (err) {
-            lastErr = err;
-            continue;
-          }
-        }
-        throw lastErr;
-      },
-    });
-  }
+function setCooldown(key: string, ms: number) {
+  cooldowns.set(key, Date.now() + ms);
+}
 
-  // 3) Google Gemini — tries multiple models, retries on 429.
-  const googleKey = process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"];
-  if (googleKey && googleKey.trim().startsWith("AIza")) {
-    const key = googleKey.trim();
-    // All models on v1beta (supports both 2.x and 1.5 series).
-    const geminiModels = [
-      "gemini-2.0-flash-lite",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-flash-8b",
-    ];
+// ── OpenRouter ────────────────────────────────────────────────────────────────
+// Per-minute rate limits exist on free models; we skip rate-limited models for
+// 60 s and circuit-break the whole provider for 5 min on auth failure.
+const OR_MODELS = [
+  "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "meta-llama/llama-3.1-8b-instruct:free",
+  "mistralai/mistral-7b-instruct:free",
+  "deepseek/deepseek-r1-0528:free",
+  "qwen/qwen3-8b:free",
+];
 
-    const callGeminiModel = async (
-      model: string,
-      prompt: string,
-      onChunk: (delta: string) => void,
-    ): Promise<void> => {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${key}`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
-        }),
-      });
-      if (!resp.ok) {
-        const body = await resp.text();
-        throw new Error(`Gemini ${resp.status} (${model}): ${body.slice(0, 300)}`);
+function buildOpenRouterProvider(orKey: string): ProviderEntry | null {
+  if (!orKey || orKey.trim().length < 10) return null;
+  const client = new OpenAI({
+    apiKey: orKey.trim(),
+    baseURL: "https://openrouter.ai/api/v1",
+    defaultHeaders: {
+      "HTTP-Referer": "https://venoxa.replit.app",
+      "X-Title": "Venoxa AI Platform",
+    },
+  });
+
+  return {
+    label: "openrouter",
+    stream: async (prompt, onChunk, log) => {
+      if (isCooledDown("openrouter:auth")) {
+        throw new Error("openrouter auth circuit open");
       }
-      const reader = resp.body!.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data:")) continue;
-          const json = line.slice(5).trim();
-          if (!json || json === "[DONE]") continue;
-          try {
-            const obj = JSON.parse(json) as {
-              candidates?: Array<{
-                content?: { parts?: Array<{ text?: string }> };
-              }>;
-            };
-            const text = obj.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) onChunk(text);
-          } catch {
-            // malformed SSE line — skip
+      let lastErr: unknown;
+      for (const model of OR_MODELS) {
+        const modelKey = `openrouter:${model}`;
+        if (isCooledDown(modelKey)) continue;
+        try {
+          const s = await client.chat.completions.create({
+            model,
+            messages: [{ role: "user", content: prompt }],
+            max_completion_tokens: 8192,
+            stream: true,
+          });
+          for await (const chunk of s) {
+            const delta = chunk.choices?.[0]?.delta?.content;
+            if (delta) onChunk(delta);
           }
+          return;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes("401") || msg.includes("403")) {
+            // Auth failure — no point retrying any OR model
+            setCooldown("openrouter:auth", 5 * 60_000);
+            log?.(`openrouter auth failure — cooling down 5 min`);
+            throw err;
+          }
+          if (msg.includes("429") || msg.includes("rate") || msg.includes("limit")) {
+            setCooldown(modelKey, 60_000);
+            log?.(`openrouter model ${model} rate-limited — skipping 60 s`);
+          }
+          lastErr = err;
         }
       }
-    };
+      throw lastErr ?? new Error("All OpenRouter models unavailable");
+    },
+  };
+}
 
-    providers.push({
-      label: "google-gemini",
-      model: geminiModels[0],
-      stream: async (prompt, onChunk) => {
-        let lastErr: unknown;
-        for (const model of geminiModels) {
-          try {
-            await callGeminiModel(model, prompt, onChunk);
-            return;
-          } catch (err: unknown) {
-            lastErr = err;
-            const msg = err instanceof Error ? err.message : String(err);
-            if (msg.includes("429")) {
-              await new Promise((r) => setTimeout(r, 2000));
-            }
-            continue;
-          }
-        }
-        throw lastErr;
-      },
+// ── Google Gemini ─────────────────────────────────────────────────────────────
+const GEMINI_MODELS = [
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+];
+
+function buildGeminiProvider(googleKey: string): ProviderEntry | null {
+  if (!googleKey || !googleKey.trim().startsWith("AIza")) return null;
+  const key = googleKey.trim();
+
+  const callModel = async (
+    model: string,
+    prompt: string,
+    onChunk: (d: string) => void,
+  ) => {
+    const url =
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}` +
+      `:streamGenerateContent?alt=sse&key=${key}`;
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
+      }),
     });
-  }
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`Gemini ${resp.status} (${model}): ${body.slice(0, 300)}`);
+    }
+    const reader = resp.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const json = line.slice(5).trim();
+        if (!json || json === "[DONE]") continue;
+        try {
+          const obj = JSON.parse(json) as {
+            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+          };
+          const text = obj.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) onChunk(text);
+        } catch { /* skip malformed SSE */ }
+      }
+    }
+  };
 
-  // 4) Plain OpenAI — accept any non-empty key.
-  const oaKey = process.env["OPENAI_API_KEY"];
-  if (oaKey && oaKey.trim().length > 10) {
-    const client = new OpenAI({ apiKey: oaKey.trim() });
-    const model = "gpt-4o-mini";
-    providers.push({
-      label: "openai",
-      model,
-      stream: async (prompt, onChunk) => {
+  return {
+    label: "google-gemini",
+    stream: async (prompt, onChunk, log) => {
+      if (isCooledDown("gemini:auth")) throw new Error("gemini auth circuit open");
+      let lastErr: unknown;
+      for (const model of GEMINI_MODELS) {
+        const modelKey = `gemini:${model}`;
+        if (isCooledDown(modelKey)) continue;
+        try {
+          await callModel(model, prompt, onChunk);
+          return;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (msg.includes("400") && msg.includes("API_KEY")) {
+            setCooldown("gemini:auth", 5 * 60_000);
+            throw err;
+          }
+          if (msg.includes("429")) {
+            // quota exhausted — skip this model for 60 s, no sleep
+            setCooldown(modelKey, 60_000);
+            log?.(`gemini model ${model} quota — skipping 60 s`);
+          } else if (msg.includes("404")) {
+            // model not available for this project — skip permanently for this session
+            setCooldown(modelKey, 60 * 60_000);
+          }
+          lastErr = err;
+        }
+      }
+      throw lastErr ?? new Error("All Gemini models unavailable");
+    },
+  };
+}
+
+// ── Generic OpenAI-compatible provider ───────────────────────────────────────
+function buildOpenAIProvider(apiKey: string, label: string, baseURL?: string): ProviderEntry | null {
+  if (!apiKey || apiKey.trim().length < 10) return null;
+  const client = new OpenAI({
+    apiKey: apiKey.trim(),
+    ...(baseURL ? { baseURL } : {}),
+  });
+  const model = "gpt-4o-mini";
+  return {
+    label,
+    stream: async (prompt, onChunk, log) => {
+      if (isCooledDown(`${label}:auth`)) throw new Error(`${label} auth circuit open`);
+      try {
         const s = await client.chat.completions.create({
           model,
           messages: [{ role: "user", content: prompt }],
@@ -185,26 +198,97 @@ function buildStreamProviders(): StreamProvider[] {
           const delta = chunk.choices?.[0]?.delta?.content;
           if (delta) onChunk(delta);
         }
-      },
-    });
-  }
-
-  return providers;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("401") || msg.includes("403")) {
+          setCooldown(`${label}:auth`, 5 * 60_000);
+          log?.(`${label} auth failure — cooling down 5 min`);
+        }
+        throw err;
+      }
+    },
+  };
 }
 
-const streamProviders = buildStreamProviders();
+// ── Provider type ─────────────────────────────────────────────────────────────
+type ProviderEntry = {
+  label: string;
+  stream: (
+    prompt: string,
+    onChunk: (delta: string) => void,
+    log?: (msg: string) => void,
+  ) => Promise<void>;
+};
 
-if (streamProviders.length === 0) {
+// ── Build provider list once at startup ──────────────────────────────────────
+function buildProviders(): ProviderEntry[] {
+  const list: ProviderEntry[] = [];
+
+  // 1. Replit-managed proxy
+  const replitBase = process.env["AI_INTEGRATIONS_OPENAI_BASE_URL"];
+  const replitKey = process.env["AI_INTEGRATIONS_OPENAI_API_KEY"];
+  if (replitBase && replitKey) {
+    const p = buildOpenAIProvider(replitKey, "replit-ai", replitBase);
+    if (p) list.push(p);
+  }
+
+  // 2. OpenRouter — free models with per-minute rate limits
+  const orKey = process.env["OPENROUTER_API_KEY"] ?? "";
+  const orProvider = buildOpenRouterProvider(orKey);
+  if (orProvider) list.push(orProvider);
+
+  // 3. Google Gemini
+  const googleKey =
+    process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? "";
+  const geminiProvider = buildGeminiProvider(googleKey);
+  if (geminiProvider) list.push(geminiProvider);
+
+  // 4. Plain OpenAI
+  const oaKey = process.env["OPENAI_API_KEY"] ?? "";
+  const oaProvider = buildOpenAIProvider(oaKey, "openai");
+  if (oaProvider) list.push(oaProvider);
+
+  return list;
+}
+
+const allProviders = buildProviders();
+
+if (allProviders.length === 0) {
   throw new Error(
     "No AI provider configured. Set OPENROUTER_API_KEY, GOOGLE_API_KEY, or OPENAI_API_KEY.",
   );
 }
 
-// ── Streaming SSE endpoint ───────────────────────────────────────────────────
+// ── Shared runner ─────────────────────────────────────────────────────────────
+async function runWithFallback(
+  prompt: string,
+  onChunk: (delta: string) => void,
+  logWarn: (msg: string, meta: unknown) => void,
+  logError: (msg: string, meta: unknown) => void,
+): Promise<void> {
+  let lastErr: unknown = null;
+  for (const provider of allProviders) {
+    try {
+      await provider.stream(prompt, onChunk, (msg) =>
+        logWarn(msg, { provider: provider.label }),
+      );
+      return;
+    } catch (err) {
+      lastErr = err;
+      logWarn("Provider failed, trying next", {
+        provider: provider.label,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  logError("All AI providers failed", { err: lastErr });
+  throw lastErr ?? new Error("All providers failed");
+}
+
+// ── Streaming SSE endpoint ────────────────────────────────────────────────────
 router.post("/chat/stream", async (req: Request, res: Response) => {
   const prompt =
     typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
-
   if (!prompt) {
     res.status(400).json({ error: "Missing 'prompt' in request body." });
     return;
@@ -216,28 +300,20 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  const send = (event: string, data: string) => {
+  const send = (event: string, data: string) =>
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-  };
 
-  let lastErr: unknown = null;
-  for (const provider of streamProviders) {
-    try {
-      await provider.stream(prompt, (delta) => send("delta", delta));
-      send("done", "");
-      res.end();
-      return;
-    } catch (err) {
-      lastErr = err;
-      req.log.warn(
-        { err, provider: provider.label, model: provider.model },
-        "Stream provider failed, trying next",
-      );
-    }
+  try {
+    await runWithFallback(
+      prompt,
+      (delta) => send("delta", delta),
+      (msg, meta) => req.log.warn(meta, msg),
+      (msg, meta) => req.log.error(meta, msg),
+    );
+    send("done", "");
+  } catch {
+    send("error", "All AI providers failed. Please try again.");
   }
-
-  req.log.error({ err: lastErr }, "All stream providers failed");
-  send("error", "All AI providers failed. Please try again.");
   res.end();
 });
 
@@ -245,7 +321,6 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
 router.post("/chat", async (req: Request, res: Response) => {
   const prompt =
     typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
-
   if (!prompt) {
     res.status(400).json({ error: "Missing 'prompt' string in request body." });
     return;
@@ -253,23 +328,16 @@ router.post("/chat", async (req: Request, res: Response) => {
 
   try {
     let text = "";
-    let lastErr: unknown = null;
-    for (const provider of streamProviders) {
-      try {
-        await provider.stream(prompt, (delta) => {
-          text += delta;
-        });
-        if (text.trim().length > 0) break;
-      } catch (err) {
-        lastErr = err;
-        req.log.warn({ err, provider: provider.label }, "Provider failed, trying next");
-        text = "";
-      }
-    }
-    if (!text.trim()) throw lastErr ?? new Error("All providers returned empty.");
+    await runWithFallback(
+      prompt,
+      (delta) => { text += delta; },
+      (msg, meta) => req.log.warn(meta, msg),
+      (msg, meta) => req.log.error(meta, msg),
+    );
+    if (!text.trim()) throw new Error("All providers returned empty content.");
     res.json({ text });
   } catch (err) {
-    req.log.error({ err }, "All AI providers failed for chat request");
+    req.log.error({ err }, "Chat request failed");
     res.status(502).json({ error: "AI provider request failed. Please try again." });
   }
 });
