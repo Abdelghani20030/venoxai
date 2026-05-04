@@ -3438,7 +3438,14 @@ function Speaking({
         } : msg);
       });
       if (isCallMode && replyText) {
-        elevenLabsSpeak(replyText, voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID);
+        const transcriptTimer = setTimeout(() => {
+          setMessages(prev => prev.map(msg =>
+            msg.id === aiMsgId ? { ...msg, streaming: false } : msg
+          ));
+        }, 180);
+        elevenLabsSpeak(replyText, voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID).finally(() => {
+          clearTimeout(transcriptTimer);
+        });
       } else if (autoRead && replyText) {
         speakText(replyText);
       }
