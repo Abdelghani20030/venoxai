@@ -24,13 +24,12 @@ function setCooldown(key: string, ms: number) {
 // ── OpenRouter ────────────────────────────────────────────────────────────────
 // Per-minute rate limits exist on free models; we skip rate-limited models for
 // 60 s and circuit-break the whole provider for 5 min on auth failure.
+// Only models confirmed available (200 or 429) for this account.
+// 404 models are excluded — they waste time and have no endpoints.
 const OR_MODELS = [
-  "meta-llama/llama-3.1-8b-instruct:free",   // 8B — fastest first token
-  "mistralai/mistral-7b-instruct:free",        // 7B — very fast
-  "qwen/qwen3-8b:free",                        // 8B — fast
-  "meta-llama/llama-3.3-70b-instruct:free",   // 70B — better quality fallback
-  "google/gemma-3-27b-it:free",               // 27B — moderate speed
-  "deepseek/deepseek-r1-0528:free",           // reasoning — slow, last resort
+  "meta-llama/llama-3.2-3b-instruct:free",   // 3B — smallest, fastest
+  "google/gemma-3-27b-it:free",               // 27B — confirmed OK
+  "meta-llama/llama-3.3-70b-instruct:free",   // 70B — best quality
 ];
 
 function buildOpenRouterProvider(orKey: string): ProviderEntry | null {
@@ -88,10 +87,10 @@ function buildOpenRouterProvider(orKey: string): ProviderEntry | null {
 
 // ── Google Gemini ─────────────────────────────────────────────────────────────
 const GEMINI_MODELS = [
-  "gemini-2.0-flash-lite",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-8b",
+  "gemini-2.5-flash",       // fastest, primary
+  "gemini-2.5-flash-lite",  // lighter 2.5 variant
+  "gemini-2.0-flash",       // fallback if 2.5 quota hits
+  "gemini-2.0-flash-lite",  // last resort
 ];
 
 function buildGeminiProvider(googleKey: string): ProviderEntry | null {
