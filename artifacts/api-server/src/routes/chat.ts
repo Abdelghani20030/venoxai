@@ -40,7 +40,7 @@ function buildStreamProviders(): StreamProvider[] {
   }
 
   // 2) Google Gemini streaming endpoint.
-  const googleKey = process.env["GOOGLE_API_KEY"];
+  const googleKey = process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"];
   if (googleKey && googleKey.startsWith("AIza")) {
     const model = "gemini-2.0-flash";
     providers.push({
