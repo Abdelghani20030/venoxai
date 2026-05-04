@@ -2093,6 +2093,8 @@ function Vocabulary({
   const [contextStory, setContextStory] = useState('');
   const [cardImage, setCardImage] = useState(null);
   const [loadingImage, setLoadingImage] = useState(false);
+  const [collocationData, setCollocationData] = useState('');
+  const [loadingCollocation, setLoadingCollocation] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const t = {
     browse: _resolveTranslation(lang, 'تصفح الكلمات', 'Browse Words'),
@@ -2130,7 +2132,8 @@ function Vocabulary({
     time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
     time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
     time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
-    time4d: _resolveTranslation(lang, '4 أيام', '4 days')
+    time4d: _resolveTranslation(lang, '4 أيام', '4 days'),
+    collocationsBtn: _resolveTranslation(lang, 'التجميعات الاصطلاحية (AI)', 'Collocations (AI)'),
   };
   const dueCards = useMemo(() => {
     const now = Date.now();
@@ -2232,6 +2235,7 @@ function Vocabulary({
     localStorage.setItem('venoxa_srs_data', JSON.stringify(newData));
     setShowMeaning(false);
     setAiStory('');
+    setCollocationData('');
     setCardImage(null);
     if (vocabMode === 'browse') {
       setActiveWordIndex((safeIndex + 1) % filteredVocabList.length);
@@ -2322,6 +2326,16 @@ function Vocabulary({
     } finally {
       setLoadingContextStory(false);
     }
+  };
+  const generateCollocations = async () => {
+    if (loadingCollocation || collocationData || !card) return;
+    setLoadingCollocation(true);
+    try {
+      const prompt = `You are an English collocations dictionary similar to ozdic.com. For the word "${card.word}", list the most common and natural collocations grouped by grammatical pattern. Use this exact format (skip patterns with no collocations, max 6 per group):\nVERB + ${card.word}: verb1, verb2, verb3\nADJ + ${card.word}: adj1, adj2, adj3\n${card.word} + NOUN: noun1, noun2\n${card.word} + VERB: verb1, verb2\nPREPOSITION: in ~, at ~, on ~\nOutput only the collocation list, no extra explanations.`;
+      const res = await fetchFromGemini(prompt, AI_KEY);
+      const errJson = parseGeminiJSON(res);
+      setCollocationData(errJson?.error ? errJson.error : res);
+    } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
   };
   return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
@@ -2453,13 +2467,15 @@ function Vocabulary({
           {!aiStory && <button onClick={e => {
             e.stopPropagation();
             generateStory();
-          }} disabled={loadingAi} className="flex-1 bg-orange-50 text-orange-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
+          }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
           {!cardImage && <button onClick={e => {
             e.stopPropagation();
             generateImage();
-          }} disabled={loadingImage} className="flex-1 bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+          }} disabled={loadingImage} className="flex-1 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
         </div>
 
+        {collocationData && <div className="bg-gray-50 dark:bg-[#1a1a1e] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-gray-200 text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiStory && <div className={`bg-gray-50 dark:bg-[#1a1a1e] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(aiStory)}</div></div>}
@@ -3077,6 +3093,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
   const stopAudio = () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     if (audioBlobUrlRef.current) { URL.revokeObjectURL(audioBlobUrlRef.current); audioBlobUrlRef.current = null; }
+    try { if (_currentTTSAudio) { _currentTTSAudio.pause(); _currentTTSAudio.src = ''; } } catch {}
+    window.speechSynthesis?.cancel();
     setAudioState('idle');
   };
 
@@ -3291,15 +3309,16 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
           <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap justify-center md:justify-end">
-          {/* UK/US accent toggle */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1 border border-gray-200 dark:border-gray-700">
-            <button onClick={() => setVoiceAccent('uk')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇬🇧 UK</button>
-            <button onClick={() => setVoiceAccent('us')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇺🇸 US</button>
-          </div>
           {type === 'reading' && (
-            <button onClick={handleGenerate} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition whitespace-nowrap">
-              {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
-            </button>
+            <>
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1 border border-gray-200 dark:border-gray-700">
+                <button onClick={() => setVoiceAccent('uk')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇬🇧 UK</button>
+                <button onClick={() => setVoiceAccent('us')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇺🇸 US</button>
+              </div>
+              <button onClick={handleGenerate} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition whitespace-nowrap">
+                {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -3564,8 +3583,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
               {audioState === 'loading' ? _resolveTranslation(lang, 'جاري التحميل...', 'Loading...') : audioState === 'playing' ? _resolveTranslation(lang, 'إيقاف مؤقت', 'Pause') : _resolveTranslation(lang, 'قراءة بصوت', 'Read Aloud')}
             </button>
             {audioState !== 'idle' && (
-              <button onClick={stopAudio} className="px-3 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition">
-                <RotateCcw className="w-3.5 h-3.5" />
+              <button onClick={stopAudio} className="flex items-center gap-1 px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                <RotateCcw className="w-3.5 h-3.5" /> {_resolveTranslation(lang, 'إيقاف', 'Stop')}
               </button>
             )}
             <div className="flex gap-1 ml-auto bg-gray-200 dark:bg-gray-800 rounded-xl p-1">
@@ -4343,6 +4362,8 @@ function Langeek({
   const [contextStory, setContextStory] = useState('');
   const [cardImage, setCardImage] = useState(null);
   const [loadingImage, setLoadingImage] = useState(false);
+  const [collocationData, setCollocationData] = useState('');
+  const [loadingCollocation, setLoadingCollocation] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const t = {
     browse: _resolveTranslation(lang, 'تصفح كلمات لانجيك', 'Browse Langeek Words'),
@@ -4381,7 +4402,8 @@ function Langeek({
     time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
     time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
     time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
-    time4d: _resolveTranslation(lang, '4 أيام', '4 days')
+    time4d: _resolveTranslation(lang, '4 أيام', '4 days'),
+    collocationsBtn: _resolveTranslation(lang, 'التجميعات الاصطلاحية (AI)', 'Collocations (AI)'),
   };
   const dueCards = useMemo(() => {
     const now = Date.now();
@@ -4485,6 +4507,7 @@ function Langeek({
     localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(newData));
     setShowMeaning(false);
     setAiStory('');
+    setCollocationData('');
     setCardImage(null);
     if (vocabMode === 'browse') {
       setActiveWordIndex((safeIndex + 1) % filteredVocabList.length);
@@ -4575,6 +4598,16 @@ function Langeek({
     } finally {
       setLoadingContextStory(false);
     }
+  };
+  const generateCollocations = async () => {
+    if (loadingCollocation || collocationData || !card) return;
+    setLoadingCollocation(true);
+    try {
+      const prompt = `You are an English collocations dictionary similar to ozdic.com. For the word "${card.word}", list the most common and natural collocations grouped by grammatical pattern. Use this exact format (skip patterns with no collocations, max 6 per group):\nVERB + ${card.word}: verb1, verb2, verb3\nADJ + ${card.word}: adj1, adj2, adj3\n${card.word} + NOUN: noun1, noun2\n${card.word} + VERB: verb1, verb2\nPREPOSITION: in ~, at ~, on ~\nOutput only the collocation list, no extra explanations.`;
+      const res = await fetchFromGemini(prompt, AI_KEY);
+      const errJson = parseGeminiJSON(res);
+      setCollocationData(errJson?.error ? errJson.error : res);
+    } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
   };
   return <div className="max-w-3xl mx-auto w-full space-y-5 lg:space-y-6 animate-fadeIn">
     <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
@@ -4717,13 +4750,15 @@ function Langeek({
           {!aiStory && <button onClick={e => {
             e.stopPropagation();
             generateStory();
-          }} disabled={loadingAi} className="flex-1 bg-orange-50 text-orange-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
+          }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
           {!cardImage && <button onClick={e => {
             e.stopPropagation();
             generateImage();
-          }} disabled={loadingImage} className="flex-1 bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+          }} disabled={loadingImage} className="flex-1 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
         </div>
 
+        {collocationData && <div className="bg-gray-50 dark:bg-[#1a1a1e] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-gray-200 text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiStory && <div className={`bg-gray-50 dark:bg-[#1a1a1e] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(aiStory)}</div></div>}
