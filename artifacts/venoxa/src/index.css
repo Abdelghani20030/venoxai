@@ -163,6 +163,17 @@ html, body, #root {
     page-break-inside: auto !important;
     break-inside: auto !important;
   }
+  table {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+  }
+  th, td {
+    border: 1px solid #000 !important;
+    background-clip: padding-box !important;
+  }
+  table, thead, tbody, tr, th, td {
+    border-color: #000 !important;
+  }
   /* Ensure WebKit prints background colors so the styled table reads properly. */
   * {
     -webkit-print-color-adjust: exact !important;
