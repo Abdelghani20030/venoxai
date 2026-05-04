@@ -2213,6 +2213,7 @@ function Vocabulary({
   }, [globalVocab, levelFilter, searchQuery]);
   const safeIndex = activeWordIndex < filteredVocabList.length ? activeWordIndex : 0;
   const card = vocabMode === 'review' ? dueCards[0] : filteredVocabList[safeIndex];
+  useEffect(() => { setAiStory(''); setCardImage(null); setCollocationData(''); }, [card?.word]);
   useEffect(() => {
     if (vocabMode === 'browse' && filteredVocabList.length > 0 && activeWordIndex >= filteredVocabList.length) {
       setActiveWordIndex(0);
@@ -3198,10 +3199,24 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
     setUserAnswers({});
     setQuizSubmitted(false);
     try {
-      const prompt = `Based on this passage, create exactly 3 multiple-choice comprehension questions. Return ONLY valid JSON with no extra text: {"questions":[{"q":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A"}]}. The "answer" field must be only the letter A, B, C, or D. Passage: "${story.slice(0, 900)}"`;
+      const prompt = `Create exactly 4 multiple-choice comprehension questions about this passage. Return ONLY a JSON array with no extra text or markdown:\n[{"q":"Question?","options":["A. option1","B. option2","C. option3","D. option4"],"answer":"A"},{"q":"...","options":[...],"answer":"B"}]\nRules: "answer" must be exactly one uppercase letter A, B, C, or D. Base questions strictly on the passage content.\nPassage:\n${story.slice(0, 1200)}`;
       const raw = await fetchFromGemini(prompt, AI_KEY);
-      const json = parseGeminiJSON(raw);
-      setQuiz(json?.questions?.length ? json.questions : []);
+      let questions = null;
+      const trimmed = raw.trim();
+      const arrStart = trimmed.indexOf('[');
+      const arrEnd = trimmed.lastIndexOf(']');
+      const objStart = trimmed.indexOf('{');
+      const objEnd = trimmed.lastIndexOf('}');
+      if (arrStart !== -1 && arrEnd !== -1 && (objStart === -1 || arrStart < objStart)) {
+        try { const arr = JSON.parse(trimmed.slice(arrStart, arrEnd + 1)); if (Array.isArray(arr)) questions = arr; } catch {}
+      }
+      if (!questions && objStart !== -1 && objEnd !== -1) {
+        try { const obj = JSON.parse(trimmed.slice(objStart, objEnd + 1)); questions = obj.questions || obj.quiz || null; } catch {}
+      }
+      if (questions?.length) {
+        questions = questions.map(q => ({ ...q, answer: String(q.answer || '').trim().toUpperCase().charAt(0) }));
+      }
+      setQuiz(questions?.length ? questions : []);
     } catch { setQuiz([]); }
     setQuizLoading(false);
   };
@@ -4485,6 +4500,7 @@ function Langeek({
   }, [langeekVocab, levelFilter, categoryFilter, searchQuery]);
   const safeIndex = activeWordIndex < filteredVocabList.length ? activeWordIndex : 0;
   const card = vocabMode === 'review' ? dueCards[0] : filteredVocabList[safeIndex];
+  useEffect(() => { setAiStory(''); setCardImage(null); setCollocationData(''); }, [card?.word]);
   useEffect(() => {
     if (vocabMode === 'browse' && filteredVocabList.length > 0 && activeWordIndex >= filteredVocabList.length) {
       setActiveWordIndex(0);
