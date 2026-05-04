@@ -39,53 +39,83 @@ function buildStreamProviders(): StreamProvider[] {
     });
   }
 
-  // 2) Google Gemini streaming endpoint.
+  // 2) Google Gemini streaming endpoint — tries multiple models with retry on 429.
   const googleKey = process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"];
   if (googleKey && googleKey.startsWith("AIza")) {
-    const model = "gemini-2.0-flash";
-    providers.push({
-      label: "google-gemini",
-      model,
-      stream: async (prompt, onChunk) => {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${googleKey}`;
-        const resp = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 200, temperature: 0.7 },
-          }),
-        });
-        if (!resp.ok) {
-          const body = await resp.text();
-          throw new Error(`Gemini ${resp.status}: ${body.slice(0, 300)}`);
-        }
-        const reader = resp.body!.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split("\n");
-          buf = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.startsWith("data:")) continue;
-            const json = line.slice(5).trim();
-            if (!json || json === "[DONE]") continue;
-            try {
-              const obj = JSON.parse(json) as {
-                candidates?: Array<{
-                  content?: { parts?: Array<{ text?: string }> };
-                }>;
-              };
-              const text = obj.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text) onChunk(text);
-            } catch {
-              // malformed SSE line — skip
-            }
+    // Models ordered by free-tier availability; all are tried on any error.
+    const geminiModels = [
+      "gemini-2.0-flash-lite",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-flash-8b-latest",
+    ];
+
+    const callGeminiModel = async (
+      model: string,
+      prompt: string,
+      onChunk: (delta: string) => void,
+    ): Promise<void> => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${googleKey}`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
+        }),
+      });
+      if (!resp.ok) {
+        const body = await resp.text();
+        throw new Error(`Gemini ${resp.status}: ${body.slice(0, 300)}`);
+      }
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue;
+          const json = line.slice(5).trim();
+          if (!json || json === "[DONE]") continue;
+          try {
+            const obj = JSON.parse(json) as {
+              candidates?: Array<{
+                content?: { parts?: Array<{ text?: string }> };
+              }>;
+            };
+            const text = obj.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) onChunk(text);
+          } catch {
+            // malformed SSE line — skip
           }
         }
+      }
+    };
+
+    providers.push({
+      label: "google-gemini",
+      model: geminiModels[0],
+      stream: async (prompt, onChunk) => {
+        let lastErr: unknown;
+        for (const model of geminiModels) {
+          try {
+            await callGeminiModel(model, prompt, onChunk);
+            return;
+          } catch (err: unknown) {
+            lastErr = err;
+            const msg = err instanceof Error ? err.message : String(err);
+            // On rate-limit wait before next model; on any other error try next immediately.
+            if (msg.includes("429")) {
+              await new Promise((r) => setTimeout(r, 2000));
+            }
+            continue;
+          }
+        }
+        throw lastErr;
       },
     });
   }
