@@ -2951,13 +2951,7 @@ function Grammar({
     try {
       const prompt = `You are an expert English grammar teacher. Explain the grammar rule: "${topic}" for a ${levelStr} level student.
       The explanation MUST be in ${_resolveTranslation(lang, 'Arabic', 'English')}. Keep it clear, simple, and provide 3 distinct examples in English with their translation in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
-      const responseText = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(responseText);
-      if (errJson && errJson.error) {
-        setExplanation(errJson.error);
-      } else {
-        setExplanation(responseText);
-      }
+      await streamText(prompt, setExplanation);
     } catch (err) {
       setExplanation(t.error);
     } finally {
@@ -3659,10 +3653,10 @@ function Writing({
     if (!writingTopic) { setWritingQuestion(''); return; }
     setLoadingQuestion(true);
     const prompt = `Generate a clear and engaging writing prompt question about the topic: "${writingTopic.split('(')[0].trim()}" for an English language learner. Make it one direct question that encourages 2-3 paragraphs of writing. Return only the question text, nothing else.`;
-    fetchFromGemini(prompt, AI_KEY).then(response => {
-      setWritingQuestion(cleanFallbackText(response));
-      setLoadingQuestion(false);
-    }).catch(() => { setWritingQuestion(''); setLoadingQuestion(false); });
+    let _wq = '';
+    streamFromAPI(prompt, (delta) => { _wq += delta; setWritingQuestion(cleanFallbackText(_wq)); })
+      .then(() => setLoadingQuestion(false))
+      .catch(() => { setWritingQuestion(''); setLoadingQuestion(false); });
   }, [writingTopic]);
   const t = {
     title: _resolveTranslation(lang, 'مصحح الكتابة المتقدم', 'Advanced AI Corrector'),
@@ -4545,13 +4539,7 @@ function Langeek({
     try {
       const prompt = `أنت معلم لغة إنجليزية مرح. قم بتأليف قصة قصيرة جداً ومضحكة (سطرين أو ثلاثة فقط) باللغة الإنجليزية تتضمن الكلمة "${card.word}" (والتي تعني: ${card.meaning}) لمساعدة طالب مستواه ${userLevel} على تذكرها بسهولة.
       بعد القصة الإنجليزية، أضف سطرين باللغة ${_resolveTranslation(lang, 'العربية', 'الإنجليزية')} تشرح فيهما كيف تم استخدام الكلمة في القصة.`;
-      const responseText = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(responseText);
-      if (errJson && errJson.error) {
-        setAiStory(errJson.error);
-      } else {
-        setAiStory(responseText);
-      }
+      await streamText(prompt, setAiStory);
     } catch (err) {
       setAiStory(t.storyError);
     } finally {
@@ -4595,13 +4583,7 @@ function Langeek({
     try {
       const wordsStr = hardWords.map(w => w.word).join(', ');
       const prompt = `You are a creative writing teacher. Use ALL of these words: [${wordsStr}] in a single short, coherent, and interesting story in English. The story should be accessible for a ${userLevel} learner. After the story, explain the context of each word in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
-      const response = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(response);
-      if (errJson && errJson.error) {
-        setContextStory(errJson.error);
-      } else {
-        setContextStory(response);
-      }
+      await streamText(prompt, setContextStory);
     } catch (e) {
       setContextStory(t.storyError);
     } finally {
@@ -4613,9 +4595,7 @@ function Langeek({
     setLoadingCollocation(true);
     try {
       const prompt = `You are an English collocations dictionary similar to ozdic.com. For the word "${card.word}", list the most common and natural collocations grouped by grammatical pattern. Use this exact format (skip patterns with no collocations, max 6 per group):\nVERB + ${card.word}: verb1, verb2, verb3\nADJ + ${card.word}: adj1, adj2, adj3\n${card.word} + NOUN: noun1, noun2\n${card.word} + VERB: verb1, verb2\nPREPOSITION: in ~, at ~, on ~\nOutput only the collocation list, no extra explanations.`;
-      const res = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(res);
-      setCollocationData(errJson?.error ? errJson.error : res);
+      await streamText(prompt, setCollocationData);
     } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
