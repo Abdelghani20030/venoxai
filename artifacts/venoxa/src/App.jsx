@@ -167,7 +167,7 @@ const fetchFromGemini = async (prompt, _apiKey) => {
   const url = `${import.meta.env.BASE_URL}api/chat`;
   try {
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 20000);
+    const timeout = window.setTimeout(() => controller.abort(), 60000);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -192,7 +192,7 @@ const fetchFromGemini = async (prompt, _apiKey) => {
 const streamFromAPI = async (prompt, onDelta) => {
   const url = `${import.meta.env.BASE_URL}api/chat/stream`;
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 20000);
+  const timeout = window.setTimeout(() => controller.abort(), 60000);
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -230,6 +230,16 @@ const streamFromAPI = async (prompt, onDelta) => {
     window.clearTimeout(timeout);
     throw err;
   }
+};
+
+// Convenience wrapper: streams into a React state setter so text appears word-by-word.
+const streamText = async (prompt, setText) => {
+  let accumulated = '';
+  await streamFromAPI(prompt, (delta) => {
+    accumulated += delta;
+    setText(accumulated);
+  });
+  return accumulated;
 };
 
 const parseGeminiJSON = text => {
@@ -2266,13 +2276,7 @@ function Vocabulary({
     try {
       const prompt = `أنت معلم لغة إنجليزية مرح. قم بتأليف قصة قصيرة جداً ومضحكة (سطرين أو ثلاثة فقط) باللغة الإنجليزية تتضمن الكلمة "${card.word}" (والتي تعني: ${card.meaning}) لمساعدة طالب مستواه ${userLevel} على تذكرها بسهولة.
       بعد القصة الإنجليزية، أضف سطرين باللغة ${_resolveTranslation(lang, 'العربية', 'الإنجليزية')} تشرح فيهما كيف تم استخدام الكلمة في القصة.`;
-      const responseText = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(responseText);
-      if (errJson && errJson.error) {
-        setAiStory(errJson.error);
-      } else {
-        setAiStory(responseText);
-      }
+      await streamText(prompt, setAiStory);
     } catch (err) {
       setAiStory(t.storyError);
     } finally {
@@ -2316,13 +2320,7 @@ function Vocabulary({
     try {
       const wordsStr = hardWords.map(w => w.word).join(', ');
       const prompt = `You are a creative writing teacher. Use ALL of these words: [${wordsStr}] in a single short, coherent, and interesting story in English. The story should be accessible for a ${userLevel} learner. After the story, explain the context of each word in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
-      const response = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(response);
-      if (errJson && errJson.error) {
-        setContextStory(errJson.error);
-      } else {
-        setContextStory(response);
-      }
+      await streamText(prompt, setContextStory);
     } catch (e) {
       setContextStory(t.storyError);
     } finally {
@@ -2334,9 +2332,7 @@ function Vocabulary({
     setLoadingCollocation(true);
     try {
       const prompt = `You are an English collocations dictionary similar to ozdic.com. For the word "${card.word}", list the most common and natural collocations grouped by grammatical pattern. Use this exact format (skip patterns with no collocations, max 6 per group):\nVERB + ${card.word}: verb1, verb2, verb3\nADJ + ${card.word}: adj1, adj2, adj3\n${card.word} + NOUN: noun1, noun2\n${card.word} + VERB: verb1, verb2\nPREPOSITION: in ~, at ~, on ~\nOutput only the collocation list, no extra explanations.`;
-      const res = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(res);
-      setCollocationData(errJson?.error ? errJson.error : res);
+      await streamText(prompt, setCollocationData);
     } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
@@ -2588,9 +2584,7 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }
     setLoadingAi(true);
     try {
       const prompt = `You are a fun English teacher. Write a vivid, memorable 2-3 line story in English using the phrasal verb "${card.word}" (meaning: ${card.meaning}) to help a ${userLevel} learner remember it. Then add a brief ${_resolveTranslation(lang, 'Arabic', 'English')} note explaining how the phrasal verb was used.`;
-      const res = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(res);
-      setAiStory(errJson?.error ? errJson.error : res);
+      await streamText(prompt, setAiStory);
     } catch { setAiStory('Error generating story.'); } finally { setLoadingAi(false); }
   };
   const generateImage = async () => {
@@ -2825,9 +2819,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
     setLoadingAi(true);
     try {
       const prompt = `Create one natural, realistic English sentence using the idiom or slang expression "${card.word}" (which means: ${card.meaning}). The sentence should be suitable for a ${userLevel} learner. After the English sentence, add a short ${_resolveTranslation(lang, 'Arabic', 'English')} note explaining how the expression is used in context. Output the sentence first, then the note on a new line.`;
-      const res = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(res);
-      setAiSentence(errJson?.error ? errJson.error : res);
+      await streamText(prompt, setAiSentence);
     } catch { setAiSentence('Error generating sentence.'); } finally { setLoadingAi(false); }
   };
   const generateImage = async () => {
@@ -3137,9 +3129,9 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
       const prompt = type === 'listening'
         ? `Write a natural, engaging ${wc}-word spoken passage (podcast-style monologue or short story) for a ${userLevel} English learner. Topic: "${topicText}". Use vocabulary and grammar appropriate for ${userLevel} level. Write naturally flowing speech. No bullet points, no headers, no markdown. Plain text only.`
         : `Write a ${wc}-word story/passage for a ${userLevel} English learner. Topic: "${topicText}". Include a short vocabulary list at the end with ${lang === 'ar' ? 'Arabic' : 'simple English'} meanings. Plain text, no markdown.`;
-      const response = await fetchFromGemini(prompt, AI_KEY);
-      const errJson = parseGeminiJSON(response);
-      setStory(errJson?.error ? errJson.error : cleanFallbackText(response));
+      let _full = '';
+      await streamFromAPI(prompt, (delta) => { _full += delta; setStory(_full); });
+      setStory(cleanFallbackText(_full) || _full);
     } catch { setStory('Error generating content.'); }
     setLoading(false);
   };

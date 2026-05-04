@@ -25,12 +25,12 @@ function setCooldown(key: string, ms: number) {
 // Per-minute rate limits exist on free models; we skip rate-limited models for
 // 60 s and circuit-break the whole provider for 5 min on auth failure.
 const OR_MODELS = [
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "mistralai/mistral-7b-instruct:free",
-  "deepseek/deepseek-r1-0528:free",
-  "qwen/qwen3-8b:free",
+  "meta-llama/llama-3.1-8b-instruct:free",   // 8B — fastest first token
+  "mistralai/mistral-7b-instruct:free",        // 7B — very fast
+  "qwen/qwen3-8b:free",                        // 8B — fast
+  "meta-llama/llama-3.3-70b-instruct:free",   // 70B — better quality fallback
+  "google/gemma-3-27b-it:free",               // 27B — moderate speed
+  "deepseek/deepseek-r1-0528:free",           // reasoning — slow, last resort
 ];
 
 function buildOpenRouterProvider(orKey: string): ProviderEntry | null {
