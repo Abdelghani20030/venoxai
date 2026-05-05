@@ -428,7 +428,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   const normalized = normalizeTTSText(text);
   const ck = _audioCacheKey(normalized, 'edge:' + voice);
 
-  // Cache hit — play instantly, zero network
+  // Cache hit — play instantly from IndexedDB, zero network
   const cached = await _getCachedAudio(ck);
   if (cached) {
     await _playCachedAudio(cached);
@@ -436,16 +436,33 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
     return true;
   }
 
+  // Cache miss — start streaming playback IMMEDIATELY via <audio src>
+  // (the browser begins playing as soon as the first bytes arrive, no need
+  //  to wait for the full download). In parallel, fetch the same URL into
+  //  an ArrayBuffer and store it in IndexedDB. The server sets long-lived
+  //  immutable Cache-Control, so the second fetch is served from the
+  //  browser's HTTP cache and adds no real network cost.
   try {
-    // Fetch the full audio buffer so we can cache it for instant future replay
     const params = new URLSearchParams({ text: normalized, voice });
-    const resp = await fetch(`/api/edge-tts?${params}`);
-    if (!resp.ok) return false;
-    const buf = await resp.arrayBuffer();
-    // Save under both the edge-specific key and the top-level caller key
-    _setCachedAudio(ck, buf);
-    if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
-    await _playCachedAudio(buf);
+    const url = `/api/edge-tts?${params}`;
+
+    const audio = new Audio(url);
+    audio.preload = 'auto';
+    _currentTTSAudio = audio;
+    audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+    audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+
+    // Kick off the cache-fill in the background — does not block playback.
+    fetch(url)
+      .then(r => (r.ok ? r.arrayBuffer() : null))
+      .then(buf => {
+        if (!buf) return;
+        _setCachedAudio(ck, buf);
+        if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
+      })
+      .catch(() => {});
+
+    await audio.play();
     _lastTTSEngine = 'edge';
     return true;
   } catch (err) {

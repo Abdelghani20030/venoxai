@@ -60,7 +60,10 @@ async function streamTTS(
   req.log?.info({ voice, len: text.length }, "Edge TTS stream");
 
   res.setHeader("Content-Type", "audio/mpeg");
-  res.setHeader("Cache-Control", "no-store");
+  // Identical (text, voice) always produces identical audio, so let the browser
+  // cache aggressively. Subsequent <audio> requests hit the HTTP cache and play
+  // without any network round-trip.
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
   res.setHeader("Transfer-Encoding", "chunked");
 
   try {
