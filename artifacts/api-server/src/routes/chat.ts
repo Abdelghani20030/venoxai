@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
 const router: IRouter = Router();
 
@@ -116,88 +117,101 @@ const GEMINI_MODELS = [
   "gemini-2.0-flash-lite",  // last resort
 ];
 
-function buildGeminiProvider(googleKey: string): ProviderEntry | null {
-  if (!googleKey || !googleKey.trim().startsWith("AIza")) return null;
-  const key = googleKey.trim();
+// ── Gemini provider builder ───────────────────────────────────────────────────
+// Can build either the Replit integration proxy provider or the direct-key provider.
+
+function buildGeminiProvider(googleKey: string, forceMode?: "integration" | "direct"): ProviderEntry | null {
+  const integrationBase = (process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"] ?? "").trim();
+  const integrationKey  = (process.env["AI_INTEGRATIONS_GEMINI_API_KEY"]  ?? "").trim();
+  const hasIntegration  = integrationBase.length > 0 && integrationKey.length > 0;
+  const hasDirectKey    = googleKey.trim().startsWith("AIza");
+
+  const mode = forceMode ?? (hasIntegration ? "integration" : "direct");
+
+  if (mode === "integration" && !hasIntegration) return null;
+  if (mode === "direct"      && !hasDirectKey)    return null;
+
+  const usingIntegration = mode === "integration";
+  const client = usingIntegration
+    ? new GoogleGenAI({ apiKey: integrationKey, httpOptions: { apiVersion: "", baseUrl: integrationBase } })
+    : new GoogleGenAI({ apiKey: googleKey.trim() });
+
+  // Integration only supports a subset of models.
+  const INTEGRATION_MODELS = ["gemini-2.5-flash", "gemini-3-flash-preview"];
+  const models = usingIntegration ? INTEGRATION_MODELS : GEMINI_MODELS;
 
   const callModel = async (
     model: string,
     prompt: string,
     onChunk: (d: string) => void,
   ) => {
-    const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}` +
-      `:streamGenerateContent?alt=sse&key=${key}`;
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: 2048,
-          temperature: 0.7,
-          // Disable thinking mode on 2.5 models — cuts latency from 5-8s to <1s
-          ...(model.startsWith("gemini-2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-        },
-      }),
+    const stream = await client.models.generateContentStream({
+      model,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        maxOutputTokens: 8192,
+        temperature: 0.7,
+        // Disable thinking mode on 2.5 models — cuts latency from 5-8s to <1s
+        ...(model.startsWith("gemini-2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      },
     });
-    if (!resp.ok) {
-      const body = await resp.text();
-      throw new Error(`Gemini ${resp.status} (${model}): ${body.slice(0, 300)}`);
-    }
-    const reader = resp.body!.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop() ?? "";
-      for (const line of lines) {
-        if (!line.startsWith("data:")) continue;
-        const json = line.slice(5).trim();
-        if (!json || json === "[DONE]") continue;
-        try {
-          const obj = JSON.parse(json) as {
-            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-          };
-          const text = obj.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) onChunk(text);
-        } catch { /* skip malformed SSE */ }
-      }
+    for await (const chunk of stream) {
+      const text = chunk.text;
+      if (text) onChunk(text);
     }
   };
 
+  // Use separate cooldown namespaces so integration failures don't block the
+  // user's direct Gemini key and vice-versa.
+  const ns = usingIntegration ? "gemini-int" : "gemini";
+  const label = usingIntegration ? "gemini-integration" : "google-gemini";
+
   return {
-    label: "google-gemini",
+    label,
     stream: async (prompt, onChunk, log) => {
-      if (isCooledDown("gemini:auth")) throw new Error("gemini auth circuit open");
+      if (isCooledDown(`${ns}:auth`)) throw new Error(`${label} auth circuit open`);
+      // Provider-level circuit breaker: if every model recently failed, fail fast
+      // so we fall through to OpenRouter immediately instead of re-checking each model.
+      if (isCooledDown(`${ns}:all`)) throw new Error(`All ${label} models unavailable (cooling)`);
       let lastErr: unknown;
-      for (const model of GEMINI_MODELS) {
-        const modelKey = `gemini:${model}`;
+      let availableModels = 0;
+      for (const model of models) {
+        const modelKey = `${ns}:${model}`;
         if (isCooledDown(modelKey)) continue;
+        availableModels++;
         try {
           await callModel(model, prompt, onChunk);
           return;
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
-          if (msg.includes("400") && msg.includes("API_KEY")) {
-            setCooldown("gemini:auth", 5 * 60_000);
+          // Auth/key errors — put entire namespace in long cooldown and fast-fail
+          const isAuthErr =
+            msg.includes("401") ||
+            msg.includes("ApiKey not approved") ||
+            msg.includes("ApiKeyNotApproved") ||
+            msg.includes("oauth.v2") ||
+            (msg.includes("400") && msg.includes("API_KEY"));
+          if (isAuthErr) {
+            // Integration proxy auth issues: cool down for 60 min (won't fix itself)
+            const authCooldown = usingIntegration ? 60 * 60_000 : 5 * 60_000;
+            setCooldown(`${ns}:auth`, authCooldown);
+            log?.(`${label} auth error — cooling down ${authCooldown / 60_000} min`);
             throw err;
           }
-          if (msg.includes("429")) {
-            // quota exhausted — skip for 60 s (Gemini's RPM window is 1 min)
+          if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
             setCooldown(modelKey, 60_000);
-            log?.(`gemini model ${model} quota — skipping 60 s`);
-          } else if (msg.includes("404")) {
-            // model not available for this project — skip permanently for this session
+            log?.(`${label} model ${model} quota — skipping 60 s`);
+          } else if (msg.includes("404") || msg.includes("NOT_FOUND")) {
             setCooldown(modelKey, 60 * 60_000);
           }
           lastErr = err;
         }
       }
-      throw lastErr ?? new Error("All Gemini models unavailable");
+      // All models failed — set a short provider-level cooldown so the next
+      // request falls through to OpenRouter instantly rather than re-checking.
+      setCooldown(`${ns}:all`, 90_000);
+      if (availableModels === 0) throw new Error(`All ${label} models unavailable`);
+      throw lastErr ?? new Error(`All ${label} models unavailable`);
     },
   };
 }
@@ -251,13 +265,18 @@ type ProviderEntry = {
 function buildProviders(): ProviderEntry[] {
   const list: ProviderEntry[] = [];
 
-  // 1. Google Gemini — fastest, primary AI provider
   const googleKey =
-    process.env["GEMINI_API_KEYY"] ?? process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? "";
-  const geminiProvider = buildGeminiProvider(googleKey);
-  if (geminiProvider) list.push(geminiProvider);
+    process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? "";
 
-  // 2. OpenRouter — fallback when Gemini quota is exhausted
+  // 1. Gemini via Replit AI Integration proxy — highest priority, separate quota
+  const integrationProvider = buildGeminiProvider(googleKey, "integration");
+  if (integrationProvider) list.push(integrationProvider);
+
+  // 2. Gemini via user's direct API key — second priority, used when integration is down
+  const directProvider = buildGeminiProvider(googleKey, "direct");
+  if (directProvider) list.push(directProvider);
+
+  // 3. OpenRouter — reliable fallback when all Gemini quota is exhausted
   const orKey = process.env["OPENROUTER_API_KEY"] ?? "";
   const orProvider = buildOpenRouterProvider(orKey);
   if (orProvider) list.push(orProvider);
