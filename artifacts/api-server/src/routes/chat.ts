@@ -1,11 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import OpenAI from "openai";
-import { GoogleGenAI } from "@google/genai";
 
 const router: IRouter = Router();
 
 // ── Response cache ─────────────────────────────────────────────────────────────
-// Avoids redundant AI calls when the same prompt fires within 2 minutes.
 const responseCache = new Map<string, { text: string; expires: number }>();
 const CACHE_TTL_MS = 2 * 60_000;
 const CACHE_MAX = 100;
@@ -26,16 +24,12 @@ function setCache(prompt: string, text: string) {
 }
 
 // ── Circuit breaker ───────────────────────────────────────────────────────────
-// Tracks when a provider/model should be skipped until (epoch ms).
 const cooldowns = new Map<string, number>();
 
 function isCooledDown(key: string): boolean {
   const until = cooldowns.get(key);
   if (!until) return false;
-  if (Date.now() > until) {
-    cooldowns.delete(key);
-    return false;
-  }
+  if (Date.now() > until) { cooldowns.delete(key); return false; }
   return true;
 }
 
@@ -44,278 +38,67 @@ function setCooldown(key: string, ms: number) {
 }
 
 // ── OpenRouter ────────────────────────────────────────────────────────────────
-// Per-minute rate limits exist on free models; we skip rate-limited models for
-// 60 s and circuit-break the whole provider for 5 min on auth failure.
-// Only models confirmed available (200 or 429) for this account.
-// 404 models are excluded — they waste time and have no endpoints.
 const OR_MODELS = [
-  "openai/gpt-oss-20b:free",                 // confirmed OK — fast
-  "openai/gpt-oss-120b:free",               // confirmed OK — best quality
-  "meta-llama/llama-3.2-3b-instruct:free",   // 3B — fastest when not rate-limited
-  "google/gemma-3-27b-it:free",               // 27B — fallback
-  "meta-llama/llama-3.3-70b-instruct:free",   // 70B — last resort
+  "openai/gpt-oss-20b:free",
+  "openai/gpt-oss-120b:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "google/gemma-3-27b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
 ];
 
-function buildOpenRouterProvider(orKey: string): ProviderEntry | null {
-  if (!orKey || orKey.trim().length < 10) return null;
-  const client = new OpenAI({
-    apiKey: orKey.trim(),
-    baseURL: "https://openrouter.ai/api/v1",
-    defaultHeaders: {
-      "HTTP-Referer": "https://venoxa.replit.app",
-      "X-Title": "Venoxa AI Platform",
-    },
-  });
+const orKey = (process.env["OPENROUTER_API_KEYY"] ?? "").trim();
 
-  return {
-    label: "openrouter",
-    stream: async (prompt, onChunk, log) => {
-      if (isCooledDown("openrouter:auth")) {
-        throw new Error("openrouter auth circuit open");
-      }
-      let lastErr: unknown;
-      for (const model of OR_MODELS) {
-        const modelKey = `openrouter:${model}`;
-        if (isCooledDown(modelKey)) continue;
-        try {
-          const s = await client.chat.completions.create({
-            model,
-            messages: [{ role: "user", content: prompt }],
-            max_completion_tokens: 8192,
-            stream: true,
-          });
-          for await (const chunk of s) {
-            const delta = chunk.choices?.[0]?.delta?.content;
-            if (delta) onChunk(delta);
-          }
-          return;
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (msg.includes("401") || msg.includes("403")) {
-            // Auth failure — no point retrying any OR model
-            setCooldown("openrouter:auth", 5 * 60_000);
-            log?.(`openrouter auth failure — cooling down 5 min`);
-            throw err;
-          }
-          if (msg.includes("429") || msg.includes("rate") || msg.includes("limit")) {
-            setCooldown(modelKey, 15_000);
-            log?.(`openrouter model ${model} rate-limited — skipping 15 s`);
-          }
-          lastErr = err;
-        }
-      }
-      throw lastErr ?? new Error("All OpenRouter models unavailable");
-    },
-  };
+if (!orKey || orKey.length < 10) {
+  throw new Error("OPENROUTER_API_KEYY is not set. Please add it to your environment secrets.");
 }
 
-// ── Google Gemini ─────────────────────────────────────────────────────────────
-const GEMINI_MODELS = [
-  "gemini-2.5-flash",       // fastest, primary
-  "gemini-2.5-flash-lite",  // lighter 2.5 variant
-  "gemini-2.0-flash",       // fallback if 2.5 quota hits
-  "gemini-2.0-flash-lite",  // last resort
-];
+const orClient = new OpenAI({
+  apiKey: orKey,
+  baseURL: "https://openrouter.ai/api/v1",
+  defaultHeaders: {
+    "HTTP-Referer": "https://venoxa.replit.app",
+    "X-Title": "Venoxa AI Platform",
+  },
+});
 
-// ── Gemini provider builder ───────────────────────────────────────────────────
-// Can build either the Replit integration proxy provider or the direct-key provider.
-
-function buildGeminiProvider(googleKey: string, forceMode?: "integration" | "direct"): ProviderEntry | null {
-  const integrationBase = (process.env["AI_INTEGRATIONS_GEMINI_BASE_URL"] ?? "").trim();
-  const integrationKey  = (process.env["AI_INTEGRATIONS_GEMINI_API_KEY"]  ?? "").trim();
-  const hasIntegration  = integrationBase.length > 0 && integrationKey.length > 0;
-  const hasDirectKey    = googleKey.trim().startsWith("AIza");
-
-  const mode = forceMode ?? (hasIntegration ? "integration" : "direct");
-
-  if (mode === "integration" && !hasIntegration) return null;
-  if (mode === "direct"      && !hasDirectKey)    return null;
-
-  const usingIntegration = mode === "integration";
-  const client = usingIntegration
-    ? new GoogleGenAI({ apiKey: integrationKey, httpOptions: { apiVersion: "", baseUrl: integrationBase } })
-    : new GoogleGenAI({ apiKey: googleKey.trim() });
-
-  // Integration only supports a subset of models.
-  const INTEGRATION_MODELS = ["gemini-2.5-flash", "gemini-3-flash-preview"];
-  const models = usingIntegration ? INTEGRATION_MODELS : GEMINI_MODELS;
-
-  const callModel = async (
-    model: string,
-    prompt: string,
-    onChunk: (d: string) => void,
-  ) => {
-    const stream = await client.models.generateContentStream({
-      model,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        maxOutputTokens: 8192,
-        temperature: 0.7,
-        // Disable thinking mode on 2.5 models — cuts latency from 5-8s to <1s
-        ...(model.startsWith("gemini-2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-      },
-    });
-    for await (const chunk of stream) {
-      const text = chunk.text;
-      if (text) onChunk(text);
-    }
-  };
-
-  // Use separate cooldown namespaces so integration failures don't block the
-  // user's direct Gemini key and vice-versa.
-  const ns = usingIntegration ? "gemini-int" : "gemini";
-  const label = usingIntegration ? "gemini-integration" : "google-gemini";
-
-  return {
-    label,
-    stream: async (prompt, onChunk, log) => {
-      if (isCooledDown(`${ns}:auth`)) throw new Error(`${label} auth circuit open`);
-      // Provider-level circuit breaker: if every model recently failed, fail fast
-      // so we fall through to OpenRouter immediately instead of re-checking each model.
-      if (isCooledDown(`${ns}:all`)) throw new Error(`All ${label} models unavailable (cooling)`);
-      let lastErr: unknown;
-      let availableModels = 0;
-      for (const model of models) {
-        const modelKey = `${ns}:${model}`;
-        if (isCooledDown(modelKey)) continue;
-        availableModels++;
-        try {
-          await callModel(model, prompt, onChunk);
-          return;
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          // Auth/key errors — put entire namespace in long cooldown and fast-fail
-          const isAuthErr =
-            msg.includes("401") ||
-            msg.includes("ApiKey not approved") ||
-            msg.includes("ApiKeyNotApproved") ||
-            msg.includes("oauth.v2") ||
-            (msg.includes("400") && msg.includes("API_KEY"));
-          if (isAuthErr) {
-            // Integration proxy auth issues: cool down for 60 min (won't fix itself)
-            const authCooldown = usingIntegration ? 60 * 60_000 : 5 * 60_000;
-            setCooldown(`${ns}:auth`, authCooldown);
-            log?.(`${label} auth error — cooling down ${authCooldown / 60_000} min`);
-            throw err;
-          }
-          if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED")) {
-            setCooldown(modelKey, 60_000);
-            log?.(`${label} model ${model} quota — skipping 60 s`);
-          } else if (msg.includes("404") || msg.includes("NOT_FOUND")) {
-            setCooldown(modelKey, 60 * 60_000);
-          }
-          lastErr = err;
-        }
-      }
-      // All models failed — set a short provider-level cooldown so the next
-      // request falls through to OpenRouter instantly rather than re-checking.
-      setCooldown(`${ns}:all`, 90_000);
-      if (availableModels === 0) throw new Error(`All ${label} models unavailable`);
-      throw lastErr ?? new Error(`All ${label} models unavailable`);
-    },
-  };
-}
-
-// ── Generic OpenAI-compatible provider ───────────────────────────────────────
-function buildOpenAIProvider(apiKey: string, label: string, baseURL?: string): ProviderEntry | null {
-  if (!apiKey || apiKey.trim().length < 10) return null;
-  const client = new OpenAI({
-    apiKey: apiKey.trim(),
-    ...(baseURL ? { baseURL } : {}),
-  });
-  const model = "gpt-4o-mini";
-  return {
-    label,
-    stream: async (prompt, onChunk, log) => {
-      if (isCooledDown(`${label}:auth`)) throw new Error(`${label} auth circuit open`);
-      try {
-        const s = await client.chat.completions.create({
-          model,
-          messages: [{ role: "user", content: prompt }],
-          max_completion_tokens: 8192,
-          stream: true,
-        });
-        for await (const chunk of s) {
-          const delta = chunk.choices?.[0]?.delta?.content;
-          if (delta) onChunk(delta);
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("401") || msg.includes("403")) {
-          setCooldown(`${label}:auth`, 5 * 60_000);
-          log?.(`${label} auth failure — cooling down 5 min`);
-        }
-        throw err;
-      }
-    },
-  };
-}
-
-// ── Provider type ─────────────────────────────────────────────────────────────
-type ProviderEntry = {
-  label: string;
-  stream: (
-    prompt: string,
-    onChunk: (delta: string) => void,
-    log?: (msg: string) => void,
-  ) => Promise<void>;
-};
-
-// ── Build provider list once at startup ──────────────────────────────────────
-function buildProviders(): ProviderEntry[] {
-  const list: ProviderEntry[] = [];
-
-  const googleKey =
-    process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? "";
-
-  // 1. Gemini via Replit AI Integration proxy — highest priority, separate quota
-  const integrationProvider = buildGeminiProvider(googleKey, "integration");
-  if (integrationProvider) list.push(integrationProvider);
-
-  // 2. Gemini via user's direct API key — second priority, used when integration is down
-  const directProvider = buildGeminiProvider(googleKey, "direct");
-  if (directProvider) list.push(directProvider);
-
-  // 3. OpenRouter — reliable fallback when all Gemini quota is exhausted
-  const orKey = process.env["OPENROUTER_API_KEY"] ?? "";
-  const orProvider = buildOpenRouterProvider(orKey);
-  if (orProvider) list.push(orProvider);
-
-  return list;
-}
-
-const allProviders = buildProviders();
-
-if (allProviders.length === 0) {
-  throw new Error(
-    "No AI provider configured. Set OPENROUTER_API_KEY, GOOGLE_API_KEY, or OPENAI_API_KEY.",
-  );
-}
-
-// ── Shared runner ─────────────────────────────────────────────────────────────
-async function runWithFallback(
+async function streamFromOpenRouter(
   prompt: string,
   onChunk: (delta: string) => void,
-  logWarn: (msg: string, meta: unknown) => void,
-  logError: (msg: string, meta: unknown) => void,
+  log?: (msg: string) => void,
 ): Promise<void> {
-  let lastErr: unknown = null;
-  for (const provider of allProviders) {
+  if (isCooledDown("openrouter:auth")) throw new Error("OpenRouter auth circuit open");
+
+  let lastErr: unknown;
+  for (const model of OR_MODELS) {
+    const modelKey = `openrouter:${model}`;
+    if (isCooledDown(modelKey)) continue;
     try {
-      await provider.stream(prompt, onChunk, (msg) =>
-        logWarn(msg, { provider: provider.label }),
-      );
-      return;
-    } catch (err) {
-      lastErr = err;
-      logWarn("Provider failed, trying next", {
-        provider: provider.label,
-        err: err instanceof Error ? err.message : String(err),
+      const s = await orClient.chat.completions.create({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        max_completion_tokens: 8192,
+        stream: true,
       });
+      for await (const chunk of s) {
+        const delta = chunk.choices?.[0]?.delta?.content;
+        if (delta) onChunk(delta);
+      }
+      return;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("401") || msg.includes("403")) {
+        setCooldown("openrouter:auth", 5 * 60_000);
+        log?.("OpenRouter auth failure — cooling down 5 min");
+        throw err;
+      }
+      if (msg.includes("429") || msg.includes("rate") || msg.includes("limit")) {
+        setCooldown(modelKey, 15_000);
+        log?.(`OpenRouter model ${model} rate-limited — skipping 15 s`);
+      }
+      lastErr = err;
     }
   }
-  logError("All AI providers failed", { err: lastErr });
-  throw lastErr ?? new Error("All providers failed");
+  throw lastErr ?? new Error("All OpenRouter models unavailable");
 }
 
 // ── Streaming SSE endpoint ────────────────────────────────────────────────────
@@ -336,7 +119,6 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
   const send = (event: string, data: string) =>
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
-  // Serve from cache instantly as a single delta
   const hit = getCached(prompt);
   if (hit) {
     send("delta", hit);
@@ -347,16 +129,15 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
 
   try {
     let full = "";
-    await runWithFallback(
+    await streamFromOpenRouter(
       prompt,
       (delta) => { full += delta; send("delta", delta); },
-      (msg, meta) => req.log.warn(meta, msg),
-      (msg, meta) => req.log.error(meta, msg),
+      (msg) => req.log.warn({ provider: "openrouter" }, msg),
     );
     if (full.trim()) setCache(prompt, full);
     send("done", "");
   } catch {
-    send("error", "All AI providers failed. Please try again.");
+    send("error", "AI request failed. Please try again.");
   }
   res.end();
 });
@@ -370,24 +151,22 @@ router.post("/chat", async (req: Request, res: Response) => {
     return;
   }
 
-  // Serve from cache
   const hit = getCached(prompt);
   if (hit) { res.json({ text: hit }); return; }
 
   try {
     let text = "";
-    await runWithFallback(
+    await streamFromOpenRouter(
       prompt,
       (delta) => { text += delta; },
-      (msg, meta) => req.log.warn(meta, msg),
-      (msg, meta) => req.log.error(meta, msg),
+      (msg) => req.log.warn({ provider: "openrouter" }, msg),
     );
-    if (!text.trim()) throw new Error("All providers returned empty content.");
+    if (!text.trim()) throw new Error("OpenRouter returned empty content.");
     setCache(prompt, text);
     res.json({ text });
   } catch (err) {
     req.log.error({ err }, "Chat request failed");
-    res.status(502).json({ error: "AI provider request failed. Please try again." });
+    res.status(502).json({ error: "AI request failed. Please try again." });
   }
 });
 
