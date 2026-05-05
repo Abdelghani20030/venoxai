@@ -17,8 +17,11 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 
 const router: IRouter = Router();
 
-const VOICE_MALE   = "en-GB-RyanNeural";
-const VOICE_FEMALE = "en-GB-SoniaNeural";
+// Use Microsoft's "Multilingual Neural" voices — newer generation that sounds
+// markedly more natural and conversational than the older Neural voices.
+// "Brian" is the warm, confident American male (close cousin to ElevenLabs Brian).
+const VOICE_MALE   = "en-US-BrianMultilingualNeural";
+const VOICE_FEMALE = "en-US-AvaMultilingualNeural";
 
 // ── Connection pool ──────────────────────────────────────────────────────────
 // We keep one "warm" (already-handshaked) MsEdgeTTS promise per voice so

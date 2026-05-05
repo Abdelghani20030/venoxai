@@ -407,11 +407,15 @@ let _elevenLabsQuotaExceeded = false;
 // 'elevenlabs' | 'edge' | 'browser' | null
 let _lastTTSEngine = null;
 // Global accent preference — 'uk' or 'us'. Updated by the accent toggle.
-let _voiceAccent = 'uk';
+let _voiceAccent = 'us';
 
+// Multilingual Neural voices are Microsoft's newest, most natural-sounding
+// generation — they sound conversational and human, much closer to ElevenLabs
+// quality than the older Neural voices. "BrianMultilingual" is the warm,
+// confident American male voice the user wants.
 const EDGE_VOICES = {
-  uk: { male: 'en-GB-RyanNeural',    female: 'en-GB-SoniaNeural' },
-  us: { male: 'en-US-AndrewNeural',  female: 'en-US-JennyNeural' },
+  uk: { male: 'en-GB-RyanNeural',                female: 'en-GB-SoniaNeural' },
+  us: { male: 'en-US-BrianMultilingualNeural',   female: 'en-US-AvaMultilingualNeural' },
 };
 
 /**
@@ -3153,7 +3157,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
   const [dictAudioState, setDictAudioState] = useState('idle');
   const dictAudioRef = useRef(null);
 
-  const [voiceAccent, setVoiceAccent] = useState('uk');
+  const [voiceAccent, setVoiceAccent] = useState('us');
   useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
 
   const LISTEN_TOPICS = [
@@ -3945,7 +3949,7 @@ function Speaking({
   const callAudioRef = useRef(null);
   const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
   const [ttsEngine, setTtsEngine] = useState('elevenlabs'); // 'elevenlabs' | 'edge' | 'browser'
-  const [voiceAccent, setVoiceAccent] = useState('uk'); // 'uk' | 'us'
+  const [voiceAccent, setVoiceAccent] = useState('us'); // 'uk' | 'us'
   const chatEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const saveConversationToHistory = (conversation) => {
