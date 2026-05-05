@@ -127,6 +127,15 @@ async function getAudio(voice: string, text: string): Promise<Buffer> {
 }
 
 // ── Shared stream helper ─────────────────────────────────────────────────────
+// Strategy:
+//   1. Cache hit  → send buffer immediately with Content-Length (instant).
+//   2. Inflight   → wait for the coalesced promise, then send (avoids double
+//                   synthesis when two requests arrive for the same text).
+//   3. Cache miss → pipe chunks to the response AS THEY ARRIVE from Edge TTS,
+//                   so the browser <audio> starts playing on the very first
+//                   chunk (~200-400 ms) instead of waiting for full synthesis
+//                   (~2-5 s). Chunks are also collected and stored in the LRU
+//                   cache for instant serving on the next request.
 
 async function streamTTS(
   text: string,
@@ -135,29 +144,89 @@ async function streamTTS(
   res: Response,
 ): Promise<void> {
   res.setHeader("Content-Type", "audio/mpeg");
-  // Identical (text, voice) always produces identical audio, so let the browser
-  // cache aggressively. Subsequent <audio> requests hit the HTTP cache and play
-  // without any network round-trip.
   res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
 
-  try {
-    const t0 = Date.now();
-    const buf = await getAudio(voice, text);
-    const cached = audioCache.has(cacheKey(voice, text)) && Date.now() - t0 < 5;
-    req.log?.info(
-      { voice, len: text.length, bytes: buf.length, ms: Date.now() - t0, cached },
-      "Edge TTS served",
-    );
-    res.setHeader("Content-Length", String(buf.length));
-    res.end(buf);
-  } catch (err) {
-    req.log?.error({ err }, "Edge TTS synth failed");
-    if (!res.headersSent) {
-      res.status(502).json({ error: "Edge TTS failed." });
-    } else if (!res.writableEnded) {
-      res.end();
-    }
+  const key = cacheKey(voice, text);
+
+  // ── 1. Cache hit ─────────────────────────────────────────────────────────
+  const hit = cacheGet(key);
+  if (hit) {
+    req.log?.info({ voice, len: text.length, bytes: hit.length, cached: true }, "Edge TTS served");
+    res.setHeader("Content-Length", String(hit.length));
+    res.end(hit);
+    return;
   }
+
+  // ── 2. Inflight dedup ────────────────────────────────────────────────────
+  const pending = inflight.get(key);
+  if (pending) {
+    try {
+      const buf = await pending;
+      res.setHeader("Content-Length", String(buf.length));
+      res.end(buf);
+    } catch (err) {
+      req.log?.error({ err }, "Edge TTS inflight failed");
+      if (!res.headersSent) res.status(502).json({ error: "Edge TTS failed." });
+      else if (!res.writableEnded) res.end();
+    }
+    return;
+  }
+
+  // ── 3. True streaming ────────────────────────────────────────────────────
+  // Acquire the warm WebSocket connection first (fast when pool is pre-warmed).
+  let tts: MsEdgeTTS;
+  try {
+    tts = await acquireConnection(voice);
+  } catch (err) {
+    req.log?.error({ err }, "Edge TTS connection failed");
+    if (!res.headersSent) res.status(502).json({ error: "Edge TTS failed." });
+    return;
+  }
+
+  const t0 = Date.now();
+  const chunks: Buffer[] = [];
+  let done = false;
+
+  const bufferPromise = new Promise<Buffer>((resolve, reject) => {
+    const { audioStream } = tts.toStream(text);
+
+    audioStream.on("data", (chunk: Buffer) => {
+      chunks.push(chunk);
+      if (!res.writableEnded) res.write(chunk);
+    });
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      if (chunks.length === 0) {
+        reject(new Error("audio stream produced no data"));
+        if (!res.writableEnded) res.end();
+        return;
+      }
+      const buf = Buffer.concat(chunks);
+      cachePut(key, buf);
+      req.log?.info(
+        { voice, len: text.length, bytes: buf.length, ms: Date.now() - t0 },
+        "Edge TTS stream done",
+      );
+      resolve(buf);
+      if (!res.writableEnded) res.end();
+    };
+
+    audioStream.on("end",   finish);
+    audioStream.on("close", finish);
+    audioStream.on("error", (err: Error) => {
+      if (done) return;
+      done = true;
+      req.log?.error({ err }, "Edge TTS audio stream error");
+      reject(err);
+      if (!res.writableEnded) res.end();
+    });
+  });
+
+  inflight.set(key, bufferPromise);
+  bufferPromise.catch(() => {}).finally(() => inflight.delete(key));
+  // Intentionally NOT awaited — chunks are already flowing to `res` above.
 }
 
 // ── GET /api/edge-tts  ───────────────────────────────────────────────────────
