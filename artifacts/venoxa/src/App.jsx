@@ -280,6 +280,96 @@ const safeRender = val => {
   return String(val);
 };
 
+// --- TTS TEXT NORMALIZER ---
+// Strips markdown formatting so "**Hello**" and "Hello" map to the same cache entry.
+const normalizeTTSText = (raw) => raw
+  .replace(/\*\*(.+?)\*\*/gs, '$1')
+  .replace(/\*(.+?)\*/gs, '$1')
+  .replace(/__(.+?)__/gs, '$1')
+  .replace(/_(.+?)_/gs, '$1')
+  .replace(/`{1,3}[\s\S]*?`{1,3}/g, '')
+  .replace(/#{1,6}\s+/g, '')
+  .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+// --- AUDIO CACHE (IndexedDB) ---
+// Stores synthesised audio as ArrayBuffers keyed by {text}|{voiceId} hash.
+// A vocabulary app repeats the same words hundreds of times — caching them
+// means ElevenLabs is called exactly once per unique (text, voice) pair,
+// making the monthly quota effectively unlimited for normal usage.
+const _CACHE_DB_NAME  = 'venoxa-tts-v1';
+const _CACHE_STORE    = 'audio';
+const _CACHE_MAX      = 500; // max stored entries before LRU eviction
+
+const _djb2 = s => {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h, 33) ^ s.charCodeAt(i);
+  return (h >>> 0).toString(36);
+};
+const _audioCacheKey = (text, voiceId) => _djb2(text.trim().toLowerCase() + '\x00' + voiceId);
+
+let _audioCacheDb = null;
+const _openAudioCache = () => {
+  if (_audioCacheDb) return Promise.resolve(_audioCacheDb);
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(_CACHE_DB_NAME, 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(_CACHE_STORE)) {
+        const st = db.createObjectStore(_CACHE_STORE, { keyPath: 'k' });
+        st.createIndex('ts', 'ts');
+      }
+    };
+    req.onsuccess = e => { _audioCacheDb = e.target.result; resolve(_audioCacheDb); };
+    req.onerror   = () => reject(req.error);
+  });
+};
+
+const _getCachedAudio = async (key) => {
+  try {
+    const db = await _openAudioCache();
+    return await new Promise((resolve, reject) => {
+      const req = db.transaction(_CACHE_STORE, 'readonly')
+                    .objectStore(_CACHE_STORE).get(key);
+      req.onsuccess = e => resolve(e.target.result?.buf ?? null);
+      req.onerror   = reject;
+    });
+  } catch { return null; }
+};
+
+const _setCachedAudio = async (key, arrayBuf) => {
+  try {
+    const db = await _openAudioCache();
+    const tx = db.transaction(_CACHE_STORE, 'readwrite');
+    const st = tx.objectStore(_CACHE_STORE);
+    st.put({ k: key, buf: arrayBuf, ts: Date.now() });
+    // Prune oldest entries when over the cap
+    const cnt = st.count();
+    cnt.onsuccess = () => {
+      if (cnt.result > _CACHE_MAX) {
+        const cur = st.index('ts').openCursor();
+        let del = 0;
+        cur.onsuccess = e => {
+          const c = e.target.result;
+          if (c && del < 60) { c.delete(); del++; c.continue(); }
+        };
+      }
+    };
+  } catch { /* non-critical */ }
+};
+
+const _playCachedAudio = async (arrayBuf) => {
+  const blob = new Blob([arrayBuf], { type: 'audio/mpeg' });
+  const url  = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  _currentTTSAudio = audio;
+  audio.onended = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+  audio.onerror = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+  await audio.play();
+  _lastTTSEngine = 'elevenlabs';
+};
+
 // --- ELEVENLABS TTS HELPER ---
 // TTS calls are made DIRECTLY from the browser to ElevenLabs (not through the
 // backend server). This is required because ElevenLabs free-tier blocks
@@ -405,6 +495,10 @@ let _currentTTSAudio = null;
 const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
   if (!text || !text.trim()) return;
 
+  // Normalize text: strip markdown so "**Hello**" hits the same cache as "Hello"
+  const normalizedText = normalizeTTSText(text);
+  if (!normalizedText) return;
+
   // Stop any currently-playing TTS audio
   if (_currentTTSAudio) {
     _currentTTSAudio.pause();
@@ -412,17 +506,26 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
+  // --- Resolve voice (needed for both cache key and API call) ---
+  const isArabic = hasArabicText(normalizedText);
+  let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
+  if (isArabic) {
+    if (resolvedVoiceId === ELEVENLABS_SARAH_ID) resolvedVoiceId = ARABIC_FEMALE_VOICE_ID;
+    else if (resolvedVoiceId === ELEVENLABS_BRIAN_ID || resolvedVoiceId === DEFAULT_ELEVENLABS_VOICE_ID) resolvedVoiceId = ARABIC_MALE_VOICE_ID;
+  }
+
+  // --- Cache check: play instantly if we've synthesised this before ---
+  const cacheKey = _audioCacheKey(normalizedText, resolvedVoiceId);
+  const cached = await _getCachedAudio(cacheKey);
+  if (cached) {
+    await _playCachedAudio(cached);
+    return;
+  }
+
   const apiKey = await getElevenLabsKey();
 
   if (apiKey && !_elevenLabsQuotaExceeded) {
-    const isArabic = hasArabicText(text);
     const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
-
-    let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
-    if (isArabic) {
-      if (resolvedVoiceId === ELEVENLABS_SARAH_ID) resolvedVoiceId = ARABIC_FEMALE_VOICE_ID;
-      else if (resolvedVoiceId === ELEVENLABS_BRIAN_ID || resolvedVoiceId === DEFAULT_ELEVENLABS_VOICE_ID) resolvedVoiceId = ARABIC_MALE_VOICE_ID;
-    }
 
     // Retry up to 2 times on transient server errors (5xx, network hiccups).
     // Do NOT retry on 401 (bad key) or 429 (quota) — those are persistent.
@@ -439,7 +542,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
               Accept: 'audio/mpeg',
             },
             body: JSON.stringify({
-              text,
+              text: normalizedText,
               model_id: modelId,
               voice_settings: {
                 stability: 0.35,
@@ -483,10 +586,11 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
           continue; // retry on 5xx
         }
 
-        // Success — stream audio directly so playback starts on first chunk
+        // Success — read full buffer so we can cache it, then play
         _elevenLabsQuotaExceeded = false;
-        await _streamAudioResponse(response);
-        _lastTTSEngine = 'elevenlabs';
+        const audioBuf = await response.arrayBuffer();
+        _setCachedAudio(cacheKey, audioBuf); // non-blocking write to IndexedDB
+        await _playCachedAudio(audioBuf);
         return; // success — skip fallback
       } catch (err) {
         console.warn(`[Venoxa] ElevenLabs network error (attempt ${attempt + 1}):`, err.message);

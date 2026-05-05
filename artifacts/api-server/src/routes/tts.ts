@@ -6,15 +6,14 @@
  *   POST /api/tts/stream  — Accepts { textToSpeak, selectedVoiceId } and
  *                           streams back audio/mpeg from ElevenLabs.
  *
- * The API key is read exclusively from the ELEVENLABS_API_KEY environment
- * variable.
+ * Key rotation: reads ELEVENLABS_API_KEY, ELEVENLABS_API_KEY_2,
+ * ELEVENLABS_API_KEY_3 … in order. When a key hits quota/rate-limit it is
+ * marked exhausted for 1 hour then retried automatically — so adding extra
+ * keys makes quota effectively unlimited.
  *
  * Voice resolution strategy (free-plan compatible):
  *   1. Use the caller-supplied voice ID if one is given.
- *   2. Try to fetch the account's own voices (requires voices_read scope).
- *      Pick the first generated/cloned voice which is always accessible.
- *   3. Fall back to a single fast default voice.
- *   4. Cache the first working voice ID in memory for the server lifetime.
+ *   2. Fall back to a single fast default voice.
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
@@ -24,74 +23,58 @@ const router: IRouter = Router();
 /** Base URL for the ElevenLabs v1 REST API. */
 const ELEVENLABS_BASE = "https://api.elevenlabs.io/v1";
 
-/**
- * Default voices that we can probe quickly. This list is intentionally short
- * to keep the first request fast.
- */
-const FREE_PLAN_FALLBACK_VOICES = [
-  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam" },
+// --------------------------------------------------------------------------
+// Multi-key rotation
+// --------------------------------------------------------------------------
+
+const KEY_ENV_NAMES = [
+  "ELEVENLABS_API_KEY",
+  "ELEVENLABS_API_KEY_2",
+  "ELEVENLABS_API_KEY_3",
+  "ELEVENLABS_API_KEY_4",
+  "ELEVENLABS_API_KEY_5",
 ];
 
-function getElevenLabsKey(): string {
-  const key = process.env["ELEVENLABS_API_KEY"];
-  if (!key || key === "your_api_key_here" || key.trim() === "") {
+/** Keys that have hit quota/rate-limit, mapped to the timestamp when they
+ *  were marked exhausted. Reset automatically after KEY_COOLDOWN_MS. */
+const exhaustedKeys = new Map<string, number>();
+const KEY_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+
+function getActiveKeys(): string[] {
+  const now = Date.now();
+  const active: string[] = [];
+  for (const name of KEY_ENV_NAMES) {
+    const key = process.env[name]?.trim();
+    if (!key || key === "your_api_key_here") continue;
+    const exhaustedAt = exhaustedKeys.get(key);
+    if (exhaustedAt && now - exhaustedAt < KEY_COOLDOWN_MS) continue; // still cooling down
+    if (exhaustedAt) exhaustedKeys.delete(key); // cooldown expired — allow retry
+    active.push(key);
+  }
+  return active;
+}
+
+function markKeyExhausted(key: string): void {
+  exhaustedKeys.set(key, Date.now());
+}
+
+function getNextKey(): string {
+  const keys = getActiveKeys();
+  if (keys.length === 0) {
     throw new Error(
-      "ELEVENLABS_API_KEY is not configured. Add it to your environment variables.",
+      "All ElevenLabs API keys are exhausted or unconfigured. " +
+        "Add ELEVENLABS_API_KEY (and optionally ELEVENLABS_API_KEY_2 … _5) to your environment variables.",
     );
   }
-  return key.trim();
+  return keys[0];
 }
 
 // --------------------------------------------------------------------------
 // Voice resolution cache
 // --------------------------------------------------------------------------
 
-/** Cached working voice ID — resolved lazily and reused. */
-let cachedDefaultVoiceId: string | null = "pNInz6obpgDQGcFmaJgB";
-
-/**
- * Tries to resolve the best default voice for this account.
- *
- * Priority:
- *   1. Fetch account voices (if voices_read scope is available) and pick
- *      the first generated/cloned voice.
- *   2. Fall back to the fast default voice immediately.
- */
-async function resolveDefaultVoiceId(key: string): Promise<string> {
-  if (cachedDefaultVoiceId) return cachedDefaultVoiceId;
-
-  // --- Attempt 1: use the account's own voices list ---
-  try {
-    const voicesRes = await fetch(`${ELEVENLABS_BASE}/voices`, {
-      headers: { "xi-api-key": key, Accept: "application/json" },
-    });
-
-    if (voicesRes.ok) {
-      const data = (await voicesRes.json()) as {
-        voices: Array<{ voice_id: string; name: string; category?: string }>;
-      };
-      const voices = data.voices ?? [];
-      // Prefer account-owned (generated / cloned) which are always accessible.
-      const owned = voices.find(
-        (v) => v.category === "generated" || v.category === "cloned",
-      );
-      if (owned) {
-        cachedDefaultVoiceId = owned.voice_id;
-        return cachedDefaultVoiceId;
-      }
-      // Take whatever is first if no owned voices
-      if (voices.length > 0) {
-        cachedDefaultVoiceId = voices[0].voice_id;
-        return cachedDefaultVoiceId;
-      }
-    }
-    // If voices_read is missing (403) or any other error, fall through
-  } catch {
-    // Network / parse error — fall through to probe strategy
-  }
-
-  return FREE_PLAN_FALLBACK_VOICES[0].id;
-}
+/** Default voice ID used when the caller doesn't specify one. */
+const DEFAULT_VOICE_ID = "pNInz6obpgDQGcFmaJgB"; // Adam
 
 // --------------------------------------------------------------------------
 // GET /api/voices
@@ -100,7 +83,7 @@ async function resolveDefaultVoiceId(key: string): Promise<string> {
 router.get("/voices", async (req: Request, res: Response) => {
   let key: string;
   try {
-    key = getElevenLabsKey();
+    key = getNextKey();
   } catch (err) {
     req.log?.warn({ err }, "ElevenLabs key not configured");
     res.status(503).json({ error: (err as Error).message });
@@ -152,15 +135,6 @@ router.get("/voices", async (req: Request, res: Response) => {
 // --------------------------------------------------------------------------
 
 router.post("/tts/stream", async (req: Request, res: Response) => {
-  let key: string;
-  try {
-    key = getElevenLabsKey();
-  } catch (err) {
-    req.log?.warn({ err }, "ElevenLabs key not configured");
-    res.status(503).json({ error: (err as Error).message });
-    return;
-  }
-
   const textToSpeak =
     typeof req.body?.textToSpeak === "string" ? req.body.textToSpeak.trim() : "";
   const requestedVoiceId =
@@ -173,78 +147,95 @@ router.post("/tts/stream", async (req: Request, res: Response) => {
     return;
   }
 
-  let voiceId: string;
-  try {
-    voiceId = requestedVoiceId || (await resolveDefaultVoiceId(key));
-  } catch (err) {
-    req.log?.error({ err }, "Could not resolve a usable ElevenLabs voice");
-    res.status(503).json({ error: (err as Error).message });
+  const voiceId = requestedVoiceId || DEFAULT_VOICE_ID;
+
+  // Try each active key in order; if one is exhausted rotate to the next.
+  const keysToTry = getActiveKeys();
+  if (keysToTry.length === 0) {
+    res.status(503).json({
+      error:
+        "All ElevenLabs API keys are exhausted. Add more keys via ELEVENLABS_API_KEY_2 … _5.",
+    });
     return;
   }
 
-  req.log?.info({ voiceId }, "ElevenLabs TTS request");
+  for (const key of keysToTry) {
+    req.log?.info({ voiceId, keyIndex: keysToTry.indexOf(key) }, "ElevenLabs TTS request");
 
-  try {
-    const ttsResponse = await fetch(
-      `${ELEVENLABS_BASE}/text-to-speech/${voiceId}/stream`,
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": key,
-          "Content-Type": "application/json",
-          Accept: "audio/mpeg",
-        },
-        body: JSON.stringify({
-          text: textToSpeak,
-          model_id: "eleven_turbo_v2_5",
-          voice_settings: {
-            stability: 0.2,
-            similarity_boost: 0.9,
-            style: 0.45,
-            use_speaker_boost: true,
+    try {
+      const ttsResponse = await fetch(
+        `${ELEVENLABS_BASE}/text-to-speech/${voiceId}/stream`,
+        {
+          method: "POST",
+          headers: {
+            "xi-api-key": key,
+            "Content-Type": "application/json",
+            Accept: "audio/mpeg",
           },
-        }),
-      },
-    );
+          body: JSON.stringify({
+            text: textToSpeak,
+            model_id: "eleven_turbo_v2_5",
+            voice_settings: {
+              stability: 0.2,
+              similarity_boost: 0.9,
+              style: 0.45,
+              use_speaker_boost: true,
+            },
+          }),
+        },
+      );
 
-    if (!ttsResponse.ok) {
-      const body = await ttsResponse.text();
-      req.log?.error({ status: ttsResponse.status, body }, "ElevenLabs TTS error");
-
-      // Clear cache so the next request will probe for a new working voice
-      if (ttsResponse.status === 402 || ttsResponse.status === 403) {
-        cachedDefaultVoiceId = null;
+      // Quota or rate-limit — mark this key exhausted and try the next one
+      if (ttsResponse.status === 401 || ttsResponse.status === 429) {
+        const body = await ttsResponse.text().catch(() => "");
+        req.log?.warn(
+          { status: ttsResponse.status, body: body.slice(0, 200) },
+          "ElevenLabs key exhausted — rotating to next key",
+        );
+        markKeyExhausted(key);
+        continue; // try next key
       }
 
-      res
-        .status(ttsResponse.status)
-        .json({ error: `ElevenLabs TTS error: ${body.slice(0, 300)}` });
-      return;
-    }
+      if (!ttsResponse.ok) {
+        const body = await ttsResponse.text();
+        req.log?.error({ status: ttsResponse.status, body }, "ElevenLabs TTS error");
+        res
+          .status(ttsResponse.status)
+          .json({ error: `ElevenLabs TTS error: ${body.slice(0, 300)}` });
+        return;
+      }
 
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Transfer-Encoding", "chunked");
-    res.setHeader("Cache-Control", "no-cache");
+      // Success — stream audio back to the client
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Transfer-Encoding", "chunked");
+      res.setHeader("Cache-Control", "no-cache");
 
-    if (ttsResponse.body) {
-      const reader = ttsResponse.body.getReader();
-      const pump = async () => {
+      if (ttsResponse.body) {
+        const reader = ttsResponse.body.getReader();
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           res.write(Buffer.from(value));
         }
         res.end();
-      };
-      await pump();
-    } else {
-      res.end();
+      } else {
+        res.end();
+      }
+      return; // done — don't try more keys
+    } catch (err) {
+      req.log?.error({ err }, "ElevenLabs TTS stream failed");
+      if (!res.headersSent) {
+        res.status(502).json({ error: "TTS streaming failed. Please try again." });
+      }
+      return;
     }
-  } catch (err) {
-    req.log?.error({ err }, "ElevenLabs TTS stream failed");
-    if (!res.headersSent) {
-      res.status(502).json({ error: "TTS streaming failed. Please try again." });
-    }
+  }
+
+  // All keys exhausted
+  if (!res.headersSent) {
+    res.status(503).json({
+      error: "All ElevenLabs API keys are currently exhausted. Please try again later.",
+    });
   }
 });
 
