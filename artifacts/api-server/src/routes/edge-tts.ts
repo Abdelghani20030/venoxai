@@ -49,6 +49,80 @@ async function acquireConnection(voice: string): Promise<MsEdgeTTS> {
 prewarm(VOICE_MALE);
 prewarm(VOICE_FEMALE);
 
+// ── In-memory LRU audio cache ────────────────────────────────────────────────
+// Identical (voice, text) inputs always produce identical audio. We hold the
+// full Buffer in memory so any repeat request is served in ~1 ms (no Edge TTS
+// round-trip, no synthesis). Bounded by entry count + total bytes so we don't
+// blow up memory on heavy traffic.
+
+const AUDIO_CACHE_MAX_ENTRIES = 2000;
+const AUDIO_CACHE_MAX_BYTES   = 64 * 1024 * 1024; // 64 MB
+const audioCache = new Map<string, Buffer>(); // insertion-order = LRU order
+let   audioCacheBytes = 0;
+
+const inflight = new Map<string, Promise<Buffer>>(); // dedupe concurrent requests
+
+function cacheKey(voice: string, text: string): string {
+  return `${voice}::${text}`;
+}
+
+function cacheGet(key: string): Buffer | undefined {
+  const buf = audioCache.get(key);
+  if (!buf) return undefined;
+  // bump to most-recently-used by re-inserting
+  audioCache.delete(key);
+  audioCache.set(key, buf);
+  return buf;
+}
+
+function cachePut(key: string, buf: Buffer): void {
+  if (audioCache.has(key)) {
+    audioCacheBytes -= audioCache.get(key)!.length;
+    audioCache.delete(key);
+  }
+  audioCache.set(key, buf);
+  audioCacheBytes += buf.length;
+  while (
+    (audioCache.size > AUDIO_CACHE_MAX_ENTRIES || audioCacheBytes > AUDIO_CACHE_MAX_BYTES) &&
+    audioCache.size > 0
+  ) {
+    const oldestKey = audioCache.keys().next().value as string;
+    audioCacheBytes -= audioCache.get(oldestKey)!.length;
+    audioCache.delete(oldestKey);
+  }
+}
+
+async function synthesize(voice: string, text: string): Promise<Buffer> {
+  const tts = await acquireConnection(voice);
+  const { audioStream } = tts.toStream(text);
+  return new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    audioStream.on("data",  (c: Buffer) => chunks.push(c));
+    audioStream.on("end",   () => resolve(Buffer.concat(chunks)));
+    audioStream.on("close", () => {
+      if (chunks.length > 0) resolve(Buffer.concat(chunks));
+      else reject(new Error("audio stream closed early"));
+    });
+    audioStream.on("error", reject);
+  });
+}
+
+async function getAudio(voice: string, text: string): Promise<Buffer> {
+  const key = cacheKey(voice, text);
+  const cached = cacheGet(key);
+  if (cached) return cached;
+
+  // Coalesce concurrent requests for the same (voice, text) so we synthesize once
+  const pending = inflight.get(key);
+  if (pending) return pending;
+
+  const promise = synthesize(voice, text)
+    .then((buf) => { cachePut(key, buf); return buf; })
+    .finally(() => { inflight.delete(key); });
+  inflight.set(key, promise);
+  return promise;
+}
+
 // ── Shared stream helper ─────────────────────────────────────────────────────
 
 async function streamTTS(
@@ -57,28 +131,24 @@ async function streamTTS(
   req: Request,
   res: Response,
 ): Promise<void> {
-  req.log?.info({ voice, len: text.length }, "Edge TTS stream");
-
   res.setHeader("Content-Type", "audio/mpeg");
   // Identical (text, voice) always produces identical audio, so let the browser
   // cache aggressively. Subsequent <audio> requests hit the HTTP cache and play
   // without any network round-trip.
   res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-  res.setHeader("Transfer-Encoding", "chunked");
 
   try {
-    const tts = await acquireConnection(voice);
-    const { audioStream } = tts.toStream(text);
-
-    audioStream.on("data",  (chunk: Buffer) => { if (!res.writableEnded) res.write(chunk); });
-    audioStream.on("end",   () => { if (!res.writableEnded) res.end(); });
-    audioStream.on("close", () => { if (!res.writableEnded) res.end(); });
-    audioStream.on("error", (err: Error) => {
-      req.log?.error({ err }, "Edge TTS audio stream error");
-      if (!res.writableEnded) res.end();
-    });
+    const t0 = Date.now();
+    const buf = await getAudio(voice, text);
+    const cached = audioCache.has(cacheKey(voice, text)) && Date.now() - t0 < 5;
+    req.log?.info(
+      { voice, len: text.length, bytes: buf.length, ms: Date.now() - t0, cached },
+      "Edge TTS served",
+    );
+    res.setHeader("Content-Length", String(buf.length));
+    res.end(buf);
   } catch (err) {
-    req.log?.error({ err }, "Edge TTS acquire/stream failed");
+    req.log?.error({ err }, "Edge TTS synth failed");
     if (!res.headersSent) {
       res.status(502).json({ error: "Edge TTS failed." });
     } else if (!res.writableEnded) {

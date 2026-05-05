@@ -436,33 +436,19 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
     return true;
   }
 
-  // Cache miss — start streaming playback IMMEDIATELY via <audio src>
-  // (the browser begins playing as soon as the first bytes arrive, no need
-  //  to wait for the full download). In parallel, fetch the same URL into
-  //  an ArrayBuffer and store it in IndexedDB. The server sets long-lived
-  //  immutable Cache-Control, so the second fetch is served from the
-  //  browser's HTTP cache and adds no real network cost.
+  // Cache miss — fetch ONCE as ArrayBuffer, then play from a blob URL.
+  // The server holds the audio in an in-memory LRU cache so any text
+  // synthesized once is returned in ~1ms on every subsequent request.
+  // We then store the buffer in IndexedDB so even a fresh page load is
+  // instant for words you've heard before.
   try {
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `/api/edge-tts?${params}`;
-
-    const audio = new Audio(url);
-    audio.preload = 'auto';
-    _currentTTSAudio = audio;
-    audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-    audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-
-    // Kick off the cache-fill in the background — does not block playback.
-    fetch(url)
-      .then(r => (r.ok ? r.arrayBuffer() : null))
-      .then(buf => {
-        if (!buf) return;
-        _setCachedAudio(ck, buf);
-        if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
-      })
-      .catch(() => {});
-
-    await audio.play();
+    const resp = await fetch(`/api/edge-tts?${params}`);
+    if (!resp.ok) return false;
+    const buf = await resp.arrayBuffer();
+    _setCachedAudio(ck, buf);
+    if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
+    await _playCachedAudio(buf);
     _lastTTSEngine = 'edge';
     return true;
   } catch (err) {
