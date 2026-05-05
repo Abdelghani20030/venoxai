@@ -522,6 +522,36 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     return;
   }
 
+  // --- Primary: Puter.js → ElevenLabs (free, unlimited, no API key needed) ---
+  // Puter proxies ElevenLabs using their "User-Pays" model so we never
+  // exhaust our own key. Same voice IDs work directly.
+  if (typeof puter !== 'undefined' && puter?.ai?.txt2speech) {
+    try {
+      const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
+      const audio = await puter.ai.txt2speech(normalizedText, {
+        provider: 'elevenlabs',
+        voice: resolvedVoiceId,
+        model: modelId,
+      });
+      _currentTTSAudio = audio;
+      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+      await audio.play();
+      _lastTTSEngine = 'puter';
+      // Cache the audio data for instant replay next time (non-blocking)
+      if (audio.src) {
+        fetch(audio.src)
+          .then(r => r.arrayBuffer())
+          .then(buf => _setCachedAudio(cacheKey, buf))
+          .catch(() => {});
+      }
+      return;
+    } catch (err) {
+      console.warn('[Venoxa] Puter TTS failed, falling back to ElevenLabs:', err.message);
+    }
+  }
+
+  // --- Secondary: Direct ElevenLabs with our own key ---
   const apiKey = await getElevenLabsKey();
 
   if (apiKey && !_elevenLabsQuotaExceeded) {
@@ -561,11 +591,9 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
             _elevenLabsQuotaExceeded = true;
             _elevenLabsKey = null;
             _elevenLabsKeyFetched = false;
-            // Auto-reset after 60s so a new key will be re-fetched and tried
             setTimeout(() => { _elevenLabsQuotaExceeded = false; }, 60_000);
             console.warn('[Venoxa] ElevenLabs quota exhausted — will retry in 60s.');
           } else {
-            // Truly invalid key — clear cache so next call re-fetches
             _elevenLabsKey = null;
             _elevenLabsKeyFetched = false;
             console.warn('[Venoxa] ElevenLabs 401 invalid key — clearing cache.');
@@ -583,15 +611,15 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
         if (!response.ok) {
           const errBody = await response.text().catch(() => '');
           console.warn(`[Venoxa] ElevenLabs ${response.status} (attempt ${attempt + 1}):`, errBody.slice(0, 120));
-          continue; // retry on 5xx
+          continue;
         }
 
-        // Success — read full buffer so we can cache it, then play
+        // Success — read full buffer, cache it, then play
         _elevenLabsQuotaExceeded = false;
         const audioBuf = await response.arrayBuffer();
-        _setCachedAudio(cacheKey, audioBuf); // non-blocking write to IndexedDB
+        _setCachedAudio(cacheKey, audioBuf);
         await _playCachedAudio(audioBuf);
-        return; // success — skip fallback
+        return;
       } catch (err) {
         console.warn(`[Venoxa] ElevenLabs network error (attempt ${attempt + 1}):`, err.message);
       }
