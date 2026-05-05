@@ -456,7 +456,11 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
           const isQuota = errBody.includes('quota_exceeded');
           if (isQuota) {
             _elevenLabsQuotaExceeded = true;
-            console.warn('[Venoxa] ElevenLabs quota exhausted — falling back to browser TTS.');
+            _elevenLabsKey = null;
+            _elevenLabsKeyFetched = false;
+            // Auto-reset after 60s so a new key will be re-fetched and tried
+            setTimeout(() => { _elevenLabsQuotaExceeded = false; }, 60_000);
+            console.warn('[Venoxa] ElevenLabs quota exhausted — will retry in 60s.');
           } else {
             // Truly invalid key — clear cache so next call re-fetches
             _elevenLabsKey = null;
@@ -467,7 +471,10 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
         }
         if (response.status === 429) {
           _elevenLabsQuotaExceeded = true;
-          console.warn('[Venoxa] ElevenLabs 429 — rate limited. Falling back to browser TTS.');
+          _elevenLabsKey = null;
+          _elevenLabsKeyFetched = false;
+          setTimeout(() => { _elevenLabsQuotaExceeded = false; }, 60_000);
+          console.warn('[Venoxa] ElevenLabs 429 — rate limited. Will retry in 60s.');
           break;
         }
         if (!response.ok) {
