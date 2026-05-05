@@ -415,24 +415,37 @@ const EDGE_VOICES = {
 };
 
 /**
- * edgeTTSSpeak(text, gender)
+ * edgeTTSSpeak(text, gender, voiceOverride, topLevelCacheKey?)
  * Free, unlimited Microsoft Edge TTS via the api-server proxy.
+ * Caches audio in IndexedDB so any word heard once plays instantly from
+ * cache on every future call — no network round-trip needed.
  * Returns true on success, false on failure (so caller can fall back).
  */
-const edgeTTSSpeak = async (text, gender, voiceOverride) => {
+const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
   const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
+  const normalized = normalizeTTSText(text);
+  const ck = _audioCacheKey(normalized, 'edge:' + voice);
+
+  // Cache hit — play instantly, zero network
+  const cached = await _getCachedAudio(ck);
+  if (cached) {
+    await _playCachedAudio(cached);
+    _lastTTSEngine = 'edge';
+    return true;
+  }
+
   try {
-    // Use GET endpoint so the browser <audio> element streams and plays
-    // progressively — no waiting for the full audio to download.
-    const params = new URLSearchParams({ text, voice });
-    const url = `/api/edge-tts?${params}`;
-    const audio = new Audio(url);
-    _currentTTSAudio = audio;
-    audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-    audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-    await audio.play();
+    // Fetch the full audio buffer so we can cache it for instant future replay
+    const params = new URLSearchParams({ text: normalized, voice });
+    const resp = await fetch(`/api/edge-tts?${params}`);
+    if (!resp.ok) return false;
+    const buf = await resp.arrayBuffer();
+    // Save under both the edge-specific key and the top-level caller key
+    _setCachedAudio(ck, buf);
+    if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
+    await _playCachedAudio(buf);
     _lastTTSEngine = 'edge';
     return true;
   } catch (err) {
@@ -522,36 +535,14 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     return;
   }
 
-  // --- Primary: Puter.js → ElevenLabs (free, unlimited, no API key needed) ---
-  // Puter proxies ElevenLabs using their "User-Pays" model so we never
-  // exhaust our own key. Same voice IDs work directly.
-  if (typeof puter !== 'undefined' && puter?.ai?.txt2speech) {
-    try {
-      const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
-      const audio = await puter.ai.txt2speech(normalizedText, {
-        provider: 'elevenlabs',
-        voice: resolvedVoiceId,
-        model: modelId,
-      });
-      _currentTTSAudio = audio;
-      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-      await audio.play();
-      _lastTTSEngine = 'puter';
-      // Cache the audio data for instant replay next time (non-blocking)
-      if (audio.src) {
-        fetch(audio.src)
-          .then(r => r.arrayBuffer())
-          .then(buf => _setCachedAudio(cacheKey, buf))
-          .catch(() => {});
-      }
-      return;
-    } catch (err) {
-      console.warn('[Venoxa] Puter TTS failed, falling back to ElevenLabs:', err.message);
-    }
+  // --- Primary: Edge TTS (free, unlimited, cached for instant replay) ---
+  if (!isArabic) {
+    const gender = resolvedVoiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
+    const ok = await edgeTTSSpeak(normalizedText, gender, undefined, cacheKey);
+    if (ok) return;
   }
 
-  // --- Secondary: Direct ElevenLabs with our own key ---
+  // --- Fallback: Direct ElevenLabs with our own key (Arabic + Edge TTS failures) ---
   const apiKey = await getElevenLabsKey();
 
   if (apiKey && !_elevenLabsQuotaExceeded) {
@@ -626,14 +617,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     }
   }
 
-  // Fallback #1: Microsoft Edge TTS — quality backup if ElevenLabs is unavailable.
-  if (!hasArabicText(text)) {
-    const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
-    const ok = await edgeTTSSpeak(text, gender);
-    if (ok) return;
-  }
-
-  // Fallback #2: browser speechSynthesis — instant local fallback.
+  // Fallback: browser speechSynthesis — last resort.
   if ('speechSynthesis' in window) {
     const isArabicFallback = hasArabicText(text);
     const utterance = new SpeechSynthesisUtterance(text);
