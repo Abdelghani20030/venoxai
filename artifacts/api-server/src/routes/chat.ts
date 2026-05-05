@@ -253,7 +253,7 @@ function buildProviders(): ProviderEntry[] {
 
   // 1. Google Gemini — fastest, primary AI provider
   const googleKey =
-    process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? "";
+    process.env["GEMINI_API_KEYY"] ?? process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? "";
   const geminiProvider = buildGeminiProvider(googleKey);
   if (geminiProvider) list.push(geminiProvider);
 
