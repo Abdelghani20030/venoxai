@@ -407,7 +407,7 @@ let _elevenLabsQuotaExceeded = false;
 // 'elevenlabs' | 'edge' | 'browser' | null
 let _lastTTSEngine = null;
 // Global accent preference — 'uk' or 'us'. Updated by the accent toggle.
-let _voiceAccent = 'us';
+let _voiceAccent = 'uk';
 
 // Multilingual Neural voices are Microsoft's newest, most natural-sounding
 // generation — they sound conversational and human, much closer to ElevenLabs
@@ -3172,7 +3172,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
   const [dictAudioState, setDictAudioState] = useState('idle');
   const dictAudioRef = useRef(null);
 
-  const [voiceAccent, setVoiceAccent] = useState('us');
+  const [voiceAccent, setVoiceAccent] = useState('uk');
   useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
 
   const LISTEN_TOPICS = [
@@ -3964,7 +3964,7 @@ function Speaking({
   const callAudioRef = useRef(null);
   const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
   const [ttsEngine, setTtsEngine] = useState('elevenlabs'); // 'elevenlabs' | 'edge' | 'browser'
-  const [voiceAccent, setVoiceAccent] = useState('us'); // 'uk' | 'us'
+  const [voiceAccent, setVoiceAccent] = useState('uk'); // 'uk' | 'us'
   const chatEndRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const recognitionRef = useRef(null);
