@@ -192,7 +192,7 @@ const fetchFromGemini = async (prompt, _apiKey) => {
 const streamFromAPI = async (prompt, onDelta) => {
   const url = `${import.meta.env.BASE_URL}api/chat/stream`;
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 60000);
+  const timeout = window.setTimeout(() => controller.abort(), 30000);
   try {
     const response = await fetch(url, {
       method: 'POST',
