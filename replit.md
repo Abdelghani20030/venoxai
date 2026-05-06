@@ -2,50 +2,58 @@
 
 Arabic/English language-learning web app with AI-powered features (vocabulary, grammar, listening, reading, writing, speaking, conversation).
 
-## Architecture
+## Run & Operate
 
-Monorepo with three artifacts:
+- Frontend dev: managed by workflow `artifacts/venoxa: web`
+- Backend dev: managed by workflow `artifacts/api-server: API Server`
+- Required secrets: `OPENROUTER_API_KEYY`, `ELEVENLABS_API_KEY`, `GEMINI_API_KEY`
 
-- `artifacts/venoxa` — React + Vite frontend (path `/`). Single-file `src/App.jsx` ported verbatim from the user's source, with the AI helper rewritten to call the backend instead of Gemini directly.
-- `artifacts/api-server` — Express 5 backend (path `/api`). Provides `/api/chat`, an OpenAI-compatible proxy.
-- `artifacts/mockup-sandbox` — design preview server (path `/__mockup`).
+## Stack
 
-## AI provider
+- Frontend: React + Vite (`artifacts/venoxa/src/App.jsx`, ~5000 lines)
+- Backend: Express 5 (`artifacts/api-server/src/`)
+- Build: esbuild (`artifacts/api-server/build.mjs`)
+- Monorepo: pnpm workspaces
 
-`artifacts/api-server/src/routes/chat.ts` builds an ordered chain of every available provider at boot, then **tries them per-request**: if one fails (rate limit, network error, empty response) it transparently falls through to the next. Order:
+## Where things live
 
-1. **Google Gemini** — `GOOGLE_API_KEY` (`AIza…`). Uses `gemini-2.5-flash` to match the original Venoxa design.
-2. **Replit AI Integration** — `AI_INTEGRATIONS_OPENAI_BASE_URL` + `AI_INTEGRATIONS_OPENAI_API_KEY`. Charged to Replit credits. `gpt-5-nano`.
-3. **OpenRouter** — `OPENROUTER_API_KEY` (`sk-or-…`). Free `x-ai/grok-4-fast:free`.
-4. **OpenAI direct** — `OPENAI_API_KEY` (`sk-…`). `gpt-4o-mini`.
+- Chat AI: `artifacts/api-server/src/routes/chat.ts` — OpenRouter only (`OPENROUTER_API_KEYY`)
+- Edge TTS: `artifacts/api-server/src/routes/edge-tts.ts` — free, unlimited, SSML rate supported
+- Gemini TTS: `artifacts/api-server/src/routes/gemini-tts.ts` — `GEMINI_API_KEY`, returns WAV
+- ElevenLabs TTS: `artifacts/api-server/src/routes/tts.ts` — `ELEVENLABS_API_KEY`
+- Config endpoint: `artifacts/api-server/src/routes/config.ts`
 
-The frontend posts `{ prompt }` to `${BASE_URL}api/chat` and receives `{ text }`.
+## Architecture decisions
 
-## Image generation
+- **AI provider**: OpenRouter only via `OPENROUTER_API_KEYY`. Model list in `chat.ts` with per-model circuit breaker (rate-limit cooldown).
+- **TTS chain**: `elevenLabsSpeak()` tries (1) Gemini TTS → (2) Edge TTS → (3) ElevenLabs direct → (4) browser. Gemini TTS uses `gemini-2.5-flash-preview-tts` model with Puck/Aoede voices.
+- **Edge TTS speed**: +15% SSML prosody rate injected via `buildInput()` in `edge-tts.ts`.
+- **Reply before correction**: `handleSend` streams the plain reply first (no JSON), then fires a background `fetchFromGemini` call for the correction panel — user sees clean text immediately.
+- **Call mode recording**: `recognition.continuous = true` prevents the ~2s silence timeout that was cutting recordings short.
+- **Gemini TTS audio**: Returns L16 PCM 24kHz mono; `pcmToWav()` in `gemini-tts.ts` wraps it in a WAV header for browser playback.
+- **IndexedDB audio cache**: Client-side LRU cache (500 entries) so any text heard once plays instantly from cache — keyed on `(text, voiceId)` hash via djb2.
 
-`generateImage` first asks the AI for a one-sentence concrete visual scene description for the vocabulary word, then renders it via the free, no-key `image.pollinations.ai` service (model=`flux`, 640×420, random seed). Falls back to a generic prompt if the AI brief fails.
+## Product
 
-## Notable changes vs the original source
+- Dashboard, Study Plan (CEFR-based), Vocabulary + Phrasal Verbs + Idioms, Grammar (AI), Listening, Reading (AI), Writing (AI), Conversation/Speaking (AI call mode)
+- Call mode: full-screen voice UI with morphing blob, scrollable fade-to-top transcript, continuous-mode voice recording, Gemini/Edge/ElevenLabs TTS
 
-- `fetchFromGemini` replaced with a thin wrapper around `POST /api/chat`.
-- The direct Imagen call inside `generateImage` swapped for the Pollinations URL.
-- Tailwind v3 directives in the original CSS rewritten to v4 (`@import "tailwindcss"`).
-- Slim, thumb-only scrollbars in `index.css` (8px, rgba slate, rounded — no white track edges).
-- Print-all-weeks now strips `h-screen`/`overflow` constraints via `print:` utilities and a global `@media print` rule, and `handlePrint` temporarily removes the `dark` class so colours stay bright on paper. Plan table cells use the per-skill `cellBg` for a colourful PDF.
+## User preferences
 
-## Study Plan setup (StudyPlan component)
+- Arabic is primary language for UI, English is learning target
+- OpenRouter key name is `OPENROUTER_API_KEYY` (double Y) — do not change
+- Voice speed should be natural/native, not slow or over-enunciated
+- Gemini TTS (`gemini-2.5-flash-preview-tts`) is the preferred voice engine
 
-- **Per-skill durations**: each of Listening / Reading / Speaking / Writing has its own minute input plus a "Default" toggle (defaults: 30 / 20 / 15 / 10 min). Vocabulary and Grammar are fixed at 10 / 5 min. `effectiveSkillMins(id)` resolves the active value.
-- **CEFR vocab data**: `CEFR_LEVEL_WORDS = { A1:609, A2:1581, B1:1850, B2:2224, C1:2481, C2:2152 }` mirrors the Venoxa public wordlists. `CEFR_VOCAB_TARGET` is the running cumulative total derived from it. `wordsDelta` sums every level above the user's current up to (and including) the target.
-- **Start + Target dates**: both are user-controlled. Start defaults to today; target must be later (validated). `daysToTarget = ceil((target − start)/day)` drives every downstream calculation.
-- **Auto words/day**: `ceil(wordsDelta / daysToTarget)` clamped to 1–80. A "Manual" mode lets the user override.
-- **Pre-generation summary card** (`planEstimate`): live tile-grid showing `totalDays`, `totalWords`, `totalRules`, hours per skill (`mins × days / 60`), and the auto-suggested words/day. Recalculates the moment any input changes.
-- **In-plan progress trackers**: 4 skill sliders (Listening/Reading/Speaking/Writing) animate as `currentWeek` advances — `pct = currentWeek / totalWeeks × 100`. Each shows completed/total hours. Two extra bars track vocabulary (`learnedWords / wordsDelta`) and grammar rules (`masteredRules / rulesDelta`).
-- **Persistence**: everything (target level, start & target dates, skill settings, words mode/manual, generated `planMeta`, current week) is stored under `localStorage` key `venoxa-plan-v3`. `planData` is rebuilt on every render from `planMeta.mins` so language/icon changes stay live without invalidating the saved plan.
-- **Dynamic level binding**: `userLevel` lives in `App` (key `userLevel`), passed into Dashboard, StudyPlan, and any AI prompts. Smart Tip and "Your Current Level" re-render whenever it changes.
+## Gotchas
 
-## Workflows
+- `OPENROUTER_API_KEYY` (double Y) — the env var name is intentional
+- Edge TTS with SSML: `buildInput(voice, text, rate)` constructs SSML; cache key is on the full input (text or SSML), not just text
+- The `elevenLabsSpeak` function name is misleading — it tries Gemini → Edge → ElevenLabs → browser
+- Gemini TTS route returns `audio/wav` (PCM + header), not MP3
+- Message bubble `dir="auto"` lets the browser detect Arabic vs English text direction
 
-- `artifacts/venoxa: web` — Vite dev server (port assigned via `PORT`).
-- `artifacts/api-server: API Server` — esbuild + Node server.
-- `artifacts/mockup-sandbox: Component Preview Server` — Vite preview.
+## Pointers
+
+- `.local/skills/pnpm-workspace` — monorepo conventions
+- `.local/skills/react-vite` — frontend patterns
