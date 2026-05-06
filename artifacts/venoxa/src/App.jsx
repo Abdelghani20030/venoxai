@@ -364,9 +364,13 @@ const _playCachedAudio = async (arrayBuf) => {
   const url  = URL.createObjectURL(blob);
   const audio = new Audio(url);
   _currentTTSAudio = audio;
-  audio.onended = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-  audio.onerror = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-  await audio.play();
+  // Resolve only when playback ENDS so sentence chains play in order.
+  await new Promise((resolve) => {
+    const cleanup = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+    audio.onended = () => { cleanup(); resolve(); };
+    audio.onerror = () => { cleanup(); resolve(); };
+    audio.play().catch(() => { cleanup(); resolve(); });
+  });
   _lastTTSEngine = 'elevenlabs';
 };
 
@@ -451,11 +455,10 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
     const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
 
     // Streaming playback — starts as soon as the first audio bytes arrive.
+    // Resolves only when audio ENDS so sentence chains play in the correct order.
     const audio = new Audio(url);
     audio.preload = 'auto';
     _currentTTSAudio = audio;
-    audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-    audio.onerror  = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
 
     // Background cache fill — does not block playback at all.
     fetch(url)
@@ -467,7 +470,12 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
       })
       .catch(() => {});
 
-    await audio.play();
+    await new Promise((resolve) => {
+      const cleanup = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+      audio.onended = () => { cleanup(); resolve(); };
+      audio.onerror = () => { cleanup(); resolve(); };
+      audio.play().catch(() => { cleanup(); resolve(); });
+    });
     _lastTTSEngine = 'edge';
     return true;
   } catch (err) {
