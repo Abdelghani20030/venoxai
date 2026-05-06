@@ -101,10 +101,14 @@ async function streamFromOpenRouter(
   throw lastErr ?? new Error("All OpenRouter models unavailable");
 }
 
+function normalizePrompt(prompt: string): string {
+  return prompt.replace(/\s+/g, " ").trim();
+}
+
 // ── Streaming SSE endpoint ────────────────────────────────────────────────────
 router.post("/chat/stream", async (req: Request, res: Response) => {
   const prompt =
-    typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+    typeof req.body?.prompt === "string" ? normalizePrompt(req.body.prompt) : "";
   if (!prompt) {
     res.status(400).json({ error: "Missing 'prompt' in request body." });
     return;
@@ -145,7 +149,7 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
 // ── Non-streaming endpoint ────────────────────────────────────────────────────
 router.post("/chat", async (req: Request, res: Response) => {
   const prompt =
-    typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+    typeof req.body?.prompt === "string" ? normalizePrompt(req.body.prompt) : "";
   if (!prompt) {
     res.status(400).json({ error: "Missing 'prompt' string in request body." });
     return;
