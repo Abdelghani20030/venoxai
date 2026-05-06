@@ -1013,13 +1013,15 @@ function PlanWeekTable({
   completedCells,
   onToggleCell
 }) {
-  const cellBase = "border border-gray-400 dark:border-gray-700 px-2 py-2 align-middle text-center relative";
-  const headBase = "border border-gray-400 dark:border-gray-700 bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm";
+  const cellBase = "border-b border-r border-gray-400 dark:border-gray-500 px-2 py-2 align-middle text-center relative";
+  const headBase = "border-t border-b border-r border-gray-400 dark:border-gray-500 bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm";
+  const firstColCell = "border-b border-r border-l border-gray-400 dark:border-gray-500 px-2 py-2 align-middle text-center relative";
+  const firstColHead = "border-t border-b border-r border-l border-gray-400 dark:border-gray-500 bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm";
   return <div className="overflow-x-auto print:overflow-visible">
-    <table className="w-full border-collapse text-sm bg-white dark:bg-[#0e0e11] text-gray-800 dark:text-gray-100 min-w-[760px] print:min-w-full">
+    <table className="w-full border-separate [border-spacing:0] text-sm bg-white dark:bg-[#0e0e11] text-gray-800 dark:text-gray-100 min-w-[760px] print:min-w-full">
       <thead>
         <tr>
-          <th className={headBase}>{t.activity}</th>
+          <th className={firstColHead}>{t.activity}</th>
           {[1, 2, 3, 4, 5, 6, 7].map(d => <th key={d} className={headBase}>
             <div>{t.day} {d}</div>
             <div className="text-[10px] font-bold opacity-70 mt-0.5">{userLevel}</div>
@@ -1029,7 +1031,7 @@ function PlanWeekTable({
       </thead>
       <tbody>
         {planData.categories.map(cat => <tr key={cat.id}>
-          <td className={`${cellBase} text-start font-bold ${cat.textColor} ${cat.headerBg}`}>
+          <td className={`${firstColCell} text-start font-bold ${cat.textColor} ${cat.headerBg}`}>
             <div className="flex items-center gap-2 px-1">
               <cat.icon className="w-4 h-4 shrink-0" />
               <span>{cat.name}</span>
@@ -1063,7 +1065,7 @@ function PlanWeekTable({
         </tr>)}
 
         <tr>
-          <td className={`${cellBase} text-start font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/15`}>
+          <td className={`${firstColCell} text-start font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/15`}>
             <div className="flex items-center gap-2 px-1">
               <Layers className="w-4 h-4 shrink-0" />
               <span>{t.spacedRep}</span>
@@ -1081,7 +1083,7 @@ function PlanWeekTable({
         </tr>
 
         <tr>
-          <td className={`${cellBase} text-start font-bold text-gray-900 dark:text-white bg-gray-200 dark:bg-gray-800`}>
+          <td className={`${firstColCell} text-start font-bold text-gray-900 dark:text-white bg-gray-200 dark:bg-gray-800`}>
             <div className="flex items-center gap-2 px-1">
               <Clock className="w-4 h-4 shrink-0" />
               <span>{t.categories.total}</span>
