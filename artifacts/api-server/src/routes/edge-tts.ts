@@ -17,11 +17,10 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 
 const router: IRouter = Router();
 
-// Use Microsoft's "Multilingual Neural" voices — newer generation that sounds
-// markedly more natural and conversational than the older Neural voices.
-// "Brian" is the warm, confident American male (close cousin to ElevenLabs Brian).
-const VOICE_MALE   = "en-US-BrianMultilingualNeural";
-const VOICE_FEMALE = "en-US-AvaMultilingualNeural";
+// British Neural voices — Ryan (male) and Sonia (female).
+// Restored as the default per user preference.
+const VOICE_MALE   = "en-GB-RyanNeural";
+const VOICE_FEMALE = "en-GB-SoniaNeural";
 
 // ── Connection pool ──────────────────────────────────────────────────────────
 // We keep one "warm" (already-handshaked) MsEdgeTTS promise per voice so
@@ -103,8 +102,12 @@ function xmlEsc(s: string): string {
 // Build synthesis input — SSML with prosody when rate is given, plain text otherwise.
 // Rate is a CSS speech rate value, e.g. "+15%" or "fast".
 function buildInput(voice: string, text: string, rate: string): string {
-  if (!rate) return text;
-  return `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='${voice}'><prosody rate='${rate}'>${xmlEsc(text)}</prosody></voice></speak>`;
+  // Only Multilingual Neural voices support SSML <prosody rate>.
+  // Standard Neural voices (e.g. en-GB-RyanNeural) silently return empty audio
+  // when wrapped in SSML, so fall back to plain text for them.
+  if (!rate || !voice.includes("Multilingual")) return text;
+  const lang = voice.match(/^([a-z]{2}-[A-Z]{2})/)?.[1] ?? "en-US";
+  return `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='${voice}'><prosody rate='${rate}'>${xmlEsc(text)}</prosody></voice></speak>`;
 }
 
 async function synthesize(voice: string, input: string): Promise<Buffer> {
