@@ -95,9 +95,21 @@ function cachePut(key: string, buf: Buffer): void {
   }
 }
 
-async function synthesize(voice: string, text: string): Promise<Buffer> {
+// Escape special XML characters so plain text is safe inside SSML attributes/content
+function xmlEsc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Build synthesis input — SSML with prosody when rate is given, plain text otherwise.
+// Rate is a CSS speech rate value, e.g. "+15%" or "fast".
+function buildInput(voice: string, text: string, rate: string): string {
+  if (!rate) return text;
+  return `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='${voice}'><prosody rate='${rate}'>${xmlEsc(text)}</prosody></voice></speak>`;
+}
+
+async function synthesize(voice: string, input: string): Promise<Buffer> {
   const tts = await acquireConnection(voice);
-  const { audioStream } = tts.toStream(text);
+  const { audioStream } = tts.toStream(input);
   return new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
     audioStream.on("data",  (c: Buffer) => chunks.push(c));
@@ -110,16 +122,15 @@ async function synthesize(voice: string, text: string): Promise<Buffer> {
   });
 }
 
-async function getAudio(voice: string, text: string): Promise<Buffer> {
-  const key = cacheKey(voice, text);
+async function getAudio(voice: string, input: string): Promise<Buffer> {
+  const key = cacheKey(voice, input);
   const cached = cacheGet(key);
   if (cached) return cached;
 
-  // Coalesce concurrent requests for the same (voice, text) so we synthesize once
   const pending = inflight.get(key);
   if (pending) return pending;
 
-  const promise = synthesize(voice, text)
+  const promise = synthesize(voice, input)
     .then((buf) => { cachePut(key, buf); return buf; })
     .finally(() => { inflight.delete(key); });
   inflight.set(key, promise);
@@ -142,16 +153,19 @@ async function streamTTS(
   voice: string,
   req: Request,
   res: Response,
+  rate = "",
 ): Promise<void> {
   res.setHeader("Content-Type", "audio/mpeg");
   res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
 
-  const key = cacheKey(voice, text);
+  // Build synthesis input — SSML when rate is requested, plain text otherwise
+  const input = buildInput(voice, text, rate);
+  const key = cacheKey(voice, input);
 
   // ── 1. Cache hit ─────────────────────────────────────────────────────────
   const hit = cacheGet(key);
   if (hit) {
-    req.log?.info({ voice, len: text.length, bytes: hit.length, cached: true }, "Edge TTS served");
+    req.log?.info({ voice, len: text.length, bytes: hit.length, cached: true, rate }, "Edge TTS served");
     res.setHeader("Content-Length", String(hit.length));
     res.end(hit);
     return;
@@ -173,7 +187,6 @@ async function streamTTS(
   }
 
   // ── 3. True streaming ────────────────────────────────────────────────────
-  // Acquire the warm WebSocket connection first (fast when pool is pre-warmed).
   let tts: MsEdgeTTS;
   try {
     tts = await acquireConnection(voice);
@@ -188,7 +201,7 @@ async function streamTTS(
   let done = false;
 
   const bufferPromise = new Promise<Buffer>((resolve, reject) => {
-    const { audioStream } = tts.toStream(text);
+    const { audioStream } = tts.toStream(input);
 
     audioStream.on("data", (chunk: Buffer) => {
       chunks.push(chunk);
@@ -239,8 +252,9 @@ router.get("/edge-tts", async (req: Request, res: Response) => {
   const requestedVoice = typeof req.query?.voice === "string" ? req.query.voice.trim() : "";
   const gender = req.query?.gender === "female" ? "female" : "male";
   const voice  = requestedVoice || (gender === "female" ? VOICE_FEMALE : VOICE_MALE);
+  const rate   = typeof req.query?.rate === "string" ? req.query.rate.trim() : "";
 
-  await streamTTS(text, voice, req, res);
+  await streamTTS(text, voice, req, res, rate);
 });
 
 // ── POST /api/edge-tts  (back-compat) ────────────────────────────────────────

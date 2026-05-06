@@ -447,8 +447,8 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   // The server sets Cache-Control: immutable, so the browser's HTTP cache
   // deduplicates the two requests and only one synthesis ever happens.
   try {
-    const params = new URLSearchParams({ text: normalized, voice });
-    const url = `/api/edge-tts?${params}`;
+    const params = new URLSearchParams({ text: normalized, voice, rate: '+15%' });
+    const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
 
     // Streaming playback — starts as soon as the first audio bytes arrive.
     const audio = new Audio(url);
@@ -472,6 +472,57 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
     return true;
   } catch (err) {
     console.warn('[Venoxa] Edge TTS failed:', err.message);
+    return false;
+  }
+};
+
+/**
+ * geminiTTSSpeak(text, gender)
+ * Google Gemini neural TTS — highest quality, most natural sounding voice.
+ * Voices: Puck (warm male), Aoede (breezy female).
+ * Returns true on success, false on failure so caller can fall back to Edge TTS.
+ */
+const geminiTTSSpeak = async (text, gender) => {
+  if (!text?.trim()) return false;
+  const normalized = normalizeTTSText(text);
+  if (!normalized) return false;
+
+  const voiceName = gender === 'female' ? 'aoede' : 'puck';
+  const ck = _audioCacheKey(normalized, 'gemini:' + voiceName);
+
+  // Stop any currently-playing TTS audio
+  if (_currentTTSAudio) { _currentTTSAudio.pause(); _currentTTSAudio = null; }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+  // Cache hit — play instantly from IndexedDB
+  const cached = await _getCachedAudio(ck);
+  if (cached) {
+    await _playCachedAudio(cached);
+    _lastTTSEngine = 'gemini';
+    return true;
+  }
+
+  try {
+    const params = new URLSearchParams({ text: normalized, voice: voiceName });
+    const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
+
+    const audio = new Audio(url);
+    audio.preload = 'auto';
+    _currentTTSAudio = audio;
+    audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+    audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+
+    // Background cache fill
+    fetch(url)
+      .then(r => r.ok ? r.arrayBuffer() : null)
+      .then(buf => { if (buf) _setCachedAudio(ck, buf); })
+      .catch(() => {});
+
+    await audio.play();
+    _lastTTSEngine = 'gemini';
+    return true;
+  } catch (err) {
+    console.warn('[Venoxa] Gemini TTS failed:', err.message);
     return false;
   }
 };
@@ -557,9 +608,12 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     return;
   }
 
-  // --- Primary: Edge TTS (free, unlimited, cached for instant replay) ---
+  // --- Primary: Gemini TTS (highest quality, most natural neural voice) ---
   if (!isArabic) {
     const gender = resolvedVoiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
+    const geminiOk = await geminiTTSSpeak(normalizedText, gender);
+    if (geminiOk) return;
+    // Fallback: Edge TTS (free, unlimited, cached for instant replay)
     const ok = await edgeTTSSpeak(normalizedText, gender, undefined, cacheKey);
     if (ok) return;
   }
@@ -3966,6 +4020,7 @@ function Speaking({
   const [ttsEngine, setTtsEngine] = useState('elevenlabs'); // 'elevenlabs' | 'edge' | 'browser'
   const [voiceAccent, setVoiceAccent] = useState('us'); // 'uk' | 'us'
   const chatEndRef = useRef(null);
+  const transcriptScrollRef = useRef(null);
   const recognitionRef = useRef(null);
   const saveConversationToHistory = (conversation) => {
     const lastAiMessage = [...conversation].reverse().find(msg => msg.role === 'ai' && msg.text && msg.text !== t.welcome);
@@ -3992,6 +4047,11 @@ function Speaking({
       behavior: "smooth"
     });
   }, [messages, expandedReviewId]);
+  useEffect(() => {
+    if (transcriptScrollRef.current) {
+      transcriptScrollRef.current.scrollTop = transcriptScrollRef.current.scrollHeight;
+    }
+  }, [messages]);
   // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
   // Male: Adam (pNInz6obpgDQGcFmaJgB) — American | Female: Rachel (21m00Tcm4TlvDq8ikWAM) — American
   // Keep module-level accent var in sync with React state
@@ -4022,52 +4082,47 @@ function Speaking({
     const aiMsgId = newMsgId + 1;
     setMessages(prev => [...prev, { id: newMsgId, role: 'user', text: userMsg }]);
     setLoading(true);
-    // Add a placeholder AI message immediately so the user sees it right away
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     try {
       const history = messages.slice(-2).map(m => `${m.role === 'ai' ? 'AI' : 'User'}: ${m.text}`).join('\n');
       const isArabicMsg = hasArabicText(userMsg);
       const langInstruction = isArabicMsg
-        ? 'The user wrote in Arabic. Reply to them in Arabic. Still review their Arabic naturally.'
+        ? 'The user wrote in Arabic. Reply in Arabic naturally and warmly.'
         : 'Reply in English.';
-      const prompt = `Reply naturally and briefly as an English tutor. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Respond strictly as JSON only: {"reply":"...","review":{"clarity":"...","grammar":"...","fluency":"...","native_way":"..."}}`;
-      let accumulated = '';
-      await streamFromAPI(prompt, (delta) => {
-        accumulated += delta;
+
+      // ── Step 1: Stream the reply immediately — plain text, no JSON ──────────
+      const replyPrompt = `You are a friendly, natural conversation partner helping an English learner. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Reply warmly in 1-3 sentences. Output the reply text ONLY — no JSON, no labels, no analysis whatsoever.`;
+      let replyText = '';
+      await streamFromAPI(replyPrompt, (delta) => {
+        replyText += delta;
         setMessages(prev => prev.map(msg =>
-          msg.id === aiMsgId ? { ...msg, text: accumulated } : msg
+          msg.id === aiMsgId ? { ...msg, text: replyText } : msg
         ));
       });
-      const parsed = parseGeminiJSON(accumulated);
-      const replyText = parsed?.reply || cleanFallbackText(accumulated);
-      const review = parsed?.review || null;
-      setMessages(prev => {
-        const updated = prev.map(msg => msg.id === aiMsgId ? {
-          ...msg,
-          text: replyText,
-          streaming: false,
-          review
-        } : msg);
-        if (forcedText) {
-          return updated;
-        }
-        return updated.map(msg => msg.id === newMsgId ? {
-          ...msg,
-          review
-        } : msg);
-      });
+      replyText = replyText.trim();
+      setMessages(prev => prev.map(msg =>
+        msg.id === aiMsgId ? { ...msg, text: replyText, streaming: false } : msg
+      ));
+
+      // ── TTS: start as soon as reply is ready ────────────────────────────────
       if (isCallMode && replyText) {
-        const transcriptTimer = setTimeout(() => {
-          setMessages(prev => prev.map(msg =>
-            msg.id === aiMsgId ? { ...msg, streaming: false } : msg
-          ));
-        }, 180);
-        elevenLabsSpeak(replyText, voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID).finally(() => {
-          clearTimeout(transcriptTimer);
-        });
+        elevenLabsSpeak(replyText, voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID);
       } else if (autoRead && replyText) {
         speakText(replyText);
       }
+
+      // ── Step 2: Background correction — fires in parallel, never blocks ─────
+      fetchFromGemini(
+        `Review this ${isArabicMsg ? 'Arabic' : 'English'} message from a ${chatLevel} learner: "${userMsg}". Return ONLY a valid JSON object with no markdown fences: {"clarity":"one short sentence","grammar":"one short sentence","fluency":"one short sentence","native_way":"how a native speaker would phrase this"}`,
+        null
+      ).then(reviewRaw => {
+        const review = parseGeminiJSON(reviewRaw);
+        if (review && !review.error && (review.clarity || review.grammar)) {
+          setMessages(prev => prev.map(msg =>
+            msg.id === newMsgId ? { ...msg, review } : msg
+          ));
+        }
+      }).catch(() => {});
     } catch (err) {
       setMessages(prev => prev.map(msg =>
         msg.id === aiMsgId
@@ -4125,13 +4180,27 @@ function Speaking({
     recognitionRef.current = recognition;
     recognition.lang = 'en-US';
     recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    // Continuous mode in call sessions prevents the browser's ~2 s silence
+    // timeout that was cutting recordings short mid-sentence.
+    recognition.continuous = !!isCallMode;
     recognition.onstart = () => setIsRecording(true);
     recognition.onresult = event => {
-      const transcript = event.results[0][0].transcript;
       if (isCallMode) {
-        handleSend(transcript);
+        // Send the first completed phrase, then stop so the AI can reply
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            const phrase = event.results[i][0].transcript.trim();
+            if (phrase) {
+              recognition.stop();
+              handleSend(phrase);
+              break;
+            }
+          }
+        }
       } else {
-        setInput(prev => prev + ' ' + transcript);
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev + ' ' + transcript.trim());
       }
     };
     recognition.onerror = () => {
@@ -4253,20 +4322,27 @@ function Speaking({
           }`}
         />
 
-        {/* AI transcript — fades up when a new message arrives */}
-        <div className="w-full max-w-md flex flex-col justify-end items-center min-h-[56px] px-4">
-          {showCallTranscript ? (
-            lastAiCallMsg ? (
-              <p key={lastAiCallMsg.id} className={`transcript-fade text-[13px] leading-[1.75] font-light text-center ${isDark ? 'text-white' : 'text-black'}`} dir="ltr">
-                {safeRender(lastAiCallMsg.text)}
-                {lastAiCallMsg.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-white/60' : 'bg-black/40'}`} />}
-              </p>
+        {/* AI transcript — bounded scrollable box with fade-to-top effect */}
+        <div className="w-full max-w-md relative px-4" style={{ height: '180px' }}>
+          {/* Top fade — older messages dissolve upward */}
+          <div className="absolute top-0 left-4 right-4 h-14 z-10 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${isDark ? '#0e0e10' : '#f2f2ee'} 30%, transparent)` }} />
+          {/* Scrollable transcript list */}
+          <div ref={transcriptScrollRef} className="h-full overflow-y-auto flex flex-col justify-end pb-2 gap-2" style={{ scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {showCallTranscript ? (
+              messages.filter(m => m.role === 'ai' && m.text).length > 0
+                ? messages.filter(m => m.role === 'ai' && m.text).map(m => (
+                    <p key={m.id} className={`transcript-fade text-[13px] leading-[1.8] font-light text-center ${isDark ? 'text-white/80' : 'text-black/70'}`} dir="ltr">
+                      {safeRender(m.text)}
+                      {m.streaming && <span className={`inline-block w-[2px] h-3.5 ml-0.5 align-middle animate-pulse rounded-full ${isDark ? 'bg-white/60' : 'bg-black/40'}`} />}
+                    </p>
+                  ))
+                : <p className={`text-[13px] font-light text-center ${isDark ? 'text-white/20' : 'text-black/25'}`}>{t.tapMic}</p>
             ) : (
-              <p className={`text-[13px] font-light ${isDark ? 'text-white/20' : 'text-black/25'}`}>{t.tapMic}</p>
-            )
-          ) : (
-            <p className={`text-[13px] font-light ${isDark ? 'text-white/20' : 'text-black/25'}`}>{_resolveTranslation(lang, 'النص مخفي', 'Transcript off')}</p>
-          )}
+              <p className={`text-[13px] font-light text-center ${isDark ? 'text-white/20' : 'text-black/25'}`}>{_resolveTranslation(lang, 'النص مخفي', 'Transcript off')}</p>
+            )}
+          </div>
+          {/* Bottom fade */}
+          <div className="absolute bottom-0 left-4 right-4 h-8 z-10 pointer-events-none" style={{ background: `linear-gradient(to top, ${isDark ? '#0e0e10' : '#f2f2ee'} 20%, transparent)` }} />
         </div>
       </div>
 
@@ -4385,7 +4461,7 @@ function Speaking({
       </div>}
       {messages.map((msg, idx) => <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
-        <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none text-right' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none text-right'}`} dir="ltr">
+        <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-md relative ${msg.role === 'user' ? 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white rounded-br-none text-right' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none text-right'}`} dir="auto">
           <p className="text-lg leading-relaxed">
             {safeRender(msg.text)}
             {msg.streaming && <span className="inline-block w-[2px] h-5 bg-emerald-500 ml-0.5 align-middle animate-pulse rounded-full" />}
