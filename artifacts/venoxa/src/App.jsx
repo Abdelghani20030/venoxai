@@ -189,15 +189,15 @@ const fetchFromGemini = async (prompt, _apiKey) => {
 // Streaming version — calls /api/chat/stream, yields tokens via SSE.
 // onDelta(chunk) is called for each text chunk as it arrives.
 // Returns the full accumulated text when done.
-const streamFromAPI = async (prompt, onDelta) => {
+const streamFromAPI = async (prompt, onDelta, maxTokens = 512) => {
   const url = `${import.meta.env.BASE_URL}api/chat/stream`;
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 30000);
+  const timeout = window.setTimeout(() => controller.abort(), 60000);
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, maxTokens }),
       signal: controller.signal
     });
     window.clearTimeout(timeout);
@@ -3875,7 +3875,7 @@ function Speaking({
         setMessages(prev => prev.map(msg =>
           msg.id === aiMsgId ? { ...msg, text: replyText } : msg
         ));
-      });
+      }, 256);
       replyText = replyText.trim();
       setMessages(prev => prev.map(msg =>
         msg.id === aiMsgId ? { ...msg, text: replyText, streaming: false } : msg

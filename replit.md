@@ -25,7 +25,7 @@ Arabic/English language-learning web app with AI-powered features (vocabulary, g
 
 ## Architecture decisions
 
-- **AI provider**: OpenRouter only via `OPENROUTER_API_KEYY`. Model list in `chat.ts` with per-model circuit breaker (rate-limit cooldown).
+- **AI provider**: OpenRouter via `OPENROUTER_API_KEYY`. Primary model `liquid/lfm-2.5-1.2b-instruct:free` (~700ms). Full verified model list in `chat.ts` with per-model circuit breaker. `GEMINI_API_KEY` exists but Gemini free-tier quota is exhausted — not used for chat.
 - **TTS chain**: `elevenLabsSpeak()` (name kept for call-site compat) → (1) Edge TTS → (2) browser speechSynthesis. ElevenLabs fully removed from frontend voice chain.
 - **Edge TTS voices**: UK default (`en-GB-RyanNeural` male / `en-GB-SoniaNeural` female); US accent (`en-US-BrianMultilingualNeural` / `en-US-AvaMultilingualNeural`). All voices use plain text synthesis (no SSML — Multilingual voices return 0 bytes with SSML prosody).
 - **Reply before correction**: `handleSend` streams the plain reply first (no JSON), then fires a background `fetchFromGemini` call for the correction panel — user sees clean text immediately.
