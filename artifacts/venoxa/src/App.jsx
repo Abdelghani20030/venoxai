@@ -394,15 +394,6 @@ const ELEVENLABS_VOICE_OPTIONS = [
   { id: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum' },
 ];
 
-// Cached ElevenLabs API key fetched from the backend config endpoint.
-// Only cached once we actually receive a non-empty key — so transient
-// server-down failures at page load don't permanently disable ElevenLabs.
-let _elevenLabsKey = null;
-let _elevenLabsKeyFetched = false;
-let _elevenLabsKeyFetchInProgress = null; // deduplicates concurrent fetches
-// Tracks whether ElevenLabs quota is currently exhausted.
-// Reset to false if a call later succeeds (e.g. after monthly reset).
-let _elevenLabsQuotaExceeded = false;
 // Tracks which TTS engine produced the last successful utterance.
 // 'elevenlabs' | 'edge' | 'browser' | null
 let _lastTTSEngine = null;
@@ -447,7 +438,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   // The server sets Cache-Control: immutable, so the browser's HTTP cache
   // deduplicates the two requests and only one synthesis ever happens.
   try {
-    const params = new URLSearchParams({ text: normalized, voice, rate: '+15%' });
+    const params = new URLSearchParams({ text: normalized, voice });
     const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
 
     // Streaming playback — starts as soon as the first audio bytes arrive.
@@ -476,43 +467,6 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   }
 };
 
-const getElevenLabsKey = async () => {
-  // Return cached key if we already have one
-  if (_elevenLabsKeyFetched && _elevenLabsKey) return _elevenLabsKey;
-
-  // Deduplicate concurrent fetches (e.g. two TTS calls fired at once)
-  if (_elevenLabsKeyFetchInProgress) return _elevenLabsKeyFetchInProgress;
-
-  _elevenLabsKeyFetchInProgress = (async () => {
-    // Try up to 3 times with a short delay so a briefly-restarting server
-    // doesn't permanently break TTS for the whole session.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 800 * attempt));
-        const res = await fetch('/api/config');
-        if (res.ok) {
-          const data = await res.json();
-          const key = data.elevenLabsApiKey || null;
-          if (key) {
-            _elevenLabsKey = key;
-            _elevenLabsKeyFetched = true;
-            return key;
-          }
-        }
-      } catch {
-        // network error — will retry
-      }
-    }
-    // All attempts failed or returned no key — don't permanently cache null
-    // so the next TTS call will try again.
-    _elevenLabsKeyFetchInProgress = null;
-    return null;
-  })();
-
-  const result = await _elevenLabsKeyFetchInProgress;
-  _elevenLabsKeyFetchInProgress = null;
-  return result;
-};
 
 // Keeps a reference to the current Audio element so we can cancel it before
 // starting a new utterance.
@@ -520,159 +474,44 @@ let _currentTTSAudio = null;
 
 /**
  * elevenLabsSpeak(text, voiceId?)
- *
- * Calls ElevenLabs DIRECTLY from the browser (not through the backend server)
- * so the request comes from the user's real IP — avoiding the free-tier
- * server-IP block. Falls back to browser speechSynthesis if the key is absent.
- *
- * Arabic text always uses the free browser TTS with the correct Arabic voice.
+ * Now purely Edge TTS (UK or US depending on accent toggle) with browser
+ * speechSynthesis as the only fallback. ElevenLabs has been removed.
  */
 const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
   if (!text || !text.trim()) return;
 
-  // Normalize text: strip markdown so "**Hello**" hits the same cache as "Hello"
   const normalizedText = normalizeTTSText(text);
   if (!normalizedText) return;
 
-  // Stop any currently-playing TTS audio
-  if (_currentTTSAudio) {
-    _currentTTSAudio.pause();
-    _currentTTSAudio = null;
-  }
+  // Stop any currently-playing audio
+  if (_currentTTSAudio) { _currentTTSAudio.pause(); _currentTTSAudio = null; }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
-  // --- Resolve voice (needed for both cache key and API call) ---
   const isArabic = hasArabicText(normalizedText);
-  let resolvedVoiceId = voiceId || DEFAULT_ELEVENLABS_VOICE_ID;
-  if (isArabic) {
-    if (resolvedVoiceId === ELEVENLABS_SARAH_ID) resolvedVoiceId = ARABIC_FEMALE_VOICE_ID;
-    else if (resolvedVoiceId === ELEVENLABS_BRIAN_ID || resolvedVoiceId === DEFAULT_ELEVENLABS_VOICE_ID) resolvedVoiceId = ARABIC_MALE_VOICE_ID;
-  }
+  const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
 
-  // --- Cache check: play instantly if we've synthesised this before ---
-  const cacheKey = _audioCacheKey(normalizedText, resolvedVoiceId);
-  const cached = await _getCachedAudio(cacheKey);
-  if (cached) {
-    await _playCachedAudio(cached);
-    return;
-  }
-
-  // --- Primary: Edge TTS (streams, fast, free) ---
+  // --- Edge TTS (primary for all English text) ---
   if (!isArabic) {
-    const gender = resolvedVoiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
-    const ok = await edgeTTSSpeak(normalizedText, gender, undefined, cacheKey);
+    const ok = await edgeTTSSpeak(normalizedText, gender);
     if (ok) return;
   }
 
-  // --- Fallback: Direct ElevenLabs with our own key (Arabic + Edge TTS failures) ---
-  const apiKey = await getElevenLabsKey();
-
-  if (apiKey && !_elevenLabsQuotaExceeded) {
-    const modelId = isArabic ? 'eleven_multilingual_v2' : 'eleven_turbo_v2_5';
-
-    // Retry up to 2 times on transient server errors (5xx, network hiccups).
-    // Do NOT retry on 401 (bad key) or 429 (quota) — those are persistent.
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 600));
-        const response = await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${resolvedVoiceId}/stream`,
-          {
-            method: 'POST',
-            headers: {
-              'xi-api-key': apiKey,
-              'Content-Type': 'application/json',
-              Accept: 'audio/mpeg',
-            },
-            body: JSON.stringify({
-              text: normalizedText,
-              model_id: modelId,
-              voice_settings: {
-                stability: 0.35,
-                similarity_boost: 0.9,
-                style: 0.4,
-                use_speaker_boost: true,
-              },
-            }),
-          }
-        );
-
-        if (response.status === 401) {
-          const errBody = await response.text().catch(() => '');
-          const isQuota = errBody.includes('quota_exceeded');
-          if (isQuota) {
-            _elevenLabsQuotaExceeded = true;
-            _elevenLabsKey = null;
-            _elevenLabsKeyFetched = false;
-            setTimeout(() => { _elevenLabsQuotaExceeded = false; }, 60_000);
-            console.warn('[Venoxa] ElevenLabs quota exhausted — will retry in 60s.');
-          } else {
-            _elevenLabsKey = null;
-            _elevenLabsKeyFetched = false;
-            console.warn('[Venoxa] ElevenLabs 401 invalid key — clearing cache.');
-          }
-          break;
-        }
-        if (response.status === 429) {
-          _elevenLabsQuotaExceeded = true;
-          _elevenLabsKey = null;
-          _elevenLabsKeyFetched = false;
-          setTimeout(() => { _elevenLabsQuotaExceeded = false; }, 60_000);
-          console.warn('[Venoxa] ElevenLabs 429 — rate limited. Will retry in 60s.');
-          break;
-        }
-        if (!response.ok) {
-          const errBody = await response.text().catch(() => '');
-          console.warn(`[Venoxa] ElevenLabs ${response.status} (attempt ${attempt + 1}):`, errBody.slice(0, 120));
-          continue;
-        }
-
-        // Success — read full buffer, cache it, then play
-        _elevenLabsQuotaExceeded = false;
-        const audioBuf = await response.arrayBuffer();
-        _setCachedAudio(cacheKey, audioBuf);
-        await _playCachedAudio(audioBuf);
-        return;
-      } catch (err) {
-        console.warn(`[Venoxa] ElevenLabs network error (attempt ${attempt + 1}):`, err.message);
-      }
-    }
-  }
-
-  // Fallback: browser speechSynthesis — last resort.
+  // --- Browser speech synthesis (Arabic + Edge TTS failure fallback) ---
   if ('speechSynthesis' in window) {
-    const isArabicFallback = hasArabicText(text);
     const utterance = new SpeechSynthesisUtterance(text);
-    if (isArabicFallback) {
+    if (isArabic) {
       utterance.lang = 'ar-SA';
     } else {
-      utterance.lang = 'en-GB';
+      utterance.lang = _voiceAccent === 'us' ? 'en-US' : 'en-GB';
       const voices = window.speechSynthesis.getVoices();
-      const preferred = [
-        'Google UK English Male',
-        'Google UK English Female',
-        'Microsoft George - English (Great Britain)',
-        'Microsoft Hazel - English (Great Britain)',
-        'Microsoft Ryan Online (Natural) - English (United Kingdom)',
-        'Microsoft Sonia Online (Natural) - English (United Kingdom)',
-        'Daniel',
-        'Kate',
-        'Microsoft Aria Online (Natural)',
-        'Microsoft Guy Online (Natural)',
-        'Google US English',
-      ];
-      const pick = preferred.reduce((found, name) =>
-        found || voices.find(v => v.name === name), null)
-        || voices.find(v => v.lang === 'en-GB' && !v.localService)
-        || voices.find(v => v.lang === 'en-GB')
+      const pick = voices.find(v => v.lang === utterance.lang && !v.localService)
+        || voices.find(v => v.lang === utterance.lang)
         || voices.find(v => v.lang.startsWith('en'));
       if (pick) utterance.voice = pick;
     }
     utterance.rate = 0.92;
-    utterance.pitch = 1.0;
     utterance.onstart = () => { _lastTTSEngine = 'browser'; };
     window.speechSynthesis.speak(utterance);
-    return;
   }
 };
 
@@ -3231,19 +3070,11 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
     setAudioState('idle');
   };
 
-  // ── Fetch ElevenLabs audio and return Audio element ─────────────────
+  // ── Fetch audio via Edge TTS and return Audio element ──────────────
   const fetchAudioEl = async (text, speed) => {
     try {
-      const key = typeof getElevenLabsKey === 'function' ? await getElevenLabsKey() : null;
-      if (!key || _elevenLabsQuotaExceeded) throw new Error('no key or quota exceeded');
-      const resp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${DEFAULT_ELEVENLABS_VOICE_ID}/stream`, {
-        method: 'POST',
-        headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-        body: JSON.stringify({ text: text.slice(0, 2500), model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.85 } })
-      });
-      if (!resp.ok) throw new Error(`${resp.status}`);
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
+      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
+      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
       const audio = new Audio(url);
       audio.playbackRate = speed;
       return { audio, url };
@@ -4015,9 +3846,9 @@ function Speaking({
     const voiceId = voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID;
     await elevenLabsSpeak(text, voiceId);
     // Update TTS mode indicator after each call
-    const engine = _lastTTSEngine || (_elevenLabsQuotaExceeded || !_elevenLabsKey ? 'edge' : 'elevenlabs');
+    const engine = _lastTTSEngine || 'edge';
     setTtsEngine(engine);
-    setUsingBrowserTTS(engine !== 'elevenlabs');
+    setUsingBrowserTTS(engine === 'browser');
   };
 
   const handleSend = async (forcedText = null) => {

@@ -94,20 +94,11 @@ function cachePut(key: string, buf: Buffer): void {
   }
 }
 
-// Escape special XML characters so plain text is safe inside SSML attributes/content
-function xmlEsc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-// Build synthesis input — SSML with prosody when rate is given, plain text otherwise.
-// Rate is a CSS speech rate value, e.g. "+15%" or "fast".
-function buildInput(voice: string, text: string, rate: string): string {
-  // Only Multilingual Neural voices support SSML <prosody rate>.
-  // Standard Neural voices (e.g. en-GB-RyanNeural) silently return empty audio
-  // when wrapped in SSML, so fall back to plain text for them.
-  if (!rate || !voice.includes("Multilingual")) return text;
-  const lang = voice.match(/^([a-z]{2}-[A-Z]{2})/)?.[1] ?? "en-US";
-  return `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='${voice}'><prosody rate='${rate}'>${xmlEsc(text)}</prosody></voice></speak>`;
+// buildInput — always returns plain text.
+// SSML <prosody rate> was trialled for Multilingual Neural voices but the
+// Edge TTS service returns 0-byte audio intermittently; plain text is reliable.
+function buildInput(_voice: string, text: string, _rate: string): string {
+  return text;
 }
 
 async function synthesize(voice: string, input: string): Promise<Buffer> {
