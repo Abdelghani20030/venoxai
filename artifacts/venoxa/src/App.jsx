@@ -364,13 +364,9 @@ const _playCachedAudio = async (arrayBuf) => {
   const url  = URL.createObjectURL(blob);
   const audio = new Audio(url);
   _currentTTSAudio = audio;
-  // Resolve only when playback ENDS so sentence chains play in order.
-  await new Promise((resolve) => {
-    const cleanup = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-    audio.onended = () => { cleanup(); resolve(); };
-    audio.onerror = () => { cleanup(); resolve(); };
-    audio.play().catch(() => { cleanup(); resolve(); });
-  });
+  audio.onended = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+  audio.onerror = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+  await audio.play();
   _lastTTSEngine = 'elevenlabs';
 };
 
@@ -455,10 +451,11 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
     const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
 
     // Streaming playback — starts as soon as the first audio bytes arrive.
-    // Resolves only when audio ENDS so sentence chains play in the correct order.
     const audio = new Audio(url);
     audio.preload = 'auto';
     _currentTTSAudio = audio;
+    audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
+    audio.onerror  = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
 
     // Background cache fill — does not block playback at all.
     fetch(url)
@@ -470,12 +467,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
       })
       .catch(() => {});
 
-    await new Promise((resolve) => {
-      const cleanup = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-      audio.onended = () => { cleanup(); resolve(); };
-      audio.onerror = () => { cleanup(); resolve(); };
-      audio.play().catch(() => { cleanup(); resolve(); });
-    });
+    await audio.play();
     _lastTTSEngine = 'edge';
     return true;
   } catch (err) {
@@ -4153,11 +4145,8 @@ function Speaking({
         ? 'The user wrote in Arabic. Reply in Arabic naturally and warmly.'
         : 'Reply in English.';
 
-      // ── Step 1: Stream the reply ─────────────────────────────────────────────
+      // ── Step 1: Stream the reply immediately — plain text, no JSON ──────────
       const replyPrompt = `You are a friendly, natural conversation partner helping an English learner. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Reply warmly in 1-3 sentences. Output the reply text ONLY — no JSON, no labels, no analysis whatsoever.`;
-      const voiceIdForReply = voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID;
-      const shouldSpeak = isCallMode || autoRead;
-
       let replyText = '';
       await streamFromAPI(replyPrompt, (delta) => {
         replyText += delta;
@@ -4170,12 +4159,11 @@ function Speaking({
         msg.id === aiMsgId ? { ...msg, text: replyText, streaming: false } : msg
       ));
 
-      // ── Step 2 (concurrent): Speak the full reply once streaming is done ────
-      // Sending the full text as one call is more reliable than chaining
-      // per-sentence calls — a single audio element fires onended exactly once,
-      // so the complete reply is always read without any sentence being skipped.
-      if (shouldSpeak && replyText) {
-        elevenLabsSpeak(replyText, voiceIdForReply);
+      // ── TTS: start as soon as reply is ready ────────────────────────────────
+      if (isCallMode && replyText) {
+        elevenLabsSpeak(replyText, voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID);
+      } else if (autoRead && replyText) {
+        speakText(replyText);
       }
 
       // ── Step 2: Background correction — fires in parallel, never blocks ─────
