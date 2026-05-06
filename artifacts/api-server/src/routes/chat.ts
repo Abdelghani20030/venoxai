@@ -5,8 +5,12 @@ const router: IRouter = Router();
 
 // ── Response cache ─────────────────────────────────────────────────────────────
 const responseCache = new Map<string, { text: string; expires: number }>();
-const CACHE_TTL_MS = 2 * 60_000;
-const CACHE_MAX = 100;
+const CACHE_TTL_MS = 5 * 60_000; // 5 min
+const CACHE_MAX = 500;
+
+function normalizePrompt(prompt: string): string {
+  return prompt.replace(/\s+/g, " ").trim();
+}
 
 function getCached(prompt: string): string | null {
   const entry = responseCache.get(prompt);
@@ -38,12 +42,16 @@ function setCooldown(key: string, ms: number) {
 }
 
 // ── OpenRouter ────────────────────────────────────────────────────────────────
+// Models ordered by speed: smallest/fastest first.
+// Verified valid on OpenRouter as of 2026-05 — rotated when one hits rate limits.
 const OR_MODELS = [
-  "openai/gpt-oss-20b:free",
-  "openai/gpt-oss-120b:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "google/gemma-3-27b-it:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "liquid/lfm-2.5-1.2b-instruct:free",    // 1.2B — fastest
+  "openai/gpt-oss-20b:free",               // 20B — GPT-class, fast
+  "nvidia/nemotron-nano-9b-v2:free",       // 9B
+  "meta-llama/llama-3.2-3b-instruct:free", // 3B
+  "google/gemma-4-26b-a4b-it:free",        // 26B sparse MoE
+  "openai/gpt-oss-120b:free",              // 120B — high quality
+  "meta-llama/llama-3.3-70b-instruct:free",// 70B
 ];
 
 const orKey = (process.env["OPENROUTER_API_KEYY"] ?? "").trim();
@@ -61,12 +69,28 @@ const orClient = new OpenAI({
   },
 });
 
+// Split system/user parts if prompt contains a recognizable delimiter
+function buildMessages(prompt: string): Array<{ role: "system" | "user"; content: string }> {
+  // Prompts ending with 'User said: "..."' → extract system + user parts
+  const match = prompt.match(/^(.*?)\s*User said:\s*"([^"]*)"\.?\s*(?:Output the reply text ONLY.*)?$/s);
+  if (match) {
+    return [
+      { role: "system", content: match[1].trim() },
+      { role: "user",   content: match[2].trim() },
+    ];
+  }
+  return [{ role: "user", content: prompt }];
+}
+
 async function streamFromOpenRouter(
   prompt: string,
   onChunk: (delta: string) => void,
+  maxTokens = 512,
   log?: (msg: string) => void,
 ): Promise<void> {
   if (isCooledDown("openrouter:auth")) throw new Error("OpenRouter auth circuit open");
+
+  const messages = buildMessages(prompt);
 
   let lastErr: unknown;
   for (const model of OR_MODELS) {
@@ -75,9 +99,10 @@ async function streamFromOpenRouter(
     try {
       const s = await orClient.chat.completions.create({
         model,
-        messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 8192,
+        messages,
+        max_completion_tokens: maxTokens,
         stream: true,
+        temperature: 0.7,
       });
       for await (const chunk of s) {
         const delta = chunk.choices?.[0]?.delta?.content;
@@ -91,9 +116,11 @@ async function streamFromOpenRouter(
         log?.("OpenRouter auth failure — cooling down 5 min");
         throw err;
       }
-      if (msg.includes("429") || msg.includes("rate") || msg.includes("limit")) {
-        setCooldown(modelKey, 15_000);
-        log?.(`OpenRouter model ${model} rate-limited — skipping 15 s`);
+      if (msg.includes("429") || msg.includes("rate") || msg.includes("limit") || msg.includes("overloaded")) {
+        setCooldown(modelKey, 20_000);
+        log?.(`OpenRouter model ${model} rate-limited — skipping 20 s`);
+      } else {
+        log?.(`OpenRouter model ${model} failed: ${msg.slice(0, 80)}`);
       }
       lastErr = err;
     }
@@ -101,18 +128,15 @@ async function streamFromOpenRouter(
   throw lastErr ?? new Error("All OpenRouter models unavailable");
 }
 
-function normalizePrompt(prompt: string): string {
-  return prompt.replace(/\s+/g, " ").trim();
-}
-
 // ── Streaming SSE endpoint ────────────────────────────────────────────────────
 router.post("/chat/stream", async (req: Request, res: Response) => {
-  const prompt =
-    typeof req.body?.prompt === "string" ? normalizePrompt(req.body.prompt) : "";
+  const prompt = typeof req.body?.prompt === "string" ? normalizePrompt(req.body.prompt) : "";
   if (!prompt) {
     res.status(400).json({ error: "Missing 'prompt' in request body." });
     return;
   }
+  // Max tokens hint — caller can reduce for short conversational replies
+  const maxTokens = typeof req.body?.maxTokens === "number" ? Math.min(req.body.maxTokens, 2048) : 512;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -136,6 +160,7 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
     await streamFromOpenRouter(
       prompt,
       (delta) => { full += delta; send("delta", delta); },
+      maxTokens,
       (msg) => req.log.warn({ provider: "openrouter" }, msg),
     );
     if (full.trim()) setCache(prompt, full);
@@ -148,12 +173,12 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
 
 // ── Non-streaming endpoint ────────────────────────────────────────────────────
 router.post("/chat", async (req: Request, res: Response) => {
-  const prompt =
-    typeof req.body?.prompt === "string" ? normalizePrompt(req.body.prompt) : "";
+  const prompt = typeof req.body?.prompt === "string" ? normalizePrompt(req.body.prompt) : "";
   if (!prompt) {
     res.status(400).json({ error: "Missing 'prompt' string in request body." });
     return;
   }
+  const maxTokens = typeof req.body?.maxTokens === "number" ? Math.min(req.body.maxTokens, 2048) : 512;
 
   const hit = getCached(prompt);
   if (hit) { res.json({ text: hit }); return; }
@@ -163,9 +188,10 @@ router.post("/chat", async (req: Request, res: Response) => {
     await streamFromOpenRouter(
       prompt,
       (delta) => { text += delta; },
+      maxTokens,
       (msg) => req.log.warn({ provider: "openrouter" }, msg),
     );
-    if (!text.trim()) throw new Error("OpenRouter returned empty content.");
+    if (!text.trim()) throw new Error("AI returned empty content.");
     setCache(prompt, text);
     res.json({ text });
   } catch (err) {
