@@ -4145,26 +4145,52 @@ function Speaking({
         ? 'The user wrote in Arabic. Reply in Arabic naturally and warmly.'
         : 'Reply in English.';
 
-      // ── Step 1: Stream the reply immediately — plain text, no JSON ──────────
+      // ── Step 1: Stream the reply + speak sentence-by-sentence ───────────────
+      // Instead of waiting for the full reply, we detect sentence boundaries
+      // in the token stream and start TTS on each sentence immediately.
+      // Perceived latency drops from (AI time + TTS time) → (time to first sentence).
       const replyPrompt = `You are a friendly, natural conversation partner helping an English learner. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Reply warmly in 1-3 sentences. Output the reply text ONLY — no JSON, no labels, no analysis whatsoever.`;
+      const voiceIdForReply = voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID;
+      const shouldSpeak = isCallMode || autoRead;
+
+      // Serial chain — each sentence waits for the previous to finish so they
+      // play in the correct order even if TTS for sentence 1 is still playing
+      // when sentence 2 is ready.
+      let ttsChain = Promise.resolve();
+      const flushSentence = (text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        ttsChain = ttsChain.then(() => elevenLabsSpeak(trimmed, voiceIdForReply));
+      };
+
+      // Match sentence endings: period/exclamation/question mark (incl. Arabic ؟)
+      // followed by a space (so mid-sentence "Dr. Smith" doesn't split early).
+      const SENTENCE_END = /[.!?؟]["']?\s/;
+
       let replyText = '';
+      let ttsBuf = '';   // accumulates tokens until a sentence boundary appears
       await streamFromAPI(replyPrompt, (delta) => {
         replyText += delta;
         setMessages(prev => prev.map(msg =>
           msg.id === aiMsgId ? { ...msg, text: replyText } : msg
         ));
+        if (shouldSpeak) {
+          ttsBuf += delta;
+          // Flush every complete sentence as it crosses the boundary
+          let match;
+          while ((match = SENTENCE_END.exec(ttsBuf)) !== null) {
+            const sentence = ttsBuf.slice(0, match.index + match[0].length);
+            ttsBuf = ttsBuf.slice(sentence.length);
+            flushSentence(sentence);
+          }
+        }
       });
       replyText = replyText.trim();
       setMessages(prev => prev.map(msg =>
         msg.id === aiMsgId ? { ...msg, text: replyText, streaming: false } : msg
       ));
-
-      // ── TTS: start as soon as reply is ready ────────────────────────────────
-      if (isCallMode && replyText) {
-        elevenLabsSpeak(replyText, voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID);
-      } else if (autoRead && replyText) {
-        speakText(replyText);
-      }
+      // Flush any trailing text (last sentence may have no trailing space)
+      if (shouldSpeak) flushSentence(ttsBuf);
 
       // ── Step 2: Background correction — fires in parallel, never blocks ─────
       fetchFromGemini(
