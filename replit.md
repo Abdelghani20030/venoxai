@@ -26,11 +26,10 @@ Arabic/English language-learning web app with AI-powered features (vocabulary, g
 ## Architecture decisions
 
 - **AI provider**: OpenRouter only via `OPENROUTER_API_KEYY`. Model list in `chat.ts` with per-model circuit breaker (rate-limit cooldown).
-- **TTS chain**: `elevenLabsSpeak()` tries (1) Gemini TTS → (2) Edge TTS → (3) ElevenLabs direct → (4) browser. Gemini TTS uses `gemini-2.5-flash-preview-tts` model with Puck/Aoede voices.
+- **TTS chain**: `elevenLabsSpeak()` tries (1) Edge TTS → (2) ElevenLabs direct → (3) browser speechSynthesis. Edge TTS is always first — it streams audio in ~200 ms.
 - **Edge TTS speed**: +15% SSML prosody rate injected via `buildInput()` in `edge-tts.ts`.
 - **Reply before correction**: `handleSend` streams the plain reply first (no JSON), then fires a background `fetchFromGemini` call for the correction panel — user sees clean text immediately.
 - **Call mode recording**: `recognition.continuous = true` prevents the ~2s silence timeout that was cutting recordings short.
-- **Gemini TTS audio**: Returns L16 PCM 24kHz mono; `pcmToWav()` in `gemini-tts.ts` wraps it in a WAV header for browser playback.
 - **IndexedDB audio cache**: Client-side LRU cache (500 entries) so any text heard once plays instantly from cache — keyed on `(text, voiceId)` hash via djb2.
 
 ## Product
