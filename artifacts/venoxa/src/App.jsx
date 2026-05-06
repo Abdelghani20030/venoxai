@@ -482,49 +482,97 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
  * Voices: Puck (warm male), Aoede (breezy female).
  * Returns true on success, false on failure so caller can fall back to Edge TTS.
  */
+/**
+ * _geminiTTSCacheKey(normalized, gender) — returns the IndexedDB key for Gemini audio.
+ */
+const _geminiTTSCacheKey = (normalized, gender) => {
+  const voiceName = gender === 'female' ? 'aoede' : 'puck';
+  return _audioCacheKey(normalized, 'gemini:' + voiceName);
+};
+
+/**
+ * _geminiTTSWarmCache(text, gender)
+ * Fetches Gemini TTS audio in the background and stores it in IndexedDB.
+ * Does NOT play anything — safe to fire-and-forget alongside Edge TTS playback.
+ *
+ * Rate-limited to 1 concurrent fetch + minimum 7 s between requests to stay
+ * within the Gemini free-tier quota (~10 RPM). If a fetch is already in flight,
+ * the new request is queued (replacing any previously queued one) and fires as
+ * soon as the cooldown expires.
+ */
+let _geminiWarmInFlight = false;
+let _geminiWarmQueued = null; // { text, gender } — only the latest matters
+let _geminiWarmLastMs  = 0;
+const GEMINI_WARM_COOLDOWN_MS = 7000;
+
+const _geminiTTSWarmCache = (text, gender) => {
+  const _doFetch = (t, g) => {
+    const voiceName = g === 'female' ? 'aoede' : 'puck';
+    const ck = _audioCacheKey(t, 'gemini:' + voiceName);
+    const params = new URLSearchParams({ text: t, voice: voiceName });
+    const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
+    _geminiWarmInFlight = true;
+    _geminiWarmLastMs   = Date.now();
+    fetch(url)
+      .then(r => r.ok ? r.arrayBuffer() : null)
+      .then(buf => { if (buf) _setCachedAudio(ck, buf); })
+      .catch(() => {})
+      .finally(() => {
+        _geminiWarmInFlight = false;
+        // Drain the queue if something was waiting
+        if (_geminiWarmQueued) {
+          const { text: qt, gender: qg } = _geminiWarmQueued;
+          _geminiWarmQueued = null;
+          const wait = Math.max(0, GEMINI_WARM_COOLDOWN_MS - (Date.now() - _geminiWarmLastMs));
+          setTimeout(() => _doFetch(qt, qg), wait);
+        }
+      });
+  };
+
+  if (_geminiWarmInFlight) {
+    // Replace any previously-queued request with the latest phrase
+    _geminiWarmQueued = { text, gender };
+    return;
+  }
+  const sinceLast = Date.now() - _geminiWarmLastMs;
+  if (sinceLast < GEMINI_WARM_COOLDOWN_MS) {
+    // Too soon — schedule after cooldown, replacing any existing queued entry
+    _geminiWarmQueued = { text, gender };
+    if (!_geminiWarmInFlight) {
+      setTimeout(() => {
+        if (_geminiWarmQueued) {
+          const { text: qt, gender: qg } = _geminiWarmQueued;
+          _geminiWarmQueued = null;
+          _doFetch(qt, qg);
+        }
+      }, GEMINI_WARM_COOLDOWN_MS - sinceLast);
+    }
+    return;
+  }
+  _doFetch(text, gender);
+};
+
+/**
+ * geminiTTSSpeak(text, gender)
+ * Only plays Gemini audio when it is already in the IndexedDB cache (instant).
+ * Returns true on cache-hit play, false otherwise (caller falls through to Edge TTS).
+ */
 const geminiTTSSpeak = async (text, gender) => {
   if (!text?.trim()) return false;
   const normalized = normalizeTTSText(text);
   if (!normalized) return false;
 
-  const voiceName = gender === 'female' ? 'aoede' : 'puck';
-  const ck = _audioCacheKey(normalized, 'gemini:' + voiceName);
+  const ck = _geminiTTSCacheKey(normalized, gender);
+  const cached = await _getCachedAudio(ck);
+  if (!cached) return false;
 
   // Stop any currently-playing TTS audio
   if (_currentTTSAudio) { _currentTTSAudio.pause(); _currentTTSAudio = null; }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
-  // Cache hit — play instantly from IndexedDB
-  const cached = await _getCachedAudio(ck);
-  if (cached) {
-    await _playCachedAudio(cached);
-    _lastTTSEngine = 'gemini';
-    return true;
-  }
-
-  try {
-    const params = new URLSearchParams({ text: normalized, voice: voiceName });
-    const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
-
-    const audio = new Audio(url);
-    audio.preload = 'auto';
-    _currentTTSAudio = audio;
-    audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-    audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-
-    // Background cache fill
-    fetch(url)
-      .then(r => r.ok ? r.arrayBuffer() : null)
-      .then(buf => { if (buf) _setCachedAudio(ck, buf); })
-      .catch(() => {});
-
-    await audio.play();
-    _lastTTSEngine = 'gemini';
-    return true;
-  } catch (err) {
-    console.warn('[Venoxa] Gemini TTS failed:', err.message);
-    return false;
-  }
+  await _playCachedAudio(cached);
+  _lastTTSEngine = 'gemini';
+  return true;
 };
 
 const getElevenLabsKey = async () => {
@@ -608,12 +656,19 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID) => {
     return;
   }
 
-  // --- Primary: Gemini TTS (highest quality, most natural neural voice) ---
+  // --- TTS chain (non-Arabic) ---
+  // Strategy: speed first, quality on repeats.
+  //   1. Gemini cache HIT  → instant, highest quality (cached from a prior play)
+  //   2. Gemini cache MISS → Edge TTS streams immediately (~200-400 ms first byte)
+  //                          + Gemini fetches silently in background to warm cache.
+  //                          Next time this phrase plays → Gemini cache hit (step 1).
   if (!isArabic) {
     const gender = resolvedVoiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
+    // Step 1: cached Gemini audio → play instantly at full quality
     const geminiOk = await geminiTTSSpeak(normalizedText, gender);
     if (geminiOk) return;
-    // Fallback: Edge TTS (free, unlimited, cached for instant replay)
+    // Step 2: cache miss — stream Edge TTS immediately AND warm Gemini cache in background
+    _geminiTTSWarmCache(normalizedText, gender); // fire-and-forget, no await
     const ok = await edgeTTSSpeak(normalizedText, gender, undefined, cacheKey);
     if (ok) return;
   }
