@@ -3,40 +3,38 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ══════════════════════════════════════════════
-   LanGeek Brand Design Tokens
+   LanGeek Brand Tokens (Light) + Linear/Vercel Dark
    ══════════════════════════════════════════════ */
 :root {
-  /* Primary */
+  /* Light mode - LanGeek */
   --brand-primary:      #0E4AA4;
-  --brand-primary-dark: #1A3570;
-
-  /* Backgrounds */
+  --brand-primary-dark: #0c3d8a;
   --brand-bg:           #F7F9FC;
   --brand-surface:      #FFFFFF;
   --brand-accent-bg:    #EBF0F7;
-
-  /* Accent palette */
   --brand-amber:        #FFD78A;
   --brand-amber-light:  #FFECD6;
-  --brand-orange:       #FFAE7A;
   --brand-mint:         #78E3D9;
   --brand-mint-light:   #C8EFE8;
   --brand-purple:       #9E9EFF;
-  --brand-purple-2:     #B68BFE;
-
-  /* Text */
   --brand-text:         #0A0A0A;
   --brand-muted:        #808080;
   --brand-border:       #E6E6E6;
 
-  /* Dark mode navy palette */
-  --brand-dark-bg:      #0B152E;
-  --brand-dark-surface: #111C38;
-  --brand-dark-card:    #1A3570;
-  --brand-dark-border:  #1D3360;
+  /* Dark mode - Linear/Vercel premium */
+  --dk-bg:              #0B1020;
+  --dk-surface:         #121A2F;
+  --dk-card:            #17223B;
+  --dk-border:          #263452;
+  --dk-border-subtle:   #1E2D47;
+  --dk-accent:          #4F7CFF;
+  --dk-accent2:         #8B5CF6;
+  --dk-text:            #F8FAFC;
+  --dk-muted:           #B6C2D9;
+  --dk-muted2:          #7A8BA8;
 }
 
-/* ── Sesame-style blob animations ── */
+/* ── Blob animations (call mode) ── */
 @keyframes blob-idle {
   0%   { border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%; transform: scale(1)    rotate(0deg); }
   25%  { border-radius: 50% 50% 40% 60% / 55% 45% 55% 45%; transform: scale(1.02) rotate(2deg); }
@@ -62,24 +60,18 @@
 .blob-speak  { animation: blob-speak  0.9s ease-in-out infinite; }
 .blob-listen { animation: blob-listen 0.6s ease-in-out infinite; }
 
-/* ── Call transcript: smooth rise from bottom ── */
+/* ── Call transcript ── */
 @keyframes fadeUpIn {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.transcript-fade {
-  animation: fadeUpIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
+.transcript-fade { animation: fadeUpIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* ── Word-by-word sync: each word fades in as it's spoken ── */
 @keyframes wordAppear {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.word-appear {
-  display: inline-block;
-  animation: wordAppear 0.18s ease-out both;
-}
+.word-appear { display: inline-block; animation: wordAppear 0.18s ease-out both; }
 
 @font-face {
   font-family: 'The Year of The Camel';
@@ -88,70 +80,65 @@
   font-style: normal;
 }
 
+/* ══════════════════════════════════════════════
+   Base
+   ══════════════════════════════════════════════ */
 html, body, #root {
   height: 100%;
   margin: 0;
   font-family: 'Noto Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--brand-bg);
-  color: var(--brand-text);
 }
 
 [dir="rtl"], [dir="rtl"] * {
   font-family: 'The Year of The Camel', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.dark input[type="date"], .dark input[type="time"] {
-  color-scheme: dark;
-}
+.dark input[type="date"], .dark input[type="time"] { color-scheme: dark; }
 
-/* Hide number input spinners */
+/* ── Spinners ── */
 .no-spinner::-webkit-outer-spin-button,
-.no-spinner::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-.no-spinner {
-  -moz-appearance: textfield;
+.no-spinner::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.no-spinner { -moz-appearance: textfield; }
+
+/* ══════════════════════════════════════════════
+   Dark mode premium overrides
+   ══════════════════════════════════════════════ */
+.dark {
+  background-color: var(--dk-bg);
+  color: var(--dk-text);
 }
 
-/* Sleek, slim scrollbars */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+/* Glass-card effect for dark sidebar + key panels */
+.dark .glass-panel {
+  background: rgba(18, 26, 47, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-color: var(--dk-border);
 }
+
+/* Subtle card glow on hover in dark mode */
+.dark .card-hover:hover {
+  box-shadow: 0 0 0 1px rgba(79, 124, 255, 0.25), 0 4px 20px rgba(79, 124, 255, 0.08);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* Premium dark scrollbars */
 .dark * {
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
-}
-*::-webkit-scrollbar { width: 6px; height: 6px; }
-*::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 116, 139, 0.35);
-  border-radius: 999px;
-  background-clip: padding-box;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(14, 74, 164, 0.5);
+  scrollbar-color: rgba(79, 124, 255, 0.2) transparent;
 }
 .dark *::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.12);
-}
-.dark *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(120, 227, 217, 0.4);
-}
-*::-webkit-scrollbar-corner { background: transparent; }
-
-.custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 116, 139, 0.35);
+  background-color: rgba(79, 124, 255, 0.2);
   border-radius: 999px;
 }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.12);
+.dark *::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(79, 124, 255, 0.4);
 }
 
-/* ── Flat UI overrides — strip heavy shadows in light mode ── */
+/* ══════════════════════════════════════════════
+   Light mode flat overrides (strip neumorphic)
+   ══════════════════════════════════════════════ */
 html:not(.dark) .shadow-2xl,
 html:not(.dark) .shadow-xl,
 html:not(.dark) .shadow-lg,
@@ -168,72 +155,73 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
   box-shadow: none !important;
 }
 
-/* ── Dark mode base surface override ── */
-.dark {
-  background-color: var(--brand-dark-bg);
-  color: #E6E6E6;
+/* Dark mode: allow subtle glow shadows */
+.dark .shadow-sm,
+.dark .shadow-md,
+.dark .shadow-lg {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4) !important;
 }
 
-/* LanGeek border color for light mode */
-html:not(.dark) .border-gray-200 {
-  border-color: var(--brand-border) !important;
+/* ══════════════════════════════════════════════
+   Scrollbars (light)
+   ══════════════════════════════════════════════ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
 }
-html:not(.dark) .border-gray-100 {
-  border-color: #ECECEC !important;
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.3);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover { background-color: rgba(14, 74, 164, 0.45); }
+*::-webkit-scrollbar-corner { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.3);
+  border-radius: 999px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(79, 124, 255, 0.2);
 }
 
-/* Simple fade-in animation */
+/* Light border override */
+html:not(.dark) .border-gray-200 { border-color: #E6E6E6 !important; }
+html:not(.dark) .border-gray-100 { border-color: #ECECEC !important; }
+
+/* ══════════════════════════════════════════════
+   Animations
+   ══════════════════════════════════════════════ */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.animate-fadeIn {
-  animation: fadeIn 0.25s ease-out both;
-}
+.animate-fadeIn { animation: fadeIn 0.25s ease-out both; }
 
-/* Print styles */
+/* ══════════════════════════════════════════════
+   Print
+   ══════════════════════════════════════════════ */
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
   html, body, #root {
-    background: #fff !important;
-    color: #000 !important;
-    height: auto !important;
-    min-height: 0 !important;
-    overflow: visible !important;
+    background: #fff !important; color: #000 !important;
+    height: auto !important; min-height: 0 !important; overflow: visible !important;
   }
-  #root *,
-  #root *::before,
-  #root *::after {
-    overflow: visible !important;
-    max-height: none !important;
+  #root *, #root *::before, #root *::after {
+    overflow: visible !important; max-height: none !important;
   }
-  .break-after-page {
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-  table, tr, td, th {
-    page-break-inside: auto !important;
-    break-inside: auto !important;
-  }
-  table {
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-  }
+  .break-after-page { page-break-after: always !important; break-after: page !important; }
+  table, tr, td, th { page-break-inside: auto !important; break-inside: auto !important; }
+  table { border-collapse: separate !important; border-spacing: 0 !important; }
   th, td {
     border-right: 1.5px solid #000 !important;
     border-bottom: 1.5px solid #000 !important;
     background-clip: padding-box !important;
   }
-  thead tr th:last-child,
-  tbody tr td:last-child,
-  tfoot tr td:last-child {
+  thead tr th:last-child, tbody tr td:last-child, tfoot tr td:last-child {
     border-left: 1.5px solid #000 !important;
   }
-  thead tr th {
-    border-top: 1.5px solid #000 !important;
-  }
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
+  thead tr th { border-top: 1.5px solid #000 !important; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
