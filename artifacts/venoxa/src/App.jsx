@@ -935,11 +935,11 @@ function Dashboard({
             color: isDark ? '#4F7CFF' : '#7C3AED',
             backdropFilter:'blur(8px)',
           }}>
-          🇬🇧 {t.levelLabel}
+          {t.levelLabel}
         </div>
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4 leading-tight"
           style={{ color: isDark ? '#F8FAFC' : '#0A0A0A' }}>
-          {t.welcome} <span style={{ color: isDark ? '#4F7CFF' : '#7C3AED' }}>Venoxa</span> 🇬🇧
+          {t.welcome} <span style={{ color: isDark ? '#4F7CFF' : '#7C3AED' }}>Venoxa</span>
         </h2>
         <p className="text-base lg:text-lg mb-7 max-w-xl mx-auto leading-relaxed"
           style={{ color: isDark ? '#B6C2D9' : '#6B7280' }}>
