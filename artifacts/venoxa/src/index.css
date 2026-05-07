@@ -170,6 +170,9 @@ html, body, #root {
   th, td {
     border-right: 1.5px solid #000 !important;
     border-bottom: 1.5px solid #000 !important;
+    /* background-clip: padding-box prevents cell backgrounds from painting
+       over the border area — without this, border-bottom is hidden in print */
+    background-clip: padding-box !important;
   }
   /* RTL: last child in DOM = leftmost column (المجموع) → needs physical left border */
   thead tr th:last-child,
