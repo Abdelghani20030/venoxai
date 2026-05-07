@@ -37,17 +37,18 @@ Arabic/English language-learning web app with AI-powered features (vocabulary, g
 - Dashboard, Study Plan (CEFR-based), Vocabulary + Phrasal Verbs + Idioms, Grammar (AI), Listening, Reading (AI), Writing (AI), Conversation/Speaking (AI call mode)
 - Call mode: full-screen voice UI with morphing blob, scrollable fade-to-top transcript, continuous-mode voice recording, Edge TTS primary + browser fallback
 
-## Design system (LanGeek brand tokens)
+## Design system
 
 Tokens defined as CSS variables in `index.css` (`:root`):
-- **Light**: bg `#F7F9FC`, surface `#FFFFFF`, border `#E6E6E6`, text `#0A0A0A`
-- **Primary**: `#0E4AA4` / hover `#0c3d8a`
-- **Accent palette**: mint `#78E3D9` / `#C8EFE8`, amber `#FFD78A` / `#FFECD6`, purple `#9E9EFF` / `#B68BFE`
-- **Dark mode navy**: bg `#0B152E`, surface `#111C38`, card `#1A3570`, border `#1D3360`
+- **Light (LanGeek)**: bg `#F7F9FC`, surface `#FFFFFF`, border `#E6E6E6`, text `#0A0A0A`, primary `#0E4AA4`
+- **Accent palette**: mint `#78E3D9`/`#C8EFE8`, amber `#FFD78A`/`#FFECD6`, purple `#9E9EFF`
+- **Dark (Linear/Vercel)**: bg `#0B1020`, surface `#121A2F`, card `#17223B`, border `#263452`
+- **Dark accents**: primary `#4F7CFF`, secondary `#8B5CF6`, text `#F8FAFC`, muted `#B6C2D9`, dim `#7A8BA8`
 - **Font**: Noto Sans — body/UI; 'The Year of The Camel' for Arabic RTL
-- **Cards** (`CARD_PALETTES`): mint `#C8EFE8` + `#48725E` icon, blue `#EBF0F7` + `#0E4AA4` icon, amber `#FFECD6` + `#D88C34` icon
-- **Sidebar active**: `bg-[#EBF0F7] text-[#0E4AA4]`; CTAs use `rounded-full` pill shape (LanGeek `9999px`)
-- **Flat UI**: no gradients on surfaces, no heavy shadows in light mode (CSS override in `index.css`)
+- **Cards** (`CARD_PALETTES`): mint `#C8EFE8`/`#48725E` icon, blue `#EBF0F7`/`#0E4AA4` icon, amber `#FFECD6`/`#D88C34` icon — dark variants use `#17223B` card + `#263452` border
+- **Sidebar active light**: `bg-[#EBF0F7] text-[#0E4AA4]`; dark: `bg-[#4F7CFF]/15 text-[#4F7CFF] border-[#4F7CFF]/25`
+- **Flat UI**: no gradients/heavy shadows in light mode; dark mode allows subtle glow on hover via `.card-hover` CSS
+- **Glass panel**: `.glass-panel` utility — `bg: rgba(18,26,47,0.85)` + `backdrop-filter: blur(16px)` for dark sidebar overlays
 
 ## User preferences
 
