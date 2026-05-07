@@ -49,6 +49,8 @@ Tokens defined as CSS variables in `index.css` (`:root`):
 - **Sidebar active light**: `bg-[#EBF0F7] text-[#0E4AA4]`; dark: `bg-[#4F7CFF]/15 text-[#4F7CFF] border-[#4F7CFF]/25`
 - **Flat UI**: no gradients/heavy shadows in light mode; dark mode allows subtle glow on hover via `.card-hover` CSS
 - **Glass panel**: `.glass-panel` utility — `bg: rgba(18,26,47,0.85)` + `backdrop-filter: blur(16px)` for dark sidebar overlays
+- **Dashboard hero**: LanGeek-style lavender gradient (`#F0EFFE→#FAFBFF→#FFF5F0`) + scattered + dot pattern; dark: `#121A2F` flat
+- **Dashboard cards (LanGeek stagger)**: 5 cards in cascading waterfall — `CARD_STAGGER = [16,52,0,52,16]px` top offsets; colors: teal `#5DCFBF`, coral `#F4856B`, teal-dark `#3DBDAF`, amber `#FFBE6A`, salmon `#F07E64`; white icon circle, wave SVG + concentric rings decoration
 
 ## User preferences
 
