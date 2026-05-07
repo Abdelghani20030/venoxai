@@ -37,12 +37,22 @@ Arabic/English language-learning web app with AI-powered features (vocabulary, g
 - Dashboard, Study Plan (CEFR-based), Vocabulary + Phrasal Verbs + Idioms, Grammar (AI), Listening, Reading (AI), Writing (AI), Conversation/Speaking (AI call mode)
 - Call mode: full-screen voice UI with morphing blob, scrollable fade-to-top transcript, continuous-mode voice recording, Edge TTS primary + browser fallback
 
+## Design system (LanGeek-inspired)
+
+- **Theme**: Light by default. Colors: bg `#F7F9FC`, sidebar `#FFFFFF`, primary `#0E4AA4`, accent `#EBF0F7`, secondary `#FFD78A`, text `#0A0A0A`.
+- **Font**: Noto Sans (loaded in `index.html`) — body/UI; 'The Year of The Camel' for Arabic RTL text.
+- **Cards**: Pastel solid backgrounds (`CARD_PALETTES` in App.jsx) — teal `#C8EFE8`, blue `#EBF0F7`, amber `#FFE4B2`.
+- **Sidebar active state**: `bg-[#EBF0F7] text-[#0E4AA4]` — no gradient.
+- **Logo**: `Venoxa` in `#0A0A0A` + `.ai` in `#0E4AA4`.
+- Dark mode still works via the theme toggle button.
+
 ## User preferences
 
 - Arabic is primary language for UI, English is learning target
 - OpenRouter key name is `OPENROUTER_API_KEYY` (double Y) — do not change
 - Voice speed should be natural/native, not slow or over-enunciated
 - British accent is default; US accent toggle available
+- UI design inspired by LanGeek.co — light, clean, Noto Sans, pastel cards
 
 ## Gotchas
 
