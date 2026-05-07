@@ -843,7 +843,8 @@ function Dashboard({
   setTab,
   userLevel,
   AI_KEY,
-  lang
+  lang,
+  theme
 }) {
   const [insight, setInsight] = useState(null);
   const [loadingInsight, setLoadingInsight] = useState(false);
@@ -889,112 +890,142 @@ function Dashboard({
       setLoadingInsight(false);
     }
   };
+  const isDark = theme === 'dark';
   const t = {
-    welcome: _resolveTranslation(lang, 'أهلاً بك في Venoxa!', 'Welcome to Venoxa!'),
-    currentLvl: _resolveTranslation(lang, 'مستواك الحالي', 'Your Current Level:'),
-    desc: _resolveTranslation(lang, 'جاهز لتطوير مستواك في اللغة الإنجليزية؟ يمكنك الآن إعداد خطتك الشخصية للوصول لهدفك في وقت قياسي.', 'Ready to improve your English? You can now set up your personalized plan to reach your goal in record time.'),
+    welcome: _resolveTranslation(lang, 'تعلّم الإنجليزية مع', 'Learn English with'),
+    levelLabel: _resolveTranslation(lang, `المستوى ${userLevel}`, `Level ${userLevel}`),
+    desc: _resolveTranslation(lang, 'جاهز لتطوير مستواك في اللغة الإنجليزية؟ يمكنك الآن إعداد خطتك الشخصية للوصول لهدفك في وقت قياسي.', 'Ready to improve your English? Set up your personalized plan to reach your goal in record time.'),
     createPlan: _resolveTranslation(lang, 'إنشاء الخطة والمستوى', 'Set Plan & Level'),
     quoteTitle: _resolveTranslation(lang, 'إلهام اليوم', 'Daily Inspiration'),
     tipTitle: _resolveTranslation(lang, `نصيحة ذكية للمستوى ${userLevel}`, `Smart Tip for Level ${userLevel}`),
     learningPaths: _resolveTranslation(lang, 'مسارات التعلم الأساسية', 'Core Learning Paths'),
-    paths: [{
-      id: 'writing',
-      icon: PenTool,
-      color: "from-purple-500/20 to-purple-500/5",
-      iconColor: "text-purple-600 dark:text-[#8B5CF6]",
-      borderHover: "hover:border-purple-500/50",
-      title: _resolveTranslation(lang, "تحسين الكتابة", "Improve Writing"),
-      desc: _resolveTranslation(lang, "اكتب نصوصاً وسيقوم الذكاء الاصطناعي بتصحيحها وتوضيح الفرق بينها وبين كلام الأجانب.", "Write texts and the AI will correct them and show how a native would say it.")
-    }, {
-      id: 'listening',
-      icon: Headphones,
-      color: "from-blue-500/20 to-blue-500/5",
-      iconColor: "text-blue-600 dark:text-[#4F7CFF]",
-      borderHover: "hover:border-blue-500/50",
-      title: _resolveTranslation(lang, "تقوية الاستماع", "Boost Listening"),
-      desc: _resolveTranslation(lang, "مصادر بودكاست ممتازة حسب مستواك لتدريب الأذن.", "Excellent podcast sources based on your level to train your ear.")
-    }, {
-      id: 'speaking',
-      icon: MessageSquare,
-      color: "from-emerald-500/20 to-emerald-500/5",
-      iconColor: "text-emerald-600 dark:text-[#4F7CFF]",
-      borderHover: "hover:border-emerald-500/50",
-      title: _resolveTranslation(lang, "تحدي التحدث", "Speaking Challenge"),
-      desc: _resolveTranslation(lang, "حافظ على طلاقتك وتدرب على محادثات ومواقف مع AI.", "Maintain your fluency and practice conversations and scenarios with AI.")
-    }]
+    paths: [
+      { id: 'vocab',    icon: BookOpen,     title: _resolveTranslation(lang, 'المفردات',    'Vocabulary'),      desc: _resolveTranslation(lang, 'تعلّم مفردات الإنجليزية وراجعها بنظام التكرار.', 'Learn English vocabulary with spaced repetition.'),    paletteIndex: 0 },
+      { id: 'writing',  icon: PenTool,      title: _resolveTranslation(lang, 'الكتابة AI',  'Writing AI'),      desc: _resolveTranslation(lang, 'اكتب نصوصاً وصحّحها مع الذكاء الاصطناعي.', 'Write and correct texts with AI.'),                   paletteIndex: 1 },
+      { id: 'listening',icon: Headphones,   title: _resolveTranslation(lang, 'الاستماع',    'Listening'),       desc: _resolveTranslation(lang, 'درّب أذنك مع بودكاست حسب مستواك.', 'Train your ear with level-matched podcasts.'),         paletteIndex: 2 },
+      { id: 'speaking', icon: MessageSquare,title: _resolveTranslation(lang, 'المحادثة AI', 'Speaking AI'),     desc: _resolveTranslation(lang, 'تدرّب على محادثات حقيقية مع AI.', 'Practice real conversations with AI.'),               paletteIndex: 3 },
+      { id: 'grammar',  icon: Brain,        title: _resolveTranslation(lang, 'القواعد AI',  'Grammar AI'),      desc: _resolveTranslation(lang, 'دروس قواعد اللغة الإنجليزية التفاعلية.', 'Interactive English grammar lessons.'),             paletteIndex: 4 },
+    ]
   };
-  return <div className="space-y-5 lg:space-y-8 animate-fadeIn">
-    <div className="relative overflow-hidden bg-white dark:bg-[#121A2F] border border-[#E6E6E6] dark:border-[#263452] rounded-2xl p-5 sm:p-8 lg:p-10 transition-colors duration-300">
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="flex-1 text-center md:text-start">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold mb-3 lg:mb-4 text-[#0A0A0A] dark:text-[#F8FAFC] leading-tight">
-            {t.welcome} <br /><span className="text-[#0E4AA4]">{t.currentLvl} {userLevel}</span>
-          </h2>
-          <p className="text-gray-500 dark:text-[#B6C2D9] text-base lg:text-lg mb-5 lg:mb-8 max-w-xl mx-auto md:mx-0 leading-relaxed">
-            {t.desc}
-          </p>
-          <div className="flex flex-wrap justify-center md:justify-start gap-4">
-            <button onClick={() => setTab('plan')} className="bg-[#0E4AA4] text-white px-8 py-3.5 rounded-full font-bold hover:bg-[#0c3d8a] transition-colors flex items-center gap-2">
-              <Calendar className="w-5 h-5" /> {t.createPlan}
-            </button>
-          </div>
+  const dotPositions = [
+    [3,8],[11,5],[19,12],[27,3],[35,9],[43,15],[51,6],[59,11],[67,4],[75,13],[83,7],[91,10],
+    [5,30],[13,25],[21,35],[29,28],[37,22],[45,38],[53,27],[61,33],[69,20],[77,36],[85,24],[93,31],
+    [7,55],[15,48],[23,62],[31,50],[39,58],[47,44],[55,65],[63,52],[71,60],[79,47],[87,68],[95,56],
+    [2,80],[10,75],[18,88],[26,82],[34,72],[42,85],[50,78],[58,90],[66,74],[74,83],[82,70],[90,87],
+  ];
+  return <div className="space-y-5 lg:space-y-7 animate-fadeIn">
+    {/* ── LanGeek-style Hero ── */}
+    <div className="relative overflow-hidden rounded-2xl p-6 sm:p-10 lg:p-14 transition-colors duration-300"
+      style={{
+        background: isDark ? '#121A2F' : 'linear-gradient(135deg,#F0EFFE 0%,#FAFBFF 55%,#FFF5F0 100%)',
+        border: isDark ? '1px solid #263452' : '1px solid rgba(139,92,246,0.12)',
+      }}>
+      {/* + Dot pattern */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
+        {dotPositions.map(([x, y], i) => (
+          <span key={i} style={{ position:'absolute', left:`${x}%`, top:`${y}%`, color: isDark ? 'rgba(79,124,255,0.13)' : 'rgba(139,92,246,0.22)', fontSize:'15px', fontWeight:900, lineHeight:1 }}>+</span>
+        ))}
+      </div>
+      {/* Hero content */}
+      <div className="relative z-10 text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5 text-sm font-bold"
+          style={{
+            background: isDark ? 'rgba(79,124,255,0.13)' : 'rgba(255,255,255,0.8)',
+            border: `1px solid ${isDark ? 'rgba(79,124,255,0.28)' : 'rgba(139,92,246,0.2)'}`,
+            color: isDark ? '#4F7CFF' : '#7C3AED',
+            backdropFilter:'blur(8px)',
+          }}>
+          🇬🇧 {t.levelLabel}
         </div>
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4 leading-tight"
+          style={{ color: isDark ? '#F8FAFC' : '#0A0A0A' }}>
+          {t.welcome} <span style={{ color: isDark ? '#4F7CFF' : '#7C3AED' }}>Venoxa</span> 🇬🇧
+        </h2>
+        <p className="text-base lg:text-lg mb-7 max-w-xl mx-auto leading-relaxed"
+          style={{ color: isDark ? '#B6C2D9' : '#6B7280' }}>
+          {t.desc}
+        </p>
+        <button onClick={() => setTab('plan')}
+          className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full font-bold text-white transition-all duration-200 hover:scale-[1.03]"
+          style={{
+            background: isDark ? 'linear-gradient(135deg,#4F7CFF 0%,#8B5CF6 100%)' : 'linear-gradient(135deg,#7C3AED 0%,#0E4AA4 100%)',
+            boxShadow: isDark ? '0 4px 20px rgba(79,124,255,0.28)' : '0 4px 20px rgba(124,58,237,0.25)',
+          }}>
+          <Calendar className="w-5 h-5" /> {t.createPlan}
+        </button>
       </div>
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-      <div className="bg-[#EBF0F7] dark:bg-[#17223B] p-6 rounded-2xl border border-[#E6E6E6] dark:border-[#263452] flex flex-col justify-center items-center text-center relative overflow-hidden group transition-colors">
-        <Quote className="absolute top-4 left-4 w-12 h-12 text-[#0E4AA4]/10 dark:text-[#8B5CF6]/10 -rotate-12" />
-        <h3 className="text-base font-bold text-[#0E4AA4] dark:text-[#8B5CF6] mb-4 flex items-center gap-2">
+    {/* ── Quote + Tip ── */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="bg-[#EBF0F7] dark:bg-[#17223B] p-5 rounded-2xl border border-[#E6E6E6] dark:border-[#263452] flex flex-col justify-center items-center text-center relative overflow-hidden transition-colors">
+        <Quote className="absolute top-3 start-3 w-10 h-10 text-[#0E4AA4]/10 dark:text-[#8B5CF6]/10 -rotate-12" />
+        <h3 className="text-sm font-bold text-[#0E4AA4] dark:text-[#8B5CF6] mb-3 flex items-center gap-2">
           <Sparkles className="w-4 h-4" /> {t.quoteTitle}
         </h3>
-        {loadingInsight ? <Activity className="w-8 h-8 text-[#0E4AA4] dark:text-[#8B5CF6] animate-spin" /> : <>
-          <p className="text-xl font-serif italic text-[#0A0A0A] dark:text-[#F8FAFC] mb-2" dir="ltr">"{safeRender(insight?.quote)}"</p>
+        {loadingInsight ? <Activity className="w-7 h-7 text-[#0E4AA4] dark:text-[#8B5CF6] animate-spin" /> : <>
+          <p className="text-base font-serif italic text-[#0A0A0A] dark:text-[#F8FAFC] mb-1.5" dir="ltr">"{safeRender(insight?.quote)}"</p>
           <p className="text-sm text-[#0E4AA4]/70 dark:text-[#8B5CF6]/80">{safeRender(insight?.translated_quote)}</p>
         </>}
       </div>
-
-      <div className="bg-[#FFECD6] dark:bg-[#17223B] p-6 rounded-2xl border border-[#E6E6E6] dark:border-[#263452] flex flex-col justify-center items-center text-center group transition-colors">
-        <h3 className="text-base font-bold text-[#7a4a00] dark:text-amber-300 mb-4 flex items-center gap-2">
+      <div className="bg-[#FFECD6] dark:bg-[#17223B] p-5 rounded-2xl border border-[#E6E6E6] dark:border-[#263452] flex flex-col justify-center items-center text-center transition-colors">
+        <h3 className="text-sm font-bold text-[#7a4a00] dark:text-[#4F7CFF] mb-3 flex items-center gap-2">
           <Zap className="w-4 h-4" /> {t.tipTitle}
         </h3>
-        {loadingInsight ? <Activity className="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" /> : <>
-          <p className="text-lg text-[#0A0A0A] dark:text-[#F8FAFC] font-semibold" dir="ltr">{safeRender(insight?.pro_tip)}</p>
-          <p className="text-sm text-[#7a4a00]/80 dark:text-amber-300/80 mt-2">{safeRender(insight?.translated_tip)}</p>
+        {loadingInsight ? <Activity className="w-7 h-7 text-amber-500 animate-spin" /> : <>
+          <p className="text-base text-[#0A0A0A] dark:text-[#F8FAFC] font-semibold" dir="ltr">{safeRender(insight?.pro_tip)}</p>
+          <p className="text-sm text-[#7a4a00]/80 dark:text-[#7A8BA8] mt-1.5">{safeRender(insight?.translated_tip)}</p>
         </>}
       </div>
     </div>
 
+    {/* ── LanGeek Staggered Learning Paths ── */}
     <div>
-      <h3 className="text-lg sm:text-xl font-bold text-[#0A0A0A] dark:text-[#F8FAFC] mb-4 lg:mb-5 flex items-center gap-2"><Activity className="w-5 h-5 text-[#0E4AA4]" /> {t.learningPaths}</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {t.paths.map((path, i) => <DashboardCard key={path.id} {...path} paletteIndex={i} onClick={() => setTab(path.id)} />)}
+      <h3 className="text-base sm:text-lg font-bold text-[#0A0A0A] dark:text-[#F8FAFC] mb-5 flex items-center gap-2">
+        <Activity className="w-5 h-5 text-[#0E4AA4] dark:text-[#4F7CFF]" /> {t.learningPaths}
+      </h3>
+      <div className="flex gap-3 sm:gap-4 items-start overflow-x-auto pb-6 sm:overflow-visible sm:pb-2" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
+        {t.paths.map((path, i) => (
+          <DashboardCard key={path.id} {...path} index={i} isDark={isDark} onClick={() => setTab(path.id)} />
+        ))}
       </div>
     </div>
   </div>;
 }
 const CARD_PALETTES = [
-  { bg: 'bg-[#C8EFE8] dark:bg-[#17223B] dark:border dark:border-[#263452]', iconBg: 'bg-[#48725E] dark:bg-[#4F7CFF]/20', iconColor: 'text-white dark:text-[#4F7CFF]', text: 'text-[#0a5c52] dark:text-[#B6C2D9]' },
-  { bg: 'bg-[#EBF0F7] dark:bg-[#17223B] dark:border dark:border-[#263452]', iconBg: 'bg-[#0E4AA4] dark:bg-[#8B5CF6]/20', iconColor: 'text-white dark:text-[#8B5CF6]', text: 'text-[#0E4AA4] dark:text-[#B6C2D9]' },
-  { bg: 'bg-[#FFECD6] dark:bg-[#17223B] dark:border dark:border-[#263452]', iconBg: 'bg-[#D88C34] dark:bg-[#4F7CFF]/20', iconColor: 'text-white dark:text-[#4F7CFF]', text: 'text-[#7a4a00] dark:text-[#B6C2D9]' },
+  { bg:'bg-[#5DCFBF] dark:bg-[#17223B]', iconBg:'bg-white/25 dark:bg-[#4F7CFF]/20', iconColor:'text-white dark:text-[#4F7CFF]', text:'text-white dark:text-[#B6C2D9]', sub:'text-white/85 dark:text-[#7A8BA8]' },
+  { bg:'bg-[#F4856B] dark:bg-[#17223B]', iconBg:'bg-white/25 dark:bg-[#8B5CF6]/20', iconColor:'text-white dark:text-[#8B5CF6]', text:'text-white dark:text-[#B6C2D9]', sub:'text-white/85 dark:text-[#7A8BA8]' },
+  { bg:'bg-[#3DBDAF] dark:bg-[#17223B]', iconBg:'bg-white/25 dark:bg-[#4F7CFF]/20', iconColor:'text-white dark:text-[#4F7CFF]', text:'text-white dark:text-[#B6C2D9]', sub:'text-white/85 dark:text-[#7A8BA8]' },
+  { bg:'bg-[#FFBE6A] dark:bg-[#17223B]', iconBg:'bg-white/25 dark:bg-[#4F7CFF]/20', iconColor:'text-white dark:text-[#4F7CFF]', text:'text-white dark:text-[#B6C2D9]', sub:'text-white/85 dark:text-[#7A8BA8]' },
+  { bg:'bg-[#F07E64] dark:bg-[#17223B]', iconBg:'bg-white/25 dark:bg-[#8B5CF6]/20', iconColor:'text-white dark:text-[#8B5CF6]', text:'text-white dark:text-[#B6C2D9]', sub:'text-white/85 dark:text-[#7A8BA8]' },
 ];
-function DashboardCard({
-  icon: Icon,
-  title,
-  desc,
-  onClick,
-  _color,
-  _iconColor,
-  _borderHover,
-  paletteIndex = 0
-}) {
-  const palette = CARD_PALETTES[paletteIndex % CARD_PALETTES.length];
-  return <div onClick={onClick} className={`group relative p-6 rounded-2xl ${palette.bg} cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md overflow-hidden border border-white/60 dark:border-transparent`}>
-    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${palette.iconBg} mb-5 group-hover:scale-110 transition-transform duration-200`}>
-      <Icon className={`w-6 h-6 ${palette.iconColor}`} />
+const CARD_STAGGER = [16, 52, 0, 52, 16];
+function DashboardCard({ icon: Icon, title, desc, onClick, paletteIndex = 0, index = 0, isDark = false }) {
+  const p = CARD_PALETTES[paletteIndex % CARD_PALETTES.length];
+  const stagger = CARD_STAGGER[index] ?? 0;
+  const waveColor = isDark ? 'rgba(79,124,255,0.07)' : 'rgba(255,255,255,0.22)';
+  const ringColor = isDark ? '#4F7CFF' : 'white';
+  const ringOpacity = isDark ? 0.07 : 0.2;
+  return <div onClick={onClick}
+    className={`group relative flex-shrink-0 sm:flex-1 cursor-pointer overflow-hidden rounded-2xl p-5 transition-all duration-200 hover:scale-[1.04] ${p.bg} dark:border dark:border-[#263452]`}
+    style={{ marginTop:`${stagger}px`, minWidth:'150px', minHeight:'220px' }}>
+    <div className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center mb-4 ${p.iconBg} group-hover:scale-110 transition-transform duration-200`}>
+      <Icon className={`w-6 h-6 ${p.iconColor}`} />
     </div>
-    <h3 className={`text-base font-bold mb-2 ${palette.text}`}>{title}</h3>
-    <p className={`text-sm ${palette.text} opacity-75 leading-relaxed`}>{desc}</p>
+    <div className="relative z-10">
+      <h3 className={`font-bold text-base mb-1.5 ${p.text}`}>{title}</h3>
+      <p className={`text-sm leading-relaxed ${p.sub}`}>{desc}</p>
+    </div>
+    {/* Wave */}
+    <svg viewBox="0 0 200 60" fill="none" className="absolute bottom-0 left-0 right-0 w-full pointer-events-none">
+      <path d="M0 30 Q 30 10 60 30 Q 90 50 120 30 Q 150 10 180 30 Q 200 40 220 30 L220 60 L0 60 Z" fill={waveColor}/>
+    </svg>
+    {/* Concentric circles */}
+    <svg viewBox="0 0 120 120" fill="none" className="absolute -bottom-4 -end-4 w-24 h-24 pointer-events-none" style={{opacity:ringOpacity}}>
+      <circle cx="60" cy="60" r="55" stroke={ringColor} strokeWidth="10" fill="none"/>
+      <circle cx="60" cy="60" r="37" stroke={ringColor} strokeWidth="6" fill="none"/>
+      <circle cx="60" cy="60" r="20" stroke={ringColor} strokeWidth="4" fill="none"/>
+    </svg>
   </div>;
 }
 function PlanWeekTable({
