@@ -669,7 +669,7 @@ export default function App() {
       return langeekVocab.filter(w => { const d = srs[w.word]; return d && d.nextReview <= now; }).length;
     } catch { return 0; }
   }, [langeekVocab, srsRefreshTick]);
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState('light');
   const [lang, setLang] = useState('ar');
   useEffect(() => {
     if (theme === 'dark') {
@@ -763,20 +763,20 @@ export default function App() {
     icon: Archive,
     badge: langeekDueCount
   }];
-  return <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#09090b] text-gray-100' : 'bg-gray-50 text-gray-900'} font-sans selection:bg-blue-500/30 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
-    <div className={`hidden lg:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-200'} border-l shadow-2xl z-10 transition-colors duration-300 print:hidden`}>
-      <div className={`flex items-center justify-center h-16 border-b ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-200'}`}>
-        <h1 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 tracking-tight">
-          Venoxa<span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>.ai</span>
+  return <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#09090b] text-gray-100' : 'bg-[#F7F9FC] text-[#0A0A0A]'} font-sans selection:bg-blue-500/30 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
+    <div className={`hidden lg:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-100'} border-l shadow-sm z-10 transition-colors duration-300 print:hidden`}>
+      <div className={`flex items-center justify-center h-16 border-b ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-100'}`}>
+        <h1 className="text-2xl font-extrabold tracking-tight">
+          <span className={theme === 'dark' ? 'text-white' : 'text-[#0A0A0A]'}>Venoxa</span><span className="text-[#0E4AA4]">.ai</span>
         </h1>
       </div>
-      <nav className="flex-1 overflow-y-auto py-4 px-2">
-        <ul className="space-y-1">
+      <nav className="flex-1 overflow-y-auto py-3 px-2">
+        <ul className="space-y-0.5">
           {navItems.map(item => {
             const isActive = activeTab === item.id;
             return <li key={item.id}>
-              <button onClick={() => setActiveTab(item.id)} className={`w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${isActive ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : `text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200 border border-transparent`}`}>
-                <item.icon className={`w-4 h-4 shrink-0 ${_resolveTranslation(lang, 'ml-2.5', 'mr-2.5')} ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'}`} />
+              <button onClick={() => setActiveTab(item.id)} className={`w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive ? 'bg-[#EBF0F7] text-[#0E4AA4] border border-[#0E4AA4]/15' : `text-gray-500 dark:text-gray-400 hover:bg-[#F7F9FC] dark:hover:bg-gray-800/50 hover:text-[#0A0A0A] dark:hover:text-gray-200 border border-transparent`}`}>
+                <item.icon className={`w-4 h-4 shrink-0 ${_resolveTranslation(lang, 'ml-2.5', 'mr-2.5')} ${isActive ? 'text-[#0E4AA4]' : 'text-gray-400'}`} />
                 <span className="flex-1 min-w-0 text-start truncate">{item.label}</span>
                 {item.badge > 0 && <span className="min-w-[18px] h-[18px] bg-red-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center px-1 shrink-0 ms-1">{item.badge > 99 ? '99+' : item.badge}</span>}
               </button>
@@ -785,20 +785,20 @@ export default function App() {
         </ul>
       </nav>
 
-      <div className={`p-4 border-t flex items-center justify-between ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-200'}`}>
-        <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'bg-gray-800 text-yellow-400' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`} title={_resolveTranslation(lang, 'تغيير المظهر', 'Toggle Theme')}>
+      <div className={`p-4 border-t flex items-center justify-between ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-100'}`}>
+        <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'bg-gray-800 text-yellow-400' : 'bg-[#F7F9FC] text-gray-500 hover:bg-gray-100'}`} title={_resolveTranslation(lang, 'تغيير المظهر', 'Toggle Theme')}>
           {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm transition-colors ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm transition-colors ${theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-[#F7F9FC] text-gray-500'}`}>
           <Globe className="w-4 h-4" />
           <LanguageDropdown lang={lang} setLang={setLang} theme={theme} />
         </div>
       </div>
     </div>
 
-    <div className={`lg:hidden fixed top-0 left-0 right-0 h-14 sm:h-16 ${theme === 'dark' ? 'bg-[#121214]/90 border-gray-800' : 'bg-white/90 border-gray-200'} backdrop-blur-md border-b z-50 flex items-center justify-between px-4 transition-colors print:hidden`}>
-      <h1 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-        Venoxa<span className={theme === 'dark' ? 'text-white' : 'text-gray-900'}>.ai</span>
+    <div className={`lg:hidden fixed top-0 left-0 right-0 h-14 sm:h-16 ${theme === 'dark' ? 'bg-[#121214]/90 border-gray-800' : 'bg-white/95 border-gray-100'} backdrop-blur-md border-b z-50 flex items-center justify-between px-4 transition-colors print:hidden`}>
+      <h1 className="text-2xl font-extrabold tracking-tight">
+        <span className={theme === 'dark' ? 'text-white' : 'text-[#0A0A0A]'}>Venoxa</span><span className="text-[#0E4AA4]">.ai</span>
       </h1>
       <div className="flex items-center gap-2">
         <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 text-gray-500">
@@ -810,19 +810,19 @@ export default function App() {
       </div>
     </div>
 
-    {isMobileMenuOpen && <div className={`lg:hidden fixed inset-0 top-14 sm:top-16 ${theme === 'dark' ? 'bg-[#09090b] border-gray-800' : 'bg-gray-50 border-gray-200'} z-40 overflow-y-auto border-t print:hidden`}>
+    {isMobileMenuOpen && <div className={`lg:hidden fixed inset-0 top-14 sm:top-16 ${theme === 'dark' ? 'bg-[#09090b] border-gray-800' : 'bg-white border-gray-100'} z-40 overflow-y-auto border-t print:hidden`}>
       <nav className="py-4 px-4">
-        <ul className="space-y-2">
+        <ul className="space-y-1">
           {navItems.map(item => <li key={item.id}>
             <button onClick={() => {
               setActiveTab(item.id);
               setIsMobileMenuOpen(false);
-            }} className={`w-full flex items-center px-6 py-4 rounded-xl text-lg font-bold ${activeTab === item.id ? 'bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-500/30' : 'text-gray-600 dark:text-gray-400'}`}>
+            }} className={`w-full flex items-center px-6 py-4 rounded-xl text-lg font-bold ${activeTab === item.id ? 'bg-[#EBF0F7] text-[#0E4AA4] border border-[#0E4AA4]/15' : 'text-gray-600 dark:text-gray-400'}`}>
               <item.icon className={`w-6 h-6 ${_resolveTranslation(lang, 'ml-4', 'mr-4')}`} />
               {item.label}
             </button>
           </li>)}
-          <li className="pt-4 border-t border-gray-200 dark:border-gray-800">
+          <li className="pt-4 border-t border-gray-100 dark:border-gray-800">
             <div className="w-full flex items-center px-6 py-4 rounded-xl text-lg font-bold text-gray-600 dark:text-gray-400">
               <Globe className={`w-6 h-6 ${_resolveTranslation(lang, 'ml-4', 'mr-4')}`} />
               <LanguageDropdown lang={lang} setLang={(l) => { setLang(l); setIsMobileMenuOpen(false); }} theme={theme} />
@@ -832,7 +832,7 @@ export default function App() {
       </nav>
     </div>}
 
-    <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 mt-14 sm:mt-16 lg:mt-0 ${theme === 'dark' ? 'bg-[#09090b]' : 'bg-gray-50'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
+    <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 mt-14 sm:mt-16 lg:mt-0 ${theme === 'dark' ? 'bg-[#09090b]' : 'bg-[#F7F9FC]'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
       <div className="w-full print:max-w-none print:mx-0">
         {renderContent()}
       </div>
@@ -923,22 +923,19 @@ function Dashboard({
       desc: _resolveTranslation(lang, "حافظ على طلاقتك وتدرب على محادثات ومواقف مع AI.", "Maintain your fluency and practice conversations and scenarios with AI.")
     }]
   };
-  return <div className="space-y-5 lg:space-y-10 animate-fadeIn">
-    <div className="relative overflow-hidden bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-3xl p-5 sm:p-8 lg:p-12 shadow-2xl transition-colors duration-300">
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-600/10 via-purple-600/5 to-transparent pointer-events-none"></div>
-      <div className="absolute -top-24 -left-24 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
-
+  return <div className="space-y-5 lg:space-y-8 animate-fadeIn">
+    <div className="relative overflow-hidden bg-white dark:bg-[#121214] border border-gray-100 dark:border-gray-800 rounded-2xl p-5 sm:p-8 lg:p-10 shadow-sm transition-colors duration-300">
+      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#EBF0F7]/60 to-transparent pointer-events-none dark:from-blue-900/10"></div>
       <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="flex-1 text-center md:text-start">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold mb-3 lg:mb-4 text-gray-900 dark:text-white leading-tight">
-            {t.welcome} <br /><span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-purple-500">{t.currentLvl} {userLevel}</span>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold mb-3 lg:mb-4 text-[#0A0A0A] dark:text-white leading-tight">
+            {t.welcome} <br /><span className="text-[#0E4AA4]">{t.currentLvl} {userLevel}</span>
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 text-base lg:text-lg mb-5 lg:mb-8 max-w-xl mx-auto md:mx-0 leading-relaxed">
+          <p className="text-gray-500 dark:text-gray-400 text-base lg:text-lg mb-5 lg:mb-8 max-w-xl mx-auto md:mx-0 leading-relaxed">
             {t.desc}
           </p>
           <div className="flex flex-wrap justify-center md:justify-start gap-4">
-            <button onClick={() => setTab('plan')} className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-8 py-3.5 rounded-xl font-bold hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all flex items-center gap-2">
+            <button onClick={() => setTab('plan')} className="bg-[#0E4AA4] text-white px-8 py-3.5 rounded-xl font-bold hover:bg-[#0c3d8a] transition-all flex items-center gap-2 shadow-sm">
               <Calendar className="w-5 h-5" /> {t.createPlan}
             </button>
           </div>
@@ -946,53 +943,59 @@ function Dashboard({
       </div>
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="bg-gradient-to-br from-indigo-100 dark:from-indigo-900/40 to-blue-50 dark:to-blue-900/20 p-6 rounded-3xl border border-indigo-200 dark:border-indigo-500/30 flex flex-col justify-center items-center text-center relative overflow-hidden group transition-colors">
-        <Quote className="absolute top-4 left-4 w-12 h-12 text-indigo-500/10 -rotate-12" />
-        <h3 className="text-lg font-bold text-indigo-700 dark:text-indigo-300 mb-4 flex items-center gap-2">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="bg-[#EBF0F7] dark:bg-indigo-900/30 p-6 rounded-2xl border border-[#0E4AA4]/10 dark:border-indigo-500/30 flex flex-col justify-center items-center text-center relative overflow-hidden group transition-colors">
+        <Quote className="absolute top-4 left-4 w-12 h-12 text-[#0E4AA4]/10 dark:text-indigo-500/10 -rotate-12" />
+        <h3 className="text-base font-bold text-[#0E4AA4] dark:text-indigo-300 mb-4 flex items-center gap-2">
           <Sparkles className="w-4 h-4" /> {t.quoteTitle}
         </h3>
-        {loadingInsight ? <Activity className="w-8 h-8 text-indigo-500 dark:text-indigo-400 animate-spin" /> : <>
-          <p className="text-xl font-serif italic text-gray-800 dark:text-white mb-2" dir="ltr">"{safeRender(insight?.quote)}"</p>
-          <p className="text-sm text-indigo-600 dark:text-indigo-300/80">{safeRender(insight?.translated_quote)}</p>
+        {loadingInsight ? <Activity className="w-8 h-8 text-[#0E4AA4] dark:text-indigo-400 animate-spin" /> : <>
+          <p className="text-xl font-serif italic text-[#0A0A0A] dark:text-white mb-2" dir="ltr">"{safeRender(insight?.quote)}"</p>
+          <p className="text-sm text-[#0E4AA4]/70 dark:text-indigo-300/80">{safeRender(insight?.translated_quote)}</p>
         </>}
       </div>
 
-      <div className="bg-gradient-to-br from-amber-100 dark:from-amber-900/40 to-orange-50 dark:to-orange-900/20 p-6 rounded-3xl border border-amber-200 dark:border-amber-500/30 flex flex-col justify-center items-center text-center group transition-colors">
-        <h3 className="text-lg font-bold text-amber-700 dark:text-amber-300 mb-4 flex items-center gap-2">
+      <div className="bg-[#FFF3DC] dark:bg-amber-900/30 p-6 rounded-2xl border border-[#FFD78A]/50 dark:border-amber-500/30 flex flex-col justify-center items-center text-center group transition-colors">
+        <h3 className="text-base font-bold text-[#7a4a00] dark:text-amber-300 mb-4 flex items-center gap-2">
           <Zap className="w-4 h-4" /> {t.tipTitle}
         </h3>
         {loadingInsight ? <Activity className="w-8 h-8 text-amber-500 dark:text-amber-400 animate-spin" /> : <>
-          <p className="text-lg text-gray-800 dark:text-white font-medium" dir="ltr">{safeRender(insight?.pro_tip)}</p>
-          <p className="text-sm text-amber-600 dark:text-amber-300/80 mt-2">{safeRender(insight?.translated_tip)}</p>
+          <p className="text-lg text-[#0A0A0A] dark:text-white font-semibold" dir="ltr">{safeRender(insight?.pro_tip)}</p>
+          <p className="text-sm text-[#7a4a00]/80 dark:text-amber-300/80 mt-2">{safeRender(insight?.translated_tip)}</p>
         </>}
       </div>
     </div>
 
     <div>
-      <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6 flex items-center gap-2"><Activity className="w-6 h-6 text-purple-500 dark:text-purple-400" /> {t.learningPaths}</h3>
+      <h3 className="text-lg sm:text-xl font-bold text-[#0A0A0A] dark:text-white mb-4 lg:mb-5 flex items-center gap-2"><Activity className="w-5 h-5 text-[#0E4AA4]" /> {t.learningPaths}</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {t.paths.map(path => <DashboardCard key={path.id} {...path} onClick={() => setTab(path.id)} />)}
+        {t.paths.map((path, i) => <DashboardCard key={path.id} {...path} paletteIndex={i} onClick={() => setTab(path.id)} />)}
       </div>
     </div>
   </div>;
 }
+const CARD_PALETTES = [
+  { bg: 'bg-[#C8EFE8] dark:bg-teal-900/30', iconBg: 'bg-[#6ECEC0]', iconColor: 'text-white', text: 'text-[#0a5c52] dark:text-teal-300' },
+  { bg: 'bg-[#EBF0F7] dark:bg-blue-900/30', iconBg: 'bg-[#0E4AA4]', iconColor: 'text-white', text: 'text-[#0E4AA4] dark:text-blue-300' },
+  { bg: 'bg-[#FFE4B2] dark:bg-amber-900/30', iconBg: 'bg-[#FFB347]', iconColor: 'text-white', text: 'text-[#7a4a00] dark:text-amber-300' },
+];
 function DashboardCard({
   icon: Icon,
   title,
   desc,
   onClick,
-  color,
-  iconColor,
-  borderHover
+  _color,
+  _iconColor,
+  _borderHover,
+  paletteIndex = 0
 }) {
-  return <div onClick={onClick} className={`group relative p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214] cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${borderHover} overflow-hidden`}>
-    <div className={`absolute top-0 right-0 w-full h-full bg-gradient-to-bl ${color} opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`}></div>
-    <div className={`w-14 h-14 rounded-xl flex items-center justify-center bg-gray-50 dark:bg-[#1f1f23] border border-gray-100 dark:border-gray-800 mb-5 ${iconColor} group-hover:scale-110 transition-transform duration-300 relative z-10`}>
-      <Icon className="w-7 h-7" />
+  const palette = CARD_PALETTES[paletteIndex % CARD_PALETTES.length];
+  return <div onClick={onClick} className={`group relative p-6 rounded-2xl ${palette.bg} cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md overflow-hidden border border-white/60 dark:border-transparent`}>
+    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${palette.iconBg} mb-5 group-hover:scale-110 transition-transform duration-200`}>
+      <Icon className={`w-6 h-6 ${palette.iconColor}`} />
     </div>
-    <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100 relative z-10">{title}</h3>
-    <p className="text-sm text-gray-500 dark:text-gray-400 relative z-10 leading-relaxed">{desc}</p>
+    <h3 className={`text-base font-bold mb-2 ${palette.text}`}>{title}</h3>
+    <p className={`text-sm ${palette.text} opacity-75 leading-relaxed`}>{desc}</p>
   </div>;
 }
 function PlanWeekTable({
