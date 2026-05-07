@@ -127,6 +127,24 @@ html, body, #root {
   background-color: rgba(148, 163, 184, 0.35);
 }
 
+/* ── Flat UI overrides — strip neumorphic/soft shadows ── */
+html:not(.dark) .shadow-2xl,
+html:not(.dark) .shadow-xl,
+html:not(.dark) .shadow-lg,
+html:not(.dark) .shadow-md {
+  box-shadow: none !important;
+}
+html:not(.dark) .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+/* Kill focus glow rings replaced with plain border */
+html:not(.dark) [class*="focus-within:shadow-"],
+html:not(.dark) [class*="hover:shadow-xl"],
+html:not(.dark) [class*="hover:shadow-lg"],
+html:not(.dark) [class*="hover:shadow-2xl"] {
+  box-shadow: none !important;
+}
+
 /* Simple fade-in animation used by App.jsx */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
