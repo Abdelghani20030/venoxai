@@ -2,6 +2,40 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ══════════════════════════════════════════════
+   LanGeek Brand Design Tokens
+   ══════════════════════════════════════════════ */
+:root {
+  /* Primary */
+  --brand-primary:      #0E4AA4;
+  --brand-primary-dark: #1A3570;
+
+  /* Backgrounds */
+  --brand-bg:           #F7F9FC;
+  --brand-surface:      #FFFFFF;
+  --brand-accent-bg:    #EBF0F7;
+
+  /* Accent palette */
+  --brand-amber:        #FFD78A;
+  --brand-amber-light:  #FFECD6;
+  --brand-orange:       #FFAE7A;
+  --brand-mint:         #78E3D9;
+  --brand-mint-light:   #C8EFE8;
+  --brand-purple:       #9E9EFF;
+  --brand-purple-2:     #B68BFE;
+
+  /* Text */
+  --brand-text:         #0A0A0A;
+  --brand-muted:        #808080;
+  --brand-border:       #E6E6E6;
+
+  /* Dark mode navy palette */
+  --brand-dark-bg:      #0B152E;
+  --brand-dark-surface: #111C38;
+  --brand-dark-card:    #1A3570;
+  --brand-dark-border:  #1D3360;
+}
+
 /* ── Sesame-style blob animations ── */
 @keyframes blob-idle {
   0%   { border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%; transform: scale(1)    rotate(0deg); }
@@ -60,6 +94,8 @@ html, body, #root {
   font-family: 'Noto Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--brand-bg);
+  color: var(--brand-text);
 }
 
 [dir="rtl"], [dir="rtl"] * {
@@ -80,54 +116,42 @@ html, body, #root {
   -moz-appearance: textfield;
 }
 
-/* Sleek, slim scrollbars across the whole app — no sharp white edges. */
+/* Sleek, slim scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
 }
 .dark * {
-  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 116, 139, 0.45);
+  background-color: rgba(100, 116, 139, 0.35);
   border-radius: 999px;
-  border: 2px solid transparent;
   background-clip: padding-box;
-  transition: background-color 0.2s ease;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(59, 130, 246, 0.6);
+  background-color: rgba(14, 74, 164, 0.5);
 }
 .dark *::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.35);
+  background-color: rgba(255, 255, 255, 0.12);
 }
 .dark *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(96, 165, 250, 0.6);
+  background-color: rgba(120, 227, 217, 0.4);
 }
-*::-webkit-scrollbar-corner {
-  background: transparent;
-}
+*::-webkit-scrollbar-corner { background: transparent; }
 
-/* Keep the legacy hook used in modals — same look. */
-.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 116, 139, 0.45);
+  background-color: rgba(100, 116, 139, 0.35);
   border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.35);
+  background-color: rgba(255, 255, 255, 0.12);
 }
 
-/* ── Flat UI overrides — strip neumorphic/soft shadows ── */
+/* ── Flat UI overrides — strip heavy shadows in light mode ── */
 html:not(.dark) .shadow-2xl,
 html:not(.dark) .shadow-xl,
 html:not(.dark) .shadow-lg,
@@ -135,9 +159,8 @@ html:not(.dark) .shadow-md {
   box-shadow: none !important;
 }
 html:not(.dark) .shadow-sm {
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
 }
-/* Kill focus glow rings replaced with plain border */
 html:not(.dark) [class*="focus-within:shadow-"],
 html:not(.dark) [class*="hover:shadow-xl"],
 html:not(.dark) [class*="hover:shadow-lg"],
@@ -145,7 +168,21 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
   box-shadow: none !important;
 }
 
-/* Simple fade-in animation used by App.jsx */
+/* ── Dark mode base surface override ── */
+.dark {
+  background-color: var(--brand-dark-bg);
+  color: #E6E6E6;
+}
+
+/* LanGeek border color for light mode */
+html:not(.dark) .border-gray-200 {
+  border-color: var(--brand-border) !important;
+}
+html:not(.dark) .border-gray-100 {
+  border-color: #ECECEC !important;
+}
+
+/* Simple fade-in animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -154,7 +191,7 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
   animation: fadeIn 0.25s ease-out both;
 }
 
-/* Print: clean white background, sharp tables, page breaks between weeks */
+/* Print styles */
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
   html, body, #root {
@@ -164,8 +201,6 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
     min-height: 0 !important;
     overflow: visible !important;
   }
-  /* Force every ancestor of the print content to lay out naturally so the
-     browser doesn't clip multi-page content inside a scroll container. */
   #root *,
   #root *::before,
   #root *::after {
@@ -176,7 +211,6 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
     page-break-after: always !important;
     break-after: page !important;
   }
-  /* Allow tables and rows to break across pages so very long weeks still print fully. */
   table, tr, td, th {
     page-break-inside: auto !important;
     break-inside: auto !important;
@@ -188,11 +222,8 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
   th, td {
     border-right: 1.5px solid #000 !important;
     border-bottom: 1.5px solid #000 !important;
-    /* background-clip: padding-box prevents cell backgrounds from painting
-       over the border area — without this, border-bottom is hidden in print */
     background-clip: padding-box !important;
   }
-  /* RTL: last child in DOM = leftmost column (المجموع) → needs physical left border */
   thead tr th:last-child,
   tbody tr td:last-child,
   tfoot tr td:last-child {
@@ -201,7 +232,6 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
   thead tr th {
     border-top: 1.5px solid #000 !important;
   }
-  /* Ensure WebKit prints background colors so the styled table reads properly. */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;

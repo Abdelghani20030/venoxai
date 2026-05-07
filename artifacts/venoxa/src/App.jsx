@@ -22,7 +22,7 @@ function LanguageDropdown({ lang, setLang, theme }) {
         <ChevronDown className="w-4 h-4" />
       </button>
       {isOpen && (
-        <div className={`absolute bottom-full left-0 mb-2 w-36 rounded-2xl overflow-hidden z-[100] ${theme === 'dark' ? 'bg-[#1a1a1e] border border-gray-700' : 'bg-white border border-gray-200'}`}>
+        <div className={`absolute bottom-full left-0 mb-2 w-36 rounded-2xl overflow-hidden z-[100] ${theme === 'dark' ? 'bg-[#1A3570] border border-gray-700' : 'bg-white border border-gray-200'}`}>
           {langs.map(l => (
             <button
               key={l.code}
@@ -102,7 +102,7 @@ function SolidDatePicker({ value, onChange, min, label }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold text-left flex justify-between items-center focus:outline-none focus:border-blue-500 transition-colors"
+        className="w-full bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold text-left flex justify-between items-center focus:outline-none focus:border-blue-500 transition-colors"
       >
         <span>{value || label}</span>
         <Calendar className="w-5 h-5 text-gray-400" />
@@ -110,7 +110,7 @@ function SolidDatePicker({ value, onChange, min, label }) {
 
       {isOpen && (
         <div className="absolute z-[100] mt-2 w-[280px] left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 animate-fadeIn pointer-events-auto" dir="ltr">
-          <div className="relative rounded-2xl p-4 bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-gray-900 dark:text-white overflow-hidden">
+          <div className="relative rounded-2xl p-4 bg-white dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-gray-900 dark:text-white overflow-hidden">
             <div className="text-center font-extrabold text-base mb-3 pb-3 border-b border-gray-100/20 dark:border-white/10 tracking-wide">
               {monthNames[month]} {year}
             </div>
@@ -141,10 +141,10 @@ function SolidDatePicker({ value, onChange, min, label }) {
               })}
             </div>
             <div className="flex justify-center items-center gap-3">
-              <button onClick={handlePrevMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all">
+              <button onClick={handlePrevMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-[#1A3570] rounded-lg transition-all">
                 <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-gray-300" />
               </button>
-              <button onClick={handleNextMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-all">
+              <button onClick={handleNextMonth} className="p-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-200 dark:border-[#1A3570] rounded-lg transition-all">
                 <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-300" />
               </button>
             </div>
@@ -763,8 +763,8 @@ export default function App() {
     icon: Archive,
     badge: langeekDueCount
   }];
-  return <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#09090b] text-gray-100' : 'bg-[#F7F9FC] text-[#0A0A0A]'} font-sans selection:bg-blue-500/30 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
-    <div className={`hidden lg:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#121214] border-gray-800/60' : 'bg-white border-gray-100'} border-l shadow-sm z-10 transition-colors duration-300 print:hidden`}>
+  return <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0B152E] text-gray-100' : 'bg-[#F7F9FC] text-[#0A0A0A]'} font-sans selection:bg-blue-500/30 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
+    <div className={`hidden lg:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#111C38] border-gray-800/60' : 'bg-white border-gray-100'} border-l shadow-sm z-10 transition-colors duration-300 print:hidden`}>
       <div className={`flex items-center justify-center h-16 border-b ${theme === 'dark' ? 'border-gray-800/60' : 'border-gray-100'}`}>
         <h1 className="text-2xl font-extrabold tracking-tight">
           <span className={theme === 'dark' ? 'text-white' : 'text-[#0A0A0A]'}>Venoxa</span><span className="text-[#0E4AA4]">.ai</span>
@@ -796,7 +796,7 @@ export default function App() {
       </div>
     </div>
 
-    <div className={`lg:hidden fixed top-0 left-0 right-0 h-14 sm:h-16 ${theme === 'dark' ? 'bg-[#121214]/90 border-gray-800' : 'bg-white/95 border-gray-100'} backdrop-blur-md border-b z-50 flex items-center justify-between px-4 transition-colors print:hidden`}>
+    <div className={`lg:hidden fixed top-0 left-0 right-0 h-14 sm:h-16 ${theme === 'dark' ? 'bg-[#111C38]/90 border-gray-800' : 'bg-white/95 border-gray-100'} backdrop-blur-md border-b z-50 flex items-center justify-between px-4 transition-colors print:hidden`}>
       <h1 className="text-2xl font-extrabold tracking-tight">
         <span className={theme === 'dark' ? 'text-white' : 'text-[#0A0A0A]'}>Venoxa</span><span className="text-[#0E4AA4]">.ai</span>
       </h1>
@@ -810,7 +810,7 @@ export default function App() {
       </div>
     </div>
 
-    {isMobileMenuOpen && <div className={`lg:hidden fixed inset-0 top-14 sm:top-16 ${theme === 'dark' ? 'bg-[#09090b] border-gray-800' : 'bg-white border-gray-100'} z-40 overflow-y-auto border-t print:hidden`}>
+    {isMobileMenuOpen && <div className={`lg:hidden fixed inset-0 top-14 sm:top-16 ${theme === 'dark' ? 'bg-[#0B152E] border-gray-800' : 'bg-white border-gray-100'} z-40 overflow-y-auto border-t print:hidden`}>
       <nav className="py-4 px-4">
         <ul className="space-y-1">
           {navItems.map(item => <li key={item.id}>
@@ -822,7 +822,7 @@ export default function App() {
               {item.label}
             </button>
           </li>)}
-          <li className="pt-4 border-t border-gray-100 dark:border-gray-800">
+          <li className="pt-4 border-t border-gray-100 dark:border-[#1D3360]">
             <div className="w-full flex items-center px-6 py-4 rounded-xl text-lg font-bold text-gray-600 dark:text-gray-400">
               <Globe className={`w-6 h-6 ${_resolveTranslation(lang, 'ml-4', 'mr-4')}`} />
               <LanguageDropdown lang={lang} setLang={(l) => { setLang(l); setIsMobileMenuOpen(false); }} theme={theme} />
@@ -832,7 +832,7 @@ export default function App() {
       </nav>
     </div>}
 
-    <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 mt-14 sm:mt-16 lg:mt-0 ${theme === 'dark' ? 'bg-[#09090b]' : 'bg-[#F7F9FC]'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
+    <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 mt-14 sm:mt-16 lg:mt-0 ${theme === 'dark' ? 'bg-[#0B152E]' : 'bg-[#F7F9FC]'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
       <div className="w-full print:max-w-none print:mx-0">
         {renderContent()}
       </div>
@@ -924,8 +924,7 @@ function Dashboard({
     }]
   };
   return <div className="space-y-5 lg:space-y-8 animate-fadeIn">
-    <div className="relative overflow-hidden bg-white dark:bg-[#121214] border border-gray-100 dark:border-gray-800 rounded-2xl p-5 sm:p-8 lg:p-10 shadow-sm transition-colors duration-300">
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#EBF0F7]/60 to-transparent pointer-events-none dark:from-blue-900/10"></div>
+    <div className="relative overflow-hidden bg-white dark:bg-[#111C38] border border-[#E6E6E6] dark:border-[#1D3360] rounded-2xl p-5 sm:p-8 lg:p-10 transition-colors duration-300">
       <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="flex-1 text-center md:text-start">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold mb-3 lg:mb-4 text-[#0A0A0A] dark:text-white leading-tight">
@@ -935,7 +934,7 @@ function Dashboard({
             {t.desc}
           </p>
           <div className="flex flex-wrap justify-center md:justify-start gap-4">
-            <button onClick={() => setTab('plan')} className="bg-[#0E4AA4] text-white px-8 py-3.5 rounded-xl font-bold hover:bg-[#0c3d8a] transition-all flex items-center gap-2 shadow-sm">
+            <button onClick={() => setTab('plan')} className="bg-[#0E4AA4] text-white px-8 py-3.5 rounded-full font-bold hover:bg-[#0c3d8a] transition-colors flex items-center gap-2">
               <Calendar className="w-5 h-5" /> {t.createPlan}
             </button>
           </div>
@@ -944,7 +943,7 @@ function Dashboard({
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-      <div className="bg-[#EBF0F7] dark:bg-indigo-900/30 p-6 rounded-2xl border border-[#0E4AA4]/10 dark:border-indigo-500/30 flex flex-col justify-center items-center text-center relative overflow-hidden group transition-colors">
+      <div className="bg-[#EBF0F7] dark:bg-[#1A3570] p-6 rounded-2xl border border-[#E6E6E6] dark:border-[#1D3360] flex flex-col justify-center items-center text-center relative overflow-hidden group transition-colors">
         <Quote className="absolute top-4 left-4 w-12 h-12 text-[#0E4AA4]/10 dark:text-indigo-500/10 -rotate-12" />
         <h3 className="text-base font-bold text-[#0E4AA4] dark:text-indigo-300 mb-4 flex items-center gap-2">
           <Sparkles className="w-4 h-4" /> {t.quoteTitle}
@@ -955,7 +954,7 @@ function Dashboard({
         </>}
       </div>
 
-      <div className="bg-[#FFF3DC] dark:bg-amber-900/30 p-6 rounded-2xl border border-[#FFD78A]/50 dark:border-amber-500/30 flex flex-col justify-center items-center text-center group transition-colors">
+      <div className="bg-[#FFECD6] dark:bg-[#1A3570] p-6 rounded-2xl border border-[#E6E6E6] dark:border-[#1D3360] flex flex-col justify-center items-center text-center group transition-colors">
         <h3 className="text-base font-bold text-[#7a4a00] dark:text-amber-300 mb-4 flex items-center gap-2">
           <Zap className="w-4 h-4" /> {t.tipTitle}
         </h3>
@@ -975,9 +974,9 @@ function Dashboard({
   </div>;
 }
 const CARD_PALETTES = [
-  { bg: 'bg-[#C8EFE8] dark:bg-teal-900/30', iconBg: 'bg-[#6ECEC0]', iconColor: 'text-white', text: 'text-[#0a5c52] dark:text-teal-300' },
-  { bg: 'bg-[#EBF0F7] dark:bg-blue-900/30', iconBg: 'bg-[#0E4AA4]', iconColor: 'text-white', text: 'text-[#0E4AA4] dark:text-blue-300' },
-  { bg: 'bg-[#FFE4B2] dark:bg-amber-900/30', iconBg: 'bg-[#FFB347]', iconColor: 'text-white', text: 'text-[#7a4a00] dark:text-amber-300' },
+  { bg: 'bg-[#C8EFE8] dark:bg-[#1A3570]', iconBg: 'bg-[#48725E]', iconColor: 'text-white', text: 'text-[#0a5c52] dark:text-[#78E3D9]' },
+  { bg: 'bg-[#EBF0F7] dark:bg-[#1A3570]', iconBg: 'bg-[#0E4AA4]', iconColor: 'text-white', text: 'text-[#0E4AA4] dark:text-[#9E9EFF]' },
+  { bg: 'bg-[#FFECD6] dark:bg-[#1A3570]', iconBg: 'bg-[#D88C34]', iconColor: 'text-white', text: 'text-[#7a4a00] dark:text-[#FFD78A]' },
 ];
 function DashboardCard({
   icon: Icon,
@@ -1018,12 +1017,12 @@ function PlanWeekTable({
 }) {
   const B = "border-gray-400 dark:border-gray-500";
   const cellBase = `border-b border-r ${B} px-2 py-2 align-middle text-center relative`;
-  const headBase = `border-t border-b border-r ${B} bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm`;
+  const headBase = `border-t border-b border-r ${B} bg-gray-100 dark:bg-[#1A3570] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm`;
   // In RTL the last DOM column (المجموع) renders on the physical left → needs border-l for the outer left edge
   const lastColCell = `border-b border-r border-l ${B} px-2 py-2 align-middle text-center relative`;
-  const lastColHead = `border-t border-b border-r border-l ${B} bg-gray-100 dark:bg-[#1a1a1e] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm`;
+  const lastColHead = `border-t border-b border-r border-l ${B} bg-gray-100 dark:bg-[#1A3570] text-gray-900 dark:text-white px-2 py-2 font-bold text-sm`;
   return <div className="overflow-x-auto print:overflow-visible">
-    <table className="w-full border-separate [border-spacing:0] text-sm bg-white dark:bg-[#0e0e11] text-gray-800 dark:text-gray-100 min-w-[760px] print:min-w-full">
+    <table className="w-full border-separate [border-spacing:0] text-sm bg-white dark:bg-[#0B152E] text-gray-800 dark:text-gray-100 min-w-[760px] print:min-w-full">
       <thead>
         <tr>
           <th className={headBase}>{t.activity}</th>
@@ -1623,39 +1622,39 @@ function StudyPlan({
   const weeklyTotalMins = dailyTotalMins * 7;
   const todayStr = new Date().toISOString().split('T')[0];
   return <div className="space-y-8 animate-fadeIn print:m-0 print:p-0">
-    {!planData && <div className="bg-white dark:bg-[#121214] p-5 sm:p-8 lg:p-12 rounded-xl border border-gray-200 dark:border-gray-800 relative overflow-hidden transition-colors">
+    {!planData && <div className="bg-white dark:bg-[#111C38] p-5 sm:p-8 lg:p-12 rounded-xl border border-gray-200 dark:border-[#1D3360] relative overflow-hidden transition-colors">
 
       <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-5 lg:mb-8 text-gray-900 dark:text-white flex items-center gap-3 relative z-10">
         <Sparkles className="text-blue-600 dark:text-blue-400 w-8 h-8" /> {t.title}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5 lg:mb-8 relative z-50">
-        <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
+        <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1A3570]/50 flex flex-col justify-center">
           <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.currentLvl}</label>
-          <select value={userLevel} onChange={e => setUserLevel(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
+          <select value={userLevel} onChange={e => setUserLevel(e.target.value)} className="w-full bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
             {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
 
-        <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center">
+        <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1A3570]/50 flex flex-col justify-center">
           <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.targetLvl}</label>
-          <select value={targetLevel} onChange={e => setTargetLevel(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
+          <select value={targetLevel} onChange={e => setTargetLevel(e.target.value)} className="w-full bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white font-bold focus:outline-none focus:border-blue-500 cursor-pointer">
             {['A2', 'B1', 'B2', 'C1', 'C2'].map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
 
-        <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center relative z-50">
+        <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1A3570]/50 flex flex-col justify-center relative z-50">
           <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.startDateLbl}</label>
           <SolidDatePicker value={startDate} onChange={setStartDate} label="Start Date" />
         </div>
 
-        <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col justify-center relative z-50">
+        <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1A3570]/50 flex flex-col justify-center relative z-50">
           <label className="block text-sm text-gray-500 dark:text-gray-400 mb-2 font-semibold">{t.dateLabel}</label>
           <SolidDatePicker min={startDate || todayStr} value={targetDate} onChange={setTargetDate} label="Target Date" />
         </div>
       </div>
 
       {/* Per-skill durations with a Default toggle */}
-      <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 mb-6 relative z-10">
+      <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1A3570]/50 mb-6 relative z-10">
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
           <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
             <Clock className="w-5 h-5 text-blue-500" /> {t.skillsTitle}
@@ -1664,7 +1663,7 @@ function StudyPlan({
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
           {/* Smart Auto-Divide Tool */}
-          <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full shadow-sm relative overflow-hidden group">
+          <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1A3570] rounded-xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full shadow-sm relative overflow-hidden group">
             <div className="mb-2">
               <div className="flex items-center gap-2 font-bold text-blue-600 dark:text-blue-400">
                 <Sparkles className="w-4 h-4 shrink-0" />
@@ -1677,12 +1676,12 @@ function StudyPlan({
                 placeholder={t.totalInvestPlaceholder}
                 value={totalInvestMinutes}
                 onChange={e => setTotalInvestMinutes(e.target.value)}
-                className="no-spinner w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none focus:border-blue-500 shadow-sm min-w-0"
+                className="no-spinner w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0B152E] border border-gray-200 dark:border-[#1A3570] rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none focus:border-blue-500 shadow-sm min-w-0"
                 style={{textAlign:'center'}}
               />
               <button
                 onClick={handleAutoDivide}
-                className="bg-gray-100 dark:bg-[#0e0e11] hover:bg-gray-200 dark:hover:bg-black text-blue-600 dark:text-blue-400 w-11 h-11 rounded-lg transition-all border border-gray-200 dark:border-gray-700 shadow-sm active:scale-95 flex items-center justify-center shrink-0"
+                className="bg-gray-100 dark:bg-[#0B152E] hover:bg-gray-200 dark:hover:bg-black text-blue-600 dark:text-blue-400 w-11 h-11 rounded-lg transition-all border border-gray-200 dark:border-[#1A3570] shadow-sm active:scale-95 flex items-center justify-center shrink-0"
                 title={t.divideBtn}
               >
                 <Zap className="w-5 h-5 fill-current" />
@@ -1725,7 +1724,7 @@ function StudyPlan({
               useDefault: true,
               mins: DEFAULT_SKILL_MINS[id]
             };
-            return <div key={id} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full">
+            return <div key={id} className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1A3570] rounded-xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full">
               <div className="flex items-center justify-between gap-4 mb-2">
                 <div className={`flex items-center gap-2 font-bold ${color} min-w-0`}>
                   <Icon className="w-4 h-4 shrink-0" />
@@ -1741,7 +1740,7 @@ function StudyPlan({
                 </div>
               </div>
               <div className="flex items-center justify-center gap-2 mt-auto">
-                <input type="number" min="0" max="240" value={s.useDefault ? DEFAULT_SKILL_MINS[id] : s.mins} disabled={s.useDefault} onChange={e => setSkillMins(id, e.target.value)} className={`no-spinner w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none ${ring} disabled:opacity-60 disabled:cursor-not-allowed min-w-0`} style={{textAlign:'center'}} />
+                <input type="number" min="0" max="240" value={s.useDefault ? DEFAULT_SKILL_MINS[id] : s.mins} disabled={s.useDefault} onChange={e => setSkillMins(id, e.target.value)} className={`no-spinner w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0B152E] border border-gray-200 dark:border-[#1A3570] rounded-lg px-2 text-gray-900 dark:text-white font-bold text-center text-lg focus:outline-none ${ring} disabled:opacity-60 disabled:cursor-not-allowed min-w-0`} style={{textAlign:'center'}} />
                 <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold whitespace-nowrap">{t.minsUnit}</span>
               </div>
             </div>;
@@ -1750,12 +1749,12 @@ function StudyPlan({
       </div>
 
       {/* Words per day — auto vs manual */}
-      <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-700/50 mb-8 relative z-10">
+      <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1A3570]/50 mb-8 relative z-10">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-fuchsia-500" /> {t.wordsTitle}
           </h3>
-          <div className="inline-flex bg-white dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-xl p-1 text-sm font-bold">
+          <div className="inline-flex bg-white dark:bg-[#0B152E] border border-gray-200 dark:border-[#1A3570] rounded-xl p-1 text-sm font-bold">
             <button onClick={() => setWordsMode('auto')} className={`px-3 py-1.5 rounded-lg transition-colors ${wordsMode === 'auto' ? 'bg-fuchsia-500 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
               {t.wordsAuto}
             </button>
@@ -1765,7 +1764,7 @@ function StudyPlan({
           </div>
         </div>
 
-        {wordsMode === 'auto' ? <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+        {wordsMode === 'auto' ? <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1A3570] rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
           <div className="text-sm text-gray-600 dark:text-gray-300" dir="ltr">
             <span className="font-bold text-fuchsia-600 dark:text-fuchsia-400">{userLevel} → {targetLevel}</span>
             {' '}·{' '}
@@ -1775,14 +1774,14 @@ function StudyPlan({
           <div className="text-2xl font-extrabold text-fuchsia-600 dark:text-fuchsia-400" dir="ltr">
             {autoWordsPerDay} <span className="text-sm font-bold opacity-70">{t.perDay}</span>
           </div>
-        </div> : <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex items-center gap-3 flex-wrap">
-          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[#0e0e11] border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white font-extrabold text-center text-2xl focus:outline-none focus:border-fuchsia-500" />
+        </div> : <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1A3570] rounded-xl p-4 flex items-center gap-3 flex-wrap">
+          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[#0B152E] border border-gray-200 dark:border-[#1A3570] rounded-lg px-3 py-2 text-gray-900 dark:text-white font-extrabold text-center text-2xl focus:outline-none focus:border-fuchsia-500" />
           <span className="font-bold text-gray-700 dark:text-gray-200">{t.wordsToLearn} {t.perDay}</span>
         </div>}
       </div>
 
       {/* Live estimate of what the user will need to learn */}
-      {planEstimate && <div className="bg-gradient-to-br from-blue-50 to-fuchsia-50 dark:from-[#0f1730] dark:to-[#22112e] border border-gray-200 dark:border-gray-700/50 p-6 rounded-2xl mb-6 relative z-10">
+      {planEstimate && <div className="bg-gradient-to-br from-blue-50 to-fuchsia-50 dark:from-[#0f1730] dark:to-[#22112e] border border-gray-200 dark:border-[#1A3570]/50 p-6 rounded-2xl mb-6 relative z-10">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-blue-500" /> {t.estimateTitle}
@@ -1856,10 +1855,10 @@ function StudyPlan({
       <button onClick={generatePlan} className="w-full bg-[#0E4AA4] hover:bg-[#0c3d8a] text-white font-extrabold text-lg py-4 rounded-xl transition-colors">{t.gen}</button>
     </div>}
 
-    {planData && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
+    {planData && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#1a1a1e] px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#1A3570] px-3 py-2 rounded-xl border border-gray-200 dark:border-[#1A3570] shadow-sm">
             <button onClick={_resolveTranslation(lang, handleNextWeek, handlePrevWeek)} disabled={_resolveTranslation(lang, currentWeek === planData.totalWeeks, currentWeek === 1)} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors">
               {_resolveTranslation(lang, <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-300" />, <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />)}
             </button>
@@ -1870,7 +1869,7 @@ function StudyPlan({
               {_resolveTranslation(lang, <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />, <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-300" />)}
             </button>
           </div>
-          <select value={currentWeek} onChange={e => setCurrentWeek(Number(e.target.value))} className="bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-bold rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500 cursor-pointer shadow-sm" aria-label={t.jumpWeek}>
+          <select value={currentWeek} onChange={e => setCurrentWeek(Number(e.target.value))} className="bg-white dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] text-gray-900 dark:text-gray-100 font-bold rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500 cursor-pointer shadow-sm" aria-label={t.jumpWeek}>
             {Array.from({
               length: planData.totalWeeks
             }, (_, i) => i + 1).map(w => <option key={w} value={w}>{t.jumpWeek}: {w}</option>)}
@@ -1891,7 +1890,7 @@ function StudyPlan({
       </div>
 
       {/* Per-skill progress sliders — auto-advance with the current week */}
-      <div className="bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700/50 rounded-2xl p-5 mb-6 print:hidden">
+      <div className="bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570]/50 rounded-2xl p-5 mb-6 print:hidden">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
             <Layers className="w-5 h-5 text-blue-500" /> {t.progressTitle}
@@ -1937,7 +1936,7 @@ function StudyPlan({
             const cat = planData.categories.find(c => c.id === id);
             const completedHours = ((currentWeek - 1) * 7 * (cat?.mins || 0) / 60).toFixed(1);
             const totalHours = (planData.totalWeeks * 7 * (cat?.mins || 0) / 60).toFixed(1);
-            return <div key={id} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+            return <div key={id} className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1A3570] rounded-xl p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className={`flex items-center gap-1.5 font-bold ${text}`}>
                   <Icon className="w-4 h-4" /> {label}
@@ -1987,7 +1986,7 @@ function StudyPlan({
               suffix: t.mastered,
               bar: 'from-orange-500 to-amber-500',
               text: 'text-orange-600 dark:text-orange-400'
-            }].map((row, i) => <div key={i} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+            }].map((row, i) => <div key={i} className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1A3570] rounded-xl p-3">
               <div className="flex items-center justify-between mb-2 text-sm font-bold">
                 <span className={row.text}>{row.label}</span>
                 <span className={`${row.text}`} dir="ltr">{row.pct}%</span>
@@ -2025,7 +2024,7 @@ function StudyPlan({
       </div>
 
       {vocabModal && <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden" onClick={() => setVocabModal(null)}>
-        <div className="bg-white dark:bg-[#1a1a1e] rounded-xl max-w-sm w-full border border-gray-200 dark:border-gray-700 overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+        <div className="bg-white dark:bg-[#1A3570] rounded-xl max-w-sm w-full border border-gray-200 dark:border-[#1A3570] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
           <div className="bg-[#0E4AA4] p-5 text-white flex justify-between items-center">
             <div>
               <h3 className="font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5" /> {t.vocabHeader} ({t.day} {vocabModal.day})</h3>
@@ -2033,8 +2032,8 @@ function StudyPlan({
             </div>
             <button onClick={() => setVocabModal(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
           </div>
-          <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar bg-gray-50 dark:bg-[#121214]">
-            {vocabModal.words.length === 0 ? <p className="text-center text-gray-500 py-10">لا توجد كلمات متاحة، يرجى رفع ملف الكلمات.</p> : vocabModal.words.map((w, i) => <div key={i} className="flex flex-col p-4 bg-white dark:bg-[#1a1a1e] rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar bg-gray-50 dark:bg-[#111C38]">
+            {vocabModal.words.length === 0 ? <p className="text-center text-gray-500 py-10">لا توجد كلمات متاحة، يرجى رفع ملف الكلمات.</p> : vocabModal.words.map((w, i) => <div key={i} className="flex flex-col p-4 bg-white dark:bg-[#1A3570] rounded-2xl border border-gray-100 dark:border-[#1D3360] shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3 mb-1">
                 <span className="w-7 h-7 rounded-full bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-400 flex items-center justify-center text-sm font-bold shrink-0">{i + 1}</span>
                 <span className="font-extrabold text-lg text-gray-900 dark:text-gray-100" dir="ltr">{safeRender(w?.word)}</span>
@@ -2046,7 +2045,7 @@ function StudyPlan({
       </div>}
 
       {grammarModal && <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden" onClick={() => setGrammarModal(null)}>
-        <div className="bg-white dark:bg-[#1a1a1e] rounded-xl max-w-sm w-full border border-gray-200 dark:border-gray-700 overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+        <div className="bg-white dark:bg-[#1A3570] rounded-xl max-w-sm w-full border border-gray-200 dark:border-[#1A3570] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
           <div className="bg-orange-500 p-5 text-white flex justify-between items-center">
             <div>
               <h3 className="font-bold text-lg flex items-center gap-2"><FileText className="w-5 h-5" /> {t.grammarHeader} ({t.day} {grammarModal.day})</h3>
@@ -2054,7 +2053,7 @@ function StudyPlan({
             </div>
             <button onClick={() => setGrammarModal(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
           </div>
-          <div className="p-8 text-center bg-gray-50 dark:bg-[#121214]">
+          <div className="p-8 text-center bg-gray-50 dark:bg-[#111C38]">
             <div className="inline-flex p-4 rounded-full bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 mb-6 shadow-sm">
               <Target className="w-10 h-10" />
             </div>
@@ -2327,7 +2326,7 @@ function Vocabulary({
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1A3570] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
       <button onClick={() => {
         setVocabMode('browse');
         setShowMeaning(false);
@@ -2351,8 +2350,8 @@ function Vocabulary({
       }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'lists' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
 
-    {vocabMode === 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto no-scrollbar">
+    {vocabMode === 'lists' && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[#1D3360] pb-4 overflow-x-auto no-scrollbar">
         <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.hard} ({hardWords.length})</button>
         <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.learning} ({learningWords.length})</button>
         <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.mastered} ({masteredWords.length})</button>
@@ -2362,13 +2361,13 @@ function Vocabulary({
         <button onClick={generateContextStory} disabled={loadingContextStory} className="w-full py-4 bg-orange-50 dark:bg-orange-600/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-all shadow-sm">
           {loadingContextStory ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> ✨ {t.contextBtn}</>}
         </button>
-        {contextStory && <div className={`mt-4 p-5 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl border border-gray-200 dark:border-gray-700 ${_resolveTranslation(lang, 'text-right', 'text-left')} prose prose-orange dark:prose-invert max-w-none`}><div style={{
+        {contextStory && <div className={`mt-4 p-5 bg-gray-50 dark:bg-[#1A3570] rounded-2xl border border-gray-200 dark:border-[#1A3570] ${_resolveTranslation(lang, 'text-right', 'text-left')} prose prose-orange dark:prose-invert max-w-none`}><div style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(contextStory)}</div></div>}
       </div>}
 
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateWordsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-500 transition-colors group">
+        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateWordsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1A3570] p-4 rounded-xl border border-gray-200 dark:border-[#1A3570] hover:border-gray-300 dark:border-gray-500 transition-colors group">
           <div className="text-left" dir="ltr">
             <p className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
               {safeRender(item.word)}
@@ -2382,7 +2381,7 @@ function Vocabulary({
     </div>}
 
     {vocabMode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#111C38] p-5 rounded-2xl border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{t.smartCards}</h2><p className="text-sm text-gray-600 dark:text-gray-400">{t.totalWords} {globalVocab.length}</p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm text-green-600 dark:text-green-400 font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
@@ -2392,14 +2391,14 @@ function Vocabulary({
           </label>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-[#111C38] p-5 rounded-2xl border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Search className="w-4 h-4 text-blue-500 dark:text-blue-400" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-purple-500 dark:text-purple-400" /> {t.filterLevel}</label>
-          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer">
+          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer">
             <option value="All">All Levels</option><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option><option value="C1">C1</option><option value="C2">C2</option>
           </select>
         </div>
@@ -2410,45 +2409,45 @@ function Vocabulary({
             setShowMeaning(false);
             setAiStory('');
             setCardImage(null);
-          }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer" dir="ltr">
+          }} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer" dir="ltr">
             {filteredVocabList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredVocabList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
           </select>
         </div>
       </div>
     </>}
 
-    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
       <div className="w-24 h-24 bg-green-50 dark:bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-green-500 dark:text-green-400" /></div>
       <h3 className="text-3xl text-gray-900 dark:text-white font-bold mb-4">{t.reviewDone}</h3>
       <p className="text-gray-600 dark:text-gray-400 text-lg">{t.reviewDoneMsg}</p>
       <button onClick={() => setVocabMode('browse')} className="mt-8 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
     </div>}
 
-    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
+    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
       <Search className="w-12 h-12 text-gray-400 dark:text-gray-600 mb-4" />
       <h3 className="text-xl text-gray-600 dark:text-gray-400 font-bold">{t.noMatch}</h3>
     </div>}
 
-    {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
 
       <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
         <button onClick={e => {
           e.stopPropagation();
           playAudio('en-US');
-        }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
+        }} className="p-3 bg-gray-50 dark:bg-[#1A3570] rounded-xl text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
         <button onClick={e => {
           e.stopPropagation();
           playAudio('en-GB');
-        }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
+        }} className="p-3 bg-gray-50 dark:bg-[#1A3570] rounded-xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
       </div>
-      <span className="absolute top-6 right-6 bg-gray-50 dark:bg-[#1a1a1e] text-blue-600 dark:text-blue-400 border border-blue-200 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm flex flex-col items-center"><span>{safeRender(card.level)}</span></span>
+      <span className="absolute top-6 right-6 bg-gray-50 dark:bg-[#1A3570] text-blue-600 dark:text-blue-400 border border-blue-200 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm flex flex-col items-center"><span>{safeRender(card.level)}</span></span>
 
       {!showMeaning ? <div className="text-center w-full">
         <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-white mb-6" dir="ltr">{safeRender(card.word)}</h3>
         <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
         <h3 className="text-2xl md:text-3xl font-bold text-[#0E4AA4] dark:text-blue-300 leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-800/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        {card.example && <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1D3360]/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         {card.synonyms && <div className="w-full bg-gray-100 dark:bg-gray-800/30 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 dark:text-gray-400" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-blue-600 dark:text-blue-300">{safeRender(card.synonyms)}</span></div>}
 
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
@@ -2463,12 +2462,12 @@ function Vocabulary({
           {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
         </div>
 
-        {collocationData && <div className="bg-gray-50 dark:bg-[#1a1a1e] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-gray-200 text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
-        {aiStory && <div className={`bg-gray-50 dark:bg-[#1a1a1e] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{
+        {collocationData && <div className="bg-gray-50 dark:bg-[#1A3570] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-gray-200 text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
+        {aiStory && <div className={`bg-gray-50 dark:bg-[#1A3570] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(aiStory)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 mb-2 animate-bounce" /><span className="text-sm text-blue-600 font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg relative bg-gray-50 dark:bg-[#1a1a1e]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1A3570] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 mb-2 animate-bounce" /><span className="text-sm text-blue-600 font-bold">{t.loading}</span></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[#1A3570] shadow-lg relative bg-gray-50 dark:bg-[#1A3570]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
           e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found';
         }} /></div>}
       </div>}
@@ -2590,19 +2589,19 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }
     } catch { setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(`Phrasal verb ${card?.word}`)}?width=640&height=420&nologo=true&model=flux`); } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1A3570] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
       <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
       <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-[#0E4AA4] text-white' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-lg">{dueCards.length}</span>}</button>
       <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
-    {mode === 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto no-scrollbar">
+    {mode === 'lists' && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[#1D3360] pb-4 overflow-x-auto no-scrollbar">
         <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.hard} ({hardWords.length})</button>
         <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.learning} ({learningWords.length})</button>
         <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.mastered} ({masteredWords.length})</button>
       </div>
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 transition-colors">
+        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1A3570] p-4 rounded-xl border border-gray-200 dark:border-[#1A3570] hover:border-gray-300 transition-colors">
           <div className="text-left" dir="ltr">
             <p className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">{safeRender(item.word)}<button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-blue-500 transition-colors"><Volume2 className="w-4 h-4" /></button></p>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{safeRender(item.meaning)}</p>
@@ -2612,52 +2611,52 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }
       </div>
     </div>}
     {mode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#111C38] p-5 rounded-2xl border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{_resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs')}</h2><p className="text-sm text-gray-600 dark:text-gray-400">{t.totalItems} {phrasalVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
           <label className="bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-500 dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#111C38] p-5 rounded-2xl border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Search className="w-4 h-4 text-blue-500" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><List className="w-4 h-4 text-green-500" /> {t.manualSelect} ({filteredList.length})</label>
-          <select value={safeIndex} onChange={e => { setActiveWordIndex(Number(e.target.value)); setShowMeaning(false); setAiStory(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none appearance-none cursor-pointer" dir="ltr">
+          <select value={safeIndex} onChange={e => { setActiveWordIndex(Number(e.target.value)); setShowMeaning(false); setAiStory(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none appearance-none cursor-pointer" dir="ltr">
             {filteredList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
           </select>
         </div>
       </div>
     </>}
-    {mode === 'review' && !card && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+    {mode === 'review' && !card && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
       <div className="w-24 h-24 bg-green-50 dark:bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-green-500 dark:text-green-400" /></div>
       <h3 className="text-3xl text-gray-900 dark:text-white font-bold mb-4">{t.reviewDone}</h3>
       <p className="text-gray-600 dark:text-gray-400 text-lg">{t.reviewDoneMsg}</p>
       <button onClick={() => setMode('browse')} className="mt-8 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
     </div>}
-    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
+    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
       <Search className="w-12 h-12 text-gray-400 dark:text-gray-600 mb-4" /><h3 className="text-xl text-gray-600 dark:text-gray-400 font-bold">{t.noWords}</h3>
     </div>}
-    {card && mode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && mode !== 'lists' && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
       <div className="absolute top-6 left-6 z-10">
-        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
+        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[#1A3570] rounded-xl text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
       </div>
       {!showMeaning ? <div className="text-center w-full">
         <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-white mb-6" dir="ltr">{safeRender(card.word)}</h3>
         <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
         <h3 className="text-2xl md:text-3xl font-bold text-[#0E4AA4] dark:text-blue-300 leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-800/50 w-full"><p className="text-lg text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        {card.example && <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1D3360]/50 w-full"><p className="text-lg text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
           {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-orange-50 text-orange-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
           {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
         </div>
-        {aiStory && <div className="bg-gray-50 dark:bg-[#1a1a1e] border-l-4 border-orange-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {aiStory && <div className="bg-gray-50 dark:bg-[#1A3570] border-l-4 border-orange-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1A3570] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 animate-bounce" /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[#1A3570] shadow-lg" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -2824,19 +2823,19 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
     } catch { setCardImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(`Illustration ${card?.word}`)}?width=640&height=420&nologo=true&model=flux`); } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1A3570] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
       <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
       <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-[#0E4AA4] text-white' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-lg">{dueCards.length}</span>}</button>
       <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
-    {mode === 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto no-scrollbar">
+    {mode === 'lists' && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[#1D3360] pb-4 overflow-x-auto no-scrollbar">
         <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.hard} ({hardWords.length})</button>
         <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.learning} ({learningWords.length})</button>
         <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.mastered} ({masteredWords.length})</button>
       </div>
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 transition-colors">
+        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1A3570] p-4 rounded-xl border border-gray-200 dark:border-[#1A3570] hover:border-gray-300 transition-colors">
           <div className="text-left" dir="ltr">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">{safeRender(item.word)}<button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-blue-500 transition-colors"><Volume2 className="w-4 h-4" /></button></p>
@@ -2849,46 +2848,46 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
       </div>
     </div>}
     {mode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#111C38] p-5 rounded-2xl border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{_resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang')}</h2><p className="text-sm text-gray-600 dark:text-gray-400">{t.totalItems} {idiomsVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
           <label className="bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-500 dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-[#111C38] p-5 rounded-2xl border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Search className="w-4 h-4 text-blue-500" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-purple-500" /> {t.filterTopic}</label>
-          <select value={topicFilter} onChange={e => { setTopicFilter(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors">
+          <select value={topicFilter} onChange={e => { setTopicFilter(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none appearance-none cursor-pointer transition-colors">
             <option value="All">{t.allTopics}</option>
             {allTopics.map(topic => <option key={topic} value={topic}>{topic}</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><List className="w-4 h-4 text-green-500" /> {t.manualSelect} ({filteredList.length})</label>
-          <select value={safeIndex} onChange={e => { setActiveWordIndex(Number(e.target.value)); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none appearance-none cursor-pointer" dir="ltr">
+          <select value={safeIndex} onChange={e => { setActiveWordIndex(Number(e.target.value)); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none appearance-none cursor-pointer" dir="ltr">
             {filteredList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
           </select>
         </div>
       </div>
     </>}
-    {mode === 'review' && !card && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+    {mode === 'review' && !card && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
       <div className="w-24 h-24 bg-green-50 dark:bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-green-500 dark:text-green-400" /></div>
       <h3 className="text-3xl text-gray-900 dark:text-white font-bold mb-4">{t.reviewDone}</h3>
       <p className="text-gray-600 dark:text-gray-400 text-lg">{t.reviewDoneMsg}</p>
       <button onClick={() => setMode('browse')} className="mt-8 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
     </div>}
-    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
+    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
       <Search className="w-12 h-12 text-gray-400 dark:text-gray-600 mb-4" /><h3 className="text-xl text-gray-600 dark:text-gray-400 font-bold">{t.noWords}</h3>
     </div>}
-    {card && mode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-purple-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && mode !== 'lists' && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-purple-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
       <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-purple-50 dark:from-purple-900/5 to-transparent rounded-xl pointer-events-none" />
       <div className="absolute top-6 left-6 z-10">
-        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-purple-600 dark:text-purple-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
+        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[#1A3570] rounded-xl text-purple-600 dark:text-purple-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
       </div>
       {card.topic && <span className="absolute top-6 right-6 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.topic)}</span>}
       {!showMeaning ? <div className="text-center w-full">
@@ -2896,14 +2895,14 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
         <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
         <h3 className="text-2xl md:text-3xl font-bold text-[#0E4AA4] dark:text-blue-300 leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-800/50 w-full"><p className="text-lg text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        {card.example && <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1D3360]/50 w-full"><p className="text-lg text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
           {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-purple-50 text-purple-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> {t.genSentenceBtn}</>}</button>}
           {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-blue-50 text-blue-600 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
         </div>
-        {aiSentence && <div className="bg-gray-50 dark:bg-[#1a1a1e] border-l-4 border-purple-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-purple-400 animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {aiSentence && <div className="bg-gray-50 dark:bg-[#1A3570] border-l-4 border-purple-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1A3570] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-purple-400 animate-bounce" /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[#1A3570] shadow-lg" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -2953,19 +2952,19 @@ function Grammar({
       <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
     </div>
     <div className="space-y-4">
-      {GRAMMAR_LEVELS.map((level, idx) => <div key={idx} className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm">
+      {GRAMMAR_LEVELS.map((level, idx) => <div key={idx} className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-2xl overflow-hidden transition-all duration-300 shadow-sm">
         <button onClick={() => {
           setOpenLevel(openLevel === idx ? -1 : idx);
           setActiveTopic(null);
-        }} className={`w-full px-8 py-6 flex justify-between items-center text-xl font-bold transition-colors ${openLevel === idx ? 'bg-gray-50 dark:bg-[#1a1a1e] text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1a1a1e] hover:text-blue-600 dark:hover:text-blue-400'}`} dir="ltr">
+        }} className={`w-full px-8 py-6 flex justify-between items-center text-xl font-bold transition-colors ${openLevel === idx ? 'bg-gray-50 dark:bg-[#1A3570] text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1A3570] hover:text-blue-600 dark:hover:text-blue-400'}`} dir="ltr">
           <div className="flex items-center gap-4"><div className={`w-3 h-3 rounded-full ${openLevel === idx ? 'bg-blue-500' : 'bg-gray-400 dark:bg-gray-600'}`}></div>{level.level}</div>
           <ChevronRight className={`w-6 h-6 transition-transform ${openLevel === idx ? 'rotate-90 text-blue-500' : 'text-gray-400'}`} />
         </button>
         <div className={`transition-all duration-500 overflow-hidden ${openLevel === idx ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="p-8 bg-white dark:bg-[#121214] border-t border-gray-200 dark:border-gray-800 space-y-4">
+          <div className="p-8 bg-white dark:bg-[#111C38] border-t border-gray-200 dark:border-[#1D3360] space-y-4">
             {level.topics.map((topic, tidx) => {
               const isActive = activeTopic === topic;
-              return <div key={tidx} className={`rounded-xl border overflow-hidden transition-colors ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-500/40' : 'bg-gray-50 dark:bg-[#1a1a1e] border-gray-200 dark:border-gray-800/50 hover:bg-blue-50/60 dark:hover:bg-blue-900/10 hover:border-blue-200 dark:hover:border-blue-500/30'}`}>
+              return <div key={tidx} className={`rounded-xl border overflow-hidden transition-colors ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-500/40' : 'bg-gray-50 dark:bg-[#1A3570] border-gray-200 dark:border-[#1D3360]/50 hover:bg-blue-50/60 dark:hover:bg-blue-900/10 hover:border-blue-200 dark:hover:border-blue-500/30'}`}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between p-4 gap-4">
                   <div className="flex items-center gap-3 text-lg" dir="ltr">
                     <span className={`font-semibold transition-colors ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-gray-200'}`}>{topic}</span>
@@ -2974,7 +2973,7 @@ function Grammar({
                     <Sparkles className="w-4 h-4" /> {t.explainBtn}
                   </button>
                 </div>
-                {isActive && <div className="bg-white dark:bg-[#0e0e11] border-t border-blue-200 dark:border-blue-500/30 p-6 text-gray-800 dark:text-gray-100">
+                {isActive && <div className="bg-white dark:bg-[#0B152E] border-t border-blue-200 dark:border-blue-500/30 p-6 text-gray-800 dark:text-gray-100">
                   {loading ? <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400"><Activity className="w-5 h-5 animate-spin" /> {t.loading}</div> : <div style={{
                     whiteSpace: 'pre-wrap'
                   }}>{safeRender(explanation)}</div>}
@@ -3286,7 +3285,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
     <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
       {/* ── Header ── */}
-      <div className="bg-white dark:bg-[#121214] p-8 rounded-xl border border-gray-200 dark:border-gray-800 flex flex-col md:flex-row justify-between items-center gap-6 transition-colors">
+      <div className="bg-white dark:bg-[#111C38] p-8 rounded-xl border border-gray-200 dark:border-[#1D3360] flex flex-col md:flex-row justify-between items-center gap-6 transition-colors">
         <div className="text-center md:text-start flex-1">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white mb-2">{t.title}</h2>
           <p className="text-gray-600 dark:text-gray-400">{t.desc}</p>
@@ -3294,7 +3293,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
         <div className="flex items-center gap-3 flex-wrap justify-center md:justify-end">
           {type === 'reading' && (
             <>
-              <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1A3570] rounded-xl p-1 border border-gray-200 dark:border-[#1A3570]">
                 <button onClick={() => setVoiceAccent('uk')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇬🇧 UK</button>
                 <button onClick={() => setVoiceAccent('us')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇺🇸 US</button>
               </div>
@@ -3308,18 +3307,18 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Listening: topic / length / generate controls ── */}
       {type === 'listening' && (
-        <div className="bg-white dark:bg-[#121214] p-6 rounded-xl border border-gray-200 dark:border-gray-800 transition-colors">
+        <div className="bg-white dark:bg-[#111C38] p-6 rounded-xl border border-gray-200 dark:border-[#1D3360] transition-colors">
           <div className="flex flex-wrap items-center gap-3">
             <select
               value={listenTopic}
               onChange={e => setListenTopic(e.target.value)}
-              className="flex-1 min-w-[160px] bg-gray-100 dark:bg-[#1a1a1e] border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 min-w-[160px] bg-gray-100 dark:bg-[#1A3570] border border-gray-300 dark:border-[#1A3570] text-gray-800 dark:text-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">{_resolveTranslation(lang, 'اختر موضوعاً...', 'Pick a topic...')}</option>
               {LISTEN_TOPICS.map(tp => <option key={tp} value={tp}>{tp}</option>)}
             </select>
 
-            <div className="flex gap-1 bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1">
+            <div className="flex gap-1 bg-gray-100 dark:bg-[#1A3570] rounded-xl p-1">
               {['short', 'medium', 'long'].map(l => (
                 <button
                   key={l}
@@ -3338,7 +3337,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
               {_resolveTranslation(lang, 'ولّد نصاً', 'Generate')}
             </button>
             {/* UK/US accent toggle for listening */}
-            <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1 border border-gray-200 dark:border-gray-700 ml-auto">
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#1A3570] rounded-xl p-1 border border-gray-200 dark:border-[#1A3570] ml-auto">
               <button onClick={() => setVoiceAccent('uk')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇬🇧 UK</button>
               <button onClick={() => setVoiceAccent('us')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[#2e2e36] text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-500 hover:text-gray-700'}`}>🇺🇸 US</button>
             </div>
@@ -3348,10 +3347,10 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Listening: passage + player ── */}
       {story && type === 'listening' && (
-        <div className="bg-white dark:bg-[#121214] p-6 rounded-xl border border-gray-200 dark:border-gray-800 transition-colors">
+        <div className="bg-white dark:bg-[#111C38] p-6 rounded-xl border border-gray-200 dark:border-[#1D3360] transition-colors">
 
           {/* Player bar */}
-          <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-gray-100 dark:border-[#1D3360]">
             <button
               onClick={handlePlayPause}
               disabled={audioState === 'loading'}
@@ -3367,7 +3366,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
               </button>
             )}
 
-            <div className="flex gap-1 ml-auto bg-gray-100 dark:bg-[#1a1a1e] rounded-xl p-1">
+            <div className="flex gap-1 ml-auto bg-gray-100 dark:bg-[#1A3570] rounded-xl p-1">
               {[0.75, 1, 1.25, 1.5].map(s => (
                 <button
                   key={s}
@@ -3384,7 +3383,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
           </div>
 
           {/* Action buttons */}
-          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 dark:border-[#1D3360]">
             <button
               onClick={handleGenerateQuiz}
               disabled={quizLoading}
@@ -3406,7 +3405,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Comprehension Quiz ── */}
       {quiz !== null && !dictMode && (
-        <div className="bg-white dark:bg-[#121214] p-6 rounded-xl border border-gray-200 dark:border-gray-800 transition-colors">
+        <div className="bg-white dark:bg-[#111C38] p-6 rounded-xl border border-gray-200 dark:border-[#1D3360] transition-colors">
           <h3 className="text-xl font-extrabold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <HelpCircle className="w-5 h-5 text-purple-500" />
             {_resolveTranslation(lang, 'أسئلة الفهم', 'Comprehension Quiz')}
@@ -3433,7 +3432,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
                             isCorrect ? 'bg-green-100 dark:bg-green-900/30 border-green-500 text-green-800 dark:text-green-300' :
                             isWrong ? 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-800 dark:text-red-300' :
                             isSelected ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500 text-blue-800 dark:text-blue-300' :
-                            'bg-gray-50 dark:bg-[#1a1a1e] border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:border-blue-400'
+                            'bg-gray-50 dark:bg-[#1A3570] border-gray-200 dark:border-[#1A3570] text-gray-800 dark:text-gray-200 hover:border-blue-400'
                           }`}
                         >
                           {opt}
@@ -3465,7 +3464,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Dictation Mode ── */}
       {dictMode && (
-        <div className="bg-white dark:bg-[#121214] p-6 rounded-xl border border-gray-200 dark:border-gray-800 transition-colors">
+        <div className="bg-white dark:bg-[#111C38] p-6 rounded-xl border border-gray-200 dark:border-[#1D3360] transition-colors">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
               <Mic className="w-5 h-5 text-green-500" />
@@ -3500,7 +3499,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && dictInput.trim()) { e.preventDefault(); checkDictAnswer(); } }}
                 placeholder={_resolveTranslation(lang, 'اكتب ما سمعته...', 'Type what you heard...')}
                 rows={2}
-                className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-300 dark:border-[#1A3570] text-gray-900 dark:text-white rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                 dir="ltr"
               />
 
@@ -3555,8 +3554,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Reading: passage + read-aloud ── */}
       {story && type === 'reading' && (
-        <div className="bg-gray-50 dark:bg-[#1a1a1e] p-8 rounded-xl border border-gray-200 dark:border-gray-800 shadow-inner">
-          <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="bg-gray-50 dark:bg-[#1A3570] p-8 rounded-xl border border-gray-200 dark:border-[#1D3360] shadow-inner">
+          <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-gray-200 dark:border-[#1A3570]">
             <button
               onClick={handlePlayPause}
               disabled={audioState === 'loading'}
@@ -3584,8 +3583,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Golden Rules + Sources ── */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-        <div className="md:col-span-3 bg-white dark:bg-[#121214] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-200 dark:border-gray-800 transition-colors">
-          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-5 lg:mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'القواعد الذهبية', 'Golden Rules')}</h3>
+        <div className="md:col-span-3 bg-white dark:bg-[#111C38] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-200 dark:border-[#1D3360] transition-colors">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-5 lg:mb-8 border-b border-gray-200 dark:border-[#1D3360] pb-4">{_resolveTranslation(lang, 'القواعد الذهبية', 'Golden Rules')}</h3>
           <ul className="space-y-6">
             {contentSteps.map((step, idx) => (
               <li key={idx} className="flex items-start gap-4">
@@ -3596,11 +3595,11 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
           </ul>
         </div>
 
-        <div className="md:col-span-2 bg-white dark:bg-[#121214] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-200 dark:border-gray-800 transition-colors">
-          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-5 lg:mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">{_resolveTranslation(lang, 'المصادر', 'Sources')}</h3>
+        <div className="md:col-span-2 bg-white dark:bg-[#111C38] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-200 dark:border-[#1D3360] transition-colors">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-5 lg:mb-8 border-b border-gray-200 dark:border-[#1D3360] pb-4">{_resolveTranslation(lang, 'المصادر', 'Sources')}</h3>
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {currentLinks.map((link, idx) => (
-              <div key={idx} className="bg-gray-50 dark:bg-[#1a1a1e] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 transition-colors shadow-sm">
+              <div key={idx} className="bg-gray-50 dark:bg-[#1A3570] p-5 rounded-2xl border border-gray-200 dark:border-[#1D3360] transition-colors shadow-sm">
                 <div className="text-left mb-3" dir="ltr">
                   <p className="font-bold text-gray-900 dark:text-gray-100 text-lg">{link.name}</p>
                   <span className="inline-block mt-1 text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/10 px-2 py-1 rounded">{link.level}</span>
@@ -3700,12 +3699,12 @@ function Writing({
   return <div className="w-full animate-fadeIn">
     <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-10 text-center flex items-center justify-center gap-3"><PenTool className="text-purple-500 dark:text-purple-400" /> {t.title}</h2>
     <div className="flex justify-end mb-4">
-      <button onClick={() => setShowHistory(v => !v)} className="text-sm font-bold px-4 py-2 rounded-xl bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300">
+      <button onClick={() => setShowHistory(v => !v)} className="text-sm font-bold px-4 py-2 rounded-xl bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] text-gray-700 dark:text-gray-300">
         {t.history}
       </button>
     </div>
-    {showHistory && <div className="mb-6 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl p-5 space-y-4 shadow-lg">
-      {writingHistory.length === 0 ? <p className="text-gray-500 dark:text-gray-400">{t.emptyHistory}</p> : writingHistory.map(item => <div key={item.id} className="p-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800">
+    {showHistory && <div className="mb-6 bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl p-5 space-y-4 shadow-lg">
+      {writingHistory.length === 0 ? <p className="text-gray-500 dark:text-gray-400">{t.emptyHistory}</p> : writingHistory.map(item => <div key={item.id} className="p-4 rounded-2xl bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1D3360]">
         <p className="text-xs text-gray-500 mb-2">{new Date(item.createdAt).toLocaleString()}</p>
         <p className="text-sm text-gray-900 dark:text-white mb-2" dir="ltr">{safeRender(item.input)}</p>
         <p className="text-sm text-purple-600 dark:text-purple-400 font-bold" dir="ltr">{safeRender(item.output)}</p>
@@ -3713,7 +3712,7 @@ function Writing({
     </div>}
 
     <div className="mb-4">
-      <select value={writingTopic} onChange={e => setWritingTopic(e.target.value)} className="w-full bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3 text-gray-900 dark:text-white text-sm font-bold focus:outline-none focus:border-purple-500 transition-all shadow-sm appearance-none">
+      <select value={writingTopic} onChange={e => setWritingTopic(e.target.value)} className="w-full bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-2xl px-4 py-3 text-gray-900 dark:text-white text-sm font-bold focus:outline-none focus:border-purple-500 transition-all shadow-sm appearance-none">
         <option value="">{_resolveTranslation(lang, '— اختر موضوعاً لتوليد سؤال تلقائي (اختياري) —', '— Choose a topic to auto-generate a writing prompt (optional) —')}</option>
         {SPEAKING_TOPICS.map(tp => <option key={tp} value={tp}>{tp}</option>)}
       </select>
@@ -3724,9 +3723,9 @@ function Writing({
       </div>}
     </div>
 
-    <textarea value={text} onChange={e => setText(e.target.value)} placeholder={writingQuestion || t.placeholder} className="w-full h-64 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl p-8 text-gray-900 dark:text-white text-lg focus:outline-none focus:border-purple-500 transition-all mb-6" dir="ltr"></textarea>
+    <textarea value={text} onChange={e => setText(e.target.value)} placeholder={writingQuestion || t.placeholder} className="w-full h-64 bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl p-8 text-gray-900 dark:text-white text-lg focus:outline-none focus:border-purple-500 transition-all mb-6" dir="ltr"></textarea>
     <div className="flex gap-3">
-      <button onClick={startNewWriting} className="flex-1 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white font-extrabold py-4 rounded-xl hover:bg-gray-50 transition-colors">
+      <button onClick={startNewWriting} className="flex-1 bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] text-gray-900 dark:text-white font-extrabold py-4 rounded-xl hover:bg-gray-50 transition-colors">
         New Writing
       </button>
       <button onClick={handleCorrect} disabled={loading || !text.trim()} className="flex-1 bg-[#0E4AA4] hover:bg-[#0c3d8a] text-white font-extrabold py-4 rounded-xl transition-colors disabled:opacity-50">
@@ -3735,11 +3734,11 @@ function Writing({
     </div>
 
     {feedback && !feedback.error && <div className="mt-10 space-y-6 animate-fadeIn">
-      <div className="bg-green-50 dark:bg-[#121214] p-8 rounded-xl border border-green-200 dark:border-green-500/20 shadow-sm">
+      <div className="bg-green-50 dark:bg-[#111C38] p-8 rounded-xl border border-green-200 dark:border-green-500/20 shadow-sm">
         <h3 className="text-green-700 dark:text-green-400 font-bold mb-4 flex justify-between items-center text-xl">{t.corrected} <span className="text-yellow-600 dark:text-yellow-400">{safeRender(feedback.score)}</span></h3>
         <p className="text-gray-900 dark:text-white text-xl leading-relaxed" dir="ltr">{safeRender(feedback.corrected_text)}</p>
       </div>
-      {feedback.explanation && <div className="bg-white dark:bg-[#121214] p-8 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+      {feedback.explanation && <div className="bg-white dark:bg-[#111C38] p-8 rounded-xl border border-gray-200 dark:border-[#1D3360] shadow-sm">
         <h3 className="text-blue-600 dark:text-blue-400 font-bold mb-2">{t.explanation}</h3>
         <p className="text-gray-700 dark:text-gray-400 leading-relaxed" style={{
           whiteSpace: 'pre-wrap'
@@ -4172,8 +4171,8 @@ function Speaking({
       </div>
     </div>;
   }
-  return <><div className="w-full h-[90vh] flex flex-col animate-fadeIn border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden bg-white dark:bg-[#09090b] transition-colors">
-    <div className="bg-gray-50 dark:bg-[#121214] p-5 border-b border-gray-200 dark:border-gray-800 flex flex-col lg:flex-row justify-between items-center gap-4 relative z-10 transition-colors">
+  return <><div className="w-full h-[90vh] flex flex-col animate-fadeIn border border-gray-200 dark:border-[#1D3360] rounded-xl overflow-hidden bg-white dark:bg-[#0B152E] transition-colors">
+    <div className="bg-gray-50 dark:bg-[#111C38] p-5 border-b border-gray-200 dark:border-[#1D3360] flex flex-col lg:flex-row justify-between items-center gap-4 relative z-10 transition-colors">
       <div className="flex items-center gap-4 w-full lg:w-auto">
         <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-200 dark:border-emerald-500/20 shrink-0">
           <MessageSquare className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
@@ -4184,10 +4183,10 @@ function Speaking({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-        <select value={chatLevel} onChange={e => setChatLevel(e.target.value)} className="bg-white dark:bg-[#1a1a1e] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none shadow-sm">
+        <select value={chatLevel} onChange={e => setChatLevel(e.target.value)} className="bg-white dark:bg-[#1A3570] text-gray-900 dark:text-white border border-gray-200 dark:border-[#1A3570] rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none shadow-sm">
           {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => <option key={lvl} value={lvl}>Level {lvl}</option>)}
         </select>
-        <select value={topic} onChange={e => setTopic(e.target.value)} className="bg-white dark:bg-[#1a1a1e] text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none max-w-[150px] truncate shadow-sm">
+        <select value={topic} onChange={e => setTopic(e.target.value)} className="bg-white dark:bg-[#1A3570] text-gray-900 dark:text-white border border-gray-200 dark:border-[#1A3570] rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none max-w-[150px] truncate shadow-sm">
           {SPEAKING_TOPICS.map(topicName => <option key={topicName} value={topicName}>{topicName}</option>)}
         </select>
 
@@ -4202,22 +4201,22 @@ function Speaking({
         <button onClick={toggleCallMode} className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-600 hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
           <Phone className="w-4 h-4" /> <span className="hidden sm:inline">{t.callMode}</span>
         </button>
-        <button onClick={() => setAutoRead(v => !v)} className={`px-3 py-2 rounded-lg text-sm font-bold transition-all border ${autoRead ? 'bg-blue-600 text-white border-blue-500' : 'bg-white dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'}`}>
+        <button onClick={() => setAutoRead(v => !v)} className={`px-3 py-2 rounded-lg text-sm font-bold transition-all border ${autoRead ? 'bg-blue-600 text-white border-blue-500' : 'bg-white dark:bg-[#1A3570] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-[#1A3570]'}`}>
           {autoRead ? 'Auto-read On' : 'Auto-read Off'}
         </button>
-        <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm">
+        <div className="flex bg-white dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-lg p-0.5 shadow-sm">
           <button onClick={() => setVoiceGender('male')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'male' ? 'bg-blue-500 text-white' : 'text-gray-500 hover:text-blue-500'}`}>♂</button>
           <button onClick={() => setVoiceGender('female')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'female' ? 'bg-pink-500 text-white' : 'text-gray-500 hover:text-pink-500'}`}>♀</button>
         </div>
-        <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm">
+        <div className="flex bg-white dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-lg p-0.5 shadow-sm">
           <button onClick={() => setVoiceAccent('uk')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceAccent === 'uk' ? 'bg-indigo-500 text-white' : 'text-gray-500 hover:text-indigo-500'}`}>🇬🇧</button>
           <button onClick={() => setVoiceAccent('us')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceAccent === 'us' ? 'bg-indigo-500 text-white' : 'text-gray-500 hover:text-indigo-500'}`}>🇺🇸</button>
         </div>
-        <button onClick={() => setShowHistory(v => !v)} className="px-3 py-2 rounded-lg text-sm font-bold transition-all border bg-white dark:bg-[#1a1a1e] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700">
+        <button onClick={() => setShowHistory(v => !v)} className="px-3 py-2 rounded-lg text-sm font-bold transition-all border bg-white dark:bg-[#1A3570] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-[#1A3570]">
           History
         </button>
 
-        <div className="flex bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-lg p-0.5 shadow-sm overflow-hidden">
+        <div className="flex bg-white dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-lg p-0.5 shadow-sm overflow-hidden">
           <button
             onClick={() => setFormality('informal')}
             className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${formality === 'informal' ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-500 hover:text-emerald-500'}`}
@@ -4234,16 +4233,16 @@ function Speaking({
       </div>
     </div>
 
-    <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-white dark:bg-[#09090b] scroll-smooth">
-      {showHistory && <div className="mb-4 bg-white/90 dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl p-4 shadow-lg">
-        {speakingHistory.length === 0 ? <p className="text-gray-500 dark:text-gray-400">No history yet.</p> : speakingHistory.map(item => <button key={item.id} onClick={() => setMessages(item.messages || [])} className="w-full text-left p-3 rounded-2xl border border-gray-200 dark:border-gray-800 mb-3 last:mb-0 bg-gray-50 dark:bg-[#1a1a1e]">
+    <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-white dark:bg-[#0B152E] scroll-smooth">
+      {showHistory && <div className="mb-4 bg-white/90 dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl p-4 shadow-lg">
+        {speakingHistory.length === 0 ? <p className="text-gray-500 dark:text-gray-400">No history yet.</p> : speakingHistory.map(item => <button key={item.id} onClick={() => setMessages(item.messages || [])} className="w-full text-left p-3 rounded-2xl border border-gray-200 dark:border-[#1D3360] mb-3 last:mb-0 bg-gray-50 dark:bg-[#1A3570]">
           <p className="text-xs text-gray-500">{new Date(item.createdAt).toLocaleString()}</p>
           <p className="font-bold text-gray-900 dark:text-white">{item.title || item.topic}</p>
         </button>)}
       </div>}
       {messages.map((msg, idx) => <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
-        <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl relative ${msg.role === 'user' ? 'bg-[#0E4AA4] text-white rounded-br-none text-right' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none text-right'}`} dir="auto">
+        <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl relative ${msg.role === 'user' ? 'bg-[#0E4AA4] text-white rounded-br-none text-right' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1D3360] text-gray-800 dark:text-gray-200 rounded-bl-none text-right'}`} dir="auto">
           <p className="text-lg leading-relaxed">
             {safeRender(msg.text)}
             {msg.streaming && <span className="inline-block w-[2px] h-5 bg-emerald-500 ml-0.5 align-middle animate-pulse rounded-full" />}
@@ -4254,23 +4253,23 @@ function Speaking({
           </button>}
         </div>
 
-        {msg.role === 'user' && msg.review && <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-lg animate-fadeIn transition-colors">
-          <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1a1a1e] hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center text-sm font-bold text-gray-700 dark:text-gray-300 transition-colors">
+        {msg.role === 'user' && msg.review && <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-2xl overflow-hidden shadow-lg animate-fadeIn transition-colors">
+          <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[#1A3570] hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center text-sm font-bold text-gray-700 dark:text-gray-300 transition-colors">
             <span className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="w-4 h-4" /> {t.corrected}</span>
             <ChevronRight className={`w-4 h-4 transition-transform ${expandedReviewId === msg.id ? 'rotate-90' : ''}`} />
           </button>
 
-          {expandedReviewId === msg.id && <div className="p-4 space-y-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121214]">
+          {expandedReviewId === msg.id && <div className="p-4 space-y-4 border-t border-gray-200 dark:border-[#1D3360] bg-white dark:bg-[#111C38]">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="bg-gray-50 dark:bg-[#1A3570] p-3 rounded-xl border border-gray-200 dark:border-[#1D3360] shadow-sm">
                 <p className="text-xs text-gray-500 mb-1 font-bold">{t.clarity}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.clarity)}</p>
               </div>
-              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="bg-gray-50 dark:bg-[#1A3570] p-3 rounded-xl border border-gray-200 dark:border-[#1D3360] shadow-sm">
                 <p className="text-xs text-gray-500 mb-1 font-bold">{t.grammar}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.grammar)}</p>
               </div>
-              <div className="bg-gray-50 dark:bg-[#1a1a1e] p-3 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="bg-gray-50 dark:bg-[#1A3570] p-3 rounded-xl border border-gray-200 dark:border-[#1D3360] shadow-sm">
                 <p className="text-xs text-gray-500 mb-1 font-bold">{t.fluency}</p>
                 <p className="text-sm text-gray-800 dark:text-gray-200">{safeRender(msg.review.fluency)}</p>
               </div>
@@ -4292,7 +4291,7 @@ function Speaking({
         </div>}
       </div>)}
       {loading && <div className="flex justify-start">
-        <div className="bg-gray-100 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-800 p-5 rounded-2xl rounded-bl-none flex items-center gap-3 shadow-sm">
+        <div className="bg-gray-100 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1D3360] p-5 rounded-2xl rounded-bl-none flex items-center gap-3 shadow-sm">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{
             animationDelay: '0.2s'
@@ -4305,8 +4304,8 @@ function Speaking({
       <div ref={chatEndRef} />
     </div>
 
-    <div className="bg-gray-50 dark:bg-[#121214] p-5 border-t border-gray-200 dark:border-gray-800 relative z-10 transition-colors">
-      <div className="flex items-center gap-3 bg-white dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl p-2 focus-within:border-emerald-400 transition-colors relative">
+    <div className="bg-gray-50 dark:bg-[#111C38] p-5 border-t border-gray-200 dark:border-[#1D3360] relative z-10 transition-colors">
+      <div className="flex items-center gap-3 bg-white dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl p-2 focus-within:border-emerald-400 transition-colors relative">
 
         <button onClick={handleVoiceRecord} className={`p-3.5 rounded-full transition-colors flex items-center justify-center ${isRecording ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 animate-pulse' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-emerald-600 dark:text-emerald-400'}`} title={isRecording ? "Stop Recording" : "Record Voice"}>
           {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -4321,13 +4320,13 @@ function Speaking({
       </div>
     </div>
   </div>
-  {callReview && <div className="w-full mt-6 bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden animate-fadeIn">
+  {callReview && <div className="w-full mt-6 bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl overflow-hidden animate-fadeIn">
     <div className="bg-emerald-600 p-4 text-white flex justify-between items-center">
       <h3 className="font-extrabold text-lg flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Call Corrections Review</h3>
       <button onClick={() => setCallReview(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
     </div>
     <div className="p-5 space-y-4">
-      {callReview.map((msg, i) => <div key={i} className="p-4 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl border border-gray-200 dark:border-gray-800">
+      {callReview.map((msg, i) => <div key={i} className="p-4 bg-gray-50 dark:bg-[#1A3570] rounded-2xl border border-gray-200 dark:border-[#1D3360]">
         <p className="text-xs text-gray-500 font-extrabold uppercase tracking-wider mb-2">You said:</p>
         <p className="text-gray-900 dark:text-white font-medium mb-3" dir="ltr">"{safeRender(msg.text)}"</p>
         {msg.review && <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
@@ -4602,7 +4601,7 @@ function Langeek({
     } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1a1a1e] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#1A3570] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
       <button onClick={() => {
         setVocabMode('browse');
         setShowMeaning(false);
@@ -4626,8 +4625,8 @@ function Langeek({
       }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'lists' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
 
-    {vocabMode === 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto no-scrollbar">
+    {vocabMode === 'lists' && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[#1D3360] pb-4 overflow-x-auto no-scrollbar">
         <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.hard} ({hardWords.length})</button>
         <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.learning} ({learningWords.length})</button>
         <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}>{t.mastered} ({masteredWords.length})</button>
@@ -4637,13 +4636,13 @@ function Langeek({
         <button onClick={generateContextStory} disabled={loadingContextStory} className="w-full py-4 bg-orange-50 dark:bg-orange-600/10 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-all shadow-sm">
           {loadingContextStory ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> ✨ {t.contextBtn}</>}
         </button>
-        {contextStory && <div className={`mt-4 p-5 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl border border-gray-200 dark:border-gray-700 ${_resolveTranslation(lang, 'text-right', 'text-left')} prose prose-orange dark:prose-invert max-w-none`}><div style={{
+        {contextStory && <div className={`mt-4 p-5 bg-gray-50 dark:bg-[#1A3570] rounded-2xl border border-gray-200 dark:border-[#1A3570] ${_resolveTranslation(lang, 'text-right', 'text-left')} prose prose-orange dark:prose-invert max-w-none`}><div style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(contextStory)}</div></div>}
       </div>}
 
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateWordsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1a1a1e] p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:border-gray-500 transition-colors group">
+        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateWordsMsg}</p></div> : currentListView.map(item => <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#1A3570] p-4 rounded-xl border border-gray-200 dark:border-[#1A3570] hover:border-gray-300 dark:border-gray-500 transition-colors group">
           <div className="text-left" dir="ltr">
             <p className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
               {safeRender(item.word)}
@@ -4657,7 +4656,7 @@ function Langeek({
     </div>}
 
     {vocabMode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#111C38] p-5 rounded-2xl border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{t.smartCards}</h2><p className="text-sm text-gray-600 dark:text-gray-400">{t.totalWords} {langeekVocab.length}</p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm text-green-600 dark:text-green-400 font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
@@ -4667,20 +4666,20 @@ function Langeek({
           </label>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white dark:bg-[#121214] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg transition-colors">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white dark:bg-[#111C38] p-5 rounded-2xl border border-gray-200 dark:border-[#1D3360] shadow-lg transition-colors">
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Search className="w-4 h-4 text-blue-500 dark:text-blue-400" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors" />
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-purple-500 dark:text-purple-400" /> {t.filterLevel}</label>
-          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer">
+          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer">
             <option value="All">All Levels</option><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option><option value="C1">C1</option><option value="C2">C2</option>
           </select>
         </div>
         <div className="flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400 font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-purple-500 dark:text-purple-400" /> {t.filterCategory}</label>
-          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer">
+          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer">
             <option value="All">All Topics</option>
             {[...new Set(langeekVocab.map(v => v.category).filter(Boolean))].map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -4693,41 +4692,41 @@ function Langeek({
             setShowMeaning(false);
             setAiStory('');
             setCardImage(null);
-          }} className="w-full bg-gray-50 dark:bg-[#1a1a1e] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer" dir="ltr">
+          }} className="w-full bg-gray-50 dark:bg-[#1A3570] border border-gray-200 dark:border-[#1A3570] rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors appearance-none cursor-pointer" dir="ltr">
             {filteredVocabList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredVocabList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
           </select>
         </div>
       </div>
     </>}
 
-    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
       <div className="w-24 h-24 bg-green-50 dark:bg-green-500/10 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-green-500 dark:text-green-400" /></div>
       <h3 className="text-3xl text-gray-900 dark:text-white font-bold mb-4">{t.reviewDone}</h3>
       <p className="text-gray-600 dark:text-gray-400 text-lg">{t.reviewDoneMsg}</p>
       <button onClick={() => setVocabMode('browse')} className="mt-8 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
     </div>}
 
-    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
+    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-lg text-center animate-fadeIn transition-colors">
       <Search className="w-12 h-12 text-gray-400 dark:text-gray-600 mb-4" />
       <h3 className="text-xl text-gray-600 dark:text-gray-400 font-bold">{t.noMatch}</h3>
     </div>}
 
-    {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#121214] border border-gray-200 dark:border-gray-800 rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#111C38] border border-gray-200 dark:border-[#1D3360] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
 
       <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
         <button onClick={e => {
           e.stopPropagation();
           playAudio('en-US');
-        }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
+        }} className="p-3 bg-gray-50 dark:bg-[#1A3570] rounded-xl text-blue-600 dark:text-blue-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
         <button onClick={e => {
           e.stopPropagation();
           playAudio('en-GB');
-        }} className="p-3 bg-gray-50 dark:bg-[#1a1a1e] rounded-xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
+        }} className="p-3 bg-gray-50 dark:bg-[#1A3570] rounded-xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
       </div>
       <div className="absolute top-6 right-6 flex flex-col gap-2 items-end">
-        <span className="bg-gray-50 dark:bg-[#1a1a1e] text-blue-600 dark:text-blue-400 border border-blue-200 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.level)}</span>
-        {card.category && card.category !== 'All' && card.category !== 'General' && <span className="bg-purple-50 dark:bg-[#1a1a1e] text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.category)}</span>}
-        {card.type && <span className="bg-emerald-50 dark:bg-[#1a1a1e] text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.type)}</span>}
+        <span className="bg-gray-50 dark:bg-[#1A3570] text-blue-600 dark:text-blue-400 border border-blue-200 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.level)}</span>
+        {card.category && card.category !== 'All' && card.category !== 'General' && <span className="bg-purple-50 dark:bg-[#1A3570] text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.category)}</span>}
+        {card.type && <span className="bg-emerald-50 dark:bg-[#1A3570] text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.type)}</span>}
       </div>
 
       {!showMeaning ? <div className="text-center w-full">
@@ -4735,7 +4734,7 @@ function Langeek({
         <p className="text-gray-600 dark:text-gray-500 text-sm mt-8 animate-pulse bg-gray-100 dark:bg-gray-800/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
         <h3 className="text-2xl md:text-3xl font-bold text-[#0E4AA4] dark:text-blue-300 leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[#1a1a1e] p-6 rounded-2xl border border-gray-200 dark:border-gray-800/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        {card.example && <div className="bg-gray-50 dark:bg-[#1A3570] p-6 rounded-2xl border border-gray-200 dark:border-[#1D3360]/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-gray-200 font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         {card.synonyms && <div className="w-full bg-gray-100 dark:bg-gray-800/30 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 dark:text-gray-400" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-blue-600 dark:text-blue-300">{safeRender(card.synonyms)}</span></div>}
 
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
@@ -4750,12 +4749,12 @@ function Langeek({
           {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
         </div>
 
-        {collocationData && <div className="bg-gray-50 dark:bg-[#1a1a1e] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-gray-200 text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
-        {aiStory && <div className={`bg-gray-50 dark:bg-[#1a1a1e] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{
+        {collocationData && <div className="bg-gray-50 dark:bg-[#1A3570] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-gray-200 text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
+        {aiStory && <div className={`bg-gray-50 dark:bg-[#1A3570] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-gray-300 text-sm" style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(aiStory)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1a1a1e] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 mb-2 animate-bounce" /><span className="text-sm text-blue-600 font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg relative bg-gray-50 dark:bg-[#1a1a1e]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#1A3570] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 mb-2 animate-bounce" /><span className="text-sm text-blue-600 font-bold">{t.loading}</span></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[#1A3570] shadow-lg relative bg-gray-50 dark:bg-[#1A3570]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
           e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found';
         }} /></div>}
       </div>}

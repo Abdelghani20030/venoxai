@@ -37,14 +37,17 @@ Arabic/English language-learning web app with AI-powered features (vocabulary, g
 - Dashboard, Study Plan (CEFR-based), Vocabulary + Phrasal Verbs + Idioms, Grammar (AI), Listening, Reading (AI), Writing (AI), Conversation/Speaking (AI call mode)
 - Call mode: full-screen voice UI with morphing blob, scrollable fade-to-top transcript, continuous-mode voice recording, Edge TTS primary + browser fallback
 
-## Design system (LanGeek-inspired)
+## Design system (LanGeek brand tokens)
 
-- **Theme**: Light by default. Colors: bg `#F7F9FC`, sidebar `#FFFFFF`, primary `#0E4AA4`, accent `#EBF0F7`, secondary `#FFD78A`, text `#0A0A0A`.
-- **Font**: Noto Sans (loaded in `index.html`) — body/UI; 'The Year of The Camel' for Arabic RTL text.
-- **Cards**: Pastel solid backgrounds (`CARD_PALETTES` in App.jsx) — teal `#C8EFE8`, blue `#EBF0F7`, amber `#FFE4B2`.
-- **Sidebar active state**: `bg-[#EBF0F7] text-[#0E4AA4]` — no gradient.
-- **Logo**: `Venoxa` in `#0A0A0A` + `.ai` in `#0E4AA4`.
-- Dark mode still works via the theme toggle button.
+Tokens defined as CSS variables in `index.css` (`:root`):
+- **Light**: bg `#F7F9FC`, surface `#FFFFFF`, border `#E6E6E6`, text `#0A0A0A`
+- **Primary**: `#0E4AA4` / hover `#0c3d8a`
+- **Accent palette**: mint `#78E3D9` / `#C8EFE8`, amber `#FFD78A` / `#FFECD6`, purple `#9E9EFF` / `#B68BFE`
+- **Dark mode navy**: bg `#0B152E`, surface `#111C38`, card `#1A3570`, border `#1D3360`
+- **Font**: Noto Sans — body/UI; 'The Year of The Camel' for Arabic RTL
+- **Cards** (`CARD_PALETTES`): mint `#C8EFE8` + `#48725E` icon, blue `#EBF0F7` + `#0E4AA4` icon, amber `#FFECD6` + `#D88C34` icon
+- **Sidebar active**: `bg-[#EBF0F7] text-[#0E4AA4]`; CTAs use `rounded-full` pill shape (LanGeek `9999px`)
+- **Flat UI**: no gradients on surfaces, no heavy shadows in light mode (CSS override in `index.css`)
 
 ## User preferences
 
