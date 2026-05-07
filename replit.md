@@ -46,7 +46,7 @@ Tokens defined as CSS variables in `index.css` (`:root`):
 - **Dark accents**: primary `#4F7CFF`, secondary `#8B5CF6`, text `#F8FAFC`, muted `#B6C2D9`, dim `#7A8BA8`
 - **Font**: Noto Sans — body/UI; 'The Year of The Camel' for Arabic RTL
 - **Cards** (`CARD_PALETTES`): mint `#C8EFE8`/`#48725E` icon, blue `#EBF0F7`/`#0E4AA4` icon, amber `#FFECD6`/`#D88C34` icon — dark variants use `#17223B` card + `#263452` border
-- **Sidebar active light**: `bg-[#EBF0F7] text-[#0E4AA4]`; dark: `bg-[#4F7CFF]/15 text-[#4F7CFF] border-[#4F7CFF]/25`
+- **Top nav bar**: replaces sidebar; fixed `h-14` header with logo + horizontal scrollable nav items + controls. Mobile: hamburger drawer. Active item light: `bg-[#EBF0F7] text-[#0E4AA4]`; dark: `bg-[#4F7CFF]/15 text-[#4F7CFF] border-[#4F7CFF]/25`
 - **Flat UI**: no gradients/heavy shadows in light mode; dark mode allows subtle glow on hover via `.card-hover` CSS
 - **Glass panel**: `.glass-panel` utility — `bg: rgba(18,26,47,0.85)` + `backdrop-filter: blur(16px)` for dark sidebar overlays
 - **Dashboard hero**: LanGeek-style lavender gradient (`#F0EFFE→#FAFBFF→#FFF5F0`) + scattered + dot pattern; dark: `#121A2F` flat

@@ -763,68 +763,59 @@ export default function App() {
     icon: Archive,
     badge: langeekDueCount
   }];
-  return <div className={`flex h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0B1020] text-[#F8FAFC]' : 'bg-[#F7F9FC] text-[#0A0A0A]'} font-sans selection:bg-[#4F7CFF]/25 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
-    <div className={`hidden lg:flex w-64 flex-col ${theme === 'dark' ? 'bg-[#121A2F] border-[#263452]' : 'bg-white border-gray-100'} border-l z-10 transition-colors duration-300 print:hidden`}>
-      <div className={`flex items-center justify-center h-16 border-b ${theme === 'dark' ? 'border-[#263452]' : 'border-gray-100'}`}>
-        <h1 className="text-2xl font-extrabold tracking-tight">
-          <span className={theme === 'dark' ? 'text-[#F8FAFC]' : 'text-[#0A0A0A]'}>Venoxa</span><span className={theme === 'dark' ? 'text-[#4F7CFF]' : 'text-[#0E4AA4]'}>.ai</span>
-        </h1>
-      </div>
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
-        <ul className="space-y-0.5">
-          {navItems.map(item => {
-            const isActive = activeTab === item.id;
-            return <li key={item.id}>
-              <button onClick={() => setActiveTab(item.id)} className={`w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${isActive ? theme === 'dark' ? 'bg-[#4F7CFF]/15 text-[#4F7CFF] border border-[#4F7CFF]/25' : 'bg-[#EBF0F7] text-[#0E4AA4] border border-[#0E4AA4]/15' : theme === 'dark' ? 'text-[#B6C2D9] hover:bg-[#1E2D47] hover:text-[#F8FAFC] border border-transparent' : 'text-gray-500 hover:bg-[#F7F9FC] hover:text-[#0A0A0A] border border-transparent'}`}>
-                <item.icon className={`w-4 h-4 shrink-0 ${_resolveTranslation(lang, 'ml-2.5', 'mr-2.5')} ${isActive ? theme === 'dark' ? 'text-[#4F7CFF]' : 'text-[#0E4AA4]' : theme === 'dark' ? 'text-[#7A8BA8]' : 'text-gray-400'}`} />
-                <span className="flex-1 min-w-0 text-start truncate">{item.label}</span>
-                {item.badge > 0 && <span className="min-w-[18px] h-[18px] bg-red-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center px-1 shrink-0 ms-1">{item.badge > 99 ? '99+' : item.badge}</span>}
-              </button>
-            </li>;
-          })}
-        </ul>
-      </nav>
-
-      <div className={`p-4 border-t flex items-center justify-between ${theme === 'dark' ? 'border-[#263452]' : 'border-gray-100'}`}>
-        <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'bg-[#1E2D47] text-[#4F7CFF] hover:bg-[#263452]' : 'bg-[#F7F9FC] text-gray-500 hover:bg-gray-100'}`} title={_resolveTranslation(lang, 'تغيير المظهر', 'Toggle Theme')}>
-          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm transition-colors ${theme === 'dark' ? 'bg-[#1E2D47] text-[#B6C2D9]' : 'bg-[#F7F9FC] text-gray-500'}`}>
-          <Globe className="w-4 h-4" />
-          <LanguageDropdown lang={lang} setLang={setLang} theme={theme} />
-        </div>
-      </div>
-    </div>
-
-    <div className={`lg:hidden fixed top-0 left-0 right-0 h-14 sm:h-16 ${theme === 'dark' ? 'bg-[#121A2F]/95 border-[#263452]' : 'bg-white/95 border-gray-100'} backdrop-blur-md border-b z-50 flex items-center justify-between px-4 transition-colors print:hidden`}>
-      <h1 className="text-2xl font-extrabold tracking-tight">
+  return <div className={`flex flex-col h-screen print:h-auto print:block transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0B1020] text-[#F8FAFC]' : 'bg-[#F7F9FC] text-[#0A0A0A]'} font-sans selection:bg-[#4F7CFF]/25 print:bg-white print:text-black`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
+    {/* ── LanGeek-style top navigation bar ── */}
+    <header className={`fixed top-0 inset-x-0 h-14 z-50 flex items-center gap-2 px-3 border-b transition-colors duration-300 print:hidden ${theme === 'dark' ? 'bg-[#121A2F]/96 border-[#263452]' : 'bg-white/96 border-gray-100'}`} style={{backdropFilter:'blur(12px)'}}>
+      {/* Logo */}
+      <h1 className="text-xl font-extrabold tracking-tight shrink-0 px-1">
         <span className={theme === 'dark' ? 'text-[#F8FAFC]' : 'text-[#0A0A0A]'}>Venoxa</span><span className={theme === 'dark' ? 'text-[#4F7CFF]' : 'text-[#0E4AA4]'}>.ai</span>
       </h1>
-      <div className="flex items-center gap-2">
-        <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className={`p-2 rounded-lg ${theme === 'dark' ? 'text-[#4F7CFF]' : 'text-gray-500'}`}>
-          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+
+      {/* Horizontal nav — desktop */}
+      <nav className="hidden lg:flex flex-1 items-center overflow-x-auto gap-0.5 mx-1" style={{scrollbarWidth:'none'}}>
+        {navItems.map(item => {
+          const isActive = activeTab === item.id;
+          return <button key={item.id} onClick={() => setActiveTab(item.id)}
+            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap ${isActive ? theme === 'dark' ? 'bg-[#4F7CFF]/15 text-[#4F7CFF] border border-[#4F7CFF]/25' : 'bg-[#EBF0F7] text-[#0E4AA4] border border-[#0E4AA4]/15' : theme === 'dark' ? 'text-[#B6C2D9] hover:bg-[#1E2D47] hover:text-[#F8FAFC] border border-transparent' : 'text-gray-500 hover:bg-[#F7F9FC] hover:text-[#0A0A0A] border border-transparent'}`}>
+            <item.icon className="w-3.5 h-3.5 shrink-0" />
+            <span>{item.label}</span>
+            {item.badge > 0 && <span className="min-w-[15px] h-[15px] bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center px-0.5 ms-0.5">{item.badge > 99 ? '99+' : item.badge}</span>}
+          </button>;
+        })}
+      </nav>
+
+      {/* Controls */}
+      <div className="flex items-center gap-1.5 ms-auto shrink-0">
+        <div className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${theme === 'dark' ? 'bg-[#1E2D47] text-[#B6C2D9]' : 'bg-[#F7F9FC] text-gray-500'}`}>
+          <Globe className="w-3.5 h-3.5" />
+          <LanguageDropdown lang={lang} setLang={setLang} theme={theme} />
+        </div>
+        <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'bg-[#1E2D47] text-[#4F7CFF] hover:bg-[#263452]' : 'bg-[#F7F9FC] text-gray-500 hover:bg-gray-100'}`}
+          title={_resolveTranslation(lang, 'تغيير المظهر', 'Toggle Theme')}>
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-500">
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`lg:hidden p-2 rounded-lg ${theme === 'dark' ? 'text-[#B6C2D9]' : 'text-gray-500'}`}>
+          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
-    </div>
+    </header>
 
-    {isMobileMenuOpen && <div className={`lg:hidden fixed inset-0 top-14 sm:top-16 ${theme === 'dark' ? 'bg-[#0B1020] border-[#263452]' : 'bg-white border-gray-100'} z-40 overflow-y-auto border-t print:hidden`}>
+    {/* Mobile menu drawer */}
+    {isMobileMenuOpen && <div className={`lg:hidden fixed inset-0 top-14 ${theme === 'dark' ? 'bg-[#0B1020] border-[#263452]' : 'bg-white border-gray-100'} z-40 overflow-y-auto border-t print:hidden`}>
       <nav className="py-4 px-4">
         <ul className="space-y-1">
           {navItems.map(item => <li key={item.id}>
-            <button onClick={() => {
-              setActiveTab(item.id);
-              setIsMobileMenuOpen(false);
-            }} className={`w-full flex items-center px-6 py-4 rounded-xl text-lg font-bold ${activeTab === item.id ? theme === 'dark' ? 'bg-[#4F7CFF]/15 text-[#4F7CFF] border border-[#4F7CFF]/25' : 'bg-[#EBF0F7] text-[#0E4AA4] border border-[#0E4AA4]/15' : theme === 'dark' ? 'text-[#B6C2D9]' : 'text-gray-600'}`}>
-              <item.icon className={`w-6 h-6 ${_resolveTranslation(lang, 'ml-4', 'mr-4')}`} />
+            <button onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-xl text-base font-bold ${activeTab === item.id ? theme === 'dark' ? 'bg-[#4F7CFF]/15 text-[#4F7CFF] border border-[#4F7CFF]/25' : 'bg-[#EBF0F7] text-[#0E4AA4] border border-[#0E4AA4]/15' : theme === 'dark' ? 'text-[#B6C2D9]' : 'text-gray-600'}`}>
+              <item.icon className="w-5 h-5 shrink-0" />
               {item.label}
+              {item.badge > 0 && <span className="ms-auto min-w-[20px] h-5 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1">{item.badge > 99 ? '99+' : item.badge}</span>}
             </button>
           </li>)}
-          <li className="pt-4 border-t border-gray-100 dark:border-[#263452]">
-            <div className="w-full flex items-center px-6 py-4 rounded-xl text-lg font-bold text-gray-600 dark:text-[#B6C2D9]">
-              <Globe className={`w-6 h-6 ${_resolveTranslation(lang, 'ml-4', 'mr-4')}`} />
+          <li className="pt-3 border-t border-gray-100 dark:border-[#263452]">
+            <div className={`flex items-center gap-4 px-5 py-3.5 rounded-xl text-base font-bold ${theme === 'dark' ? 'text-[#B6C2D9]' : 'text-gray-600'}`}>
+              <Globe className="w-5 h-5 shrink-0" />
               <LanguageDropdown lang={lang} setLang={(l) => { setLang(l); setIsMobileMenuOpen(false); }} theme={theme} />
             </div>
           </li>
@@ -832,7 +823,7 @@ export default function App() {
       </nav>
     </div>}
 
-    <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 mt-14 sm:mt-16 lg:mt-0 ${theme === 'dark' ? 'bg-[#0B1020]' : 'bg-[#F7F9FC]'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
+    <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-6 mt-14 ${theme === 'dark' ? 'bg-[#0B1020]' : 'bg-[#F7F9FC]'} scroll-smooth transition-colors duration-300 print:p-0 print:m-0 print:mt-0 print:bg-white print:overflow-visible print:h-auto print:flex-none print:block`}>
       <div className="w-full print:max-w-none print:mx-0">
         {renderContent()}
       </div>
