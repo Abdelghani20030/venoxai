@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const router: IRouter = Router();
 
@@ -54,10 +55,10 @@ const OR_MODELS = [
   "meta-llama/llama-3.3-70b-instruct:free",// 70B
 ];
 
-const orKey = (process.env["OPENROUTER_API_KEYY"] ?? "").trim();
+const orKey = (process.env["OPENROUTER_API_KEY"] ?? "").trim();
 
 if (!orKey || orKey.length < 10) {
-  throw new Error("OPENROUTER_API_KEYY is not set. Please add it to your environment secrets.");
+  throw new Error("OPENROUTER_API_KEY is not set. Please add it to your environment secrets.");
 }
 
 const orClient = new OpenAI({
@@ -68,6 +69,31 @@ const orClient = new OpenAI({
     "X-Title": "Venoxa AI Platform",
   },
 });
+
+// ── Gemini ──────────────────────────────────────────────────────────────────
+const geminiKey = (process.env["GEMINI_API_KEY"] ?? "").trim();
+const genAI = geminiKey ? new GoogleGenerativeAI(geminiKey) : null;
+
+// ── DeepSeek ────────────────────────────────────────────────────────────────
+const deepseekKey = (process.env["DEEPSEEK_API_KEY"] ?? "").trim();
+const dsClient = deepseekKey ? new OpenAI({
+  apiKey: deepseekKey,
+  baseURL: "https://api.deepseek.com",
+}) : null;
+
+// ── Pollinations ────────────────────────────────────────────────────────────
+const pollKey = (process.env["POLLINATIONS_API_KEY"] ?? "").trim();
+const pollClient = pollKey ? new OpenAI({
+  apiKey: pollKey,
+  baseURL: "https://gen.pollinations.ai",
+}) : null;
+
+// ── Groq ────────────────────────────────────────────────────────────────────
+const groqKey = (process.env["GROQ_API_KEY"] ?? "").trim();
+const groqClient = groqKey ? new OpenAI({
+  apiKey: groqKey,
+  baseURL: "https://api.groq.com/openai/v1",
+}) : null;
 
 // Split system/user parts if prompt contains a recognizable delimiter
 function buildMessages(prompt: string): Array<{ role: "system" | "user"; content: string }> {
@@ -128,6 +154,115 @@ async function streamFromOpenRouter(
   throw lastErr ?? new Error("All OpenRouter models unavailable");
 }
 
+async function streamFromAI(
+  prompt: string,
+  onChunk: (delta: string) => void,
+  maxTokens = 512,
+  log?: (msg: string) => void,
+): Promise<void> {
+  // Try Groq first as requested (Incredible speed)
+  if (groqClient) {
+    try {
+      const messages = buildMessages(prompt);
+      const stream = await groqClient.chat.completions.create({
+        model: "llama-3.3-70b-versatile", // Top tier model on Groq
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        max_tokens: maxTokens,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content || "";
+        if (delta) onChunk(delta);
+      }
+      return;
+    } catch (err) {
+      log?.(`Groq failed, falling back to Pollinations: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Try Pollinations second
+  if (pollClient) {
+    try {
+      const messages = buildMessages(prompt);
+      const stream = await pollClient.chat.completions.create({
+        model: "openai", // Common generic model identifier for Pollinations
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        max_tokens: maxTokens,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content || "";
+        if (delta) onChunk(delta);
+      }
+      return;
+    } catch (err) {
+      log?.(`Pollinations failed, falling back to Gemini: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Try Gemini second (extremely fast)
+  if (genAI) {
+    try {
+      const messages = buildMessages(prompt);
+      const systemMsg = messages.find(m => m.role === 'system');
+      const userMsg = messages[messages.length - 1].content;
+
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.0-flash",
+        systemInstruction: systemMsg ? systemMsg.content : undefined,
+      });
+
+      const result = await model.generateContentStream({
+        contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+        generationConfig: {
+          maxOutputTokens: maxTokens,
+          temperature: 0.7,
+        },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+        ] as any
+      });
+
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        if (text) onChunk(text);
+      }
+      return;
+    } catch (err) {
+      log?.(`Gemini failed, falling back to DeepSeek: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Try DeepSeek third
+  if (dsClient) {
+    try {
+      const messages = buildMessages(prompt);
+      const stream = await dsClient.chat.completions.create({
+        model: "deepseek-chat",
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        max_tokens: maxTokens,
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content || "";
+        if (delta) onChunk(delta);
+      }
+      return;
+    } catch (err) {
+      log?.(`DeepSeek failed, falling back to OpenRouter: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Fallback to OpenRouter
+  await streamFromOpenRouter(prompt, onChunk, maxTokens, log);
+}
+
 // ── Streaming SSE endpoint ────────────────────────────────────────────────────
 router.post("/chat/stream", async (req: Request, res: Response) => {
   const prompt = typeof req.body?.prompt === "string" ? normalizePrompt(req.body.prompt) : "";
@@ -136,7 +271,7 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
     return;
   }
   // Max tokens hint — caller can reduce for short conversational replies
-  const maxTokens = typeof req.body?.maxTokens === "number" ? Math.min(req.body.maxTokens, 2048) : 512;
+  const maxTokens = typeof req.body?.maxTokens === "number" ? Math.min(req.body.maxTokens, 2048) : 256;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -157,15 +292,16 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
 
   try {
     let full = "";
-    await streamFromOpenRouter(
+    await streamFromAI(
       prompt,
       (delta) => { full += delta; send("delta", delta); },
       maxTokens,
-      (msg) => req.log.warn({ provider: "openrouter" }, msg),
+      (msg) => req.log.warn({ provider: "ai" }, msg),
     );
     if (full.trim()) setCache(prompt, full);
     send("done", "");
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "Chat stream failed");
     send("error", "AI request failed. Please try again.");
   }
   res.end();
@@ -178,18 +314,18 @@ router.post("/chat", async (req: Request, res: Response) => {
     res.status(400).json({ error: "Missing 'prompt' string in request body." });
     return;
   }
-  const maxTokens = typeof req.body?.maxTokens === "number" ? Math.min(req.body.maxTokens, 2048) : 512;
+  const maxTokens = typeof req.body?.maxTokens === "number" ? Math.min(req.body.maxTokens, 2048) : 256;
 
   const hit = getCached(prompt);
   if (hit) { res.json({ text: hit }); return; }
 
   try {
     let text = "";
-    await streamFromOpenRouter(
+    await streamFromAI(
       prompt,
       (delta) => { text += delta; },
       maxTokens,
-      (msg) => req.log.warn({ provider: "openrouter" }, msg),
+      (msg) => req.log.warn({ provider: "ai" }, msg),
     );
     if (!text.trim()) throw new Error("AI returned empty content.");
     setCache(prompt, text);

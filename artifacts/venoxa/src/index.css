@@ -21,17 +21,18 @@
   --brand-muted:        #808080;
   --brand-border:       #E6E6E6;
 
-  /* Dark mode - Linear/Vercel premium */
-  --dk-bg:              #0B1020;
-  --dk-surface:         #121A2F;
-  --dk-card:            #17223B;
-  --dk-border:          #263452;
-  --dk-border-subtle:   #1E2D47;
-  --dk-accent:          #4F7CFF;
-  --dk-accent2:         #8B5CF6;
-  --dk-text:            #F8FAFC;
-  --dk-muted:           #B6C2D9;
-  --dk-muted2:          #7A8BA8;
+  /* Dark mode - Optimized Rich Black for High Contrast */
+  --dk-bg:              #0D0D0D; /* Deeper black for higher contrast ratio */
+  --dk-surface:         #1E1E1E; /* Lighter surface for depth */
+  --dk-card:            #262626; /* Distinct card color */
+  --dk-border:          #404040; /* Visible but subtle borders */
+  --dk-border-subtle:   #333333;
+  --dk-accent:          #00E5FF; /* Bright Cyan */
+  --dk-accent2:         #FF4081; /* Bright Pink/Ruby */
+  --dk-cta:             #00C853; /* Bright Green */
+  --dk-text:            #FFFFFF; /* Pure white */
+  --dk-muted:           #E0E0E0; /* Very light gray */
+  --dk-muted2:          #BDBDBD; /* Medium-light gray */
 }
 
 /* ── Blob animations (call mode) ── */
@@ -66,6 +67,16 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .transcript-fade { animation: fadeUpIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes textReveal {
+  from { opacity: 0; filter: blur(3px); transform: translateY(3px); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+.animate-textReveal {
+  display: inline-block;
+  animation: textReveal 0.4s cubic-bezier(0.2, 1, 0.3, 1) both;
+}
+
 
 @keyframes wordAppear {
   from { opacity: 0; transform: translateY(5px); }
@@ -112,7 +123,7 @@ html, body, #root {
 
 /* Glass-card effect for dark sidebar + key panels */
 .dark .glass-panel {
-  background: rgba(18, 26, 47, 0.85);
+  background: rgba(10, 10, 10, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-color: var(--dk-border);
