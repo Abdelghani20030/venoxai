@@ -3,14 +3,7 @@
 
 Write-Host "--- Venoxa AI Platform Local Launcher ---" -ForegroundColor Cyan
 
-# 0. Kill existing processes on ports 3001 and 5173 to avoid conflicts
-Write-Host "Checking for existing processes on ports 3001 and 5173..." -ForegroundColor Gray
-Get-NetTCPConnection -LocalPort 3001, 5173 -ErrorAction SilentlyContinue | ForEach-Object {
-    try {
-        Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
-        Write-Host "Closed existing process on port $($_.LocalPort)" -ForegroundColor Gray
-    } catch {}
-}
+# 1. Load root .env file
 if (Test-Path ".env") {
     Write-Host "Loading environment variables from .env..." -ForegroundColor Gray
     Get-Content ".env" | ForEach-Object {

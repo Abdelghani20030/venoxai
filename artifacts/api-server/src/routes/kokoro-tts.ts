@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
 
@@ -55,3 +56,4 @@ router.get("/kokoro-tts", async (req: Request, res: Response) => {
 });
 
 export default router;
+

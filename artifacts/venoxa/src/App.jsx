@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, ChevronDown, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2 } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 
 function LanguageDropdown({ lang, setLang, theme }) {
@@ -16,28 +16,69 @@ function LanguageDropdown({ lang, setLang, theme }) {
     { code: 'de', label: 'Deutsch' }, { code: 'zh', label: '中文' }, { code: 'ja', label: '日本語' }
   ];
   return (
-    <div className="relative flex-1" ref={ref}>
-      <button 
-        onClick={() => setIsOpen(!isOpen)} 
-        className={`w-full h-11 flex items-center gap-2 px-3 rounded-xl text-sm font-bold transition-all outline-none cursor-pointer border ${theme === 'dark' ? 'bg-[#252525] text-[#B0B0B0] border-[#333333] hover:bg-[#00E5FF]' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
+    <div className={`relative flex-1 ${isOpen ? 'z-[9999]' : 'z-auto'}`} ref={ref}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full h-11 flex items-center gap-2 px-3 rounded-2xl text-sm font-bold transition-all outline-none cursor-pointer border ${theme === 'dark' ? 'bg-[var(--app-surface)] text-white border-[var(--app-border)] hover:bg-[var(--app-hover)] hover:text-black' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
       >
         <Globe className="w-4 h-4 shrink-0 order-2" />
-        <span className="flex-1 text-start order-1">{langs.find(l => l.code === lang)?.label || 'Language'}</span>
-        <ChevronDown className={`w-3.5 h-3.5 opacity-50 transition-transform duration-200 order-0 ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="flex-1 text-start order-1 font-bold text-sm">{langs.find(l => l.code === lang)?.label || 'Language'}</span>
+
       </button>
       {isOpen && (
-        <div className={`absolute bottom-full left-0 mb-2 w-full min-w-[140px] rounded-2xl overflow-hidden z-[100] shadow-sm p-1.5 animate-fadeInUp ${theme === 'dark' ? 'bg-[#252525] border border-[#333333]' : 'bg-white border border-gray-200'}`}>
-          <div className="max-h-[300px] overflow-y-auto no-scrollbar">
-            {langs.map(l => (
-              <button
-                key={l.code}
-                onClick={() => { setLang(l.code); setIsOpen(false); }}
-                className={`w-full text-start px-4 py-2.5 my-0.5 rounded-xl font-bold text-sm transition-all duration-200 ${lang === l.code ? 'bg-[#00C853] text-white shadow-md' : theme === 'dark' ? 'text-gray-200 hover:bg-[#00E5FF]' : 'text-gray-800 hover:bg-gray-100'}`}
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
+        <div className="dropdown-menu bottom-full left-0 mb-2 w-full min-w-[140px] max-h-[300px] overflow-y-auto no-scrollbar">
+          {langs.map(l => (
+            <button
+              key={l.code}
+              onClick={() => { setLang(l.code); setIsOpen(false); }}
+              className={`dropdown-item ${lang === l.code ? 'active' : ''}`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CustomDropdown({ value, onChange, options, icon: Icon, theme, placeholder, className = "" }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
+    if (isOpen) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen]);
+  const isDark = theme === 'dark';
+  const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
+
+  return (
+    <div className={`relative ${className} ${isOpen ? 'z-[9999]' : 'z-auto'}`} ref={ref}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full h-11 flex items-center gap-3 px-4 rounded-2xl text-sm font-bold transition-all duration-300 outline-none cursor-pointer border ${isDark
+          ? 'bg-[var(--app-bg)] text-white border-[var(--app-border)] hover:border-gray-700 hover:bg-[#121212]'
+          : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+          } ${isOpen ? 'ring-2 ring-[var(--app-accent1)]/10 border-[var(--app-accent1)]/50' : ''}`}
+      >
+        {Icon && <Icon size={16} className={`${isDark ? 'text-white' : 'text-gray-400'} shrink-0`} />}
+        <span className="flex-1 text-center truncate tracking-tight">{selectedLabel || value || placeholder || ''}</span>
+
+      </button>
+
+      {isOpen && (
+        <div className="dropdown-menu top-full left-0 right-0 mt-2 w-full max-h-[320px] overflow-y-auto custom-scrollbar">
+          {options.map(o => (
+            <button
+              key={o.value}
+              onClick={() => { onChange(o.value); setIsOpen(false); }}
+              className={`dropdown-item ${value === o.value ? 'active' : ''}`}
+            >
+              <span className="truncate">{o.label}</span>
+              {value === o.value && <div className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-white' : 'bg-[var(--app-accent1)]'} shadow-[0_0_10px_rgba(99,102,241,0.5)]`} />}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -108,19 +149,19 @@ function SolidDatePicker({ value, onChange, min, label, lang }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] font-bold text-left flex justify-between items-center focus:outline-none focus:border-[#00FF85] transition-colors"
+        className="w-full bg-white dark:bg-black border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 py-3 text-gray-900 dark:text-[var(--app-text)] font-bold text-left flex justify-between items-center focus:outline-none focus:border-[var(--app-accent1)] transition-colors"
       >
         <span>{value || label}</span>
-        <Calendar className="w-5 h-5 text-gray-400 dark:text-[#BDBDBD]" />
+        <Calendar className="w-5 h-5 text-gray-400 dark:text-[var(--app-text-muted)]" />
       </button>
 
       {isOpen && (
-        <div className={`absolute z-[100] mt-2 w-[250px] ${lang === 'ar' ? 'left-0' : 'right-0'} animate-fadeIn pointer-events-auto`} dir="ltr">
-          <div className="relative rounded-2xl p-4 bg-white dark:bg-[#262626] border border-gray-200 dark:border-[#333333] shadow-sm text-gray-900 dark:text-[#FFFFFF] overflow-hidden">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 z-[9999] pt-2">
+          <div className="dropdown-menu !relative mt-0 w-[280px]" dir="ltr">
             <div className="text-center font-extrabold text-base mb-3 pb-3 border-b border-gray-100/20 dark:border-white/10 tracking-wide">
               {monthNames[month]} {year}
             </div>
-            <div className="grid grid-cols-7 gap-1 mb-2 text-center text-[11px] font-bold text-gray-500 dark:text-[#E0E0E0] tracking-wider">
+            <div className="grid grid-cols-7 gap-1 mb-2 text-center text-[11px] font-bold text-gray-500 dark:text-[var(--app-text)] tracking-wider">
               <div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div><div>Su</div>
             </div>
             <div className="grid grid-cols-7 gap-1 gap-y-1 mb-3">
@@ -139,7 +180,7 @@ function SolidDatePicker({ value, onChange, min, label, lang }) {
                     key={i}
                     onClick={(e) => { e.preventDefault(); !disabled && handleDateClick(item); }}
                     disabled={disabled}
-                    className={`h-7 w-7 mx-auto flex items-center justify-center rounded-lg text-xs transition-all duration-200 font-bold ${!item.isCurrentMonth ? 'text-gray-400 dark:text-[#1E90FF]' : 'text-gray-800 dark:text-[#FFFFFF]'} ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[#252525] hover:scale-110 cursor-pointer'} ${isSelected && !disabled ? 'bg-[#00C853] text-white shadow-md scale-110' : ''}`}
+                    className={`h-7 w-7 mx-auto flex items-center justify-center rounded-xl text-xs transition-all duration-200 font-bold ${!item.isCurrentMonth ? 'text-gray-400 dark:text-[var(--app-accent1)]' : 'text-gray-800 dark:text-[var(--app-text)]'} ${disabled ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-[var(--app-surface)] hover:scale-110 cursor-pointer'} ${isSelected && !disabled ? 'bg-[var(--app-accent1)] text-white shadow-md scale-110' : ''}`}
                   >
                     {item.day}
                   </button>
@@ -147,11 +188,11 @@ function SolidDatePicker({ value, onChange, min, label, lang }) {
               })}
             </div>
             <div className="flex justify-center items-center gap-3">
-              <button onClick={handlePrevMonth} className="p-1.5 bg-gray-50 dark:bg-[#262626] hover:bg-gray-200 dark:hover:bg-[#00E5FF] border border-gray-200 dark:border-[#333333] rounded-lg transition-all">
-                <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-[#E0E0E0]" />
+              <button onClick={handlePrevMonth} className="p-1.5 bg-gray-50 dark:bg-[var(--app-card)] hover:bg-gray-200 dark:hover:bg-[var(--app-hover)] hover:text-black border border-gray-200 dark:border-[var(--app-border)] rounded-xl transition-all">
+                <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-[var(--app-text)]" />
               </button>
-              <button onClick={handleNextMonth} className="p-1.5 bg-gray-50 dark:bg-[#262626] hover:bg-gray-200 dark:hover:bg-[#00E5FF] border border-gray-200 dark:border-[#333333] rounded-lg transition-all">
-                <ChevronRight className="w-4 h-4 text-gray-700 dark:text-[#E0E0E0]" />
+              <button onClick={handleNextMonth} className="p-1.5 bg-gray-50 dark:bg-[var(--app-card)] hover:bg-gray-200 dark:hover:bg-[var(--app-hover)] hover:text-black border border-gray-200 dark:border-[var(--app-border)] rounded-xl transition-all">
+                <ChevronRight className="w-4 h-4 text-gray-700 dark:text-[var(--app-text)]" />
               </button>
             </div>
           </div>
@@ -304,9 +345,9 @@ const normalizeTTSText = (raw) => raw
 // A vocabulary app repeats the same words hundreds of times — caching them
 // means ElevenLabs is called exactly once per unique (text, voice) pair,
 // making the monthly quota effectively unlimited for normal usage.
-const _CACHE_DB_NAME  = 'venoxa-tts-v1';
-const _CACHE_STORE    = 'audio';
-const _CACHE_MAX      = 500; // max stored entries before LRU eviction
+const _CACHE_DB_NAME = 'venoxa-tts-v1';
+const _CACHE_STORE = 'audio';
+const _CACHE_MAX = 500; // max stored entries before LRU eviction
 
 const _djb2 = s => {
   let h = 5381;
@@ -328,7 +369,7 @@ const _openAudioCache = () => {
       }
     };
     req.onsuccess = e => { _audioCacheDb = e.target.result; resolve(_audioCacheDb); };
-    req.onerror   = () => reject(req.error);
+    req.onerror = () => reject(req.error);
   });
 };
 
@@ -337,9 +378,9 @@ const _getCachedAudio = async (key) => {
     const db = await _openAudioCache();
     return await new Promise((resolve, reject) => {
       const req = db.transaction(_CACHE_STORE, 'readonly')
-                    .objectStore(_CACHE_STORE).get(key);
+        .objectStore(_CACHE_STORE).get(key);
       req.onsuccess = e => resolve(e.target.result?.buf ?? null);
-      req.onerror   = reject;
+      req.onerror = reject;
     });
   } catch { return null; }
 };
@@ -367,7 +408,7 @@ const _setCachedAudio = async (key, arrayBuf) => {
 
 const _playCachedAudio = async (arrayBuf) => {
   const blob = new Blob([arrayBuf], { type: 'audio/mpeg' });
-  const url  = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   _currentTTSAudio = audio;
   return new Promise((resolve) => {
@@ -393,7 +434,7 @@ const ELEVENLABS_SARAH_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah — British female 
 const ELEVENLABS_BRIAN_ID = 'nPczCjzI2devNBz1zQrb'; // Brian — British male accent
 // True multilingual voices — handle Arabic correctly with eleven_multilingual_v2
 const ARABIC_FEMALE_VOICE_ID = 'XB0fDUnXU5powFXDhCwa'; // Charlotte — multilingual female
-const ARABIC_MALE_VOICE_ID   = 'JBFqnCBsd6RMkjVDRZzb'; // George — multilingual male
+const ARABIC_MALE_VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb'; // George — multilingual male
 const ELEVENLABS_VOICE_OPTIONS = [
   { id: 'nPczCjzI2devNBz1zQrb', label: 'Brian (British ♂)' },
   { id: 'EXAVITQu4vr4xnSDxMaL', label: 'Sarah (British ♀)' },
@@ -417,8 +458,8 @@ let _voiceAccent = 'uk';
 // quality than the older Neural voices. "BrianMultilingual" is the warm,
 // confident American male voice the user wants.
 const EDGE_VOICES = {
-  uk: { male: 'en-GB-RyanNeural',                female: 'en-GB-SoniaNeural' },
-  us: { male: 'en-US-BrianMultilingualNeural',   female: 'en-US-AvaMultilingualNeural' },
+  uk: { male: 'en-GB-RyanNeural', female: 'en-GB-SoniaNeural' },
+  us: { male: 'en-US-BrianMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
 };
 
 /**
@@ -464,10 +505,10 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
     const audio = new Audio(url);
     audio.preload = 'auto';
     _currentTTSAudio = audio;
-    
+
     const wait = new Promise((resolve) => {
       audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-      audio.onerror  = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
     });
 
     // Background cache fill — does not block playback at all.
@@ -478,7 +519,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
         _setCachedAudio(ck, buf);
         if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     await audio.play();
     _lastTTSEngine = 'edge';
@@ -507,7 +548,7 @@ const kokoroTTSSpeak = async (text, gender, accent) => {
     bm: 'bm_george'
   };
   const voice = voices[prefix] || 'af_heart';
-  
+
   const normalized = normalizeTTSText(text);
   const ck = _audioCacheKey(normalized, 'kokoro:' + voice);
 
@@ -526,7 +567,7 @@ const kokoroTTSSpeak = async (text, gender, accent) => {
 
     const audio = new Audio(url);
     _currentTTSAudio = audio;
-    
+
     const wait = new Promise((resolve) => {
       audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
       audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
@@ -536,7 +577,7 @@ const kokoroTTSSpeak = async (text, gender, accent) => {
     fetch(url)
       .then(r => (r.ok ? r.arrayBuffer() : null))
       .then(buf => buf && _setCachedAudio(ck, buf))
-      .catch(() => {});
+      .catch(() => { });
 
     await audio.play();
     _lastTTSEngine = 'kokoro';
@@ -578,7 +619,7 @@ const groqTTSSpeak = async (text, gender) => {
       audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
     });
     await audio.play();
-    fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => {});
+    fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => { });
     _lastTTSEngine = 'groq';
     await wait;
     return true;
@@ -615,7 +656,7 @@ const geminiTTSSpeak = async (text, gender) => {
       audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
     });
     await audio.play();
-    fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => {});
+    fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => { });
     _lastTTSEngine = 'gemini';
     await wait;
     return true;
@@ -682,7 +723,7 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID, inte
 const fetchTTSBlob = async (text, gender, accent) => {
   const normalized = normalizeTTSText(text);
   const ck = _audioCacheKey(normalized, 'blob:' + (accent === 'us' ? 'us' : 'uk'));
-  
+
   // Try local cache first
   const cached = await _getCachedAudio(ck);
   if (cached) return new Blob([cached], { type: 'audio/mpeg' });
@@ -691,7 +732,7 @@ const fetchTTSBlob = async (text, gender, accent) => {
     const voice = gender === 'female' ? 'alice' : 'adam';
     const params = new URLSearchParams({ text: normalized, voice });
     const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
-    
+
     const response = await fetch(url);
     if (!response.ok) throw new Error('Fetch failed');
     const buf = await response.arrayBuffer();
@@ -717,7 +758,7 @@ const fetchTTSBlob = async (text, gender, accent) => {
  * Just a wrapper for fetchTTSBlob to keep compatibility or background fill.
  */
 const prefetchTTS = (text, gender, accent) => {
-  fetchTTSBlob(text, gender, accent).catch(() => {});
+  fetchTTSBlob(text, gender, accent).catch(() => { });
 };
 
 /**
@@ -760,7 +801,7 @@ const _streamAudioResponse = async (response) => {
   // Drain chunks into the SourceBuffer in the background
   (async () => {
     try {
-      for (;;) {
+      for (; ;) {
         const { done, value } = await reader.read();
         if (done) { if (ms.readyState === 'open') ms.endOfStream(); break; }
         if (sb.updating) await new Promise(r => sb.addEventListener('updateend', r, { once: true }));
@@ -824,19 +865,19 @@ const DEFAULT_VOCABULARY_LIST = [{
   synonyms: "despite, in spite of"
 }];
 const GRAMMAR_LEVELS = [{
-  level: "A1 - Beginner",
+  level: "A1 - مبتدئ",
   topics: ["Subject Pronouns", "Verb to be", "Articles (a, an, the)", "Plural nouns", "Possessive adjectives", "Demonstratives", "Present Simple", "There is / There are", "Have / Has", "Can (ability & permission)", "Adjectives", "Prepositions of place & time", "Imperatives"]
 }, {
-  level: "A2 - Elementary",
+  level: "A2 - أساسي",
   topics: ["Past Simple", "Past Simple questions & negatives", "Future with will and going to", "Present Continuous", "Countable & Uncountable nouns", "Comparatives & Superlatives", "Adverbs of frequency", "Object pronouns", "Possessive pronouns", "Quantifiers", "Prepositions of movement"]
 }, {
-  level: "B1 - Pre-Intermediate",
+  level: "B1 - تحت المتوسط",
   topics: ["Present Perfect Simple", "Present Perfect vs. Past Simple", "Present Perfect Continuous", "Past Continuous", "Future Continuous", "Be going to", "Modals", "Comparisons with as...as", "First Conditional", "Second Conditional", "Relative Clauses", "Question tags"]
 }, {
-  level: "B2 - Upper-Intermediate",
+  level: "B2 - فوق المتوسط",
   topics: ["Passive Voice", "Reported Speech", "Used to / Would", "Wish / If only", "Third Conditional", "Mixed Conditionals", "Modals of deduction", "Gerunds & Infinitives", "Complex sentences", "Future Perfect & Future Perfect Continuous"]
 }, {
-  level: "C1 - Advanced",
+  level: "C1 - متقدم",
   topics: ["Inversion", "Emphasis (cleft sentences)", "Advanced Conditionals", "Subjunctive", "Nominalization", "Advanced Passive", "Phrasal verbs", "Collocations & idiomatic structures", "Reduced relative clauses", "Complex verb patterns"]
 }];
 const SPEAKING_TOPICS = ["محادثة حرة (Free Talk)", "السفر والمطارات (Travel & Airports)", "العمل والمقابلات (Work & Interviews)", "الهوايات والاهتمامات (Hobbies)", "الطعام والمطاعم (Food)", "التسوق (Shopping)", "الصحة واللياقة (Health & Fitness)", "التكنولوجيا الذكية (Technology)", "الرياضة (Sports)", "العائلة والأصدقاء (Family & Friends)", "التعليم والجامعة (Education)", "الترفيه والأفلام (Movies)", "الروتين اليومي (Daily Routine)", "خطط المستقبل (Future Plans)", "ذكريات الطفولة (Childhood)", "الثقافات والتقاليد (Cultures)", "البيئة والطبيعة (Environment)", "وسائل التواصل (Social Media)", "الكتب والأدب (Books)", "الأخبار والأحداث (News)", "الموضة والأزياء (Fashion)", "الفنون والموسيقى (Art & Music)", "العلوم والفضاء (Science)", "الأهداف والطموحات (Goals)", "وسائل النقل (Transportation)", "الحيوانات الأليفة (Pets)", "العطلات والمناسبات (Holidays)", "العلاقات الاجتماعية (Relationships)", "ريادة الأعمال (Entrepreneurship)", "التحديات والمصاعب (Challenges)"];
@@ -855,6 +896,7 @@ const formatCountdown = (nextReview) => {
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [userLevel, setUserLevel] = useState(localStorage.getItem('userLevel') || 'B2');
   const [globalVocab, setGlobalVocab] = useState(() => {
     try {
@@ -867,7 +909,7 @@ export default function App() {
   const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
   const [speakingHistory, setSpeakingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_speaking_history')) || []);
   const [writingHistory, setWritingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_writing_history')) || []);
-  
+
   useEffect(() => localStorage.setItem('venoxa_global_vocab', JSON.stringify(globalVocab)), [globalVocab]);
   useEffect(() => localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(phrasalVocab)), [phrasalVocab]);
   useEffect(() => localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(idiomsVocab)), [idiomsVocab]);
@@ -905,6 +947,7 @@ export default function App() {
   }, [theme]);
   useEffect(() => {
     localStorage.setItem('venoxa_lang', lang);
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
   }, [lang]);
   useEffect(() => {
     localStorage.setItem('userLevel', userLevel);
@@ -992,94 +1035,133 @@ export default function App() {
     badge: langeekDueCount
   }];
 
-  return <div className={`flex h-screen overflow-hidden transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0D0D0D] text-[#FFFFFF]' : 'bg-[#F7F9FC] text-[#0A0A0A]'} font-sans selection:bg-[#00C853]/25 print:bg-white print:text-black print:block print:h-auto`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
-    {/* ── Sidebar (Right Panel) ── */}
-    <aside className={`hidden lg:flex flex-col w-[260px] h-full shrink-0 z-50 border-s transition-colors duration-300 print:hidden ${theme === 'dark' ? 'bg-[#1E1E1E] border-[#333333]' : 'bg-white border-gray-100'}`}>
-      {/* Sidebar Header / Logo */}
-      <div className="p-6">
-        <h1 className="text-2xl font-black tracking-tight">
-          <span className={theme === 'dark' ? 'text-[#FFFFFF]' : 'text-[#0A0A0A]'}>Venoxa</span><span className={theme === 'dark' ? 'text-[#00E5FF]' : 'text-[#00E5FF]'}>.ai</span>
-        </h1>
-      </div>
-
-      {/* Navigation List */}
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto scrollbar-hide py-2" style={{scrollbarWidth:'none'}}>
-        {navItems.map(item => {
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200 group ${isActive ? 'bg-[#00C853] text-white' : theme === 'dark' ? 'text-[#B0B0B0] hover:bg-[#252525] hover:text-[#00E5FF]' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}
-            >
-              <item.icon className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-              <span className="flex-1 text-start">{item.label}</span>
-              {item.badge > 0 && (
-                <span className={`min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] font-black ${isActive ? 'bg-white text-[#00E5FF]' : 'bg-red-500 text-white'}`}>
-                  {item.badge > 99 ? '99+' : item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Sidebar Footer (Controls) */}
-      <div className="p-4 mt-auto border-t border-gray-100 dark:border-[#333333]/50">
-        <div className="flex items-center gap-2">
-          <LanguageDropdown lang={lang} setLang={setLang} theme={theme} />
-          <button 
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className={`w-12 h-11 shrink-0 flex items-center justify-center rounded-xl transition-all border ${theme === 'dark' ? 'bg-[#252525] text-[#00E5FF] border-[#333333] hover:bg-[#00E5FF] hover:text-white' : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'}`}
-            title={_resolveTranslation(lang, 'تغيير المظهر', 'Toggle Theme')}
-          >
-            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-        </div>
-      </div>
-    </aside>
-
-    {/* ── Mobile Navigation Toggle (Top bar for mobile only) ── */}
-    <header className={`lg:hidden fixed top-0 inset-x-0 h-16 z-50 flex items-center justify-between px-4 border-b transition-colors duration-300 print:hidden ${theme === 'dark' ? 'bg-[#1E1E1E]/96 border-[#333333]' : 'bg-white/96 border-gray-100'}`} style={{backdropFilter:'blur(12px)'}}>
-      <h1 className="text-xl font-black tracking-tight">
-        <span className={theme === 'dark' ? 'text-[#FFFFFF]' : 'text-[#0A0A0A]'}>Venoxa</span><span className={theme === 'dark' ? 'text-[#00E5FF]' : 'text-[#00E5FF]'}>.ai</span>
-      </h1>
-      <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`p-2.5 rounded-xl ${theme === 'dark' ? 'bg-[#252525] text-[#B0B0B0]' : 'bg-gray-50 text-gray-500'}`}>
-        {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+  return (
+    <div className={`flex h-screen overflow-hidden transition-colors duration-500 ${theme === 'dark' ? 'bg-black' : 'bg-white'} font-sans`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
+      {/* Mobile Sidebar Toggle Button */}
+      <button
+        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        className={`lg:hidden fixed top-4 sm:top-6 z-[70] p-2.5 rounded-2xl bg-white dark:bg-[var(--app-surface)] shadow-xl border border-gray-100 dark:border-[var(--app-border)] hover:scale-110 active:scale-95 transition-all duration-300 ${lang === 'ar' ? 'left-4 sm:left-6' : 'right-4 sm:right-6'}`}
+      >
+        <Menu className="w-5 h-5 text-black dark:text-white" />
       </button>
-    </header>
 
-    {/* Mobile Menu Drawer */}
-    {isMobileMenuOpen && (
-      <div className={`lg:hidden fixed inset-0 top-16 z-[60] ${theme === 'dark' ? 'bg-[#0D0D0D]' : 'bg-white'} overflow-y-auto print:hidden animate-fadeIn`}>
-        <nav className="p-6">
-          <ul className="space-y-2">
-            {navItems.map(item => (
-              <li key={item.id}>
-                <button 
-                  onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-lg font-bold transition-all ${activeTab === item.id ? theme === 'dark' ? 'bg-[#00C853] text-white shadow-sm' : 'bg-[#00C853] text-white shadow-sm' : theme === 'dark' ? 'text-[#B0B0B0] bg-[#1E1E1E]' : 'text-gray-600 bg-gray-50'}`}
-                >
-                  <item.icon className="w-6 h-6 shrink-0" />
-                  <span>{item.label}</span>
-                  {item.badge > 0 && <span className="ms-auto min-w-[24px] h-6 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1">{item.badge > 99 ? '99+' : item.badge}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
-    )}
+      {/* Sidebar Overlay (Mobile) */}
+      {!isSidebarCollapsed && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] animate-fadeIn"
+          onClick={() => setIsSidebarCollapsed(true)}
+        />
+      )}
 
-    {/* ── Main Content Area ── */}
-    <main className={`flex-1 h-full overflow-y-auto scroll-smooth transition-colors duration-300 print:overflow-visible print:h-auto ${theme === 'dark' ? 'bg-[#0D0D0D]' : 'bg-[#F7F9FC]'} ${isMobileMenuOpen ? 'overflow-hidden' : ''}`}>
-      <div className={`p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8 w-full max-w-[1400px] mx-auto print:p-0 print:pt-0`}>
-        <div className="animate-fadeIn">
-          {renderContent()}
+      {/* ── Sidebar ── */}
+      <aside className={`
+        fixed inset-y-0 z-[60] flex flex-col h-full shrink-0 border-e transition-all duration-300 ease-in-out overflow-hidden
+        ${theme === 'dark' ? 'bg-[var(--app-surface)] border-[var(--app-border)]' : 'bg-white border-gray-100'}
+        ${isSidebarCollapsed ? 'w-[72px]' : 'w-[280px]'}
+        ${lang === 'ar' 
+          ? (isSidebarCollapsed ? 'translate-x-full lg:translate-x-0 right-0' : 'translate-x-0 right-0') 
+          : (isSidebarCollapsed ? '-translate-x-full lg:translate-x-0 left-0' : 'translate-x-0 left-0')
+        }
+      `}>
+        {/* Sidebar Header */}
+        <div className={`p-8 pb-4 flex items-center ${isSidebarCollapsed ? 'justify-center ps-0 pe-[6px]' : 'justify-between'}`}>
+          <div className={`flex items-center ${isSidebarCollapsed ? '' : 'gap-2'} overflow-hidden`}>
+            {isSidebarCollapsed ? (
+              <button 
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="w-9 h-9 rounded-xl bg-black dark:bg-white hover:bg-gray-100 dark:hover:bg-[#202123] flex items-center justify-center shrink-0 group transition-all duration-200"
+                title={_resolveTranslation(lang, 'توسيع القائمة', 'Expand Sidebar')}
+              >
+                <Sparkles className="w-5 h-5 text-white dark:text-black block group-hover:hidden" />
+                <PanelLeft className="w-5 h-5 text-gray-600 dark:text-gray-300 hidden group-hover:block" />
+              </button>
+            ) : (
+              <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-white dark:text-black" />
+              </div>
+            )}
+            {!isSidebarCollapsed && (
+              <h1 className="text-xl font-bold tracking-tight whitespace-nowrap">
+                فينوكسا<span className="text-[var(--app-accent1)]">.ai</span>
+              </h1>
+            )}
+          </div>
+          {!isSidebarCollapsed && (
+            <div className="flex items-center">
+              <button 
+                onClick={() => setIsSidebarCollapsed(true)} 
+                className="hidden lg:flex w-9 h-9 items-center justify-center rounded-xl text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#202123] shrink-0 transition-all duration-200"
+                title={_resolveTranslation(lang, 'طي القائمة', 'Collapse Sidebar')}
+              >
+                <PanelLeft className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setIsSidebarCollapsed(true)} 
+                className="lg:hidden p-2 text-gray-400 hover:text-black dark:hover:text-white shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          )}
         </div>
-      </div>
-    </main>
-  </div>;
+
+        {/* Navigation List */}
+        <nav className={`flex-1 ${isSidebarCollapsed ? 'px-2' : 'px-4'} space-y-1 overflow-y-auto py-4 custom-scrollbar`}>
+          {navItems.map(item => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => { setActiveTab(item.id); if (window.innerWidth < 1024) setIsSidebarCollapsed(true); }}
+                title={isSidebarCollapsed ? item.label : undefined}
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 group relative ${isActive ? (theme === 'dark' ? 'bg-[var(--app-card)] text-white shadow-md' : 'bg-white text-black shadow-sm border border-gray-100') : (theme === 'dark' ? 'text-[var(--app-text)] hover:bg-[var(--app-hover)] hover:text-black' : 'text-gray-500 hover:text-black hover:bg-gray-100')}`}
+              >
+                <item.icon className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'opacity-70 group-hover:opacity-100'}`} />
+                {!isSidebarCollapsed && <span className="flex-1 text-start truncate">{item.label}</span>}
+                {item.badge > 0 && !isSidebarCollapsed && (
+                  <span className={`min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold ${isActive ? 'bg-[var(--app-accent1)] text-white' : 'bg-gray-200 dark:bg-[var(--app-card)] text-gray-500'}`}>
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+                {item.badge > 0 && isSidebarCollapsed && (
+                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--app-accent1)] shadow-sm" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className={`p-6 mt-auto border-t border-gray-100 dark:border-[var(--app-border)] ${isSidebarCollapsed ? 'ps-0 pe-[6px] flex flex-col items-center gap-3' : ''}`}>
+          <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'flex-col w-full' : 'w-full'}`}>
+            {!isSidebarCollapsed ? (
+              <div className="flex-1 min-w-0"><LanguageDropdown lang={lang} setLang={setLang} theme={theme} /></div>
+            ) : (
+              <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className={`w-11 h-11 shrink-0 flex items-center justify-center rounded-2xl font-bold transition-all border ${theme === 'dark' ? 'bg-[var(--app-surface)] text-white border-[var(--app-card)] hover:bg-[var(--app-hover)] hover:text-black' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-200 hover:text-black'}`} title={lang === 'en' ? 'عربي' : 'English'}>
+                {lang === 'en' ? 'AR' : 'EN'}
+              </button>
+            )}
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className={`w-11 h-11 shrink-0 flex items-center justify-center rounded-2xl transition-all border ${theme === 'dark' ? 'bg-[var(--app-surface)] text-white border-[var(--app-card)] hover:bg-[var(--app-hover)] hover:text-black' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-200 hover:text-black'}`}
+              title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            >
+              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── Main Content Area ── */}
+      <main className={`flex-1 h-full overflow-y-auto overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto bg-gray-50 dark:bg-[var(--app-bg)] ${lang === 'ar' ? (isSidebarCollapsed ? 'lg:pr-[72px]' : 'lg:pr-[280px]') : (isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[280px]')}`}>
+        <div className={`p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8 w-full max-w-[1400px] mx-auto print:p-0 print:pt-0`}>
+          <div className="animate-fadeIn">
+            {renderContent()}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
 }
 function Dashboard({
   setTab,
@@ -1142,91 +1224,99 @@ function Dashboard({
     tipTitle: _resolveTranslation(lang, `نصيحة ذكية للمستوى ${userLevel}`, `Smart Tip for Level ${userLevel}`),
     learningPaths: _resolveTranslation(lang, 'مسارات التعلم الأساسية', 'Core Learning Paths'),
     paths: [
-      { id: 'vocab',    icon: BookOpen,     title: _resolveTranslation(lang, 'المفردات',    'Vocabulary'),      desc: _resolveTranslation(lang, 'تعلّم مفردات الإنجليزية وراجعها بنظام التكرار.', 'Learn English vocabulary with spaced repetition.'),    paletteIndex: 0 },
-      { id: 'writing',  icon: PenTool,      title: _resolveTranslation(lang, 'الكتابة AI',  'Writing AI'),      desc: _resolveTranslation(lang, 'اكتب نصوصاً وصحّحها مع الذكاء الاصطناعي.', 'Write and correct texts with AI.'),                   paletteIndex: 1 },
-      { id: 'listening',icon: Headphones,   title: _resolveTranslation(lang, 'الاستماع',    'Listening'),       desc: _resolveTranslation(lang, 'درّب أذنك مع بودكاست حسب مستواك.', 'Train your ear with level-matched podcasts.'),         paletteIndex: 2 },
-      { id: 'speaking', icon: MessageSquare,title: _resolveTranslation(lang, 'المحادثة AI', 'Speaking AI'),     desc: _resolveTranslation(lang, 'تدرّب على محادثات حقيقية مع AI.', 'Practice real conversations with AI.'),               paletteIndex: 3 },
-      { id: 'grammar',  icon: Brain,        title: _resolveTranslation(lang, 'القواعد AI',  'Grammar AI'),      desc: _resolveTranslation(lang, 'دروس قواعد اللغة الإنجليزية التفاعلية.', 'Interactive English grammar lessons.'),             paletteIndex: 4 },
+      { id: 'vocab', icon: BookOpen, title: _resolveTranslation(lang, 'المفردات', 'Vocabulary'), desc: _resolveTranslation(lang, 'تعلّم مفردات الإنجليزية وراجعها بنظام التكرار.', 'Learn English vocabulary with spaced repetition.'), paletteIndex: 0 },
+      { id: 'writing', icon: PenTool, title: _resolveTranslation(lang, 'الكتابة AI', 'Writing AI'), desc: _resolveTranslation(lang, 'اكتب نصوصاً وصحّحها مع الذكاء الاصطناعي.', 'Write and correct texts with AI.'), paletteIndex: 1 },
+      { id: 'listening', icon: Headphones, title: _resolveTranslation(lang, 'الاستماع', 'Listening'), desc: _resolveTranslation(lang, 'درّب أذنك مع بودكاست حسب مستواك.', 'Train your ear with level-matched podcasts.'), paletteIndex: 2 },
+      { id: 'speaking', icon: MessageSquare, title: _resolveTranslation(lang, 'المحادثة AI', 'Speaking AI'), desc: _resolveTranslation(lang, 'تدرّب على محادثات حقيقية مع AI.', 'Practice real conversations with AI.'), paletteIndex: 3 },
+      { id: 'grammar', icon: Brain, title: _resolveTranslation(lang, 'القواعد AI', 'Grammar AI'), desc: _resolveTranslation(lang, 'دروس قواعد اللغة الإنجليزية التفاعلية.', 'Interactive English grammar lessons.'), paletteIndex: 4 },
     ]
   };
   const dotPositions = [
-    [3,8],[11,5],[19,12],[27,3],[35,9],[43,15],[51,6],[59,11],[67,4],[75,13],[83,7],[91,10],
-    [5,30],[13,25],[21,35],[29,28],[37,22],[45,38],[53,27],[61,33],[69,20],[77,36],[85,24],[93,31],
-    [7,55],[15,48],[23,62],[31,50],[39,58],[47,44],[55,65],[63,52],[71,60],[79,47],[87,68],[95,56],
-    [2,80],[10,75],[18,88],[26,82],[34,72],[42,85],[50,78],[58,90],[66,74],[74,83],[82,70],[90,87],
+    [3, 8], [11, 5], [19, 12], [27, 3], [35, 9], [43, 15], [51, 6], [59, 11], [67, 4], [75, 13], [83, 7], [91, 10],
+    [5, 30], [13, 25], [21, 35], [29, 28], [37, 22], [45, 38], [53, 27], [61, 33], [69, 20], [77, 36], [85, 24], [93, 31],
+    [7, 55], [15, 48], [23, 62], [31, 50], [39, 58], [47, 44], [55, 65], [63, 52], [71, 60], [79, 47], [87, 68], [95, 56],
+    [2, 80], [10, 75], [18, 88], [26, 82], [34, 72], [42, 85], [50, 78], [58, 90], [66, 74], [74, 83], [82, 70], [90, 87],
   ];
-  return <div className="space-y-5 lg:space-y-7 animate-fadeIn">
-    {/* ── LanGeek-style Hero ── */}
-    <div className="relative overflow-hidden rounded-2xl p-6 sm:p-10 lg:p-14 transition-colors duration-300"
-      style={{
-        background: isDark ? '#151515' : 'linear-gradient(135deg,#F0EFFE 0%,#FAFBFF 55%,#FFF5F0 100%)',
-        border: isDark ? '1px solid #262626' : '1px solid rgba(139,92,246,0.12)',
-      }}>
-      {/* + Dot pattern */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
-        {dotPositions.map(([x, y], i) => (
-          <span key={i} style={{ position:'absolute', left:`${x}%`, top:`${y}%`, color: isDark ? 'rgba(79,124,255,0.13)' : 'rgba(139,92,246,0.22)', fontSize:'15px', fontWeight:900, lineHeight:1 }}>+</span>
-        ))}
+  return <div className="space-y-10 lg:space-y-16 animate-fadeIn">
+    {/* ── Minimal Hero ── */}
+    <div className="relative pt-12 pb-8 text-center">
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-6 text-xs font-semibold tracking-wide uppercase transition-colors"
+        style={{
+          background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+          color: isDark ? '#A1A1AA' : '#6B7280',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
+        }}>
+        {t.levelLabel}
       </div>
-      {/* Hero content */}
-      <div className="relative z-10 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5 text-sm font-bold"
-          style={{
-            background: isDark ? 'rgba(79,124,255,0.13)' : 'rgba(255,255,255,0.8)',
-            border: `1px solid ${isDark ? 'rgba(79,124,255,0.28)' : 'rgba(139,92,246,0.2)'}`,
-            color: isDark ? '#00FF85' : '#7C3AED',
-            backdropFilter:'blur(8px)',
-          }}>
-          {t.levelLabel}
-        </div>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4 leading-tight"
-          style={{ color: isDark ? '#FFFFFF' : '#0A0A0A' }}>
-          {t.welcome} <span style={{ color: isDark ? '#00FF85' : '#7C3AED' }}>Venoxa</span>
-        </h2>
-        <p className="text-base lg:text-lg mb-7 max-w-xl mx-auto leading-relaxed"
-          style={{ color: isDark ? '#B0B0B0' : '#6B7280' }}>
-          {t.desc}
-        </p>
+      <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 tracking-tight text-black dark:text-white">
+        {t.welcome} <span className="text-[var(--app-accent1)]">Venoxa</span>
+      </h2>
+      <p className="text-lg lg:text-xl mb-10 max-w-2xl mx-auto leading-relaxed text-gray-500 dark:text-gray-400">
+        {t.desc}
+      </p>
+      <div className="flex items-center justify-center gap-4">
         <button onClick={() => setTab('plan')}
-          className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full font-bold text-white transition-all duration-200 hover:scale-[1.03]"
-          style={{
-            background: isDark ? 'linear-gradient(135deg,#00FF85 0%,#8B5CF6 100%)' : 'linear-gradient(135deg,#7C3AED 0%,#00FF85 100%)',
-            boxShadow: isDark ? '0 4px 20px rgba(79,124,255,0.28)' : '0 4px 20px rgba(124,58,237,0.25)',
-          }}>
-          <Calendar className="w-5 h-5" /> {t.createPlan}
+          className="px-8 py-3 rounded-2xl font-semibold bg-black dark:bg-white text-white dark:text-black transition-all hover:scale-[1.02] active:scale-95 shadow-sm"
+        >
+          {t.createPlan}
         </button>
       </div>
     </div>
 
     {/* ── Quote + Tip ── */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="bg-[#EBF0F7] dark:bg-[#262626] p-5 rounded-2xl border border-[#E6E6E6] dark:border-[#333333] flex flex-col justify-center items-center text-center relative overflow-hidden transition-colors">
-        <Quote className="absolute top-3 start-3 w-10 h-10 text-[#00E5FF]/10 dark:text-[#8B5CF6]/10 -rotate-12" />
-        <h3 className="text-sm font-bold text-gray-900 dark:text-[#8B5CF6] mb-3 flex items-center gap-2">
-          <Sparkles className="w-4 h-4" /> {t.quoteTitle}
-        </h3>
-        {loadingInsight ? <Activity className="w-7 h-7 text-[#00E5FF] dark:text-[#8B5CF6] animate-spin" /> : <>
-          <p className="text-base font-serif italic text-[#0A0A0A] dark:text-[#FFFFFF] mb-1.5" dir="ltr">"{safeRender(insight?.quote)}"</p>
-          <p className="text-sm text-gray-700 dark:text-[#8B5CF6]/80">{safeRender(insight?.translated_quote)}</p>
-        </>}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="premium-card rounded-3xl relative group">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 rounded-2xl bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t.quoteTitle}</h3>
+        </div>
+        {loadingInsight ? (
+          <div className="h-24 flex items-center justify-center">
+            <Activity className="w-5 h-5 text-[var(--app-accent1)] animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-4 text-start rtl:text-right">
+            <p className="text-xl font-bold text-gray-900 dark:text-white leading-relaxed" dir="ltr">
+              "{safeRender(insight?.quote)}"
+            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {safeRender(insight?.translated_quote)}
+            </p>
+          </div>
+        )}
       </div>
-      <div className="bg-[#FFECD6] dark:bg-[#262626] p-5 rounded-2xl border border-[#E6E6E6] dark:border-[#333333] flex flex-col justify-center items-center text-center transition-colors">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-[#00E5FF] mb-3 flex items-center gap-2">
-          <Zap className="w-4 h-4" /> {t.tipTitle}
-        </h3>
-        {loadingInsight ? <Activity className="w-7 h-7 text-amber-500 animate-spin" /> : <>
-          <p className="text-base text-[#0A0A0A] dark:text-[#FFFFFF] font-semibold" dir="ltr">{safeRender(insight?.pro_tip)}</p>
-          <p className="text-sm text-gray-700 dark:text-[#00E5FF] mt-1.5">{safeRender(insight?.translated_tip)}</p>
-        </>}
+      <div className="premium-card rounded-3xl relative group">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 rounded-2xl bg-[var(--app-accent2)]/10 text-[var(--app-accent2)]">
+            <Zap className="w-4 h-4" />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t.tipTitle}</h3>
+        </div>
+        {loadingInsight ? (
+          <div className="h-24 flex items-center justify-center">
+            <Activity className="w-5 h-5 text-[var(--app-accent2)] animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-4 text-start rtl:text-right">
+            <p className="text-xl font-bold text-gray-900 dark:text-white leading-relaxed" dir="ltr">
+              {safeRender(insight?.pro_tip)}
+            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {safeRender(insight?.translated_tip)}
+            </p>
+          </div>
+        )}
       </div>
     </div>
 
     {/* ── LanGeek Staggered Learning Paths ── */}
     <div>
-      <h3 className="text-base sm:text-lg font-bold text-[#0A0A0A] dark:text-[#FFFFFF] mb-5 flex items-center gap-2">
-        <Activity className="w-5 h-5 text-gray-900 dark:text-[#00E5FF]" /> {t.learningPaths}
+      <h3 className="text-base sm:text-lg font-bold text-[#0A0A0A] dark:text-[var(--app-text)] mb-5 flex items-center gap-2">
+        <Activity className="w-5 h-5 text-gray-900 dark:text-black dark:text-white" /> {t.learningPaths}
       </h3>
-      <div className="flex gap-3 sm:gap-4 items-start overflow-x-auto pb-6 sm:overflow-visible sm:pb-2" style={{scrollbarWidth:'none',msOverflowStyle:'none'}}>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
         {t.paths.map((path, i) => (
           <DashboardCard key={path.id} {...path} index={i} isDark={isDark} onClick={() => setTab(path.id)} />
         ))}
@@ -1235,41 +1325,37 @@ function Dashboard({
   </div>;
 }
 const CARD_PALETTES = [
-  { bg:'bg-[#5DCFBF] dark:bg-[#262626]', iconBg:'bg-white/25 dark:bg-[#00C853]/20', iconColor:'text-white dark:text-[#00E5FF]', text:'text-white dark:text-[#E0E0E0]', sub:'text-white dark:text-[#00E5FF]' },
-  { bg:'bg-[#F4856B] dark:bg-[#262626]', iconBg:'bg-white/25 dark:bg-[#8B5CF6]/20', iconColor:'text-white dark:text-[#A78BFA]', text:'text-white dark:text-[#E0E0E0]', sub:'text-white dark:text-[#A78BFA]' },
-  { bg:'bg-[#3DBDAF] dark:bg-[#262626]', iconBg:'bg-white/25 dark:bg-[#00C853]/20', iconColor:'text-white dark:text-[#00E5FF]', text:'text-white dark:text-[#E0E0E0]', sub:'text-white dark:text-[#00E5FF]' },
-  { bg:'bg-[#FFBE6A] dark:bg-[#262626]', iconBg:'bg-white/25 dark:bg-[#00C853]/20', iconColor:'text-white dark:text-[#00E5FF]', text:'text-white dark:text-[#E0E0E0]', sub:'text-white dark:text-[#00E5FF]' },
-  { bg:'bg-[#F07E64] dark:bg-[#262626]', iconBg:'bg-white/25 dark:bg-[#8B5CF6]/20', iconColor:'text-white dark:text-[#A78BFA]', text:'text-white dark:text-[#E0E0E0]', sub:'text-white dark:text-[#A78BFA]' },
+  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent1)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
+  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent2)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
+  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent1)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
+  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-rose-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
+  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-amber-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
 ];
-const CARD_STAGGER = [16, 52, 0, 52, 16];
+
 function DashboardCard({ icon: Icon, title, desc, onClick, paletteIndex = 0, index = 0, isDark = false }) {
   const p = CARD_PALETTES[paletteIndex % CARD_PALETTES.length];
-  const stagger = CARD_STAGGER[index] ?? 0;
-  const waveColor = isDark ? 'rgba(79,124,255,0.07)' : 'rgba(255,255,255,0.22)';
-  const ringColor = isDark ? '#00FF85' : 'white';
-  const ringOpacity = isDark ? 0.07 : 0.2;
-  return <div onClick={onClick}
-    className={`group relative flex-shrink-0 sm:flex-1 cursor-pointer overflow-hidden rounded-2xl p-5 transition-all duration-200 hover:scale-[1.04] ${p.bg} dark:border dark:border-[#333333]`}
-    style={{ marginTop:`${stagger}px`, minWidth:'150px', minHeight:'220px' }}>
-    <div className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center mb-4 ${p.iconBg} group-hover:scale-110 transition-transform duration-200`}>
-      <Icon className={`w-6 h-6 ${p.iconColor}`} />
+  return (
+    <div
+      onClick={onClick}
+      className={`group relative cursor-pointer overflow-hidden rounded-[32px] p-6 sm:p-8 transition-all duration-500 border flex flex-col ${isDark ? 'bg-[var(--app-bg)] border-[var(--app-border)] hover:border-[var(--app-hover)] hover:bg-[var(--app-hover)]/10' : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
+    >
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-8 ${p.iconBg} group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-sm`}>
+        <Icon className={`w-6 h-6 ${p.iconColor}`} />
+      </div>
+      <div className="space-y-3 text-start rtl:text-right">
+        <h3 className={`font-bold text-xl tracking-tight ${p.text}`}>{title}</h3>
+        <p className={`text-sm leading-relaxed font-medium ${p.sub}`}>{desc}</p>
+      </div>
+      <div className="absolute top-6 right-6 rtl:right-auto rtl:left-6 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 rtl:-translate-x-2 rtl:group-hover:translate-x-0 transition-all duration-500">
+        <div className="p-2 rounded-full bg-[var(--app-hover)]/20 text-[var(--app-hover)]">
+          <ChevronRight className="w-4 h-4 rtl:rotate-180" />
+        </div>
+      </div>
     </div>
-    <div className="relative z-10">
-      <h3 className={`font-bold text-base mb-1.5 ${p.text}`}>{title}</h3>
-      <p className={`text-sm leading-relaxed ${p.sub}`}>{desc}</p>
-    </div>
-    {/* Wave */}
-    <svg viewBox="0 0 200 60" fill="none" className="absolute bottom-0 left-0 right-0 w-full pointer-events-none">
-      <path d="M0 30 Q 30 10 60 30 Q 90 50 120 30 Q 150 10 180 30 Q 200 40 220 30 L220 60 L0 60 Z" fill={waveColor}/>
-    </svg>
-    {/* Concentric circles */}
-    <svg viewBox="0 0 120 120" fill="none" className="absolute -bottom-4 -end-4 w-24 h-24 pointer-events-none" style={{opacity:ringOpacity}}>
-      <circle cx="60" cy="60" r="55" stroke={ringColor} strokeWidth="10" fill="none"/>
-      <circle cx="60" cy="60" r="37" stroke={ringColor} strokeWidth="6" fill="none"/>
-      <circle cx="60" cy="60" r="20" stroke={ringColor} strokeWidth="4" fill="none"/>
-    </svg>
-  </div>;
+  );
 }
+
+
 function PlanWeekTable({
   weekNum,
   planData,
@@ -1288,94 +1374,111 @@ function PlanWeekTable({
   completedCells,
   onToggleCell
 }) {
-  const B = "border-gray-400 dark:border-[#333333]";
-  const cellBase = `border-b border-r ${B} px-2 py-2 align-middle text-center relative`;
-  const headBase = `border-t border-b border-r ${B} bg-gray-100 dark:bg-[#262626] text-gray-900 dark:text-[#FFFFFF] px-2 py-2 font-bold text-sm`;
-  // In RTL the last DOM column (المجموع) renders on the physical left → needs border-l for the outer left edge
-  const lastColCell = `border-b border-r border-l ${B} px-2 py-2 align-middle text-center relative`;
-  const lastColHead = `border-t border-b border-r border-l ${B} bg-gray-100 dark:bg-[#262626] text-gray-900 dark:text-[#FFFFFF] px-2 py-2 font-bold text-sm`;
-  return <div className="overflow-x-auto print:overflow-visible">
-    <table className="w-full border-separate [border-spacing:0] text-sm bg-white dark:bg-[#0D0D0D] text-gray-800 dark:text-[#FFFFFF] min-w-[760px] print:min-w-full">
-      <thead>
-        <tr>
-          <th className={`${headBase} border-l`}>{t.activity}</th>
-          {[1, 2, 3, 4, 5, 6, 7].map(d => <th key={d} className={headBase}>
-            <div>{t.day} {d}</div>
-            <div className="text-[10px] font-bold opacity-70 mt-0.5">{userLevel}</div>
-          </th>)}
-          <th className={lastColHead}>{t.summary}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {planData.categories.map(cat => <tr key={cat.id}>
-          <td className={`${cellBase} border-l text-start font-bold ${cat.textColor} ${cat.headerBg}`}>
-            <div className="flex items-center gap-2 px-1">
-              <cat.icon className="w-4 h-4 shrink-0" />
-              <span>{cat.name}</span>
-            </div>
-          </td>
-          {[0, 1, 2, 3, 4, 5, 6].map(d => {
-            const cellKey = `${weekNum}-${cat.id}-${d}`;
-            const completion = completedCells?.[cellKey];
-            const isInteractive = interactive && (cat.id === 'vocab' || cat.id === 'grammar');
-            const cellClass = `${cellBase} ${cat.textColor} ${cat.cellBg} font-semibold ${isInteractive ? cat.id === 'vocab' ? 'cursor-pointer hover:bg-[#00E5FF]/20 dark:hover:bg-[#00E5FF]/30 active:bg-[#FF0099]/40 dark:active:bg-[#FF0099]/50 transition-colors' : 'cursor-pointer hover:bg-[#1E90FF]/20 dark:hover:bg-[#1E90FF]/30 active:bg-[#1E90FF]/40 dark:active:bg-[#1E90FF]/50 transition-colors' : ''}`;
-            const onClick = isInteractive ? () => {
-              if (cat.id === 'vocab') openVocabModal(d);
-              if (cat.id === 'grammar') openGrammarModal(d);
-            } : undefined;
-            return <td key={d} className={cellClass} onClick={onClick} onContextMenu={interactive ? (e) => { e.preventDefault(); onToggleCell?.(weekNum, cat.id, d); } : undefined} title={interactive ? 'Right-click to mark done/missed' : undefined}>
-              {completion && <span className={`absolute top-1 right-1 w-4 h-4 flex items-center justify-center rounded-full text-white font-black print:hidden shadow-sm ${completion === 'done' ? 'bg-[#00C853]' : 'bg-red-500'}`} style={{fontSize:'9px',lineHeight:'1'}}>{completion === 'done' ? '✓' : '✗'}</span>}
-              {cat.id === 'vocab' ? <div className="flex flex-col items-center justify-center gap-0.5 min-h-[32px]">
-                <span className="text-sm font-extrabold tracking-tight text-center" dir="ltr">{getVocabRange(weekNum, d)}</span>
-                <span className="text-[10px] opacity-70">{cat.mins}m</span>
-              </div> : cat.id === 'grammar' ? <div className="flex flex-col items-center justify-center gap-0.5 min-h-[32px]">
-                <span className="text-[10px] font-bold leading-tight px-0.5 line-clamp-2 overflow-hidden text-center" dir="ltr" title={relevantGrammarTopics[((weekNum - 1) * 7 + d) % relevantGrammarTopics.length]}>
-                  {relevantGrammarTopics[((weekNum - 1) * 7 + d) % relevantGrammarTopics.length]}
-                </span>
-                <span className="text-[10px] opacity-70">{cat.mins}m</span>
-              </div> : <div className="flex items-center justify-center min-h-[32px]"><span className="text-sm">{cat.mins}m</span></div>}
-            </td>;
-          })}
-          <td className={`${lastColCell} font-bold ${cat.textColor} ${cat.headerBg}`}>
-            {formatTime(cat.mins * 7)}
-          </td>
-        </tr>)}
+  // Row color map — each category gets a vivid left-border accent + subtle tinted bg
+  const rowColors = {
+    listen:  { bg: 'bg-cyan-50/60 dark:bg-cyan-950/20',    border: 'border-l-4 border-l-cyan-500',    icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',    summary: 'text-cyan-700 dark:text-cyan-300' },
+    read:    { bg: 'bg-emerald-50/60 dark:bg-emerald-950/20', border: 'border-l-4 border-l-emerald-500', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', summary: 'text-emerald-700 dark:text-emerald-300' },
+    speak:   { bg: 'bg-rose-50/60 dark:bg-rose-950/20',     border: 'border-l-4 border-l-rose-500',    icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',    summary: 'text-rose-700 dark:text-rose-300' },
+    write:   { bg: 'bg-amber-50/60 dark:bg-amber-950/20',   border: 'border-l-4 border-l-amber-500',   icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',   summary: 'text-amber-700 dark:text-amber-300' },
+    vocab:   { bg: 'bg-orange-50/60 dark:bg-orange-950/20', border: 'border-l-4 border-l-orange-500',  icon: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',  summary: 'text-orange-700 dark:text-orange-300' },
+    grammar: { bg: 'bg-violet-50/60 dark:bg-violet-950/20', border: 'border-l-4 border-l-violet-500',  icon: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400',  summary: 'text-violet-700 dark:text-violet-300' },
+  };
 
-        <tr>
-          <td className={`${cellBase} border-l text-start font-bold text-[#00E5FF] dark:text-[#00E5FF] bg-[#00E5FF]/10 dark:bg-[#00E5FF]/10`}>
-            <div className="flex items-center gap-2 px-1">
-              <Layers className="w-4 h-4 shrink-0" />
-              <span>{t.spacedRep}</span>
-            </div>
-          </td>
-          {[0, 1, 2, 3, 4, 5, 6].map(d => {
-            const phases = getSpacedRepetition(weekNum, d);
-            return <td key={d} className={`${cellBase} text-[#1E90FF] dark:text-[#1E90FF] bg-[#1E90FF]/5 dark:bg-[#1E90FF]/8 text-[11px] font-semibold leading-tight`} dir="ltr">
-              {phases.length === 0 ? <span className="opacity-40">—</span> : phases.map(p => <div key={p}>{p}</div>)}
-            </td>;
-          })}
-          <td className={`${lastColCell} text-[#1E90FF] dark:text-[#1E90FF] bg-[#1E90FF]/10 dark:bg-[#1E90FF]/10 font-bold`}>
-            <span className="opacity-40">—</span>
-          </td>
-        </tr>
+  const B = "border-gray-200/60 dark:border-white/[0.06]";
+  const headBase = `px-3 py-4 bg-gray-100 dark:bg-[var(--app-surface)] text-gray-700 dark:text-gray-200 font-extrabold text-[11px] uppercase tracking-widest text-center border-b border-e ${B}`;
+  const cellBase = `px-3 py-6 text-center border-b border-e ${B} relative transition-all duration-200`;
 
-        <tr>
-          <td className={`${cellBase} border-l text-start font-bold text-gray-900 dark:text-[#FFFFFF] bg-gray-200 dark:bg-[#262626]`}>
-            <div className="flex items-center gap-2 px-1">
-              <Clock className="w-4 h-4 shrink-0" />
-              <span>{t.categories.total}</span>
-            </div>
-          </td>
-          {[0, 1, 2, 3, 4, 5, 6].map(d => <td key={d} className={`${cellBase} font-bold text-gray-900 dark:text-[#FFFFFF] bg-gray-100 dark:bg-[#262626]/60`}>
-            {formatTime(dailyTotalMins)}
-          </td>)}
-          <td className={`${lastColCell} font-extrabold text-gray-900 dark:text-[#FFFFFF] bg-gray-300 dark:bg-[#262626]`}>
-            {formatTime(weeklyTotalMins)}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>;
+  return (
+    <div className="rounded-[28px] print:rounded-none overflow-hidden border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none bg-white dark:bg-[var(--app-bg)] print:bg-white">
+      <div className="overflow-x-auto">
+        <table className="w-full border-separate [border-spacing:0] min-w-[800px]">
+          <thead>
+            <tr>
+              <th className={`${headBase} w-[220px]`}>{t.activity}</th>
+              {[1, 2, 3, 4, 5, 6, 7].map(d => (
+                <th key={d} className={headBase}>
+                  {t.day} {d}
+                </th>
+              ))}
+              <th className={`${headBase} border-s w-[140px]`}>{t.summary}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {planData.categories.map((cat, idx) => {
+              const colors = rowColors[cat.id] || rowColors.listen;
+              return (
+              <tr key={cat.id} className={`group hover:brightness-105 dark:hover:brightness-125 transition-all ${colors.bg} ${colors.border}`}>
+                <td className={`py-6 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
+                  <div className="flex items-center justify-center gap-4">
+                    <div className={`p-2.5 rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm`}>
+                      <cat.icon className="w-4.5 h-4.5" />
+                    </div>
+                    {cat.name}
+                  </div>
+                </td>
+                {[0, 1, 2, 3, 4, 5, 6].map(d => {
+                  const cellKey = `${weekNum}-${cat.id}-${d}`;
+                  const completion = completedCells?.[cellKey];
+                  const isInteractive = interactive && (cat.id === 'vocab' || cat.id === 'grammar');
+                  return (
+                    <td
+                      key={d}
+                      className={`${cellBase} ${isInteractive ? 'cursor-pointer hover:bg-[var(--app-accent1)]/5' : ''}`}
+                      onClick={isInteractive ? () => {
+                        if (cat.id === 'vocab') openVocabModal(d);
+                        if (cat.id === 'grammar') openGrammarModal(d);
+                      } : undefined}
+                      onContextMenu={interactive ? (e) => { e.preventDefault(); onToggleCell?.(weekNum, cat.id, d); } : undefined}
+                    >
+                      {completion && (
+                        <div className={`absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] text-white font-bold ${completion === 'done' ? 'bg-[var(--app-accent2)]' : 'bg-rose-500'}`}>
+                          {completion === 'done' ? '✓' : '✗'}
+                        </div>
+                      )}
+                      <div className="flex flex-col items-center justify-center gap-1 min-h-[40px]">
+                        {cat.id === 'vocab' ? (
+                          <span className="text-sm font-bold text-gray-900 dark:text-white" dir="ltr">{getVocabRange(weekNum, d)}</span>
+                        ) : cat.id === 'grammar' ? (
+                          <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 line-clamp-2 max-w-[80px]" dir="ltr">
+                            {relevantGrammarTopics[((weekNum - 1) * 7 + d) % relevantGrammarTopics.length]}
+                          </span>
+                        ) : null}
+                        <span className="text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-tight">{cat.mins}M</span>
+                      </div>
+                    </td>
+                  );
+                })}
+                <td className={`py-6 border-b border-s ${B} text-center font-extrabold text-[13px] ${colors.summary}`}>
+                  {formatTime(cat.mins * 7)}
+                </td>
+              </tr>
+            );
+            })}
+
+            {/* Summary Row */}
+            <tr className="bg-teal-50 dark:bg-teal-950/30 border-l-4 border-l-teal-500">
+              <td className={`py-8 border-e ${B} font-extrabold text-sm text-gray-900 dark:text-white`}>
+                <div className="flex items-center justify-center gap-4">
+                  <div className="p-2.5 rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  {t.categories.total}
+                </div>
+              </td>
+              {[0, 1, 2, 3, 4, 5, 6].map(d => (
+                <td key={d} className={`px-6 py-8 text-center border-e ${B} font-extrabold text-sm text-teal-700 dark:text-teal-300`}>
+                  {formatTime(dailyTotalMins)}
+                </td>
+              ))}
+              <td className={`px-6 py-8 border-s ${B} text-center font-black text-sm text-teal-700 dark:text-teal-200 bg-teal-100/50 dark:bg-teal-500/10`}>
+                {formatTime(weeklyTotalMins)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 // Words *per CEFR level* in the Venoxa wordlists (matches the public lesson catalogue).
@@ -1421,7 +1524,8 @@ function StudyPlan({
   userLevel,
   setUserLevel,
   lang,
-  globalVocab
+  globalVocab,
+  theme
 }) {
   const stored = useMemo(() => loadStoredPlan(), []);
   const [targetLevel, setTargetLevel] = useState(stored?.targetLevel || 'C1');
@@ -1584,49 +1688,37 @@ function StudyPlan({
       name: t.categories.listen,
       icon: Headphones,
       mins: m.listen,
-      headerBg: 'bg-[#00C853]/12 dark:bg-[#00C853]/12',
-      cellBg: 'bg-[#00C853]/8 dark:bg-[#00C853]/8',
-      textColor: 'text-gray-900 dark:text-[#00E5FF]'
+      textColor: 'text-indigo-600 dark:text-indigo-400'
     }, {
       id: 'read',
       name: t.categories.read,
       icon: BookText,
       mins: m.read,
-      headerBg: 'bg-[#00C853]/12 dark:bg-[#00C853]/12',
-      cellBg: 'bg-[#00C853]/8 dark:bg-[#00C853]/8',
-      textColor: 'text-gray-900 dark:text-[#00E5FF]'
+      textColor: 'text-emerald-600 dark:text-emerald-400'
     }, {
       id: 'speak',
       name: t.categories.speak,
       icon: MessageSquare,
       mins: m.speak,
-      headerBg: 'bg-[#FF0099]/15 dark:bg-[#FF0099]/20',
-      cellBg: 'bg-[#FF0099]/8 dark:bg-[#FF0099]/10',
-      textColor: 'text-gray-900 dark:text-[#FF4081]'
+      textColor: 'text-rose-600 dark:text-rose-400'
     }, {
       id: 'write',
       name: t.categories.write,
-      icon: BookText,
+      icon: PenTool,
       mins: m.write,
-      headerBg: 'bg-[#00E5FF]/15 dark:bg-[#00E5FF]/20',
-      cellBg: 'bg-[#00E5FF]/8 dark:bg-[#00E5FF]/10',
-      textColor: 'text-gray-900 dark:text-[#00E5FF]'
+      textColor: 'text-indigo-600 dark:text-indigo-400'
     }, {
       id: 'vocab',
       name: t.categories.vocab,
       icon: BookOpen,
       mins: m.vocab,
-      headerBg: 'bg-[#FF0099]/15 dark:bg-[#FF0099]/20',
-      cellBg: 'bg-[#FF0099]/8 dark:bg-[#FF0099]/10',
-      textColor: 'text-gray-900 dark:text-[#FF4081]'
+      textColor: 'text-emerald-600 dark:text-emerald-400'
     }, {
       id: 'grammar',
       name: t.categories.grammar,
-      icon: FileText,
+      icon: Brain,
       mins: m.grammar,
-      headerBg: 'bg-[#00E5FF]/15 dark:bg-[#00E5FF]/20',
-      cellBg: 'bg-[#00E5FF]/8 dark:bg-[#00E5FF]/10',
-      textColor: 'text-gray-900 dark:text-[#00E5FF]'
+      textColor: 'text-indigo-600 dark:text-indigo-400'
     }];
   }, [planMeta, lang]);
 
@@ -1895,50 +1987,58 @@ function StudyPlan({
   const weeklyTotalMins = dailyTotalMins * 7;
   const todayStr = new Date().toISOString().split('T')[0];
   return <div className="space-y-8 animate-fadeIn print:m-0 print:p-0">
-    {!planData && <div className="bg-white dark:bg-[#1E1E1E] p-5 sm:p-8 lg:p-12 rounded-xl border border-gray-200 dark:border-[#333333] relative overflow-hidden transition-colors">
+    {!planData && <div className="bg-white dark:bg-[var(--app-card)] p-5 sm:p-8 lg:p-12 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] relative transition-colors">
 
-      <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-5 lg:mb-8 text-gray-900 dark:text-[#FFFFFF] flex items-center gap-3 relative z-10">
-        <Sparkles className="text-[#00E5FF] dark:text-[#00E5FF] w-8 h-8" /> {t.title}
+      <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-5 lg:mb-8 text-gray-900 dark:text-[var(--app-text)] flex items-center gap-3 relative z-10">
+        <Sparkles className="text-black dark:text-white w-8 h-8" /> {t.title}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5 lg:mb-8 relative z-50">
-        <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 flex flex-col justify-center">
-          <label className="block text-sm text-gray-500 dark:text-[#E0E0E0] mb-2 font-semibold">{t.currentLvl}</label>
-          <select value={userLevel} onChange={e => setUserLevel(e.target.value)} className="w-full bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] font-bold focus:outline-none focus:border-[#00FF85] cursor-pointer">
-            {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
+        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 flex flex-col justify-center">
+          <label className="block text-sm text-gray-500 dark:text-[var(--app-text)] mb-2 font-semibold">{t.currentLvl}</label>
+          <CustomDropdown 
+            value={userLevel} 
+            onChange={setUserLevel} 
+            options={['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(l => ({ value: l, label: l }))} 
+            theme={theme}
+            className="w-full"
+          />
         </div>
 
-        <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 flex flex-col justify-center">
-          <label className="block text-sm text-gray-500 dark:text-[#E0E0E0] mb-2 font-semibold">{t.targetLvl}</label>
-          <select value={targetLevel} onChange={e => setTargetLevel(e.target.value)} className="w-full bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] font-bold focus:outline-none focus:border-[#00FF85] cursor-pointer">
-            {['A2', 'B1', 'B2', 'C1', 'C2'].map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
+        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 flex flex-col justify-center">
+          <label className="block text-sm text-gray-500 dark:text-[var(--app-text)] mb-2 font-semibold">{t.targetLvl}</label>
+          <CustomDropdown 
+            value={targetLevel} 
+            onChange={setTargetLevel} 
+            options={['A2', 'B1', 'B2', 'C1', 'C2'].map(l => ({ value: l, label: l }))} 
+            theme={theme}
+            className="w-full"
+          />
         </div>
 
-        <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 flex flex-col justify-center relative z-50">
-          <label className="block text-sm text-gray-500 dark:text-[#E0E0E0] mb-2 font-semibold">{t.startDateLbl}</label>
+        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 flex flex-col justify-center relative z-50">
+          <label className="block text-sm text-gray-500 dark:text-[var(--app-text)] mb-2 font-semibold">{t.startDateLbl}</label>
           <SolidDatePicker value={startDate} onChange={setStartDate} label="Start Date" lang={lang} />
         </div>
 
-        <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 flex flex-col justify-center relative z-50">
-          <label className="block text-sm text-gray-500 dark:text-[#E0E0E0] mb-2 font-semibold">{t.dateLabel}</label>
+        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 flex flex-col justify-center relative z-50">
+          <label className="block text-sm text-gray-500 dark:text-[var(--app-text)] mb-2 font-semibold">{t.dateLabel}</label>
           <SolidDatePicker min={startDate || todayStr} value={targetDate} onChange={setTargetDate} label="Target Date" lang={lang} />
         </div>
       </div>
 
       {/* Per-skill durations with a Default toggle */}
-      <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 mb-6 relative z-10">
+      <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 mb-6 relative z-10">
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[#FFFFFF] flex items-center gap-2">
-            <Clock className="w-5 h-5 text-[#00E5FF]" /> {t.skillsTitle}
+          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
+            <Clock className="w-5 h-5 text-black dark:text-white" /> {t.skillsTitle}
           </h3>
-          <span className="text-xs text-gray-500 dark:text-[#E0E0E0]">{t.skillsHint}</span>
+          <span className="text-xs text-gray-500 dark:text-[var(--app-text)]">{t.skillsHint}</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
           {/* Smart Auto-Divide Tool */}
-          <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full shadow-sm relative overflow-hidden group">
+          <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full shadow-sm relative overflow-hidden group">
             <div className="mb-2">
-              <div className="flex items-center gap-2 font-bold text-[#00E5FF] dark:text-[#00E5FF]">
+              <div className="flex items-center gap-2 font-bold text-black dark:text-white">
                 <Sparkles className="w-4 h-4 shrink-0" />
                 <span className="text-[12px] sm:text-[13px] leading-tight font-extrabold uppercase tracking-tight">{t.totalInvestTitle}</span>
               </div>
@@ -1949,12 +2049,12 @@ function StudyPlan({
                 placeholder={t.totalInvestPlaceholder}
                 value={totalInvestMinutes}
                 onChange={e => setTotalInvestMinutes(e.target.value)}
-                className="no-spinner w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0D0D0D] border border-gray-200 dark:border-[#333333] rounded-lg px-2 text-gray-900 dark:text-[#FFFFFF] font-bold text-center text-lg focus:outline-none focus:border-[#00FF85] shadow-sm min-w-0"
-                style={{textAlign:'center'}}
+                className="no-spinner w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-2 text-gray-900 dark:text-[var(--app-text)] font-bold text-center text-lg focus:outline-none focus:border-[var(--app-accent1)] shadow-sm min-w-0"
+                style={{ textAlign: 'center' }}
               />
               <button
                 onClick={handleAutoDivide}
-                className="bg-gray-100 dark:bg-[#0D0D0D] hover:bg-gray-200 dark:hover:bg-black text-[#00E5FF] dark:text-[#00E5FF] w-11 h-11 rounded-lg transition-all border border-gray-200 dark:border-[#333333] shadow-sm active:scale-95 flex items-center justify-center shrink-0"
+                className="bg-gray-100 dark:bg-[var(--app-bg)] hover:bg-gray-200 dark:hover:bg-black text-black dark:text-white w-11 h-11 rounded-xl transition-all border border-gray-200 dark:border-[var(--app-border)] shadow-sm active:scale-95 flex items-center justify-center shrink-0"
                 title={t.divideBtn}
               >
                 <Zap className="w-5 h-5 fill-current" />
@@ -1966,14 +2066,14 @@ function StudyPlan({
             id: 'listen',
             label: t.categories.listen,
             Icon: Headphones,
-            color: 'text-[#00E5FF] dark:text-[#00E5FF]',
-            ring: 'focus:border-[#00FF85]'
+            color: 'text-black dark:text-white',
+            ring: 'focus:border-[var(--app-accent1)]'
           }, {
             id: 'read',
             label: t.categories.read,
             Icon: BookText,
-            color: 'text-emerald-600 dark:text-[#00E5FF]',
-            ring: 'focus:border-emerald-500'
+            color: 'text-emerald-600 dark:text-black dark:text-white',
+            ring: 'focus:border-[var(--app-accent2)]'
           }, {
             id: 'speak',
             label: t.categories.speak,
@@ -1984,8 +2084,8 @@ function StudyPlan({
             id: 'write',
             label: t.categories.write,
             Icon: PenTool,
-            color: 'text-indigo-600 dark:text-[#8B5CF6]',
-            ring: 'focus:border-indigo-500'
+            color: 'text-indigo-600 dark:text-[var(--app-accent2)]',
+            ring: 'focus:border-[var(--app-accent1)]'
           }].map(({
             id,
             label,
@@ -1997,24 +2097,24 @@ function StudyPlan({
               useDefault: true,
               mins: DEFAULT_SKILL_MINS[id]
             };
-            return <div key={id} className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full">
+            return <div key={id} className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full">
               <div className="flex items-center justify-between gap-4 mb-2">
                 <div className={`flex items-center gap-2 font-bold ${color} min-w-0`}>
                   <Icon className="w-4 h-4 shrink-0" />
                   <span className="text-xs sm:text-sm leading-tight truncate">{label}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={`text-[9px] font-bold uppercase tracking-tight ${s.useDefault ? 'text-[#00E5FF] dark:text-[#00E5FF]' : 'text-gray-400 dark:text-[#1E90FF]'}`}>{t.useDefault}</span>
+                  <span className={`text-[9px] font-bold uppercase tracking-tight ${s.useDefault ? 'text-black dark:text-white' : 'text-gray-400 dark:text-[var(--app-accent1)]'}`}>{t.useDefault}</span>
                   <label className="relative inline-flex items-center cursor-pointer select-none">
                     <input type="checkbox" className="sr-only peer" checked={s.useDefault} onChange={e => setSkillDefault(id, e.target.checked)} />
-                    <span className="block w-8 h-4 bg-gray-300 dark:bg-[#262626] rounded-full peer-checked:bg-[#00C853] transition-colors"></span>
+                    <span className="block w-8 h-4 bg-gray-300 dark:bg-[var(--app-card)] rounded-full peer-checked:bg-[var(--app-accent1)] transition-colors"></span>
                     <span className="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform peer-checked:translate-x-4"></span>
                   </label>
                 </div>
               </div>
               <div className="flex items-center justify-center gap-2 mt-auto">
-                <input type="number" min="0" max="240" value={s.useDefault ? DEFAULT_SKILL_MINS[id] : s.mins} disabled={s.useDefault} onChange={e => setSkillMins(id, e.target.value)} className={`no-spinner w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[#0D0D0D] border border-gray-200 dark:border-[#333333] rounded-lg px-2 text-gray-900 dark:text-[#FFFFFF] font-bold text-center text-lg focus:outline-none ${ring} disabled:opacity-60 disabled:cursor-not-allowed min-w-0`} style={{textAlign:'center'}} />
-                <span className="text-[11px] text-gray-500 dark:text-[#E0E0E0] font-bold whitespace-nowrap">{t.minsUnit}</span>
+                <input type="number" min="0" max="240" value={s.useDefault ? DEFAULT_SKILL_MINS[id] : s.mins} disabled={s.useDefault} onChange={e => setSkillMins(id, e.target.value)} className={`no-spinner w-full max-w-[100px] h-11 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-2 text-gray-900 dark:text-[var(--app-text)] font-bold text-center text-lg focus:outline-none ${ring} disabled:opacity-60 disabled:cursor-not-allowed min-w-0`} style={{ textAlign: 'center' }} />
+                <span className="text-[11px] text-gray-500 dark:text-[var(--app-text)] font-bold whitespace-nowrap">{t.minsUnit}</span>
               </div>
             </div>;
           })}
@@ -2022,76 +2122,76 @@ function StudyPlan({
       </div>
 
       {/* Words per day — auto vs manual */}
-      <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 mb-8 relative z-10">
+      <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 mb-8 relative z-10">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[#FFFFFF] flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-fuchsia-500" /> {t.wordsTitle}
+          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-[var(--app-accent2)]" /> {t.wordsTitle}
           </h3>
-          <div className="inline-flex bg-white dark:bg-[#0D0D0D] border border-gray-200 dark:border-[#333333] rounded-xl p-1 text-sm font-bold">
-            <button onClick={() => setWordsMode('auto')} className={`px-3 py-1.5 rounded-lg transition-colors ${wordsMode === 'auto' ? 'bg-[#FF0099] text-white' : 'text-gray-600 dark:text-[#E0E0E0] hover:bg-gray-100 dark:hover:bg-[#252525]'}`}>
+          <div className="inline-flex bg-white dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-1 text-sm font-bold">
+            <button onClick={() => setWordsMode('auto')} className={`px-3 py-1.5 rounded-xl transition-colors ${wordsMode === 'auto' ? 'bg-[#FF0099] text-white' : 'text-gray-600 dark:text-[var(--app-text)] hover:bg-gray-100 dark:hover:bg-[var(--app-surface)]'}`}>
               {t.wordsAuto}
             </button>
-            <button onClick={() => setWordsMode('manual')} className={`px-3 py-1.5 rounded-lg transition-colors ${wordsMode === 'manual' ? 'bg-[#FF0099] text-white' : 'text-gray-600 dark:text-[#E0E0E0] hover:bg-gray-100 dark:hover:bg-[#252525]'}`}>
+            <button onClick={() => setWordsMode('manual')} className={`px-3 py-1.5 rounded-xl transition-colors ${wordsMode === 'manual' ? 'bg-[#FF0099] text-white' : 'text-gray-600 dark:text-[var(--app-text)] hover:bg-gray-100 dark:hover:bg-[var(--app-surface)]'}`}>
               {t.wordsManualLbl}
             </button>
           </div>
         </div>
 
-        {wordsMode === 'auto' ? <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
-          <div className="text-sm text-gray-600 dark:text-[#E0E0E0]" dir="ltr">
-            <span className="font-bold text-[#FF0099] dark:text-fuchsia-400">{userLevel} → {targetLevel}</span>
+        {wordsMode === 'auto' ? <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
+          <div className="text-sm text-gray-600 dark:text-[var(--app-text)]" dir="ltr">
+            <span className="font-bold text-[#FF0099] dark:text-[var(--app-accent2)]">{userLevel} → {targetLevel}</span>
             {' '}·{' '}
             <span className="font-bold">{wordsDelta}</span> {t.wordsToLearn}
             {daysToTarget > 0 && <> · <span className="font-bold">{daysToTarget}</span> {t.days}</>}
           </div>
-          <div className="text-2xl font-extrabold text-[#FF0099] dark:text-fuchsia-400" dir="ltr">
+          <div className="text-2xl font-extrabold text-[#FF0099] dark:text-[var(--app-accent2)]" dir="ltr">
             {autoWordsPerDay} <span className="text-sm font-bold opacity-70">{t.perDay}</span>
           </div>
-        </div> : <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-4 flex items-center gap-3 flex-wrap">
-          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[#0D0D0D] border border-gray-200 dark:border-[#333333] rounded-lg px-3 py-2 text-gray-900 dark:text-[#FFFFFF] font-extrabold text-center text-2xl focus:outline-none focus:border-[#FF0099]/30" />
-          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[#0D0D0D] border border-gray-200 dark:border-[#333333] rounded-lg px-3 py-2 text-gray-900 dark:text-[#FFFFFF] font-extrabold text-center text-2xl focus:outline-none focus:border-[#00FF85]" />
-          <span className="font-bold text-gray-700 dark:text-[#FFFFFF]">{t.wordsToLearn} {t.perDay}</span>
+        </div> : <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 flex items-center gap-3 flex-wrap">
+          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[#FF0099]/30" />
+          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[var(--app-accent1)]" />
+          <span className="font-bold text-gray-700 dark:text-[var(--app-text)]">{t.wordsToLearn} {t.perDay}</span>
         </div>}
       </div>
 
       {/* Live estimate of what the user will need to learn */}
-      {planEstimate && <div className="bg-gradient-to-br from-blue-50 to-fuchsia-50 dark:from-[#0f1730] dark:to-[#22112e] border border-gray-200 dark:border-[#333333]/50 p-6 rounded-2xl mb-6 relative z-10">
+      {planEstimate && <div className="bg-gradient-to-br from-blue-50 to-fuchsia-50 dark:from-[#0f1730] dark:to-[#22112e] border border-gray-200 dark:border-[var(--app-border)]/50 p-6 rounded-2xl mb-6 relative z-10">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[#FFFFFF] flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-[#00E5FF]" /> {t.estimateTitle}
+          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-black dark:text-white" /> {t.estimateTitle}
           </h3>
-          <span className="text-xs text-gray-500 dark:text-[#E0E0E0] max-w-md text-end">{t.estimateHint}</span>
+          <span className="text-xs text-gray-500 dark:text-[var(--app-text)] max-w-md text-end">{t.estimateHint}</span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[{
             label: t.days,
             value: planEstimate.totalDays,
-            color: 'text-[#1E90FF] dark:text-[#8B5CF6]',
-            bg: 'bg-[#1E90FF]/70 dark:bg-[#8B5CF6]/10',
+            color: 'text-[var(--app-accent1)] dark:text-[var(--app-accent2)]',
+            bg: 'bg-[#1E90FF]/70 dark:bg-[var(--app-accent2)]/10',
             Icon: Calendar
           }, {
             label: t.words,
             value: planEstimate.totalWords.toLocaleString(),
-            color: 'text-[#FF0099] dark:text-fuchsia-400',
+            color: 'text-[#FF0099] dark:text-[var(--app-accent2)]',
             bg: 'bg-fuchsia-100/70 dark:bg-fuchsia-900/20',
             Icon: BookOpen
           }, {
             label: t.rules,
             value: planEstimate.totalRules,
-            color: 'text-[#1E90FF] dark:text-orange-400',
+            color: 'text-[var(--app-accent1)] dark:text-orange-400',
             bg: 'bg-orange-100/70 dark:bg-orange-900/20',
             Icon: FileText
           }, {
             label: `${t.categories.listen} (${t.hours})`,
             value: planEstimate.hours.listen.toFixed(1),
-            color: 'text-[#00E5FF] dark:text-[#00E5FF]',
-            bg: 'bg-blue-100/70 dark:bg-[#00C853]/10',
+            color: 'text-black dark:text-white',
+            bg: 'bg-blue-100/70 dark:bg-[var(--app-accent1)]/10',
             Icon: Headphones
           }, {
             label: `${t.categories.read} (${t.hours})`,
             value: planEstimate.hours.read.toFixed(1),
-            color: 'text-emerald-600 dark:text-[#00E5FF]',
-            bg: 'bg-emerald-100/70 dark:bg-[#00C853]/10',
+            color: 'text-emerald-600 dark:text-black dark:text-white',
+            bg: 'bg-emerald-100/70 dark:bg-[var(--app-accent1)]/10',
             Icon: BookText
           }, {
             label: `${t.categories.speak} (${t.hours})`,
@@ -2102,13 +2202,13 @@ function StudyPlan({
           }, {
             label: `${t.categories.write} (${t.hours})`,
             value: planEstimate.hours.write.toFixed(1),
-            color: 'text-indigo-600 dark:text-[#8B5CF6]',
-            bg: 'bg-indigo-100/70 dark:bg-[#8B5CF6]/10',
+            color: 'text-indigo-600 dark:text-[var(--app-accent2)]',
+            bg: 'bg-indigo-100/70 dark:bg-[var(--app-accent2)]/10',
             Icon: PenTool
           }, {
             label: t.wordsTitle,
             value: `${planEstimate.wordsPerDay} ${t.perDay}`,
-            color: 'text-[#FF0099] dark:text-fuchsia-400',
+            color: 'text-[#FF0099] dark:text-[var(--app-accent2)]',
             bg: 'bg-fuchsia-100/70 dark:bg-fuchsia-900/20',
             Icon: Sparkles
           }].map(({
@@ -2117,7 +2217,7 @@ function StudyPlan({
             color,
             bg,
             Icon
-          }, i) => <div key={i} className={`${bg} rounded-xl p-3 border border-white/40 dark:border-white/5`}>
+          }, i) => <div key={i} className={`${bg} rounded-2xl p-3 border border-white/40 dark:border-white/5`}>
               <div className={`flex items-center gap-1.5 text-[11px] font-bold ${color} opacity-90 uppercase tracking-wide`}>
                 <Icon className="w-3.5 h-3.5" /> {label}
               </div>
@@ -2126,50 +2226,52 @@ function StudyPlan({
         </div>
       </div>}
 
-      <button onClick={generatePlan} className="w-full bg-[#00C853] hover:bg-[#00E5FF] text-white font-extrabold text-lg py-4 rounded-xl transition-colors">{t.gen}</button>
+      <button onClick={generatePlan} className="w-full bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black rounded-2xl py-4 font-bold transition shadow-lg active:scale-95 flex items-center justify-center gap-2">{t.gen}</button>
     </div>}
 
-    {planData && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
+    {planData && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#262626] px-3 py-2 rounded-xl border border-gray-200 dark:border-[#333333] shadow-sm">
-            <button onClick={_resolveTranslation(lang, handleNextWeek, handlePrevWeek)} disabled={_resolveTranslation(lang, currentWeek === planData.totalWeeks, currentWeek === 1)} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-[#252525] disabled:opacity-30 transition-colors">
-              {_resolveTranslation(lang, <ChevronRight className="w-5 h-5 text-gray-600 dark:text-[#E0E0E0]" />, <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-[#E0E0E0]" />)}
+          <div className="flex h-11 items-center gap-2 bg-gray-50 dark:bg-[var(--app-card)] px-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
+            <button onClick={_resolveTranslation(lang, handleNextWeek, handlePrevWeek)} disabled={_resolveTranslation(lang, currentWeek === planData.totalWeeks, currentWeek === 1)} className="p-1.5 rounded-xl hover:bg-gray-200 dark:hover:bg-[var(--app-surface)] disabled:opacity-30 transition-colors">
+              {_resolveTranslation(lang, <ChevronRight className="w-5 h-5 text-gray-600 dark:text-[var(--app-text)]" />, <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-[var(--app-text)]" />)}
             </button>
-            <span className="font-bold text-[#00E5FF] dark:text-[#00E5FF] min-w-[110px] text-center text-base">
-              {t.week} {currentWeek} <span className="text-sm opacity-60">/ {planData.totalWeeks}</span>
+            <span className="font-bold text-black dark:text-white min-w-[110px] text-center text-sm">
+              {t.week} {currentWeek} <span className="text-xs opacity-60">/ {planData.totalWeeks}</span>
             </span>
-            <button onClick={_resolveTranslation(lang, handlePrevWeek, handleNextWeek)} disabled={_resolveTranslation(lang, currentWeek === 1, currentWeek === planData.totalWeeks)} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-[#252525] disabled:opacity-30 transition-colors">
-              {_resolveTranslation(lang, <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-[#E0E0E0]" />, <ChevronRight className="w-5 h-5 text-gray-600 dark:text-[#E0E0E0]" />)}
+            <button onClick={_resolveTranslation(lang, handlePrevWeek, handleNextWeek)} disabled={_resolveTranslation(lang, currentWeek === 1, currentWeek === planData.totalWeeks)} className="p-1.5 rounded-xl hover:bg-gray-200 dark:hover:bg-[var(--app-surface)] disabled:opacity-30 transition-colors">
+              {_resolveTranslation(lang, <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-[var(--app-text)]" />, <ChevronRight className="w-5 h-5 text-gray-600 dark:text-[var(--app-text)]" />)}
             </button>
           </div>
-          <select value={currentWeek} onChange={e => setCurrentWeek(Number(e.target.value))} className="bg-white dark:bg-[#262626] border border-gray-200 dark:border-[#333333] text-gray-900 dark:text-[#FFFFFF] font-bold rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#00FF85] cursor-pointer shadow-sm" aria-label={t.jumpWeek}>
-            {Array.from({
-              length: planData.totalWeeks
-            }, (_, i) => i + 1).map(w => <option key={w} value={w}>{t.jumpWeek}: {w}</option>)}
-          </select>
+          <CustomDropdown 
+            value={currentWeek} 
+            onChange={val => setCurrentWeek(Number(val))} 
+            options={Array.from({ length: planData.totalWeeks }, (_, i) => ({ value: i + 1, label: `${t.week} ${i + 1}` }))} 
+            theme={theme}
+            className="min-w-[120px]"
+          />
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={exportCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-lg shadow-sm">
+          <button onClick={exportCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-xl shadow-sm">
             <Archive className="w-4 h-4" /> {t.exportCsv}
           </button>
-          <button onClick={handlePrint} className="bg-[#00C853] hover:bg-[#00E5FF] text-white flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-lg shadow-sm">
+          <button onClick={handlePrint} className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-xl shadow-sm">
             <Printer className="w-4 h-4" /> {t.exportPdf}
           </button>
-          <button onClick={() => setPlanMeta(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 text-sm font-bold transition-colors bg-gray-100 dark:bg-[#262626] px-4 py-2 rounded-lg">
+          <button onClick={() => setPlanMeta(null)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 text-sm font-bold transition-colors bg-gray-100 dark:bg-[var(--app-surface)] px-4 py-2 rounded-xl">
             <RotateCcw className="w-4 h-4" /> {t.reset}
           </button>
         </div>
       </div>
 
       {/* Per-skill progress sliders — auto-advance with the current week */}
-      <div className="bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333]/50 rounded-2xl p-5 mb-6 print:hidden">
+      <div className="bg-gray-50 dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)]/50 rounded-2xl p-5 mb-6 print:hidden">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[#FFFFFF] flex items-center gap-2">
-            <Layers className="w-5 h-5 text-[#00E5FF]" /> {t.progressTitle}
+          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
+            <Layers className="w-5 h-5 text-black dark:text-white" /> {t.progressTitle}
           </h3>
-          <span className="text-sm font-bold text-gray-600 dark:text-[#E0E0E0]">
+          <span className="text-sm font-bold text-gray-600 dark:text-[var(--app-text)]">
             {t.weekOf} {currentWeek} {t.of} {planData.totalWeeks}
           </span>
         </div>
@@ -2180,13 +2282,13 @@ function StudyPlan({
             label: t.categories.listen,
             Icon: Headphones,
             bar: 'from-blue-500 to-blue-400',
-            text: 'text-[#00E5FF] dark:text-[#00E5FF]'
+            text: 'text-black dark:text-white'
           }, {
             id: 'read',
             label: t.categories.read,
             Icon: BookText,
-            bar: 'from-emerald-500 to-emerald-400',
-            text: 'text-emerald-600 dark:text-[#00E5FF]'
+            bar: 'from-[var(--app-accent2)] to-emerald-400',
+            text: 'text-emerald-600 dark:text-black dark:text-white'
           }, {
             id: 'speak',
             label: t.categories.speak,
@@ -2197,8 +2299,8 @@ function StudyPlan({
             id: 'write',
             label: t.categories.write,
             Icon: PenTool,
-            bar: 'from-indigo-500 to-indigo-400',
-            text: 'text-indigo-600 dark:text-[#8B5CF6]'
+            bar: 'from-[var(--app-accent1)] to-indigo-400',
+            text: 'text-indigo-600 dark:text-[var(--app-accent2)]'
           }].map(({
             id,
             label,
@@ -2210,7 +2312,7 @@ function StudyPlan({
             const cat = planData.categories.find(c => c.id === id);
             const completedHours = ((currentWeek - 1) * 7 * (cat?.mins || 0) / 60).toFixed(1);
             const totalHours = (planData.totalWeeks * 7 * (cat?.mins || 0) / 60).toFixed(1);
-            return <div key={id} className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-3">
+            return <div key={id} className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className={`flex items-center gap-1.5 font-bold ${text}`}>
                   <Icon className="w-4 h-4" /> {label}
@@ -2218,7 +2320,7 @@ function StudyPlan({
                 <span className={`text-xs font-extrabold ${text}`} dir="ltr">{pct}%</span>
               </div>
               {/* Slider-style progress bar */}
-              <div className="relative h-2.5 rounded-full bg-gray-200 dark:bg-[#262626] overflow-hidden">
+              <div className="relative h-2.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
                 <div className={`absolute inset-y-0 left-0 bg-gradient-to-r ${bar} transition-all duration-500 ease-out rounded-full`} style={{
                   width: `${pct}%`
                 }} />
@@ -2226,7 +2328,7 @@ function StudyPlan({
                   left: `calc(${pct}% - 7px)`
                 }} />
               </div>
-              <div className="text-[11px] text-gray-500 dark:text-[#E0E0E0] mt-2 font-semibold" dir="ltr">
+              <div className="text-[11px] text-gray-500 dark:text-[var(--app-text)] mt-2 font-semibold" dir="ltr">
                 {completedHours} / {totalHours} {t.hours}
               </div>
             </div>;
@@ -2250,8 +2352,8 @@ function StudyPlan({
               total: totalWords.toLocaleString(),
               pct: wordsPct,
               suffix: t.learned,
-              bar: 'from-fuchsia-500 to-purple-500',
-              text: 'text-[#FF0099] dark:text-fuchsia-400'
+              bar: 'from-[var(--app-accent2)] to-purple-500',
+              text: 'text-[#FF0099] dark:text-[var(--app-accent2)]'
             }, {
               label: t.grammarProgress,
               done: masteredRules,
@@ -2259,18 +2361,18 @@ function StudyPlan({
               pct: rulesPct,
               suffix: t.mastered,
               bar: 'from-orange-500 to-amber-500',
-              text: 'text-[#1E90FF] dark:text-orange-400'
-            }].map((row, i) => <div key={i} className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-3">
+              text: 'text-[var(--app-accent1)] dark:text-orange-400'
+            }].map((row, i) => <div key={i} className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3">
               <div className="flex items-center justify-between mb-2 text-sm font-bold">
                 <span className={row.text}>{row.label}</span>
                 <span className={`${row.text}`} dir="ltr">{row.pct}%</span>
               </div>
-              <div className="relative h-2.5 rounded-full bg-gray-200 dark:bg-[#262626] overflow-hidden">
+              <div className="relative h-2.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
                 <div className={`absolute inset-y-0 left-0 bg-gradient-to-r ${row.bar} transition-all duration-500 ease-out rounded-full`} style={{
                   width: `${row.pct}%`
                 }} />
               </div>
-              <div className="text-[11px] text-gray-500 dark:text-[#E0E0E0] mt-2 font-semibold" dir="ltr">
+              <div className="text-[11px] text-gray-500 dark:text-[var(--app-text)] mt-2 font-semibold" dir="ltr">
                 {row.done} / {row.total} {row.suffix}
               </div>
             </div>);
@@ -2291,48 +2393,68 @@ function StudyPlan({
         </div>
         {Array.from({
           length: planData.totalWeeks
-        }, (_, i) => i + 1).map(w => <div key={w} className={w < planData.totalWeeks ? 'mb-6 break-after-page' : 'mb-6'}>
-          <h2 className="text-lg font-bold text-black mb-2 text-center">{t.week} {w}</h2>
-          <PlanWeekTable weekNum={w} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} relevantGrammarTopics={relevantGrammarTopics} t={t} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive={false} completedCells={completedCells} />
-        </div>)}
+        }, (_, i) => i + 1).map(w => (
+          <div key={w} className={`print:block ${w < planData.totalWeeks ? 'break-after-page' : ''}`} style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto' }}>
+            <div className="text-center mb-4 print:pt-4">
+              <h2 className="text-xl font-bold text-black">{t.week} {w}</h2>
+            </div>
+            <PlanWeekTable 
+              weekNum={w} 
+              planData={planData} 
+              userLevel={userLevel} 
+              wordsPerDay={wordsPerDay} 
+              relevantGrammarTopics={relevantGrammarTopics} 
+              t={t} 
+              formatTime={formatTime} 
+              getVocabRange={getVocabRange} 
+              getSpacedRepetition={getSpacedRepetition} 
+              dailyTotalMins={dailyTotalMins} 
+              weeklyTotalMins={weeklyTotalMins} 
+              openVocabModal={openVocabModal} 
+              openGrammarModal={openGrammarModal} 
+              interactive={false} 
+              completedCells={completedCells} 
+            />
+          </div>
+        ))}
       </div>
 
-      {vocabModal && <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden" onClick={() => setVocabModal(null)}>
-        <div className="bg-white dark:bg-[#262626] rounded-xl max-w-sm w-full border border-gray-200 dark:border-[#333333] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
-          <div className="bg-[#00C853] p-5 text-white flex justify-between items-center">
+      {vocabModal && <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden ${lang === 'ar' ? 'lg:pr-[280px]' : 'lg:pl-[280px]'}`} onClick={() => setVocabModal(null)}>
+        <div className="bg-white dark:bg-[var(--app-card)] rounded-2xl max-w-sm w-full border border-gray-200 dark:border-[var(--app-border)] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+          <div className="bg-[var(--app-accent1)] p-5 text-white flex justify-between items-center">
             <div>
               <h3 className="font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5" /> {t.vocabHeader} ({t.day} {vocabModal.day})</h3>
               <p className="text-sm opacity-80 mt-0.5">{wordsPerDay} {t.wordsToLearn}</p>
             </div>
-            <button onClick={() => setVocabModal(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+            <button onClick={() => setVocabModal(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
           </div>
-          <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar bg-gray-50 dark:bg-[#1E1E1E]">
-            {vocabModal.words.length === 0 ? <p className="text-center text-gray-500 py-10">لا توجد كلمات متاحة، يرجى رفع ملف الكلمات.</p> : vocabModal.words.map((w, i) => <div key={i} className="flex flex-col p-4 bg-white dark:bg-[#262626] rounded-2xl border border-gray-100 dark:border-[#333333] shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar bg-gray-50 dark:bg-[var(--app-card)]">
+            {vocabModal.words.length === 0 ? <p className="text-center text-gray-500 py-10">لا توجد كلمات متاحة، يرجى رفع ملف الكلمات.</p> : vocabModal.words.map((w, i) => <div key={i} className="flex flex-col p-4 bg-white dark:bg-[var(--app-card)] rounded-2xl border border-gray-100 dark:border-[var(--app-border)] shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3 mb-1">
-                <span className="w-7 h-7 rounded-full bg-fuchsia-100 dark:bg-fuchsia-900/30 text-[#FF0099] dark:text-fuchsia-400 flex items-center justify-center text-sm font-bold shrink-0">{i + 1}</span>
-                <span className="font-extrabold text-lg text-gray-900 dark:text-[#FFFFFF]" dir="ltr">{safeRender(w?.word)}</span>
+                <span className="w-7 h-7 rounded-full bg-fuchsia-100 dark:bg-[var(--app-accent2)]/10 text-[#FF0099] dark:text-[var(--app-accent2)] flex items-center justify-center text-sm font-bold shrink-0">{i + 1}</span>
+                <span className="font-extrabold text-lg text-gray-900 dark:text-[var(--app-text)]" dir="ltr">{safeRender(w?.word)}</span>
               </div>
-              {w?.meaning && <span className="text-sm text-gray-500 dark:text-[#E0E0E0] mr-10">{safeRender(w.meaning)}</span>}
+              {w?.meaning && <span className="text-sm text-gray-500 dark:text-[var(--app-text)] mr-10">{safeRender(w.meaning)}</span>}
             </div>)}
           </div>
         </div>
       </div>}
 
-      {grammarModal && <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden" onClick={() => setGrammarModal(null)}>
-        <div className="bg-white dark:bg-[#262626] rounded-xl max-w-sm w-full border border-gray-200 dark:border-[#333333] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+      {grammarModal && <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden ${lang === 'ar' ? 'lg:pr-[280px]' : 'lg:pl-[280px]'}`} onClick={() => setGrammarModal(null)}>
+        <div className="bg-white dark:bg-[var(--app-card)] rounded-2xl max-w-sm w-full border border-gray-200 dark:border-[var(--app-border)] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
           <div className="bg-[#1E90FF] p-5 text-white flex justify-between items-center">
             <div>
               <h3 className="font-bold text-lg flex items-center gap-2"><FileText className="w-5 h-5" /> {t.grammarHeader} ({t.day} {grammarModal.day})</h3>
               <p className="text-sm opacity-80 mt-0.5">{t.grammarTarget}</p>
             </div>
-            <button onClick={() => setGrammarModal(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+            <button onClick={() => setGrammarModal(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
           </div>
-          <div className="p-8 text-center bg-gray-50 dark:bg-[#1E1E1E]">
-            <div className="inline-flex p-4 rounded-full bg-orange-100 dark:bg-[#1E90FF]/20 text-[#1E90FF] dark:text-orange-400 mb-6 shadow-sm">
+          <div className="p-8 text-center bg-gray-50 dark:bg-[var(--app-card)]">
+            <div className="inline-flex p-4 rounded-full bg-orange-100 dark:bg-[#1E90FF]/20 text-[var(--app-accent1)] dark:text-orange-400 mb-6 shadow-sm">
               <Target className="w-10 h-10" />
             </div>
-            <h4 className="text-2xl font-extrabold text-gray-900 dark:text-[#FFFFFF] mb-4" dir="ltr">{safeRender(grammarModal.topic)}</h4>
-            <p className="text-sm text-gray-500 dark:text-[#E0E0E0] leading-relaxed">
+            <h4 className="text-2xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-4" dir="ltr">{safeRender(grammarModal.topic)}</h4>
+            <p className="text-sm text-gray-500 dark:text-[var(--app-text)] leading-relaxed">
               {_resolveTranslation(lang, 'يمكنك التوجه لقسم "القواعد الشاملة" لطلب شرح مفصل لهذه القاعدة مع الأمثلة من معلم الذكاء الاصطناعي.', 'Head over to the "Comprehensive Grammar" section to get a detailed AI explanation of this rule.')}
             </p>
           </div>
@@ -2347,7 +2469,8 @@ function Vocabulary({
   userLevel,
   lang,
   globalVocab,
-  setGlobalVocab
+  setGlobalVocab,
+  theme
 }) {
   const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_srs_data')) || {});
   const [vocabMode, setVocabMode] = useState('browse');
@@ -2529,7 +2652,7 @@ function Vocabulary({
     if (!wordToPlay) return;
     const voiceName = accentCode === 'en-US' ? EDGE_VOICES.us.male
       : accentCode === 'en-GB' ? EDGE_VOICES.uk.male
-      : undefined;
+        : undefined;
     await edgeTTSSpeak(wordToPlay, 'male', voiceName);
   };
 
@@ -2606,42 +2729,40 @@ Rules:
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#262626] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-      <button onClick={() => {
-        setVocabMode('browse');
-        setShowMeaning(false);
-        setCardImage(null);
-        setAiStory('');
-      }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'browse' ? 'bg-[#00C853] text-white shadow-md' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
-      <button onClick={() => {
-        setVocabMode('review');
-        setShowMeaning(false);
-        setCardImage(null);
-        setAiStory('');
-      }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${vocabMode === 'review' ? 'bg-[#00C853] text-white' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}>
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[var(--app-card)] p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+      <button
+        onClick={() => { setVocabMode('browse'); setShowMeaning(false); setCardImage(null); setAiStory(''); }}
+        className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'browse' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}
+      >
+        <Search className="w-4 h-4" /> {t.browse}
+      </button>
+      <button
+        onClick={() => { setVocabMode('review'); setShowMeaning(false); setCardImage(null); setAiStory(''); }}
+        className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${vocabMode === 'review' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}
+      >
         <Layers className="w-4 h-4" /> {t.review}
         {dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">{dueCards.length}</span>}
       </button>
-      <button onClick={() => {
-        setVocabMode('lists');
-        setShowMeaning(false);
-        setCardImage(null);
-        setAiStory('');
-      }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'lists' ? 'bg-[#1E90FF] text-white shadow-md' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
+      <button
+        onClick={() => { setVocabMode('lists'); setShowMeaning(false); setCardImage(null); setAiStory(''); }}
+        className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'lists' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}
+      >
+        <Archive className="w-4 h-4" /> {t.lists}
+      </button>
     </div>
 
-    {vocabMode === 'lists' && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[#333333] pb-4 overflow-x-auto no-scrollbar">
-        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.hard} ({hardWords.length})</button>
-        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[#00C853]/10 dark:bg-[#00C853]/15 text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 dark:border-[#00FF85]/30' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.learning} ({learningWords.length})</button>
-        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-[#00C853]/12 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.mastered} ({masteredWords.length})</button>
+    {vocabMode === 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[var(--app-border)] pb-4 overflow-x-auto no-scrollbar">
+        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.hard} ({hardWords.length})</button>
+        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.learning} ({learningWords.length})</button>
+        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-[var(--app-accent1)]/12 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.mastered} ({masteredWords.length})</button>
       </div>
 
       {listTab === 'hard' && hardWords.length > 0 && <div className="mb-6">
-        <button onClick={generateContextStory} disabled={loadingContextStory} className="w-full py-4 bg-orange-50 dark:bg-orange-600/10 text-[#1E90FF] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-100 dark:hover:bg-[#1E90FF]/20 transition-all shadow-sm">
+        <button onClick={generateContextStory} disabled={loadingContextStory} className="w-full py-4 bg-orange-50 dark:bg-orange-600/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-100 dark:hover:bg-[var(--app-accent1)]/20 transition-all shadow-sm">
           {loadingContextStory ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> ✨ {t.contextBtn}</>}
         </button>
-        {contextStory && <div className={`mt-4 p-5 bg-gray-50 dark:bg-[#262626] rounded-2xl border border-gray-200 dark:border-[#333333] ${_resolveTranslation(lang, 'text-right', 'text-left')} prose prose-orange dark:prose-invert max-w-none`}><div style={{
+        {contextStory && <div className={`mt-4 p-5 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl border border-gray-200 dark:border-[var(--app-border)] ${_resolveTranslation(lang, 'text-right', 'text-left')} prose prose-orange dark:prose-invert max-w-none`}><div style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(contextStory)}</div></div>}
       </div>}
@@ -2649,25 +2770,25 @@ Rules:
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateWordsMsg}</p></div> : currentListView.map(item => {
           const srs = srsData[item.word];
-          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#262626] p-4 rounded-xl border border-gray-200 dark:border-[#333333] hover:border-gray-300 dark:border-[#333333] transition-colors group">
+          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 dark:border-[var(--app-border)] transition-colors group">
             <div className="flex items-center gap-3">
-              <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 dark:text-[#1E90FF] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Remove word from SRS">
+              <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 dark:text-[var(--app-accent1)] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove word from SRS">
                 <Trash2 className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[#1E1E1E] border border-gray-100 dark:border-[#333333] rounded-full shadow-sm">
-                <Clock className="w-3 h-3 text-[#00E5FF] dark:text-[#00E5FF]" />
-                <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[#E0E0E0] tracking-wider">
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[var(--app-card)] border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
+                <Clock className="w-3 h-3 text-black dark:text-white" />
+                <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[var(--app-text)] tracking-wider">
                   {formatCountdown(srs?.nextReview)}
                 </span>
               </div>
             </div>
 
             <div className="text-right" dir="ltr">
-              <p className="text-xl font-bold text-gray-900 dark:text-[#FFFFFF] flex items-center justify-end gap-3">
-                <button onClick={() => playAudio('en-US', item.word)} className="text-gray-500 hover:text-[#00E5FF] dark:hover:text-blue-400 transition-colors order-1"><Volume2 className="w-4 h-4" /></button>
+              <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center justify-end gap-3">
+                <button onClick={() => playAudio('en-US', item.word)} className="text-gray-500 hover:text-black dark:text-white dark:hover:text-blue-400 transition-colors order-1"><Volume2 className="w-4 h-4" /></button>
                 <span className="order-2">{safeRender(item.word)}</span>
               </p>
-              <p className="text-sm text-gray-600 dark:text-[#E0E0E0] mt-1">{safeRender(item.meaning)}</p>
+              <p className="text-sm text-gray-600 dark:text-[var(--app-text)] mt-1">{safeRender(item.meaning)}</p>
             </div>
           </div>;
         })}
@@ -2675,107 +2796,110 @@ Rules:
     </div>}
 
     {vocabMode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#1E1E1E] p-5 rounded-2xl border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[#FFFFFF] mb-1">{t.smartCards}</h2><p className="text-sm text-gray-600 dark:text-[#E0E0E0]">{t.totalWords} {globalVocab.length}</p></div>
-        <div className="mt-4 md:mt-0 flex items-center gap-3">
-          {uploadMessage && <span className="text-sm text-green-600 dark:text-green-400 font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
-          <label className="bg-orange-50 dark:bg-[#1E90FF]/10 text-[#1E90FF] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[#1E90FF] dark:hover:bg-[#1E90FF] dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm">
-            <UploadCloud className="w-4 h-4" /> {t.uploadCSV}
-            <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-          </label>
+      {vocabMode === 'browse' && (
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+            <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{t.smartCards}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalWords} {globalVocab.length}</p></div>
+            <div className="mt-4 md:mt-0 flex items-center gap-3">
+              {uploadMessage && <span className="text-sm text-green-600 dark:text-green-400 font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
+              <label className="bg-orange-50 dark:bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[var(--app-accent1)] dark:hover:bg-[var(--app-accent1)] dark:hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm">
+                <UploadCloud className="w-4 h-4" /> {t.uploadCSV}
+                <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+              </label>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-end gap-4 bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+            <div className="flex-1 w-full flex flex-col gap-2">
+              <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-black dark:text-white" /> {t.searchWord}</label>
+              <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
+            </div>
+            <div className="flex-1 w-full flex flex-col gap-2">
+              <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[var(--app-accent1)] dark:text-[var(--app-accent2)]" /> {t.filterLevel}</label>
+              <CustomDropdown 
+                value={levelFilter} 
+                onChange={setLevelFilter} 
+                options={['All', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => ({ value: lvl, label: lvl === 'All' ? 'All Levels' : lvl }))} 
+                theme={theme}
+                className="w-full"
+              />
+            </div>
+            <div className="flex-1 w-full flex flex-col gap-2">
+              <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><List className="w-4 h-4 text-black dark:text-white dark:text-green-400" /> {t.manualSelect} ({filteredVocabList.length})</label>
+              <CustomDropdown 
+                value={safeIndex} 
+                onChange={val => { setActiveWordIndex(Number(val)); setShowMeaning(false); setAiStory(''); setCardImage(null); }} 
+                options={filteredVocabList.length === 0 ? [{ value: 0, label: t.noWords }] : filteredVocabList.map((item, idx) => ({ value: idx, label: safeRender(item.word) }))} 
+                theme={theme}
+                className="w-full"
+              />
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-[#1E1E1E] p-5 rounded-2xl border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-[#00E5FF] dark:text-[#00E5FF]" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none transition-colors" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[#1E90FF] dark:text-[#8B5CF6]" /> {t.filterLevel}</label>
-          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none transition-colors appearance-none cursor-pointer">
-            <option value="All">All Levels</option><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option><option value="C1">C1</option><option value="C2">C2</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><List className="w-4 h-4 text-[#00E5FF] dark:text-green-400" /> {t.manualSelect} ({filteredVocabList.length})</label>
-          <select value={safeIndex} onChange={e => {
-            setActiveWordIndex(Number(e.target.value));
-            setShowMeaning(false);
-            setAiStory('');
-            setCardImage(null);
-          }} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none transition-colors appearance-none cursor-pointer" dir="ltr">
-            {filteredVocabList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredVocabList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
-          </select>
-        </div>
-      </div>
+      )}
     </>}
 
-    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
-      <div className="w-24 h-24 bg-green-50 dark:bg-[#00C853]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-[#00E5FF] dark:text-green-400" /></div>
-      <h3 className="text-3xl text-gray-900 dark:text-[#FFFFFF] font-bold mb-4">{t.reviewDone}</h3>
-      <p className="text-gray-600 dark:text-[#E0E0E0] text-lg">{t.reviewDoneMsg}</p>
-      <button onClick={() => setVocabMode('browse')} className="mt-8 bg-[#00C853]/10 dark:bg-[#00C853]/15 text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 dark:border-[#00FF85]/40/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
+    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+      <div className="w-24 h-24 bg-green-50 dark:bg-[var(--app-accent1)]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-black dark:text-white dark:text-green-400" /></div>
+      <h3 className="text-3xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">{t.reviewDone}</h3>
+      <p className="text-gray-600 dark:text-[var(--app-text)] text-lg">{t.reviewDoneMsg}</p>
+      <button onClick={() => setVocabMode('browse')} className="mt-8 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/40/50 px-8 py-3 rounded-2xl font-bold">{t.browseLearn}</button>
     </div>}
 
-    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
-      <Search className="w-12 h-12 text-gray-400 dark:text-[#1E90FF] mb-4" />
-      <h3 className="text-xl text-gray-600 dark:text-[#E0E0E0] font-bold">{t.noMatch}</h3>
+    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
+      <Search className="w-12 h-12 text-gray-400 dark:text-[var(--app-accent1)] mb-4" />
+      <h3 className="text-xl text-gray-600 dark:text-[var(--app-text)] font-bold">{t.noMatch}</h3>
     </div>}
 
-    {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && vocabMode !== 'lists' && (
+      <div className="w-full">
+        <div
+          className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn"
+          onClick={() => setShowMeaning(!showMeaning)}
+        >
+          <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
+            <button onClick={e => { e.stopPropagation(); playAudio('en-US'); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-black dark:text-white shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
+            <button onClick={e => { e.stopPropagation(); playAudio('en-GB'); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
+          </div>
 
-      <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
-        <button onClick={e => {
-          e.stopPropagation();
-          playAudio('en-US');
-        }} className="p-3 bg-gray-50 dark:bg-[#262626] rounded-xl text-[#00E5FF] dark:text-[#00E5FF] shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
-        <button onClick={e => {
-          e.stopPropagation();
-          playAudio('en-GB');
-        }} className="p-3 bg-gray-50 dark:bg-[#262626] rounded-xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
-      </div>
-      <span className="absolute top-6 right-6 bg-gray-50 dark:bg-[#262626] text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm flex flex-col items-center"><span>{safeRender(card.level)}</span></span>
+          <div className="absolute top-6 right-6 flex flex-col gap-2 items-end">
+            <span className="bg-gray-100 dark:bg-[var(--app-card)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-accent1)]/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.level)}</span>
+          </div>
 
-      {!showMeaning ? <div className="text-center w-full">
-        <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-[#FFFFFF] mb-6" dir="ltr">{safeRender(card.word)}</h3>
-        <p className="text-gray-600 dark:text-[#1E90FF] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[#262626]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
-      </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
-        <h3 className="text-2xl md:text-3xl font-bold text-[#00E5FF] dark:text-[#00E5FF] leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[#FFFFFF] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
-        {card.synonyms && <div className="w-full bg-gray-100 dark:bg-[#262626]/30 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 dark:text-[#E0E0E0]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-[#00E5FF] dark:text-[#00E5FF]">{safeRender(card.synonyms)}</span></div>}
+          {!showMeaning ? <div className="text-center w-full">
+            <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
+            <p className="text-gray-600 dark:text-black dark:text-white text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+          </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
+            <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+            {card.example && <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+            {card.synonyms && <div className="w-full bg-gray-100 dark:bg-[var(--app-card)]/30 p-4 rounded-2xl border border-gray-200 text-sm text-gray-700 dark:text-[var(--app-text)]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-black dark:text-white">{safeRender(card.synonyms)}</span></div>}
 
-        <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
-          {!aiStory && <button onClick={e => {
-            e.stopPropagation();
-            generateStory();
-          }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-[#1E90FF]/10 text-[#1E90FF] dark:text-orange-400 px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
-          {!cardImage && <button onClick={e => {
-            e.stopPropagation();
-            generateImage();
-          }} disabled={loadingImage} className="flex-1 bg-[#00C853]/10 dark:bg-[#00C853]/10 text-[#00E5FF] dark:text-[#00E5FF] px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
-          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[#00C853]/10 dark:bg-[#00C853]/8 text-[#00E5FF] dark:text-[#00E5FF] px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
+            <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+              {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-black dark:bg-white/10 text-black dark:text-white px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
+              {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+              {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/8 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
+            </div>
+
+            {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
+            {aiStory && <div className={`bg-gray-50 dark:bg-[var(--app-card)] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
+            {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
+            {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+          </div>}
         </div>
 
-        {collocationData && <div className="bg-gray-50 dark:bg-[#262626] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[#FFFFFF] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
-        {aiStory && <div className={`bg-gray-50 dark:bg-[#262626] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[#E0E0E0] text-sm" style={{
-          whiteSpace: 'pre-wrap'
-        }}>{safeRender(aiStory)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#262626] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 mb-2 animate-bounce" /><span className="text-sm text-[#00E5FF] font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[#333333] shadow-sm relative bg-gray-50 dark:bg-[#262626]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
-          e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found';
-        }} /></div>}
-      </div>}
-    </div>}
-
-    {showMeaning && card && vocabMode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-[#1E1830] text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain} <span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[#252525] text-[#1E90FF] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard} <span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[#262626] text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood} <span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
-      <button onClick={() => handleRate('easy')} className="bg-[#00C853]/10 dark:bg-[#262626] text-[#00E5FF] border border-[#00FF85]/30 py-3 rounded-2xl font-bold hover:bg-blue-100 flex flex-col items-center">{t.rateEasy} <span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
-    </div>}
+        {showMeaning && (
+          <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
+            <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain} <span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+            <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard} <span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+            <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood} <span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+            <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center">{t.rateEasy} <span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+          </div>
+        )}
+      </div>
+    )}
   </div>;
 }
-function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }) {
+function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab, theme }) {
   const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_phrasal_srs')) || {});
   const [mode, setMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
@@ -2788,6 +2912,8 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }
   const [cardImage, setCardImage] = useState(null);
   const [loadingImage, setLoadingImage] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
+  const [collocationData, setCollocationData] = useState('');
+  const [loadingCollocation, setLoadingCollocation] = useState(false);
   useEffect(() => { const int = setInterval(() => setTick(t => t + 1), 1000); return () => clearInterval(int); }, []);
   const t = {
     browse: _resolveTranslation(lang, 'تصفح', 'Browse'),
@@ -2818,6 +2944,7 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }
     emptyLists: _resolveTranslation(lang, 'لا توجد عناصر في هذه القائمة.', 'No items in this list.'),
     rateItemsMsg: _resolveTranslation(lang, 'قيم العناصر في قسم "تصفح" لتظهر هنا.', 'Rate items in Browse mode to see them here.'),
     csvHint: _resolveTranslation(lang, 'الصيغة: الفعل المركب، المعنى، الجملة', 'Format: phrasal verb, meaning, sentence'),
+    collocationsBtn: _resolveTranslation(lang, 'التجميعات الاصطلاحية (AI)', 'Collocations (AI)'),
   };
   const dueCards = useMemo(() => { const now = Date.now(); return phrasalVocab.filter(c => { const d = srsData[c.word]; return d && d.nextReview <= now; }); }, [phrasalVocab, srsData, tick]);
   const hardWords = useMemo(() => phrasalVocab.filter(w => srsData[w.word]?.rating === 'again' || srsData[w.word]?.rating === 'hard'), [phrasalVocab, srsData, tick]);
@@ -2850,6 +2977,7 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }
   const filteredList = useMemo(() => { const s = searchQuery.toLowerCase(); return phrasalVocab.filter(item => item.word.toLowerCase().includes(s) || (item.meaning && item.meaning.toLowerCase().includes(s))); }, [phrasalVocab, searchQuery]);
   const safeIndex = activeWordIndex < filteredList.length ? activeWordIndex : 0;
   const card = mode === 'review' ? dueCards[0] : filteredList[safeIndex];
+  useEffect(() => { setCollocationData(''); setCardImage(null); setAiStory(''); }, [card?.word]);
   useEffect(() => { if (mode === 'browse' && filteredList.length > 0 && activeWordIndex >= filteredList.length) setActiveWordIndex(0); }, [filteredList.length, activeWordIndex, mode]);
   const handleRate = rating => {
     if (!card) return;
@@ -2857,7 +2985,7 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }
     let nextReview = rating === 'again' ? now + 60000 : rating === 'hard' ? now + 600000 : rating === 'good' ? now + 86400000 : now + 345600000;
     const newData = { ...srsData, [card.word]: { nextReview, rating, lastReviewed: now } };
     setSrsData(newData); localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(newData));
-    setShowMeaning(false); setAiStory(''); setCardImage(null);
+    setShowMeaning(false); setAiStory(''); setCardImage(null); setCollocationData('');
     if (mode === 'browse') setActiveWordIndex((safeIndex + 1) % filteredList.length);
   };
   const resetWordProgress = wordStr => { const d = { ...srsData }; delete d[wordStr]; setSrsData(d); localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(d)); };
@@ -2870,6 +2998,14 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab }
       await streamText(prompt, setAiStory);
     } catch { setAiStory('Error generating story.'); } finally { setLoadingAi(false); }
   };
+  const generateCollocations = async () => {
+    if (loadingCollocation || collocationData || !card) return;
+    setLoadingCollocation(true);
+    try {
+      const prompt = `You are an English collocations dictionary. For the phrasal verb "${card.word}", list the most common and natural collocations or common usage patterns. Group them by grammatical context. Use this exact format (max 6 per group):\nPattern + ${card.word}: example1, example2\n${card.word} + Pattern: example1, example2\nOutput only the collocation list, no extra explanations.`;
+      await streamText(prompt, setCollocationData);
+    } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
+  };
   const generateImage = async () => {
     if (loadingImage || cardImage || !card) return;
     setLoadingImage(true);
@@ -2881,7 +3017,7 @@ Rules:
 3. Describe colors, lighting, and composition.
 4. Output ONLY a 15-word English description.`;
       let visual = '';
-      try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw||'').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g,'').trim()||''; } catch {}
+      try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw || '').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g, '').trim() || ''; } catch { }
       if (!visual) visual = `A scene showing the phrasal verb "${card.word}"`;
       const visualClean = (visual + ' Photorealistic, natural lighting, no text.').replace(/[^\x00-\x7F]/g, "");
       const seed = Math.floor(Math.random() * 1_000_000);
@@ -2889,100 +3025,106 @@ Rules:
     } catch { setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Phrasal verb ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`); } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#262626] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-      <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-[#00C853] text-white shadow-md' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
-      <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-[#00C853] text-white' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">{dueCards.length}</span>}</button>
-      <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-[#1E90FF] text-white shadow-md' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[var(--app-card)] p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+      <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
+      <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">{dueCards.length}</span>}</button>
+      <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
-    {mode === 'lists' && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[#333333] pb-4 overflow-x-auto no-scrollbar">
-        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.hard} ({hardWords.length})</button>
-        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[#00C853]/10 dark:bg-[#00C853]/15 text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 dark:border-[#00FF85]/30' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.learning} ({learningWords.length})</button>
-        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-[#00C853]/12 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.mastered} ({masteredWords.length})</button>
+    {mode === 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[var(--app-border)] pb-4 overflow-x-auto no-scrollbar">
+        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.hard} ({hardWords.length})</button>
+        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.learning} ({learningWords.length})</button>
+        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-[var(--app-accent1)]/12 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.mastered} ({masteredWords.length})</button>
       </div>
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => {
           const srs = srsData[item.word];
-          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#262626] p-4 rounded-xl border border-gray-200 dark:border-[#333333] hover:border-gray-300 transition-colors">
+          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 transition-colors">
             <div className="flex items-center gap-3">
-              <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[#1E1E1E] border border-gray-100 dark:border-[#333333] rounded-full shadow-sm">
-                <Clock className="w-3 h-3 text-[#00E5FF] dark:text-[#00E5FF]" />
-                <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[#E0E0E0] tracking-wider">
+              <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[var(--app-card)] border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
+                <Clock className="w-3 h-3 text-black dark:text-white" />
+                <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[var(--app-text)] tracking-wider">
                   {formatCountdown(srs?.nextReview)}
                 </span>
               </div>
             </div>
             <div className="text-left" dir="ltr">
-              <p className="text-xl font-bold text-gray-900 dark:text-[#FFFFFF] flex items-center gap-2 justify-start">
-                <button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-[#00E5FF] transition-colors"><Volume2 className="w-4 h-4" /></button>
+              <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2 justify-start">
+                <button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-black dark:text-white transition-colors"><Volume2 className="w-4 h-4" /></button>
                 <span>{safeRender(item.word)}</span>
               </p>
-              <p className="text-sm text-gray-600 dark:text-[#E0E0E0] mt-1">{safeRender(item.meaning)}</p>
+              <p className="text-sm text-gray-600 dark:text-[var(--app-text)] mt-1">{safeRender(item.meaning)}</p>
             </div>
           </div>;
         })}
       </div>
     </div>}
     {mode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#1E1E1E] p-5 rounded-2xl border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[#FFFFFF] mb-1">{_resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs')}</h2><p className="text-sm text-gray-600 dark:text-[#E0E0E0]">{t.totalItems} {phrasalVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{_resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs')}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalItems} {phrasalVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
-          <label className="bg-orange-50 dark:bg-[#1E90FF]/10 text-[#1E90FF] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[#1E90FF] dark:hover:bg-[#1E90FF] dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
+          <label className="bg-orange-50 dark:bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[var(--app-accent1)] dark:hover:bg-[var(--app-accent1)] dark:hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white dark:bg-[#1E1E1E] p-5 rounded-2xl border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-[#00E5FF]" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none transition-colors" />
+      <div className="flex flex-col md:flex-row items-end gap-4 bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors relative z-50">
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-black dark:text-white" /> {t.searchWord}</label>
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
         </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><List className="w-4 h-4 text-[#00E5FF]" /> {t.manualSelect} ({filteredList.length})</label>
-          <select value={safeIndex} onChange={e => { setActiveWordIndex(Number(e.target.value)); setShowMeaning(false); setAiStory(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none appearance-none cursor-pointer" dir="ltr">
-            {filteredList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
-          </select>
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><List className="w-4 h-4 text-black dark:text-white" /> {t.manualSelect} ({filteredList.length})</label>
+          <CustomDropdown 
+            value={safeIndex} 
+            onChange={val => { setActiveWordIndex(Number(val)); setShowMeaning(false); setAiStory(''); setCardImage(null); }} 
+            options={filteredList.length === 0 ? [{ value: 0, label: t.noWords }] : filteredList.map((item, idx) => ({ value: idx, label: safeRender(item.word) }))} 
+            theme={theme}
+            className="w-full"
+          />
         </div>
       </div>
     </>}
-    {mode === 'review' && !card && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
-      <div className="w-24 h-24 bg-green-50 dark:bg-[#00C853]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-[#00E5FF] dark:text-green-400" /></div>
-      <h3 className="text-3xl text-gray-900 dark:text-[#FFFFFF] font-bold mb-4">{t.reviewDone}</h3>
-      <p className="text-gray-600 dark:text-[#E0E0E0] text-lg">{t.reviewDoneMsg}</p>
-      <button onClick={() => setMode('browse')} className="mt-8 bg-[#00C853]/10 dark:bg-[#00C853]/15 text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 dark:border-[#00FF85]/40/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
+    {mode === 'review' && !card && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+      <div className="w-24 h-24 bg-green-50 dark:bg-[var(--app-accent1)]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-black dark:text-white dark:text-green-400" /></div>
+      <h3 className="text-3xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">{t.reviewDone}</h3>
+      <p className="text-gray-600 dark:text-[var(--app-text)] text-lg">{t.reviewDoneMsg}</p>
+      <button onClick={() => setMode('browse')} className="mt-8 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/40/50 px-8 py-3 rounded-2xl font-bold">{t.browseLearn}</button>
     </div>}
-    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
-      <Search className="w-12 h-12 text-gray-400 dark:text-[#1E90FF] mb-4" /><h3 className="text-xl text-gray-600 dark:text-[#E0E0E0] font-bold">{t.noWords}</h3>
+    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
+      <Search className="w-12 h-12 text-gray-400 dark:text-[var(--app-accent1)] mb-4" /><h3 className="text-xl text-gray-600 dark:text-[var(--app-text)] font-bold">{t.noWords}</h3>
     </div>}
-    {card && mode !== 'lists' && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && mode !== 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative z-0 hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
       <div className="absolute top-6 left-6 z-10">
-        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[#262626] rounded-xl text-[#00E5FF] dark:text-[#00E5FF] shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
+        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-black dark:text-white shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
       </div>
       {!showMeaning ? <div className="text-center w-full">
-        <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-[#FFFFFF] mb-6" dir="ltr">{safeRender(card.word)}</h3>
-        <p className="text-gray-600 dark:text-[#1E90FF] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[#262626]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+        <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
+        <p className="text-gray-600 dark:text-[var(--app-accent1)] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
-        <h3 className="text-2xl md:text-3xl font-bold text-[#00E5FF] dark:text-[#00E5FF] leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 w-full"><p className="text-lg text-gray-800 dark:text-[#FFFFFF] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        {card.example && <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
-          {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-orange-50 text-[#1E90FF] px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
-          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-[#00C853]/10 text-[#00E5FF] px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+          {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-black dark:bg-white/10 text-black dark:text-white px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
+          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/8 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
         </div>
-        {aiStory && <div className="bg-gray-50 dark:bg-[#262626] border-l-4 border-orange-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[#E0E0E0] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#262626] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-blue-400 animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[#333333] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
+        {aiStory && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-orange-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-[#1E1830] text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain}<span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[#252525] text-[#1E90FF] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard}<span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[#262626] text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood}<span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
-      <button onClick={() => handleRate('easy')} className="bg-[#00C853]/10 dark:bg-[#262626] text-[#00E5FF] border border-[#00FF85]/30 py-3 rounded-2xl font-bold hover:bg-blue-100 flex flex-col items-center">{t.rateEasy}<span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain}<span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard}<span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood}<span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center">{t.rateEasy}<span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
     </div>}
   </div>;
 }
 
-function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
+function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab, theme }) {
   const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_srs')) || {});
   const [mode, setMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
@@ -2996,6 +3138,8 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
   const [cardImage, setCardImage] = useState(null);
   const [loadingImage, setLoadingImage] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
+  const [collocationData, setCollocationData] = useState('');
+  const [loadingCollocation, setLoadingCollocation] = useState(false);
   useEffect(() => { const int = setInterval(() => setTick(t => t + 1), 1000); return () => clearInterval(int); }, []);
   const t = {
     browse: _resolveTranslation(lang, 'تصفح', 'Browse'),
@@ -3028,6 +3172,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
     emptyLists: _resolveTranslation(lang, 'لا توجد عناصر في هذه القائمة.', 'No items in this list.'),
     rateItemsMsg: _resolveTranslation(lang, 'قيم العناصر في قسم "تصفح" لتظهر هنا.', 'Rate items in Browse mode to see them here.'),
     csvHint: _resolveTranslation(lang, 'الصيغة: الموضوع؛ التعبير؛ المعنى؛ الجملة', 'Format: Topic; Slang; Meaning; Sentence'),
+    collocationsBtn: _resolveTranslation(lang, 'التجميعات الاصطلاحية (AI)', 'Collocations (AI)'),
   };
 
   // Unique topics derived from the vocab list
@@ -3104,6 +3249,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
 
   const safeIndex = activeWordIndex < filteredList.length ? activeWordIndex : 0;
   const card = mode === 'review' ? dueCards[0] : filteredList[safeIndex];
+  useEffect(() => { setCollocationData(''); setCardImage(null); setAiSentence(''); }, [card?.word]);
   useEffect(() => { if (mode === 'browse' && filteredList.length > 0 && activeWordIndex >= filteredList.length) setActiveWordIndex(0); }, [filteredList.length, activeWordIndex, mode]);
   const handleRate = rating => {
     if (!card) return;
@@ -3111,7 +3257,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
     let nextReview = rating === 'again' ? now + 60000 : rating === 'hard' ? now + 600000 : rating === 'good' ? now + 86400000 : now + 345600000;
     const newData = { ...srsData, [card.word]: { nextReview, rating, lastReviewed: now } };
     setSrsData(newData); localStorage.setItem('venoxa_idioms_srs', JSON.stringify(newData));
-    setShowMeaning(false); setAiSentence(''); setCardImage(null);
+    setShowMeaning(false); setAiSentence(''); setCardImage(null); setCollocationData('');
     if (mode === 'browse') setActiveWordIndex((safeIndex + 1) % filteredList.length);
   };
   const resetWordProgress = wordStr => { const d = { ...srsData }; delete d[wordStr]; setSrsData(d); localStorage.setItem('venoxa_idioms_srs', JSON.stringify(d)); };
@@ -3124,6 +3270,14 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab }) {
       await streamText(prompt, setAiSentence);
     } catch { setAiSentence('Error generating sentence.'); } finally { setLoadingAi(false); }
   };
+  const generateCollocations = async () => {
+    if (loadingCollocation || collocationData || !card) return;
+    setLoadingCollocation(true);
+    try {
+      const prompt = `You are an English collocations dictionary. For the idiom "${card.word}", list the most common and natural usage patterns or context pairs. Group them by grammatical context. Use this exact format (max 6 per group):\nPattern + ${card.word}: example1, example2\n${card.word} + Pattern: example1, example2\nOutput only the collocation list, no extra explanations.`;
+      await streamText(prompt, setCollocationData);
+    } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
+  };
   const generateImage = async () => {
     if (loadingImage || cardImage || !card) return;
     setLoadingImage(true);
@@ -3135,117 +3289,125 @@ Rules:
 3. Describe colors, lighting, and composition.
 4. Output ONLY a 15-word English description.`;
       let visual = '';
-      try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw||'').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g,'').trim()||''; } catch {}
+      try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw || '').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g, '').trim() || ''; } catch { }
       if (!visual) visual = `A scene showing the meaning of "${card.word}"`;
       const seed = Math.floor(Math.random() * 1_000_000);
       const visualClean = (visual + ' Photorealistic, natural lighting, no text.').replace(/[^\x00-\x7F]/g, "");
       setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
-    } catch { 
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Illustration ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`); 
+    } catch {
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Illustration ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`);
     } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#262626] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-      <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-[#00C853] text-white shadow-md' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
-      <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-[#00C853] text-white' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">{dueCards.length}</span>}</button>
-      <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-[#1E90FF] text-white shadow-md' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[var(--app-card)] p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+      <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
+      <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">{dueCards.length}</span>}</button>
+      <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
-    {mode === 'lists' && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[#333333] pb-4 overflow-x-auto no-scrollbar">
-        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.hard} ({hardWords.length})</button>
-        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[#00C853]/10 dark:bg-[#00C853]/15 text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 dark:border-[#00FF85]/30' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.learning} ({learningWords.length})</button>
-        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-[#00C853]/12 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.mastered} ({masteredWords.length})</button>
+    {mode === 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[var(--app-border)] pb-4 overflow-x-auto no-scrollbar">
+        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.hard} ({hardWords.length})</button>
+        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.learning} ({learningWords.length})</button>
+        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-[var(--app-accent1)]/12 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.mastered} ({masteredWords.length})</button>
       </div>
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => {
           const srs = srsData[item.word];
-          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#262626] p-4 rounded-xl border border-gray-200 dark:border-[#333333] hover:border-gray-300 transition-colors">
+          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 transition-colors">
             <div className="flex items-center gap-3">
-              <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[#1E1E1E] border border-gray-100 dark:border-[#333333] rounded-full shadow-sm">
-                <Clock className="w-3 h-3 text-[#00E5FF] dark:text-[#00E5FF]" />
-                <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[#E0E0E0] tracking-wider">
+              <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[var(--app-card)] border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
+                <Clock className="w-3 h-3 text-black dark:text-white" />
+                <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[var(--app-text)] tracking-wider">
                   {formatCountdown(srs?.nextReview)}
                 </span>
               </div>
             </div>
             <div className="text-left" dir="ltr">
               <div className="flex items-center gap-2 flex-wrap justify-start">
-                <p className="text-xl font-bold text-gray-900 dark:text-[#FFFFFF] flex items-center gap-2">
-                  <button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-[#00E5FF] transition-colors"><Volume2 className="w-4 h-4" /></button>
+                <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
+                  <button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-black dark:text-white transition-colors"><Volume2 className="w-4 h-4" /></button>
                   <span>{safeRender(item.word)}</span>
                 </p>
-                {item.topic && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#1E90FF]/10 dark:bg-[#8B5CF6]/10 text-[#1E90FF] dark:text-[#8B5CF6] border border-[#1E90FF]/30 dark:border-purple-500/20">{safeRender(item.topic)}</span>}
+                {item.topic && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#1E90FF]/10 dark:bg-[var(--app-accent2)]/10 text-[var(--app-accent1)] dark:text-[var(--app-accent2)] border border-[#1E90FF]/30 dark:border-purple-500/20">{safeRender(item.topic)}</span>}
               </div>
-              <p className="text-sm text-gray-600 dark:text-[#E0E0E0] mt-1">{safeRender(item.meaning)}</p>
+              <p className="text-sm text-gray-600 dark:text-[var(--app-text)] mt-1">{safeRender(item.meaning)}</p>
             </div>
           </div>;
         })}
       </div>
     </div>}
     {mode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#1E1E1E] p-5 rounded-2xl border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[#FFFFFF] mb-1">{_resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang')}</h2><p className="text-sm text-gray-600 dark:text-[#E0E0E0]">{t.totalItems} {idiomsVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{_resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang')}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalItems} {idiomsVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
-          <label className="bg-orange-50 dark:bg-[#1E90FF]/10 text-[#1E90FF] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[#1E90FF] dark:hover:bg-[#1E90FF] dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
+          <label className="bg-orange-50 dark:bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[var(--app-accent1)] dark:hover:bg-[var(--app-accent1)] dark:hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-[#1E1E1E] p-5 rounded-2xl border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-[#00E5FF]" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none transition-colors" />
+      <div className="flex flex-col md:flex-row items-end gap-4 bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors relative z-50">
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-black dark:text-white" /> {t.searchWord}</label>
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
         </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[#1E90FF]" /> {t.filterTopic}</label>
-          <select value={topicFilter} onChange={e => { setTopicFilter(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none appearance-none cursor-pointer transition-colors">
-            <option value="All">{t.allTopics}</option>
-            {allTopics.map(topic => <option key={topic} value={topic}>{topic}</option>)}
-          </select>
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[var(--app-accent1)]" /> {t.filterTopic}</label>
+          <CustomDropdown 
+            value={topicFilter} 
+            onChange={val => { setTopicFilter(val); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} 
+            options={[{ value: 'All', label: _resolveTranslation(lang, 'كل المواضيع', 'All Topics') }, ...[...new Set(idiomsVocab.map(v => v.topic).filter(Boolean))].map(tp => ({ value: tp, label: tp }))]} 
+            theme={theme}
+            className="w-full"
+          />
         </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><List className="w-4 h-4 text-[#00E5FF]" /> {t.manualSelect} ({filteredList.length})</label>
-          <select value={safeIndex} onChange={e => { setActiveWordIndex(Number(e.target.value)); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none appearance-none cursor-pointer" dir="ltr">
-            {filteredList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
-          </select>
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><List className="w-4 h-4 text-black dark:text-white" /> {t.manualSelect} ({filteredList.length})</label>
+          <CustomDropdown 
+            value={safeIndex} 
+            onChange={val => { setActiveWordIndex(Number(val)); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} 
+            options={filteredList.length === 0 ? [{ value: 0, label: t.noWords }] : filteredList.map((item, idx) => ({ value: idx, label: safeRender(item.word) }))} 
+            theme={theme}
+            className="w-full"
+          />
         </div>
       </div>
     </>}
-    {mode === 'review' && !card && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
-      <div className="w-24 h-24 bg-green-50 dark:bg-[#00C853]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-[#00E5FF] dark:text-green-400" /></div>
-      <h3 className="text-3xl text-gray-900 dark:text-[#FFFFFF] font-bold mb-4">{t.reviewDone}</h3>
-      <p className="text-gray-600 dark:text-[#E0E0E0] text-lg">{t.reviewDoneMsg}</p>
-      <button onClick={() => setMode('browse')} className="mt-8 bg-[#00C853]/10 dark:bg-[#00C853]/15 text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 dark:border-[#00FF85]/40/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
+    {mode === 'review' && !card && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+      <div className="w-24 h-24 bg-green-50 dark:bg-[var(--app-accent1)]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-black dark:text-white dark:text-green-400" /></div>
+      <h3 className="text-3xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">{t.reviewDone}</h3>
+      <p className="text-gray-600 dark:text-[var(--app-text)] text-lg">{t.reviewDoneMsg}</p>
+      <button onClick={() => setMode('browse')} className="mt-8 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/40/50 px-8 py-3 rounded-2xl font-bold">{t.browseLearn}</button>
     </div>}
-    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
-      <Search className="w-12 h-12 text-gray-400 dark:text-[#1E90FF] mb-4" /><h3 className="text-xl text-gray-600 dark:text-[#E0E0E0] font-bold">{t.noWords}</h3>
+    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
+      <Search className="w-12 h-12 text-gray-400 dark:text-[var(--app-accent1)] mb-4" /><h3 className="text-xl text-gray-600 dark:text-[var(--app-text)] font-bold">{t.noWords}</h3>
     </div>}
-    {card && mode !== 'lists' && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-purple-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
-      <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-purple-50 dark:from-purple-900/5 to-transparent rounded-xl pointer-events-none" />
+    {card && mode !== 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative z-0 hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
       <div className="absolute top-6 left-6 z-10">
-        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[#262626] rounded-xl text-[#1E90FF] dark:text-[#8B5CF6] shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
+        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-[var(--app-accent1)] dark:text-[var(--app-accent2)] shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
       </div>
-      {card.topic && <span className="absolute top-6 right-6 bg-[#1E90FF]/10 dark:bg-[#8B5CF6]/10 text-[#1E90FF] dark:text-[#8B5CF6] border border-[#1E90FF]/30 dark:border-purple-500/20 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.topic)}</span>}
+      {card.topic && <span className="absolute top-6 right-6 bg-[#1E90FF]/10 dark:bg-[var(--app-accent2)]/10 text-[var(--app-accent1)] dark:text-[var(--app-accent2)] border border-[#1E90FF]/30 dark:border-purple-500/20 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.topic)}</span>}
       {!showMeaning ? <div className="text-center w-full">
-        <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-[#FFFFFF] mb-6" dir="ltr">{safeRender(card.word)}</h3>
-        <p className="text-gray-600 dark:text-[#1E90FF] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[#262626]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+        <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
+        <p className="text-gray-600 dark:text-[var(--app-accent1)] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
-        <h3 className="text-2xl md:text-3xl font-bold text-[#00E5FF] dark:text-[#00E5FF] leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 w-full"><p className="text-lg text-gray-800 dark:text-[#FFFFFF] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        {card.example && <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
-          {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-[#1E90FF]/10 text-[#1E90FF] px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> {t.genSentenceBtn}</>}</button>}
-          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-[#00C853]/10 text-[#00E5FF] px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+          {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-black dark:bg-white/10 text-black dark:text-white px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> {t.genSentenceBtn}</>}</button>}
+          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/8 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
         </div>
-        {aiSentence && <div className="bg-gray-50 dark:bg-[#262626] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[#E0E0E0] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#262626] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[#1E90FF] animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[#333333] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
+        {aiSentence && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] animate-bounce" /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-[#1E1830] text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain}<span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[#252525] text-[#1E90FF] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard}<span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[#262626] text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood}<span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
-      <button onClick={() => handleRate('easy')} className="bg-[#00C853]/10 dark:bg-[#262626] text-[#00E5FF] border border-[#00FF85]/30 py-3 rounded-2xl font-bold hover:bg-blue-100 flex flex-col items-center">{t.rateEasy}<span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain}<span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard}<span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood}<span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center">{t.rateEasy}<span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
     </div>}
   </div>;
 }
@@ -3253,7 +3415,8 @@ Rules:
 function Grammar({
   AI_KEY,
   userLevel,
-  lang
+  lang,
+  theme
 }) {
   const [openLevel, setOpenLevel] = useState(0);
   const [activeTopic, setActiveTopic] = useState(null);
@@ -3282,47 +3445,70 @@ function Grammar({
       setLoading(false);
     }
   };
-  return <div className="w-full animate-fadeIn">
-    <div className="mb-10 text-center">
-      <h2 className="text-3xl font-extrabold text-gray-900 dark:text-[#FFFFFF] mb-3">{t.title}</h2>
-      <p className="text-gray-600 dark:text-[#E0E0E0]">{t.desc}</p>
+  return <div className="w-full max-w-4xl mx-auto animate-fadeIn pb-20">
+    <div className="text-center mb-12">
+      <h2 className="text-4xl font-bold text-black dark:text-white mb-4">{t.title}</h2>
+      <p className="text-gray-500 dark:text-gray-400">{t.desc}</p>
     </div>
+
     <div className="space-y-4">
-      {GRAMMAR_LEVELS.map((level, idx) => <div key={idx} className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-2xl overflow-hidden transition-all duration-300 shadow-sm">
-        <button onClick={() => {
-          setOpenLevel(openLevel === idx ? -1 : idx);
-          setActiveTopic(null);
-        }} className={`w-full px-8 py-6 flex justify-between items-center text-xl font-bold transition-colors ${openLevel === idx ? 'bg-gray-50 dark:bg-[#262626] text-[#00E5FF] dark:text-[#00E5FF]' : 'text-gray-800 dark:text-[#FFFFFF] hover:bg-gray-50 dark:hover:bg-[#252525] hover:text-[#00E5FF] dark:hover:text-blue-400'}`} dir="ltr">
-          <div className="flex items-center gap-4"><div className={`w-3 h-3 rounded-full ${openLevel === idx ? 'bg-[#00C853]' : 'bg-gray-400 dark:bg-[#262626]'}`}></div>{level.level}</div>
-          <ChevronRight className={`w-6 h-6 transition-transform ${openLevel === idx ? 'rotate-90 text-[#00E5FF]' : 'text-gray-400'}`} />
-        </button>
-        <div className={`transition-all duration-500 overflow-hidden ${openLevel === idx ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-          <div className="p-8 bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-[#333333] space-y-4">
-            {level.topics.map((topic, tidx) => {
-              const isActive = activeTopic === topic;
-              return <div key={tidx} className={`rounded-xl border overflow-hidden transition-colors ${isActive ? 'bg-[#00C853]/10 dark:bg-[#00C853]/10 border-blue-300 dark:border-[#00FF85]/40/40' : 'bg-gray-50 dark:bg-[#262626] border-gray-200 dark:border-[#333333]/50 hover:bg-[#00C853]/10/60 dark:hover:bg-blue-900/10 hover:border-[#00FF85]/30 dark:hover:border-blue-500/30'}`}>
-                <div className="flex flex-col md:flex-row md:items-center justify-between p-4 gap-4">
-                  <div className="flex items-center gap-3 text-lg" dir="ltr">
-                    <span className={`font-semibold transition-colors ${isActive ? 'text-blue-700 dark:text-[#00E5FF]' : 'text-gray-800 dark:text-[#FFFFFF]'}`}>{topic}</span>
-                  </div>
-                  <button onClick={() => handleExplain(topic, level.level)} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors ${isActive ? 'bg-[#00C853] text-white hover:bg-[#00E5FF] active:bg-blue-800' : 'bg-[#00C853]/10 dark:bg-[#00C853]/12 text-blue-700 dark:text-[#00E5FF] border border-[#00FF85]/30 dark:border-[#00FF85]/30 hover:bg-[#00C853] hover:text-white hover:border-blue-600 active:bg-blue-700 active:text-white'}`}>
-                    <Sparkles className="w-4 h-4" /> {t.explainBtn}
-                  </button>
-                </div>
-                {isActive && <div className="bg-white dark:bg-[#0D0D0D] border-t border-[#00FF85]/30 dark:border-[#00FF85]/30 p-6 text-gray-800 dark:text-[#FFFFFF]">
-                  {loading ? <div className="flex items-center gap-3 text-[#00E5FF] dark:text-[#00E5FF]"><Activity className="w-5 h-5 animate-spin" /> {t.loading}</div> : <div style={{
-                    whiteSpace: 'pre-wrap'
-                  }}>{safeRender(explanation)}</div>}
-                </div>}
-              </div>;
-            })}
+      {GRAMMAR_LEVELS.map((level, idx) => {
+        const isOpen = openLevel === idx;
+        return (
+          <div key={idx} className={`premium-card rounded-[28px] overflow-hidden transition-all duration-300 ${isOpen ? 'ring-2 ring-[var(--app-accent1)]/30' : ''}`}>
+            <button
+              onClick={() => { setOpenLevel(isOpen ? -1 : idx); setActiveTopic(null); }}
+              className={`w-full px-6 py-4 flex justify-between items-center transition-all duration-300 rounded-t-[28px] group/header ${isOpen ? 'bg-gray-50 dark:bg-[var(--app-surface)]' : 'rounded-b-[28px] hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50 hover:shadow-inner'}`}
+            >
+              <div className="flex items-center gap-4">
+                <span className={`text-base font-semibold ${isOpen ? 'text-black dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                  {_resolveTranslation(lang, 'المستوى', 'Level')} {level.level}
+                </span>
+              </div>
+              <ChevronRight className={`w-5 h-5 transition-transform duration-300 ${isOpen ? 'rotate-90' : 'text-gray-400'}`} />
+            </button>
+
+            {isOpen && (
+              <div className="p-4 bg-white dark:bg-black border-t border-gray-100 dark:border-[var(--app-border)] space-y-3 rounded-b-[28px]">
+                {level.topics.map((topic, tidx) => {
+                  const isActive = activeTopic === topic;
+                  return (
+                    <div key={tidx} className={`rounded-3xl border transition-all duration-300 ${isActive ? 'border-[var(--app-accent1)]/30 bg-[var(--app-accent1)]/5' : 'border-gray-100 dark:border-[var(--app-border)] hover:border-[var(--app-accent1)]/30 hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/20 hover:-translate-y-1 hover:shadow-lg'}`}>
+                      <div className="flex items-center justify-between p-4">
+                        <span className={`text-base font-medium ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300'}`}>{topic}</span>
+                        <button
+                          onClick={() => handleExplain(topic, level.level)}
+                          className={`p-2 rounded-2xl transition-colors ${isActive ? 'bg-[var(--app-accent1)] text-white' : 'text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[var(--app-surface)]'}`}
+                        >
+                          <Sparkles className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {isActive && (
+                        <div className="p-6 border-t border-[var(--app-accent1)]/10 bg-white dark:bg-black rounded-b-3xl animate-fadeIn">
+                          {loading ? (
+                            <div className="flex items-center gap-3 text-[var(--app-accent1)]">
+                              <Activity className="w-4 h-4 animate-spin" />
+                              <span className="text-sm font-medium">{t.loading}</span>
+                            </div>
+                          ) : (
+                            <div className="text-gray-700 dark:text-gray-300 leading-relaxed text-base prose-sm dark:prose-invert" style={{ whiteSpace: 'pre-wrap' }}>
+                              {safeRender(explanation)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      </div>)}
+        );
+      })}
     </div>
   </div>;
 }
-function ListeningReading({ type, AI_KEY, userLevel, lang }) {
+function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
   const [story, setStory] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -3355,9 +3541,9 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
   useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
 
   const LISTEN_TOPICS = [
-    'Daily Life & Routines', 'Travel & Culture', 'Technology & AI',
-    'Health & Wellness', 'Environment & Climate', 'Work & Career',
-    'Education & Learning', 'Food & Cooking', 'Sports & Fitness', 'Science & Discovery'
+    'الحياة اليومية والروتين', 'السفر والثقافة', 'التكنولوجيا والذكاء الاصطناعي',
+    'الصحة والعافية', 'البيئة والمناخ', 'العمل والوظيفة',
+    'التعليم والتعلم', 'الطعام والطبخ', 'الرياضة واللياقة', 'العلوم والاكتشافات'
   ];
   const WORD_COUNTS = { short: 80, medium: 150, long: 250 };
 
@@ -3405,7 +3591,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
   const stopAudio = () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     if (audioBlobUrlRef.current) { URL.revokeObjectURL(audioBlobUrlRef.current); audioBlobUrlRef.current = null; }
-    try { if (_currentTTSAudio) { _currentTTSAudio.pause(); _currentTTSAudio.src = ''; } } catch {}
+    try { if (_currentTTSAudio) { _currentTTSAudio.pause(); _currentTTSAudio.src = ''; } } catch { }
     window.speechSynthesis?.cancel();
     setAudioState('idle');
   };
@@ -3511,10 +3697,10 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
       const objStart = trimmed.indexOf('{');
       const objEnd = trimmed.lastIndexOf('}');
       if (arrStart !== -1 && arrEnd !== -1 && (objStart === -1 || arrStart < objStart)) {
-        try { const arr = JSON.parse(trimmed.slice(arrStart, arrEnd + 1)); if (Array.isArray(arr)) questions = arr; } catch {}
+        try { const arr = JSON.parse(trimmed.slice(arrStart, arrEnd + 1)); if (Array.isArray(arr)) questions = arr; } catch { }
       }
       if (!questions && objStart !== -1 && objEnd !== -1) {
-        try { const obj = JSON.parse(trimmed.slice(objStart, objEnd + 1)); questions = obj.questions || obj.quiz || null; } catch {}
+        try { const obj = JSON.parse(trimmed.slice(objStart, objEnd + 1)); questions = obj.questions || obj.quiz || null; } catch { }
       }
       if (questions?.length) {
         questions = questions.map(q => ({ ...q, answer: String(q.answer || '').trim().toUpperCase().charAt(0) }));
@@ -3599,41 +3785,41 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
     { level: _resolveTranslation(lang, "متقدم (C1-C2)", "Advanced (C1-C2)"), name: "This American Life", url: "https://www.thisamericanlife.org/archive" }
   ];
   const readingLinks = [
-    { level: "Level 1", name: "The Adventures of Tom Sawyer", url: "#" },
-    { level: "Level 2", name: "Sherlock Holmes Short Stories", url: "#" },
-    { level: "Level 3", name: "The Call of the Wild", url: "#" }
+    { level: _resolveTranslation(lang, "المستوى 1", "Level 1"), name: "The Adventures of Tom Sawyer", url: "#" },
+    { level: _resolveTranslation(lang, "المستوى 2", "Level 2"), name: "Sherlock Holmes Short Stories", url: "#" },
+    { level: _resolveTranslation(lang, "المستوى 3", "Level 3"), name: "The Call of the Wild", url: "#" }
   ];
   const currentLinks = type === 'listening' ? listeningLinks : readingLinks;
   const contentSteps = type === 'listening'
     ? [
-        _resolveTranslation(lang, "اسمع بودكاست بدلاً من الأفلام أو الأغاني (لأن التركيز يكون على الصوت فقط).", "Listen to podcasts instead of movies or songs."),
-        _resolveTranslation(lang, "لا تترجم ولا تقرأ النص أثناء الاستماع لتعويد الأذن.", "Do not translate or read transcripts while listening."),
-        _resolveTranslation(lang, "اسمع المقطع مرة واحدة فقط لتجنب الملل.", "Listen to the track only once to avoid boredom."),
-        _resolveTranslation(lang, "اختار مصدر تكون نسبة فهمك له 30%-50% للتطور السريع.", "Choose a source where you understand 30%-50%.")
-      ]
+      _resolveTranslation(lang, "اسمع بودكاست بدلاً من الأفلام أو الأغاني (لأن التركيز يكون على الصوت فقط).", "Listen to podcasts instead of movies or songs."),
+      _resolveTranslation(lang, "لا تترجم ولا تقرأ النص أثناء الاستماع لتعويد الأذن.", "Do not translate or read transcripts while listening."),
+      _resolveTranslation(lang, "اسمع المقطع مرة واحدة فقط لتجنب الملل.", "Listen to the track only once to avoid boredom."),
+      _resolveTranslation(lang, "اختار مصدر تكون نسبة فهمك له 30%-50% للتطور السريع.", "Choose a source where you understand 30%-50%.")
+    ]
     : [
-        _resolveTranslation(lang, "اقرأ قصص وروايات مبسطة (Graded Readers).", "Read simplified graded readers."),
-        _resolveTranslation(lang, "اقرأ بدون ترجمة فورية لتعويد العقل على سرعة ربط المعنى.", "Read without immediate translation."),
-        _resolveTranslation(lang, "يجب أن تكون نسبة فهمك للقصة 30%-50%.", "You should understand 30%-50% of the story.")
-      ];
+      _resolveTranslation(lang, "اقرأ قصص وروايات مبسطة (Graded Readers).", "Read simplified graded readers."),
+      _resolveTranslation(lang, "اقرأ بدون ترجمة فورية لتعويد العقل على سرعة ربط المعنى.", "Read without immediate translation."),
+      _resolveTranslation(lang, "يجب أن تكون نسبة فهمك للقصة 30%-50%.", "You should understand 30%-50% of the story.")
+    ];
 
   return (
     <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
       {/* ── Header ── */}
-      <div className="bg-white dark:bg-[#1E1E1E] p-8 rounded-xl border border-gray-200 dark:border-[#333333] flex flex-col md:flex-row justify-between items-center gap-6 transition-colors">
+      <div className="bg-white dark:bg-[var(--app-card)] p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-6 transition-colors">
         <div className="text-center md:text-start flex-1">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-[#FFFFFF] mb-2">{t.title}</h2>
-          <p className="text-gray-600 dark:text-[#E0E0E0]">{t.desc}</p>
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-2">{t.title}</h2>
+          <p className="text-gray-600 dark:text-[var(--app-text)]">{t.desc}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap justify-center md:justify-end">
           {type === 'reading' && (
             <>
-              <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#262626] rounded-xl p-1 border border-gray-200 dark:border-[#333333]">
-                <button onClick={() => setVoiceAccent('uk')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[#262626] text-gray-800 dark:text-[#FFFFFF] shadow-sm' : 'text-gray-500 dark:text-[#1E90FF] hover:text-gray-700'}`}>🇬🇧 UK</button>
-                <button onClick={() => setVoiceAccent('us')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[#262626] text-gray-800 dark:text-[#FFFFFF] shadow-sm' : 'text-gray-500 dark:text-[#1E90FF] hover:text-gray-700'}`}>🇺🇸 US</button>
+              <div className="flex h-11 items-center gap-1 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
+                <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇬🇧 UK</button>
+                <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇺🇸 US</button>
               </div>
-              <button onClick={handleGenerate} disabled={loading} className="bg-[#00C853] hover:bg-[#00E5FF] text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm transition whitespace-nowrap">
+              <button onClick={handleGenerate} disabled={loading} className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black px-8 h-11 rounded-2xl font-bold flex items-center gap-2 shadow-sm transition whitespace-nowrap">
                 {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
               </button>
             </>
@@ -3643,23 +3829,22 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Listening: topic / length / generate controls ── */}
       {type === 'listening' && (
-        <div className="bg-white dark:bg-[#1E1E1E] p-6 rounded-xl border border-gray-200 dark:border-[#333333] transition-colors">
-          <div className="flex flex-wrap items-center gap-3">
-            <select
+        <div className="bg-white dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            <CustomDropdown
               value={listenTopic}
-              onChange={e => setListenTopic(e.target.value)}
-              className="flex-1 min-w-[160px] bg-gray-100 dark:bg-[#262626] border border-gray-300 dark:border-[#333333] text-gray-800 dark:text-[#FFFFFF] rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">{_resolveTranslation(lang, 'اختر موضوعاً...', 'Pick a topic...')}</option>
-              {LISTEN_TOPICS.map(tp => <option key={tp} value={tp}>{tp}</option>)}
-            </select>
+              onChange={setListenTopic}
+              options={[{ value: '', label: _resolveTranslation(lang, 'اختر موضوعاً...', 'Pick a topic...') }, ...LISTEN_TOPICS.map(tp => ({ value: tp, label: tp }))]}
+              theme={theme}
+              className="flex-1 w-full"
+            />
 
-            <div className="flex gap-1 bg-gray-100 dark:bg-[#262626] rounded-xl p-1">
+            <div className="flex h-11 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
               {['short', 'medium', 'long'].map(l => (
                 <button
                   key={l}
                   onClick={() => setListenLength(l)}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-bold capitalize transition ${listenLength === l ? 'bg-[#00C853] text-white shadow' : 'text-gray-500 dark:text-[#E0E0E0] hover:text-gray-800 dark:hover:text-[#FFFFFF]'}`}
+                  className={`px-5 h-full rounded-xl text-sm font-bold capitalize transition ${listenLength === l ? 'bg-[var(--app-accent1)] text-white shadow' : 'text-gray-500 dark:text-[var(--app-text)] hover:text-gray-900'}`}
                 >{l}</button>
               ))}
             </div>
@@ -3667,15 +3852,15 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
             <button
               onClick={handleGenerate}
               disabled={loading}
-              className="bg-[#00C853] hover:bg-[#00E5FF] disabled:opacity-60 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition shadow-sm whitespace-nowrap"
+              className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black disabled:opacity-60 text-white dark:text-black px-8 h-11 rounded-2xl font-bold flex items-center gap-2 transition shadow-sm whitespace-nowrap"
             >
-              {loading ? <Activity className="animate-spin w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+              {loading ? <Activity className="animate-spin w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
               {_resolveTranslation(lang, 'ولّد نصاً', 'Generate')}
             </button>
             {/* UK/US accent toggle for listening */}
-            <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#262626] rounded-xl p-1 border border-gray-200 dark:border-[#333333] ml-auto">
-              <button onClick={() => setVoiceAccent('uk')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[#262626] text-gray-800 dark:text-[#FFFFFF] shadow-sm' : 'text-gray-500 dark:text-[#1E90FF] hover:text-gray-700'}`}>🇬🇧 UK</button>
-              <button onClick={() => setVoiceAccent('us')} className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[#262626] text-gray-800 dark:text-[#FFFFFF] shadow-sm' : 'text-gray-500 dark:text-[#1E90FF] hover:text-gray-700'}`}>🇺🇸 US</button>
+            <div className="flex h-11 items-center gap-1 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
+              <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇬🇧 UK</button>
+              <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇺🇸 US</button>
             </div>
           </div>
         </div>
@@ -3683,54 +3868,54 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Listening: passage + player ── */}
       {story && type === 'listening' && (
-        <div className="bg-white dark:bg-[#1E1E1E] p-6 rounded-xl border border-gray-200 dark:border-[#333333] transition-colors">
+        <div className="bg-white dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
 
           {/* Player bar */}
-          <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-gray-100 dark:border-[#333333]">
+          <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-gray-100 dark:border-[var(--app-border)]">
             <button
               onClick={handlePlayPause}
               disabled={audioState === 'loading'}
-              className="flex items-center gap-2 bg-[#00C853] hover:bg-[#00E5FF] disabled:opacity-60 text-white px-5 py-2 rounded-xl font-bold transition shadow"
+              className="flex items-center gap-2 bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black disabled:opacity-60 text-white dark:text-black px-5 py-2 rounded-2xl font-bold transition shadow"
             >
               {audioState === 'loading' ? <Activity className="animate-spin w-4 h-4" /> : audioState === 'playing' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               {audioState === 'loading' ? _resolveTranslation(lang, 'جاري التحميل...', 'Loading...') : audioState === 'playing' ? _resolveTranslation(lang, 'إيقاف مؤقت', 'Pause') : _resolveTranslation(lang, 'تشغيل', 'Play')}
             </button>
 
             {audioState !== 'idle' && (
-              <button onClick={stopAudio} className="flex items-center gap-1 px-4 py-2 rounded-xl bg-gray-100 dark:bg-[#262626] text-gray-700 dark:text-[#E0E0E0] text-sm font-medium hover:bg-gray-200 dark:hover:bg-[#00E5FF] transition">
+              <button onClick={stopAudio} className="flex items-center gap-1 px-4 py-2 rounded-2xl bg-gray-100 dark:bg-[var(--app-card)] text-gray-700 dark:text-[var(--app-text)] text-sm font-medium hover:bg-gray-200 dark:hover:bg-[var(--app-hover)] hover:text-black transition">
                 <RotateCcw className="w-3.5 h-3.5" /> {_resolveTranslation(lang, 'إيقاف', 'Stop')}
               </button>
             )}
 
-            <div className="flex gap-1 ml-auto bg-gray-100 dark:bg-[#262626] rounded-xl p-1">
+            <div className="flex gap-1 ml-auto bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1">
               {[0.75, 1, 1.25, 1.5].map(s => (
                 <button
                   key={s}
                   onClick={() => handleSpeedChange(s)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${playbackSpeed === s ? 'bg-[#00C853] text-white shadow' : 'text-gray-500 dark:text-[#E0E0E0] hover:text-gray-800 dark:hover:text-[#FFFFFF]'}`}
+                  className={`px-4 py-1.5 rounded-xl text-sm font-bold transition ${playbackSpeed === s ? 'bg-[var(--app-accent1)] text-white shadow' : 'text-gray-500 dark:text-[var(--app-text)] hover:text-gray-800 dark:hover:text-[var(--app-text)]'}`}
                 >{s}×</button>
               ))}
             </div>
           </div>
 
           {/* Passage text */}
-          <div dir="ltr" className="text-base leading-8 text-gray-800 dark:text-[#FFFFFF] whitespace-pre-wrap font-medium mb-6">
+          <div dir="ltr" className="text-base leading-8 text-gray-800 dark:text-[var(--app-text)] whitespace-pre-wrap font-medium mb-6">
             {story}
           </div>
 
           {/* Action buttons */}
-          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 dark:border-[#333333]">
+          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100 dark:border-[var(--app-border)]">
             <button
               onClick={handleGenerateQuiz}
               disabled={quizLoading}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-bold text-sm transition shadow"
+              className="flex items-center gap-2 px-5 py-2 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-bold text-sm transition shadow"
             >
               {quizLoading ? <Activity className="animate-spin w-4 h-4" /> : <HelpCircle className="w-4 h-4" />}
               {_resolveTranslation(lang, 'اختبر الفهم', 'Quiz Me')}
             </button>
             <button
               onClick={startDictation}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[#00C853] hover:bg-[#00E5FF] text-white font-bold text-sm transition shadow"
+              className="flex items-center gap-2 px-5 py-2 rounded-2xl bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black font-bold text-sm transition shadow"
             >
               <Mic className="w-4 h-4" />
               {_resolveTranslation(lang, 'وضع الإملاء', 'Dictation Mode')}
@@ -3741,18 +3926,18 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Comprehension Quiz ── */}
       {quiz !== null && !dictMode && (
-        <div className="bg-white dark:bg-[#1E1E1E] p-6 rounded-xl border border-gray-200 dark:border-[#333333] transition-colors">
-          <h3 className="text-xl font-extrabold text-gray-900 dark:text-[#FFFFFF] mb-6 flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-[#1E90FF]" />
+        <div className="bg-white dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+          <h3 className="text-xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6 flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-[var(--app-accent1)]" />
             {_resolveTranslation(lang, 'أسئلة الفهم', 'Comprehension Quiz')}
           </h3>
           {quiz.length === 0 ? (
-            <p className="text-gray-500 dark:text-[#E0E0E0]">{_resolveTranslation(lang, 'تعذّر توليد الأسئلة، حاول مجدداً.', 'Could not generate questions. Try again.')}</p>
+            <p className="text-gray-500 dark:text-[var(--app-text)]">{_resolveTranslation(lang, 'تعذّر توليد الأسئلة، حاول مجدداً.', 'Could not generate questions. Try again.')}</p>
           ) : (
             <>
               {quiz.map((q, i) => (
                 <div key={i} className="mb-6">
-                  <p className="font-bold text-gray-900 dark:text-[#FFFFFF] mb-3 text-base">{i + 1}. {q.q}</p>
+                  <p className="font-bold text-gray-900 dark:text-[var(--app-text)] mb-3 text-base">{i + 1}. {q.q}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {(q.options || []).map((opt, j) => {
                       const letter = ['A', 'B', 'C', 'D'][j];
@@ -3764,12 +3949,11 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
                           key={j}
                           disabled={quizSubmitted}
                           onClick={() => !quizSubmitted && setUserAnswers(prev => ({ ...prev, [i]: letter }))}
-                          className={`text-left px-4 py-3 rounded-xl border text-sm font-medium transition ${
-                            isCorrect ? 'bg-green-100 dark:bg-[#00C853]/12 border-green-500 text-green-800 dark:text-green-300' :
+                          className={`text-left px-4 py-3 rounded-2xl border text-sm font-medium transition ${isCorrect ? 'bg-green-100 dark:bg-[var(--app-accent1)]/12 border-green-500 text-green-800 dark:text-green-300' :
                             isWrong ? 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-800 dark:text-red-300' :
-                            isSelected ? 'bg-blue-100 dark:bg-[#00C853]/12 border-blue-500 text-blue-800 dark:text-[#00E5FF]' :
-                            'bg-gray-50 dark:bg-[#262626] border-gray-200 dark:border-[#333333] text-gray-800 dark:text-[#FFFFFF] hover:border-blue-400'
-                          }`}
+                              isSelected ? 'bg-blue-100 dark:bg-[var(--app-accent1)]/12 border-blue-500 text-blue-800 dark:text-black dark:text-white' :
+                                'bg-gray-50 dark:bg-[var(--app-card)] border-gray-200 dark:border-[var(--app-border)] text-gray-800 dark:text-[var(--app-text)] hover:border-blue-400'
+                            }`}
                         >
                           {opt}
                           {isCorrect && <CheckCircle2 className="inline w-4 h-4 ml-2 text-green-600" />}
@@ -3783,12 +3967,12 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
                 <button
                   onClick={() => setQuizSubmitted(true)}
                   disabled={Object.keys(userAnswers).length < quiz.length}
-                  className="mt-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-xl font-bold transition shadow"
+                  className="mt-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-2xl font-bold transition shadow"
                 >
                   {_resolveTranslation(lang, 'إرسال الإجابات', 'Submit Answers')}
                 </button>
               ) : (
-                <div className={`mt-4 p-5 rounded-2xl text-center font-extrabold text-lg ${quizScore === quiz.length ? 'bg-green-100 dark:bg-[#00C853]/12 text-green-700 dark:text-green-300' : quizScore >= quiz.length / 2 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
+                <div className={`mt-4 p-5 rounded-2xl text-center font-extrabold text-lg ${quizScore === quiz.length ? 'bg-green-100 dark:bg-[var(--app-accent1)]/12 text-green-700 dark:text-green-300' : quizScore >= quiz.length / 2 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
                   {quizScore === quiz.length ? '🎉 ' : quizScore >= quiz.length / 2 ? '👍 ' : '📚 '}
                   {_resolveTranslation(lang, `نتيجتك: ${quizScore} / ${quiz.length}`, `Score: ${quizScore} / ${quiz.length}`)}
                 </div>
@@ -3800,30 +3984,30 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Dictation Mode ── */}
       {dictMode && (
-        <div className="bg-white dark:bg-[#1E1E1E] p-6 rounded-xl border border-gray-200 dark:border-[#333333] transition-colors">
+        <div className="bg-white dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-extrabold text-gray-900 dark:text-[#FFFFFF] flex items-center gap-2">
-              <Mic className="w-5 h-5 text-[#00E5FF]" />
+            <h3 className="text-xl font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
+              <Mic className="w-5 h-5 text-black dark:text-white" />
               {_resolveTranslation(lang, 'وضع الإملاء', 'Dictation Mode')}
             </h3>
-            <button onClick={() => setDictMode(false)} className="px-4 py-1.5 rounded-xl bg-gray-100 dark:bg-[#262626] text-gray-600 dark:text-[#E0E0E0] text-sm font-medium hover:bg-gray-200 dark:hover:bg-[#00E5FF] transition">
+            <button onClick={() => setDictMode(false)} className="px-4 py-1.5 rounded-2xl bg-gray-100 dark:bg-[var(--app-card)] text-gray-600 dark:text-[var(--app-text)] text-sm font-medium hover:bg-gray-200 dark:hover:bg-[var(--app-hover)] hover:text-black transition">
               {_resolveTranslation(lang, 'إغلاق', 'Close')}
             </button>
           </div>
 
           {dictIdx < dictSentences.length ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-[#E0E0E0]">
+              <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-[var(--app-text)]">
                 <span>{_resolveTranslation(lang, `جملة ${dictIdx + 1} من ${dictSentences.length}`, `Sentence ${dictIdx + 1} of ${dictSentences.length}`)}</span>
-                <div className="h-1.5 flex-1 bg-gray-200 dark:bg-[#262626] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#00C853] rounded-full transition-all" style={{ width: `${(dictIdx / dictSentences.length) * 100}%` }} />
+                <div className="h-1.5 flex-1 bg-gray-200 dark:bg-[var(--app-card)] rounded-full overflow-hidden">
+                  <div className="h-full bg-[var(--app-accent1)] rounded-full transition-all" style={{ width: `${(dictIdx / dictSentences.length) * 100}%` }} />
                 </div>
               </div>
 
               <button
                 onClick={() => playDictSentence(dictSentences[dictIdx])}
                 disabled={dictAudioState === 'loading'}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#00C853] hover:bg-[#00E5FF] disabled:opacity-60 text-white rounded-xl font-bold transition shadow"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black rounded-2xl font-bold transition shadow active:scale-95"
               >
                 {dictAudioState === 'loading' ? <Activity className="animate-spin w-4 h-4" /> : dictAudioState === 'playing' ? <Volume2 className="w-4 h-4 animate-pulse" /> : <Play className="w-4 h-4" />}
                 {dictAudioState === 'idle' ? _resolveTranslation(lang, 'استمع للجملة', 'Play Sentence') : dictAudioState === 'loading' ? _resolveTranslation(lang, 'جاري التحميل...', 'Loading...') : _resolveTranslation(lang, 'يتم التشغيل...', 'Playing...')}
@@ -3835,14 +4019,14 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && dictInput.trim()) { e.preventDefault(); checkDictAnswer(); } }}
                 placeholder={_resolveTranslation(lang, 'اكتب ما سمعته...', 'Type what you heard...')}
                 rows={2}
-                className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-300 dark:border-[#333333] text-gray-900 dark:text-[#FFFFFF] rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#00FF85] resize-none"
+                className="w-full bg-gray-50 dark:bg-[var(--app-card)] border border-gray-300 dark:border-[var(--app-border)] text-gray-900 dark:text-[var(--app-text)] rounded-2xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[var(--app-accent1)] resize-none"
                 dir="ltr"
               />
 
               <button
                 onClick={checkDictAnswer}
                 disabled={!dictInput.trim()}
-                className="px-6 py-2.5 bg-[#00C853] hover:bg-[#00E5FF] disabled:opacity-50 text-white rounded-xl font-bold transition shadow"
+                className="px-6 py-2.5 bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black disabled:opacity-50 text-white rounded-2xl font-bold transition shadow"
               >
                 {_resolveTranslation(lang, 'تحقق', 'Check')}
               </button>
@@ -3850,13 +4034,13 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
               {dictResults.length > 0 && (
                 <div className="space-y-2 mt-2">
                   {dictResults.map((r, i) => (
-                    <div key={i} className={`p-3 rounded-xl text-sm ${r.score >= 80 ? 'bg-green-50 dark:bg-[#00C853]/10 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
+                    <div key={i} className={`p-3 rounded-2xl text-sm ${r.score >= 80 ? 'bg-green-50 dark:bg-[var(--app-accent1)]/10 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`font-bold ${r.score >= 80 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>{r.score}%</span>
-                        <span className="text-gray-500 dark:text-[#E0E0E0] text-xs">{_resolveTranslation(lang, `جملة ${i + 1}`, `Sentence ${i + 1}`)}</span>
+                        <span className="text-gray-500 dark:text-[var(--app-text)] text-xs">{_resolveTranslation(lang, `جملة ${i + 1}`, `Sentence ${i + 1}`)}</span>
                       </div>
-                      <div dir="ltr" className="text-gray-600 dark:text-[#E0E0E0] text-xs"><span className="font-semibold">{_resolveTranslation(lang, 'الصحيح:', 'Expected:')}</span> {r.expected}</div>
-                      <div dir="ltr" className="text-gray-800 dark:text-[#FFFFFF] text-xs mt-0.5"><span className="font-semibold">{_resolveTranslation(lang, 'كتبت:', 'You wrote:')}</span> {r.typed}</div>
+                      <div dir="ltr" className="text-gray-600 dark:text-[var(--app-text)] text-xs"><span className="font-semibold">{_resolveTranslation(lang, 'الصحيح:', 'Expected:')}</span> {r.expected}</div>
+                      <div dir="ltr" className="text-gray-800 dark:text-[var(--app-text)] text-xs mt-0.5"><span className="font-semibold">{_resolveTranslation(lang, 'كتبت:', 'You wrote:')}</span> {r.typed}</div>
                     </div>
                   ))}
                 </div>
@@ -3864,23 +4048,23 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className={`p-6 rounded-2xl text-center font-extrabold text-2xl ${avgDictScore >= 80 ? 'bg-green-100 dark:bg-[#00C853]/12 text-green-700 dark:text-green-300' : avgDictScore >= 50 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
+              <div className={`p-6 rounded-2xl text-center font-extrabold text-2xl ${avgDictScore >= 80 ? 'bg-green-100 dark:bg-[var(--app-accent1)]/12 text-green-700 dark:text-green-300' : avgDictScore >= 50 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
                 {avgDictScore >= 80 ? '🎉 ' : avgDictScore >= 50 ? '👍 ' : '📚 '}
                 {_resolveTranslation(lang, `متوسط الدقة: ${avgDictScore}%`, `Average Accuracy: ${avgDictScore}%`)}
               </div>
               <div className="space-y-2">
                 {dictResults.map((r, i) => (
-                  <div key={i} className={`p-3 rounded-xl text-sm ${r.score >= 80 ? 'bg-green-50 dark:bg-[#00C853]/10 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
+                  <div key={i} className={`p-3 rounded-2xl text-sm ${r.score >= 80 ? 'bg-green-50 dark:bg-[var(--app-accent1)]/10 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`font-bold ${r.score >= 80 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>{r.score}%</span>
-                      <span className="text-gray-500 dark:text-[#E0E0E0] text-xs">{_resolveTranslation(lang, `جملة ${i + 1}`, `Sentence ${i + 1}`)}</span>
+                      <span className="text-gray-500 dark:text-[var(--app-text)] text-xs">{_resolveTranslation(lang, `جملة ${i + 1}`, `Sentence ${i + 1}`)}</span>
                     </div>
-                    <div dir="ltr" className="text-gray-600 dark:text-[#E0E0E0] text-xs"><span className="font-semibold">{_resolveTranslation(lang, 'الصحيح:', 'Expected:')}</span> {r.expected}</div>
-                    <div dir="ltr" className="text-gray-800 dark:text-[#FFFFFF] text-xs mt-0.5"><span className="font-semibold">{_resolveTranslation(lang, 'كتبت:', 'You wrote:')}</span> {r.typed}</div>
+                    <div dir="ltr" className="text-gray-600 dark:text-[var(--app-text)] text-xs"><span className="font-semibold">{_resolveTranslation(lang, 'الصحيح:', 'Expected:')}</span> {r.expected}</div>
+                    <div dir="ltr" className="text-gray-800 dark:text-[var(--app-text)] text-xs mt-0.5"><span className="font-semibold">{_resolveTranslation(lang, 'كتبت:', 'You wrote:')}</span> {r.typed}</div>
                   </div>
                 ))}
               </div>
-              <button onClick={startDictation} className="px-5 py-2.5 bg-[#00C853] hover:bg-[#00E5FF] text-white rounded-xl font-bold transition shadow flex items-center gap-2">
+              <button onClick={startDictation} className="px-5 py-2.5 bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black rounded-2xl font-bold transition shadow flex items-center gap-2">
                 <RotateCcw className="w-4 h-4" /> {_resolveTranslation(lang, 'أعد المحاولة', 'Try Again')}
               </button>
             </div>
@@ -3890,28 +4074,28 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Reading: passage + read-aloud ── */}
       {story && type === 'reading' && (
-        <div className="bg-gray-50 dark:bg-[#262626] p-8 rounded-xl border border-gray-200 dark:border-[#333333] shadow-inner">
-          <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-gray-200 dark:border-[#333333]">
+        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-inner">
+          <div className="flex flex-wrap items-center gap-3 mb-5 pb-4 border-b border-gray-200 dark:border-[var(--app-border)]">
             <button
               onClick={handlePlayPause}
               disabled={audioState === 'loading'}
-              className="flex items-center gap-2 bg-[#00C853] hover:bg-[#00E5FF] disabled:opacity-60 text-white px-4 py-2 rounded-xl font-bold text-sm transition shadow"
+              className="flex items-center gap-2 bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black disabled:opacity-60 text-white px-4 py-2 rounded-2xl font-bold text-sm transition shadow"
             >
               {audioState === 'loading' ? <Activity className="animate-spin w-4 h-4" /> : audioState === 'playing' ? <Pause className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               {audioState === 'loading' ? _resolveTranslation(lang, 'جاري التحميل...', 'Loading...') : audioState === 'playing' ? _resolveTranslation(lang, 'إيقاف مؤقت', 'Pause') : _resolveTranslation(lang, 'قراءة بصوت', 'Read Aloud')}
             </button>
             {audioState !== 'idle' && (
-              <button onClick={stopAudio} className="flex items-center gap-1 px-4 py-2 rounded-xl bg-gray-200 dark:bg-[#262626] text-gray-700 dark:text-[#E0E0E0] text-sm font-medium hover:bg-gray-300 dark:hover:bg-[#00E5FF] transition">
+              <button onClick={stopAudio} className="flex items-center gap-1 px-4 py-2 rounded-2xl bg-gray-200 dark:bg-[var(--app-card)] text-gray-700 dark:text-[var(--app-text)] text-sm font-medium hover:bg-gray-300 dark:hover:bg-[var(--app-hover)] hover:text-black transition">
                 <RotateCcw className="w-3.5 h-3.5" /> {_resolveTranslation(lang, 'إيقاف', 'Stop')}
               </button>
             )}
-            <div className="flex gap-1 ml-auto bg-gray-200 dark:bg-[#262626] rounded-xl p-1">
+            <div className="flex gap-1 ml-auto bg-gray-200 dark:bg-[var(--app-card)] rounded-2xl p-1">
               {[0.75, 1, 1.25, 1.5].map(s => (
-                <button key={s} onClick={() => handleSpeedChange(s)} className={`px-3 py-1 rounded-lg text-xs font-bold transition ${playbackSpeed === s ? 'bg-[#00C853] text-white' : 'text-gray-500 dark:text-[#E0E0E0] hover:text-gray-700 dark:hover:text-[#FFFFFF]'}`}>{s}×</button>
+                <button key={s} onClick={() => handleSpeedChange(s)} className={`px-3 py-1 rounded-xl text-xs font-bold transition ${playbackSpeed === s ? 'bg-[var(--app-accent1)] text-white' : 'text-gray-500 dark:text-[var(--app-text)] hover:text-gray-700 dark:hover:text-[var(--app-text)]'}`}>{s}×</button>
               ))}
             </div>
           </div>
-          <div dir="ltr" className="text-lg leading-loose font-medium text-gray-800 dark:text-[#FFFFFF] whitespace-pre-wrap">
+          <div dir="ltr" className="text-lg leading-loose font-medium text-gray-800 dark:text-[var(--app-text)] whitespace-pre-wrap">
             {safeRender(story)}
           </div>
         </div>
@@ -3919,28 +4103,28 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 
       {/* ── Golden Rules + Sources ── */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-        <div className="md:col-span-3 bg-white dark:bg-[#1E1E1E] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-200 dark:border-[#333333] transition-colors">
-          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#FFFFFF] mb-5 lg:mb-8 border-b border-gray-200 dark:border-[#333333] pb-4">{_resolveTranslation(lang, 'القواعد الذهبية', 'Golden Rules')}</h3>
+        <div className="md:col-span-3 bg-white dark:bg-[var(--app-card)] p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-5 lg:mb-8 border-b border-gray-200 dark:border-[var(--app-border)] pb-4">{_resolveTranslation(lang, 'القواعد الذهبية', 'Golden Rules')}</h3>
           <ul className="space-y-6">
             {contentSteps.map((step, idx) => (
               <li key={idx} className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 bg-blue-100 dark:bg-[#00C853]/12 text-[#00E5FF] dark:text-[#00E5FF] font-bold">{idx + 1}</div>
-                <span className="text-gray-700 dark:text-[#E0E0E0] text-lg leading-relaxed">{step}</span>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 bg-blue-100 dark:bg-[var(--app-accent1)]/12 text-black dark:text-white font-bold">{idx + 1}</div>
+                <span className="text-gray-700 dark:text-[var(--app-text)] text-lg leading-relaxed">{step}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="md:col-span-2 bg-white dark:bg-[#1E1E1E] p-4 sm:p-6 lg:p-8 rounded-xl border border-gray-200 dark:border-[#333333] transition-colors">
-          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#FFFFFF] mb-5 lg:mb-8 border-b border-gray-200 dark:border-[#333333] pb-4">{_resolveTranslation(lang, 'المصادر', 'Sources')}</h3>
+        <div className="md:col-span-2 bg-white dark:bg-[var(--app-card)] p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-5 lg:mb-8 border-b border-gray-200 dark:border-[var(--app-border)] pb-4">{_resolveTranslation(lang, 'المصادر', 'Sources')}</h3>
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {currentLinks.map((link, idx) => (
-              <div key={idx} className="bg-gray-50 dark:bg-[#262626] p-5 rounded-2xl border border-gray-200 dark:border-[#333333] transition-colors shadow-sm">
+              <div key={idx} className="bg-gray-50 dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors shadow-sm">
                 <div className="text-left mb-3" dir="ltr">
-                  <p className="font-bold text-gray-900 dark:text-[#FFFFFF] text-lg">{link.name}</p>
-                  <span className="inline-block mt-1 text-xs font-bold text-[#00E5FF] dark:text-[#00E5FF] bg-blue-100 dark:bg-[#00C853]/10 px-2 py-1 rounded">{link.level}</span>
+                  <p className="font-bold text-gray-900 dark:text-[var(--app-text)] text-lg">{link.name}</p>
+                  <span className="inline-block mt-1 text-xs font-bold text-black dark:text-white bg-blue-100 dark:bg-[var(--app-accent1)]/10 px-2 py-1 rounded">{link.level}</span>
                 </div>
-                <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-full py-2 bg-gray-200 dark:bg-[#262626] hover:bg-gray-300 dark:hover:bg-[#00E5FF] text-gray-800 dark:text-[#FFFFFF] rounded-xl text-sm font-bold transition-colors">
+                <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-full py-2 bg-gray-200 dark:bg-[var(--app-card)] hover:bg-gray-300 dark:hover:bg-[var(--app-hover)] hover:text-black text-gray-800 dark:text-[var(--app-text)] rounded-2xl text-sm font-bold transition-colors">
                   {_resolveTranslation(lang, 'تصفح المصدر', 'Visit Source')}
                 </a>
               </div>
@@ -3955,6 +4139,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang }) {
 function Writing({
   AI_KEY,
   lang,
+  theme,
   writingHistory,
   setWritingHistory
 }) {
@@ -4032,56 +4217,67 @@ function Writing({
     setText('');
     setFeedback(null);
   };
-  return <div className="w-full animate-fadeIn">
-    <h2 className="text-3xl font-extrabold text-gray-900 dark:text-[#FFFFFF] mb-10 text-center flex items-center justify-center gap-3"><PenTool className="text-[#00E5FF] dark:text-[#A78BFA]" /> {t.title}</h2>
-    <div className="flex justify-end mb-4">
-      <button onClick={() => setShowHistory(v => !v)} className="text-sm font-bold px-4 py-2 rounded-xl bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] text-gray-700 dark:text-[#E0E0E0]">
-        {t.history}
-      </button>
-    </div>
-    {showHistory && <div className="mb-6 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-5 space-y-4 shadow-sm">
-      {writingHistory.length === 0 ? <p className="text-gray-500 dark:text-[#E0E0E0]">{t.emptyHistory}</p> : writingHistory.map(item => <div key={item.id} className="p-4 rounded-2xl bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333]">
-        <p className="text-xs text-gray-500 mb-2">{new Date(item.createdAt).toLocaleString()}</p>
-        <p className="text-sm text-gray-900 dark:text-[#FFFFFF] mb-2" dir="ltr">{safeRender(item.input)}</p>
-        <p className="text-sm text-[#1E90FF] dark:text-[#8B5CF6] font-bold" dir="ltr">{safeRender(item.output)}</p>
-      </div>)}
-    </div>}
-
-    <div className="mb-4">
-      <select value={writingTopic} onChange={e => setWritingTopic(e.target.value)} className="w-full bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-2xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] text-sm font-bold focus:outline-none focus:border-[#1E90FF] transition-all shadow-sm appearance-none">
-        <option value="">{_resolveTranslation(lang, '— اختر موضوعاً لتوليد سؤال تلقائي (اختياري) —', '— Choose a topic to auto-generate a writing prompt (optional) —')}</option>
-        {SPEAKING_TOPICS.map(tp => <option key={tp} value={tp}>{tp}</option>)}
-      </select>
-      {loadingQuestion && <p className="mt-2 text-sm text-[#1E90FF] dark:text-[#8B5CF6] animate-pulse font-medium flex items-center gap-2"><Activity className="w-4 h-4 animate-spin" /> Generating writing prompt...</p>}
-      {writingQuestion && !loadingQuestion && <div className="mt-3 p-4 bg-[#1E90FF]/10 dark:bg-[#8B5CF6]/10 border border-[#1E90FF]/30 dark:border-purple-500/30 rounded-2xl animate-fadeIn">
-        <p className="text-xs font-extrabold text-[#1E90FF] dark:text-[#8B5CF6] uppercase tracking-wider mb-1.5">Writing Prompt</p>
-        <p className="text-gray-900 dark:text-[#FFFFFF] font-medium leading-relaxed" dir="ltr">{writingQuestion}</p>
-      </div>}
+  return <div className="w-full max-w-4xl mx-auto animate-fadeIn pb-20">
+    <div className="text-center mb-12">
+      <h2 className="text-4xl font-bold text-black dark:text-white mb-4 flex items-center justify-center gap-4">
+        <PenTool className="text-[var(--app-accent1)] w-8 h-8" />
+        {t.title}
+      </h2>
+      <p className="text-gray-500 dark:text-gray-400">Improve your writing with AI-powered feedback and corrections.</p>
     </div>
 
-    <textarea value={text} onChange={e => setText(e.target.value)} placeholder={writingQuestion || t.placeholder} className="w-full h-64 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-8 text-gray-900 dark:text-[#FFFFFF] text-lg focus:outline-none focus:border-[#1E90FF] transition-all mb-6" dir="ltr"></textarea>
-    <div className="flex gap-3">
-      <button onClick={startNewWriting} className="flex-1 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] text-gray-900 dark:text-[#FFFFFF] font-extrabold py-4 rounded-xl hover:bg-gray-50 transition-colors">
-        New Writing
-      </button>
-      <button onClick={handleCorrect} disabled={loading || !text.trim()} className="flex-1 bg-[#00C853] hover:bg-[#00E5FF] text-white font-extrabold py-4 rounded-xl transition-colors disabled:opacity-50">
-        {loading ? <Activity className="animate-spin w-6 h-6 mx-auto" /> : t.btn}
-      </button>
+    <div className="space-y-6">
+      <div className="premium-card rounded-3xl p-6">
+        <div className="flex flex-col gap-4">
+          <label className="text-sm font-semibold text-gray-900 dark:text-white">Topic (Optional)</label>
+          <CustomDropdown
+            value={writingTopic}
+            onChange={setWritingTopic}
+            options={SPEAKING_TOPICS.map(tp => ({
+              value: tp,
+              label: lang === 'ar' ? tp.split('(')[0].trim() : (tp.match(/\(([^)]+)\)/)?.[1] || tp)
+            }))}
+            icon={List}
+            theme={theme}
+            placeholder={_resolveTranslation(lang, '— اختر موضوعاً —', '— Select a topic —')}
+          />
+          {loadingQuestion && <p className="text-xs text-[var(--app-accent1)] animate-pulse flex items-center gap-2"><Activity className="w-3.5 h-3.5 animate-spin" /> Generating prompt...</p>}
+        </div>
+      </div>
+
+      <div className="premium-card rounded-3xl p-2">
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder={writingQuestion || t.placeholder}
+          className="w-full h-80 bg-transparent border-none p-6 text-lg text-gray-900 dark:text-white outline-none placeholder-gray-400 resize-none"
+          dir="auto"
+        />
+      </div>
+
+      <div className="flex gap-4">
+        <button onClick={startNewWriting} className="flex-1 py-4 rounded-2xl font-bold bg-gray-100 dark:bg-[var(--app-surface)] text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-all">
+          New
+        </button>
+        <button onClick={handleCorrect} disabled={loading || !text.trim()} className="flex-[3] py-4 rounded-2xl font-bold bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all shadow-sm disabled:opacity-50">
+          {loading ? <Activity className="animate-spin w-6 h-6 mx-auto" /> : t.btn}
+        </button>
+      </div>
     </div>
 
     {feedback && !feedback.error && <div className="mt-10 space-y-6 animate-fadeIn">
-      <div className="bg-green-50 dark:bg-[#1E1E1E] p-8 rounded-xl border border-green-200 dark:border-green-500/20 shadow-sm">
+      <div className="bg-green-50 dark:bg-[var(--app-card)] p-8 rounded-2xl border border-green-200 dark:border-green-500/20 shadow-sm">
         <h3 className="text-green-700 dark:text-green-400 font-bold mb-4 flex justify-between items-center text-xl">{t.corrected} <span className="text-yellow-600 dark:text-yellow-400">{safeRender(feedback.score)}</span></h3>
-        <p className="text-gray-900 dark:text-[#FFFFFF] text-xl leading-relaxed" dir="ltr">{safeRender(feedback.corrected_text)}</p>
+        <p className="text-gray-900 dark:text-[var(--app-text)] text-xl leading-relaxed" dir="ltr">{safeRender(feedback.corrected_text)}</p>
       </div>
-      {feedback.explanation && <div className="bg-white dark:bg-[#1E1E1E] p-8 rounded-xl border border-gray-200 dark:border-[#333333] shadow-sm">
-        <h3 className="text-[#00E5FF] dark:text-[#00E5FF] font-bold mb-2">{t.explanation}</h3>
-        <p className="text-gray-700 dark:text-[#E0E0E0] leading-relaxed" style={{
+      {feedback.explanation && <div className="bg-white dark:bg-[var(--app-card)] p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
+        <h3 className="text-black dark:text-white font-bold mb-2">{t.explanation}</h3>
+        <p className="text-gray-700 dark:text-[var(--app-text)] leading-relaxed" style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(feedback.explanation)}</p>
       </div>}
     </div>}
-    {feedback && feedback.error && <div className="mt-6 bg-red-50 dark:bg-red-500/10 p-4 rounded-xl border border-red-200 dark:border-red-500/25 text-red-600 dark:text-red-400 text-center font-bold">
+    {feedback && feedback.error && <div className="mt-6 bg-red-50 dark:bg-red-500/10 p-4 rounded-2xl border border-red-200 dark:border-red-500/25 text-red-600 dark:text-red-400 text-center font-bold">
       {safeRender(feedback.error)}
     </div>}
   </div>;
@@ -4111,7 +4307,20 @@ function Speaking({
     micOn: _resolveTranslation(lang, 'تحدث الآن، الميكروفون مفتوح...', 'Speak now, microphone is open...'),
     tapMic: _resolveTranslation(lang, 'اضغط للتحدث', 'Tap to speak'),
     callActive: _resolveTranslation(lang, 'مكالمة قيد الإجراء...', 'Call in progress...'),
-    stopCall: _resolveTranslation(lang, 'إنهاء المكالمة', 'End Call')
+    stopCall: _resolveTranslation(lang, 'إنهاء المكالمة', 'End Call'),
+    informal: _resolveTranslation(lang, 'غير رسمي', 'Informal'),
+    formal: _resolveTranslation(lang, 'رسمي', 'Formal'),
+    male: _resolveTranslation(lang, 'ذكر', 'Male'),
+    female: _resolveTranslation(lang, 'أنثى', 'Female'),
+    uk: _resolveTranslation(lang, 'بريطانية', 'UK'),
+    us: _resolveTranslation(lang, 'أمريكية', 'US'),
+    accent: _resolveTranslation(lang, 'اللكنة', 'Accent'),
+    scenario: _resolveTranslation(lang, 'سيناريو', 'Scenario'),
+    autoPlay: _resolveTranslation(lang, 'تشغيل تلقائي', 'Auto Play'),
+    level: _resolveTranslation(lang, 'المستوى', 'Level'),
+    topic: _resolveTranslation(lang, 'الموضوع', 'Topic'),
+    history: _resolveTranslation(lang, 'السجل', 'History'),
+    selectTopic: _resolveTranslation(lang, '— اختر موضوعاً —', '— Select a topic —')
   };
   const [messages, setMessages] = useState([{
     id: 1,
@@ -4171,9 +4380,9 @@ function Speaking({
         // --- SYNC TRANSCRIPT TO VOICE ---
         // If we have a msgId, append this segment to the visible text as it starts playing (Call Mode only)
         if (msgId && isCallMode) {
-          setMessages(prev => prev.map(msg => 
-            msg.id === msgId 
-              ? { ...msg, text: (msg.text || '') + (msg.text ? ' ' : '') + text } 
+          setMessages(prev => prev.map(msg =>
+            msg.id === msgId
+              ? { ...msg, text: (msg.text || '') + (msg.text ? ' ' : '') + text }
               : msg
           ));
         }
@@ -4246,7 +4455,7 @@ function Speaking({
   useEffect(() => {
     const accent = _voiceAccent === 'us' ? 'us' : 'uk';
     const voice = EDGE_VOICES[accent][voiceGender === 'female' ? 'female' : 'male'];
-    fetch(`/api/edge-tts-warmup?voice=${encodeURIComponent(voice)}`).catch(() => {});
+    fetch(`/api/edge-tts-warmup?voice=${encodeURIComponent(voice)}`).catch(() => { });
   }, []);
 
   const speakText = async (text, interrupt = true) => {
@@ -4278,13 +4487,13 @@ function Speaking({
       const replyPrompt = `You are a friendly, natural conversation partner helping an English learner. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Reply warmly in 1-3 sentences. Output the reply text ONLY — no JSON, no labels, no analysis whatsoever.`;
       let replyText = '';
       let spokenSentencesCount = 0;
-      
+
       // Clear queue for new message
       ttsQueueRef.current = [];
 
       await streamFromAPI(replyPrompt, (delta) => {
         replyText += delta;
-        
+
         // --- SYNCED TRANSCRIPT LOGIC ---
         // If in Call Mode, we don't update the message text here. 
         // Instead, processTtsQueue will append text as it speaks.
@@ -4299,7 +4508,7 @@ function Speaking({
           const unsent = replyText.slice(spokenSentencesCount).trim();
           // Match any natural break: . ? ! \n , ; or a long segment (> 70 chars)
           const breakMatch = unsent.match(/[^.!?\n,;]{5,}[.!?\n,;]+/);
-          
+
           if (breakMatch) {
             const segment = breakMatch[0];
             queueSpeech(segment, aiMsgId);
@@ -4318,7 +4527,7 @@ function Speaking({
       }, 256);
 
       replyText = replyText.trim();
-      
+
       // Final flush for any remaining text
       const remaining = replyText.slice(spokenSentencesCount).trim();
       if (remaining.length > 2) {
@@ -4340,7 +4549,7 @@ function Speaking({
             msg.id === newMsgId ? { ...msg, review } : msg
           ));
         }
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (err) {
       setMessages(prev => prev.map(msg =>
         msg.id === aiMsgId
@@ -4366,7 +4575,7 @@ function Speaking({
         if (!isCallMode) {
           setMessages([{ id: aiMsgId, role: 'ai', text: accumulated, streaming: true }]);
         }
-        
+
         // Sync check for start conversation too
         if (isCallMode || autoRead) {
           const unsent = accumulated.slice(spokenSentencesCount).trim();
@@ -4383,7 +4592,7 @@ function Speaking({
       if (remaining.length > 2) {
         queueSpeech(remaining, aiMsgId);
       }
-      
+
       setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, streaming: false } : m));
     } catch (e) {
       setMessages([{
@@ -4496,52 +4705,47 @@ function Speaking({
     const lastAiCallMsg = [...messages].reverse().find(m => m.role === 'ai' && m.text);
     const blobClass = loading ? 'blob-speak' : isRecording ? 'blob-listen' : 'blob-idle';
     const isDark = theme === 'dark';
-    return <div className={`relative w-full h-[88vh] flex flex-col animate-fadeIn select-none transition-colors duration-300 ${isDark ? 'bg-[#0D0D0D]' : 'bg-[#f2f2ee]'}`}>
+    return <div className={`relative w-full h-[88vh] flex flex-col animate-fadeIn select-none transition-colors duration-300 ${isDark ? 'bg-[var(--app-bg)]' : 'bg-[#f2f2ee]'}`}>
 
       {/* ── Top-left: LIVE status + voice mode pill ── */}
-      <div className="absolute top-6 left-7 z-10 flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <span className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>LIVE</span>
-          <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${loading ? 'bg-amber-400' : isRecording ? 'bg-red-400' : 'bg-emerald-400'}`} />
-        </div>
-        {usingBrowserTTS && (
-          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-            ttsEngine === 'edge'
-              ? (isDark
-                  ? 'text-sky-400/80 border-sky-400/25 bg-sky-400/5'
-                  : 'text-sky-600/80 border-sky-400/30 bg-sky-50')
-              : (isDark
-                  ? 'text-amber-400/70 border-amber-400/20 bg-amber-400/5'
-                  : 'text-amber-600/70 border-amber-400/30 bg-amber-50')
-          }`} title={ttsEngine === 'edge'
-              ? 'Using Microsoft Edge neural voice (free, unlimited)'
-              : 'Using browser voice'}>
-            {ttsEngine === 'edge' ? 'Edge voice' : 'Browser voice'}
-          </span>
-        )}
-      </div>
+      {/* ── Top Header: Status & Options ── */}
+      <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-[10px] font-bold tracking-widest text-white/90 uppercase">Live</span>
+          </div>
 
-      {/* ── Top-right: level · topic + gender + accent ── */}
-      <div className="absolute top-5 right-7 z-10 flex flex-col items-end gap-1.5">
-        <span className={`text-[11px] font-medium ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{chatLevel} · {topic.split('(')[0].trim()}</span>
-        <div className="flex items-center gap-2">
-          {/* Gender toggle */}
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setVoiceGender('female')} className={`text-[11px] font-medium leading-none transition-colors ${voiceGender === 'female' ? isDark ? 'text-gray-300' : 'text-gray-600' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}>♀</button>
-            <span className={`text-[9px] ${isDark ? 'text-gray-800' : 'text-gray-300'}`}>/</span>
-            <button onClick={() => setVoiceGender('male')} className={`text-[11px] font-medium leading-none transition-colors ${voiceGender === 'male' ? isDark ? 'text-gray-300' : 'text-gray-600' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}>♂</button>
-          </div>
-          {/* Accent toggle */}
-          <div className={`flex items-center rounded-full px-0.5 py-0.5 gap-0.5 ${isDark ? 'bg-[#1c1c20]' : 'bg-gray-100'}`}>
+          <div className="flex items-center gap-1 bg-black/20 backdrop-blur-md border border-white/10 p-1 rounded-2xl">
             <button
-              onClick={() => setVoiceAccent('uk')}
-              className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full transition-all duration-200 ${voiceAccent === 'uk' ? isDark ? 'bg-[#262626] text-gray-200' : 'bg-white text-gray-700 shadow-sm' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}
-            >UK</button>
+              onClick={() => setVoiceAccent(voiceAccent === 'uk' ? 'us' : 'uk')}
+              className="px-3 py-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors uppercase"
+            >
+              {voiceAccent === 'uk' ? t.uk : t.us}
+            </button>
+            <div className="w-px h-3 bg-white/10" />
             <button
-              onClick={() => setVoiceAccent('us')}
-              className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full transition-all duration-200 ${voiceAccent === 'us' ? isDark ? 'bg-[#262626] text-gray-200' : 'bg-white text-gray-700 shadow-sm' : isDark ? 'text-gray-700 hover:text-gray-500' : 'text-gray-400 hover:text-gray-600'}`}
-            >US</button>
+              onClick={() => setVoiceGender(voiceGender === 'male' ? 'female' : 'male')}
+              className="px-3 py-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors uppercase"
+            >
+              {voiceGender === 'male' ? t.male : t.female}
+            </button>
           </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">{chatLevel}</p>
+            <p className="text-xs font-semibold text-white/80">{
+              lang === 'ar' ? topic.split('(')[0].trim() : (topic.match(/\(([^)]+)\)/)?.[1] || topic)
+            }</p>
+          </div>
+          <button
+            onClick={toggleCallMode}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:scale-110 active:scale-95 transition-all"
+          >
+            <PhoneOff className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
@@ -4550,61 +4754,58 @@ function Speaking({
 
         {/* Sesame-style morphing blob — no rings, no icons, pure shape */}
         <div
-          className={`w-28 h-28 transition-colors duration-700 ${blobClass} ${
-            isDark
-              ? loading     ? 'bg-[#2a3a5a]'
-                : isRecording ? 'bg-[#4a2828]'
-                : 'bg-[#28282e]'
-              : loading     ? 'bg-[#a0b4d0]'
-                : isRecording ? 'bg-[#d0a0a0]'
+          className={`w-28 h-28 transition-colors duration-700 ${blobClass} ${isDark
+            ? loading ? 'bg-[var(--app-accent2)]'
+              : isRecording ? 'bg-[var(--app-accent1)]'
+                : 'bg-[var(--app-surface)]'
+            : loading ? 'bg-[#a0b4d0]'
+              : isRecording ? 'bg-[#d0a0a0]'
                 : 'bg-[#a4b49a]'
-          }`}
+            }`}
         />
 
         {/* AI transcript — bounded scrollable box with fade-to-top effect */}
         <div className="w-full max-w-md relative px-4" style={{ height: '180px' }}>
           {/* Top fade — older messages dissolve upward */}
-          <div className="absolute top-0 left-4 right-4 h-14 z-10 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${isDark ? '#0e0e10' : '#f2f2ee'} 30%, transparent)` }} />
+          <div className="absolute top-0 left-4 right-4 h-14 z-10 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${isDark ? 'var(--app-bg)' : '#f2f2ee'} 30%, transparent)` }} />
           {/* Scrollable transcript list */}
           <div ref={transcriptScrollRef} className="h-full overflow-y-auto flex flex-col justify-end pb-14 gap-4" style={{ scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {showCallTranscript ? (
               messages.filter(m => m.role === 'ai' && m.text).length > 0
                 ? messages.filter(m => m.role === 'ai' && m.text).map(m => (
-                    <div key={m.id} className="text-center px-4">
-                      <p className={`text-lg md:text-xl leading-[1.6] font-medium ${isDark ? 'text-white' : 'text-gray-900'}`} dir="ltr">
-                        {/* Split by common sentence endings but keep them, then map to spans with reveal animation */}
-                        {String(m.text).split(/(?<=[.!?])\s+/).map((segment, sIdx) => (
-                          <span key={sIdx} className="animate-textReveal inline-block mr-1">
-                            {safeRender(segment)}
-                          </span>
-                        ))}
-                        {m.streaming && <span className={`inline-block w-[3px] h-5 ml-1 align-middle animate-pulse rounded-full ${isDark ? 'bg-white' : 'bg-black'}`} />}
-                      </p>
-                    </div>
-                  ))
+                  <div key={m.id} className="text-center px-4">
+                    <p className={`text-lg md:text-xl leading-[1.6] font-medium ${isDark ? 'text-white' : 'text-gray-900'}`} dir="ltr">
+                      {/* Split by common sentence endings but keep them, then map to spans with reveal animation */}
+                      {String(m.text).split(/(?<=[.!?])\s+/).map((segment, sIdx) => (
+                        <span key={sIdx} className="animate-textReveal inline-block mr-1">
+                          {safeRender(segment)}
+                        </span>
+                      ))}
+                      {m.streaming && <span className={`inline-block w-[3px] h-5 ml-1 align-middle animate-pulse rounded-full ${isDark ? 'bg-white' : 'bg-black'}`} />}
+                    </p>
+                  </div>
+                ))
                 : <p className={`text-lg font-medium text-center ${isDark ? 'text-white/30' : 'text-black/30'}`}>{t.tapMic}</p>
             ) : (
               <p className={`text-lg font-medium text-center ${isDark ? 'text-white/20' : 'text-black/25'}`}>{_resolveTranslation(lang, 'النص مخفي', 'Transcript off')}</p>
             )}
           </div>
           {/* Bottom fade - height reduced to prevent obscuring text */}
-          <div className="absolute bottom-0 left-4 right-4 h-6 z-10 pointer-events-none" style={{ background: `linear-gradient(to top, ${isDark ? '#0D0D0D' : '#f2f2ee'} 10%, transparent)` }} />
+          <div className="absolute bottom-0 left-4 right-4 h-6 z-10 pointer-events-none" style={{ background: `linear-gradient(to top, ${isDark ? 'var(--app-bg)' : '#f2f2ee'} 10%, transparent)` }} />
         </div>
       </div>
 
       {/* ── Bottom: Sesame-style pill control bar ── */}
       <div className="flex justify-center pb-10 pt-4">
-        <div className={`inline-flex items-center rounded-2xl px-1.5 py-1.5 gap-0.5 transition-colors duration-300 ${
-          isDark
-            ? 'bg-[#1c1c20] shadow-[0_2px_20px_rgba(0,0,0,0.5)]'
-            : 'bg-white shadow-[0_4px_24px_rgba(0,0,0,0.10)]'
-        }`}>
-          {/* Mute / Mic button */}
-          <button onClick={handleVoiceRecord} className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-            isRecording
-              ? isDark ? 'bg-red-500/15 text-red-300' : 'bg-red-50 text-red-500'
-              : isDark ? 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+        <div className={`inline-flex items-center rounded-2xl px-1.5 py-1.5 gap-0.5 transition-colors duration-300 ${isDark
+          ? 'bg-[var(--app-surface)] shadow-[0_2px_20px_rgba(0,0,0,0.5)]'
+          : 'bg-white shadow-[0_4px_24px_rgba(0,0,0,0.10)]'
           }`}>
+          {/* Mute / Mic button */}
+          <button onClick={handleVoiceRecord} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 ${isRecording
+            ? isDark ? 'bg-red-500/15 text-red-300' : 'bg-red-50 text-red-500'
+            : isDark ? 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+            }`}>
             <Mic className={`w-4 h-4 flex-shrink-0 ${isRecording ? 'animate-pulse' : ''}`} />
             <span>{isRecording ? _resolveTranslation(lang, 'جاري الاستماع', 'Listening') : _resolveTranslation(lang, 'صامت', 'Mute')}</span>
           </button>
@@ -4613,11 +4814,10 @@ function Speaking({
           <div className={`w-px h-5 mx-0.5 flex-shrink-0 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} />
 
           {/* Auto-Mic toggle */}
-          <button onClick={() => setMicAutoMode(v => !v)} className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-            micAutoMode
-              ? isDark ? 'text-[#00E5FF] bg-[#00C853]/10' : 'text-emerald-700 bg-emerald-50'
-              : isDark ? 'text-gray-600 hover:bg-white/[0.05] hover:text-gray-400' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
-          }`}>
+          <button onClick={() => setMicAutoMode(v => !v)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 ${micAutoMode
+            ? isDark ? 'text-black dark:text-white bg-[var(--app-accent1)]/10' : 'text-emerald-700 bg-emerald-50'
+            : isDark ? 'text-gray-600 hover:bg-white/[0.05] hover:text-gray-400' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
+            }`}>
             <Zap className={`w-4 h-4 ${micAutoMode ? 'fill-current' : ''}`} />
             <span>{micAutoMode ? _resolveTranslation(lang, 'تلقائي: تشغيل', 'Auto: On') : _resolveTranslation(lang, 'تلقائي: إيقاف', 'Auto: Off')}</span>
           </button>
@@ -4626,11 +4826,10 @@ function Speaking({
           <div className={`w-px h-5 mx-0.5 flex-shrink-0 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} />
 
           {/* Transcript toggle */}
-          <button onClick={() => setShowCallTranscript(v => !v)} className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-            showCallTranscript
-              ? isDark ? 'text-gray-300 bg-white/[0.06]' : 'text-gray-700 bg-gray-100'
-              : isDark ? 'text-gray-600 hover:bg-white/[0.05] hover:text-gray-400' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
-          }`}>
+          <button onClick={() => setShowCallTranscript(v => !v)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 ${showCallTranscript
+            ? isDark ? 'text-gray-300 bg-white/[0.06]' : 'text-gray-700 bg-gray-100'
+            : isDark ? 'text-gray-600 hover:bg-white/[0.05] hover:text-gray-400' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
+            }`}>
             <FileText className="w-4 h-4 flex-shrink-0" />
             <span>{showCallTranscript ? _resolveTranslation(lang, 'النص: تشغيل', 'Text: On') : _resolveTranslation(lang, 'النص: إيقاف', 'Text: Off')}</span>
           </button>
@@ -4639,9 +4838,8 @@ function Speaking({
           <div className={`w-px h-5 mx-0.5 flex-shrink-0 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} />
 
           {/* End call button */}
-          <button onClick={toggleCallMode} className={`flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-            isDark ? 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-          }`}>
+          <button onClick={toggleCallMode} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[13px] font-medium transition-all duration-200 ${isDark ? 'text-gray-400 hover:bg-white/[0.05] hover:text-gray-200' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+            }`}>
             <span className="w-3 h-3 bg-red-500 rounded-[3px] flex-shrink-0" />
             <span>{t.stopCall}</span>
           </button>
@@ -4651,80 +4849,110 @@ function Speaking({
   }
   return (
     <>
-      <div className={`w-full h-[90vh] flex flex-col animate-fadeIn ${isCallMode ? '' : 'border border-gray-200 dark:border-[#333333] rounded-xl'} overflow-hidden bg-white dark:bg-[#0D0D0D] transition-colors`}>
+      <div className={`w-full h-[90vh] flex flex-col animate-fadeIn overflow-hidden bg-white dark:bg-black transition-colors ${isCallMode ? '' : 'border border-gray-100 dark:border-[var(--app-border)] rounded-2xl'}`}>
         {!isCallMode && (
-          <div className="bg-gray-50 dark:bg-[#1E1E1E] p-5 border-b border-gray-200 dark:border-[#333333] flex flex-col lg:flex-row justify-between items-center gap-4 relative z-10 transition-colors">
-            <div className="flex items-center gap-4 w-full lg:w-auto">
-              <div className="w-12 h-12 bg-white dark:bg-[#262626] rounded-xl flex items-center justify-center border border-gray-200 dark:border-[#333333] shrink-0">
-                <MessageSquare className="w-6 h-6 text-gray-700 dark:text-white" />
+          <header className="px-6 py-4 border-b border-gray-100 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-black z-20">
+            <div className="flex items-center gap-4">
+              <div className="p-2.5 rounded-2xl bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]">
+                <MessageSquare className="w-5 h-5" />
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-[#FFFFFF] flex items-center gap-2">{t.title}</h2>
-              </div>
+              <h2 className="text-lg font-semibold">{t.title}</h2>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-              <select value={chatLevel} onChange={e => setChatLevel(e.target.value)} className="bg-white dark:bg-[#262626] text-gray-900 dark:text-[#FFFFFF] border border-gray-200 dark:border-[#333333] rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none shadow-sm">
-                {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => <option key={lvl} value={lvl}>Level {lvl}</option>)}
-              </select>
-              <select value={topic} onChange={e => setTopic(e.target.value)} className="bg-white dark:bg-[#262626] text-gray-900 dark:text-[#FFFFFF] border border-gray-200 dark:border-[#333333] rounded-lg px-3 py-2 text-sm font-bold focus:outline-none focus:border-emerald-500 appearance-none max-w-[150px] truncate shadow-sm">
-                {SPEAKING_TOPICS.map(topicName => <option key={topicName} value={topicName}>{topicName}</option>)}
-              </select>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Topic Selector */}
+              <CustomDropdown
+                value={topic}
+                onChange={setTopic}
+                options={SPEAKING_TOPICS.map(tp => ({
+                  value: tp,
+                  label: lang === 'ar' ? tp.split('(')[0].trim() : (tp.match(/\(([^)]+)\)/)?.[1] || tp)
+                }))}
+                icon={List}
+                theme={theme}
+                placeholder={t.selectTopic}
+                className="w-44"
+              />
 
-              <button onClick={startNewConversation} disabled={loading} className="bg-[#00C853]/10 dark:bg-[#00C853]/10 text-gray-900 dark:text-[#FF4081] border border-[#00FF85]/30 dark:border-[#00FF85]/30 hover:bg-[#00C853] hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
-                {loading ? <Activity className="w-4 h-4 animate-spin" /> : <><RotateCcw className="w-4 h-4" /> <span className="hidden sm:inline">{t.newChat}</span></>}
-              </button>
-
-              <button onClick={generateScenario} disabled={loadingScenario} className="bg-emerald-50 dark:bg-[#00C853]/10 text-gray-900 dark:text-[#FF4081] border border-[#FF4081]/30 dark:border-[#00FF85]/30 hover:bg-[#00C853] hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
-                {loadingScenario ? <Activity className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-4 h-4" /> <span className="hidden sm:inline">{t.roleplay}</span></>}
-              </button>
-
-              <button onClick={toggleCallMode} className="bg-emerald-50 dark:bg-[#00C853]/10 text-gray-900 dark:text-[#FF4081] border border-[#FF4081]/30 dark:border-[#00FF85]/30 hover:bg-[#00C853] hover:text-white px-3 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
-                <Phone className="w-4 h-4" /> <span className="hidden sm:inline">{t.callMode}</span>
-              </button>
-              <button onClick={() => setAutoRead(v => !v)} className={`px-3 py-2 rounded-lg text-sm font-bold transition-all border ${autoRead ? 'bg-[#00C853] text-white border-blue-500' : 'bg-white dark:bg-[#262626] text-gray-700 dark:text-[#E0E0E0] border-gray-200 dark:border-[#333333]'}`}>
-                {autoRead ? 'Auto-read On' : 'Auto-read Off'}
-              </button>
-              <div className="flex bg-white dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-lg p-0.5 shadow-sm">
-                <button onClick={() => setVoiceGender('male')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'male' ? 'bg-[#00C853] text-white' : 'text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>♂</button>
-                <button onClick={() => setVoiceGender('female')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceGender === 'female' ? 'bg-pink-500 text-white' : 'text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>♀</button>
-              </div>
-              <div className="flex bg-white dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-lg p-0.5 shadow-sm">
-                <button onClick={() => setVoiceAccent('uk')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceAccent === 'uk' ? 'bg-indigo-500 text-white' : 'text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>🇬🇧</button>
-                <button onClick={() => setVoiceAccent('us')} className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all ${voiceAccent === 'us' ? 'bg-indigo-500 text-white' : 'text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>🇺🇸</button>
-              </div>
-              <button onClick={() => setShowHistory(v => !v)} className="px-3 py-2 rounded-lg text-sm font-bold transition-all border bg-white dark:bg-[#262626] text-gray-700 dark:text-[#E0E0E0] border-gray-200 dark:border-[#333333]">
-                History
-              </button>
-
-              <div className="flex bg-white dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-lg p-0.5 shadow-sm overflow-hidden">
+              {/* Voice Config Pill */}
+              <div className="flex h-11 items-center gap-1 bg-gray-50 dark:bg-[var(--app-surface)] p-1 rounded-2xl border border-gray-100 dark:border-[var(--app-border)]">
                 <button
-                  onClick={() => setFormality('informal')}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${formality === 'informal' ? 'bg-[#00C853] text-white shadow-sm' : 'text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                  onClick={() => setVoiceAccent(voiceAccent === 'uk' ? 'us' : 'uk')}
+                  className="px-3 h-full flex items-center text-sm font-bold text-gray-500 hover:text-[var(--app-accent1)] transition-colors uppercase"
                 >
-                  {_resolveTranslation(lang, 'غير رسمي', 'Informal')}
+                  {voiceAccent === 'uk' ? t.uk : t.us}
                 </button>
+                <div className="w-px h-3 bg-gray-200 dark:bg-[var(--app-card)]" />
                 <button
-                  onClick={() => setFormality('formal')}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${formality === 'formal' ? 'bg-[#00C853] text-white shadow-sm' : 'text-gray-700 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                  onClick={() => setVoiceGender(voiceGender === 'male' ? 'female' : 'male')}
+                  className="px-3 h-full flex items-center text-sm font-bold text-gray-500 hover:text-[var(--app-accent1)] transition-colors uppercase"
                 >
-                  {_resolveTranslation(lang, 'رسمي', 'Formal')}
+                  {voiceGender === 'male' ? t.male : t.female}
+                </button>
+                <div className="w-px h-3 bg-gray-200 dark:bg-[var(--app-card)]" />
+                <button
+                  onClick={() => setAutoRead(!autoRead)}
+                  className={`px-3 h-full flex items-center text-sm font-bold transition-colors ${autoRead ? 'text-[var(--app-accent2)]' : 'text-gray-300'}`}
+                  title={t.autoPlay}
+                >
+                  <Volume2 size={16} />
+                </button>
+              </div>
+
+              {/* Formality Toggle */}
+              <div className="flex h-11 bg-gray-50 dark:bg-[var(--app-surface)] p-1 rounded-2xl border border-gray-100 dark:border-[var(--app-border)]">
+                {['informal', 'formal'].map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => setFormality(mode)}
+                    className={`px-4 h-full flex items-center text-sm font-bold rounded-xl transition-all ${formality === mode ? 'bg-white dark:bg-[var(--app-card)] text-black dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                  >
+                    {mode === 'informal' ? t.informal : t.formal}
+                  </button>
+                ))}
+              </div>
+
+              <CustomDropdown
+                value={chatLevel}
+                onChange={setChatLevel}
+                options={['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => ({ value: lvl, label: `${t.level} ${lvl}` }))}
+                theme={theme}
+                className="w-28"
+              />
+
+              <button onClick={generateScenario} disabled={loadingScenario} className="flex h-11 items-center gap-2 px-5 rounded-2xl bg-[var(--app-accent1)] text-white text-sm font-bold hover:opacity-90 transition-all shadow-sm shadow-[var(--app-accent1)]/10 disabled:opacity-50">
+                <Lightbulb size={16} />
+                {loadingScenario ? '...' : t.scenario}
+              </button>
+
+              <button onClick={toggleCallMode} className="flex h-11 items-center gap-2 px-5 rounded-2xl bg-black dark:bg-white text-white dark:text-black text-sm font-bold hover:opacity-90 transition-all shadow-sm">
+                <Phone size={16} />
+                {t.callMode}
+              </button>
+
+              <div className="flex h-11 items-center bg-gray-50 dark:bg-[var(--app-surface)] p-1 rounded-2xl border border-gray-100 dark:border-[var(--app-border)]">
+                <button onClick={() => setShowHistory(!showHistory)} title={t.history} className={`px-3 h-full flex items-center rounded-xl transition-colors ${showHistory ? 'bg-white dark:bg-[var(--app-card)] text-[var(--app-accent1)]' : 'text-gray-400 hover:text-gray-600'}`}>
+                  <Clock size={16} />
+                </button>
+                <div className="w-px h-4 bg-gray-200 dark:bg-[var(--app-card)]" />
+                <button onClick={startNewConversation} title={t.newChat} className="px-3 h-full flex items-center rounded-xl text-gray-400 hover:text-[var(--app-accent1)] transition-colors">
+                  <RotateCcw size={16} />
                 </button>
               </div>
             </div>
-          </div>
+          </header>
         )}
 
-        <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-white dark:bg-[#0D0D0D] scroll-smooth">
+        <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-white dark:bg-[var(--app-bg)] scroll-smooth">
           {showHistory && (
-            <div className="mb-4 bg-white/90 dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-4 shadow-sm">
+            <div className="mb-4 bg-white/90 dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 shadow-sm">
               {speakingHistory.length === 0 ? (
-                <p className="text-gray-500 dark:text-[#E0E0E0]">No history yet.</p>
+                <p className="text-gray-500 dark:text-[var(--app-text)]">No history yet.</p>
               ) : (
                 speakingHistory.map(item => (
-                  <button key={item.id} onClick={() => setMessages(item.messages || [])} className="w-full text-left p-3 rounded-2xl border border-gray-200 dark:border-[#333333] mb-3 last:mb-0 bg-gray-50 dark:bg-[#262626]">
-                    <p className="text-xs text-gray-500 dark:text-[#BDBDBD]">{new Date(item.createdAt).toLocaleString()}</p>
-                    <p className="font-bold text-gray-900 dark:text-[#FFFFFF]">{item.title || item.topic}</p>
+                  <button key={item.id} onClick={() => setMessages(item.messages || [])} className="w-full text-left p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] mb-3 last:mb-0 bg-gray-50 dark:bg-[var(--app-card)]">
+                    <p className="text-xs text-gray-500 dark:text-[var(--app-text-muted)]">{new Date(item.createdAt).toLocaleString()}</p>
+                    <p className="font-bold text-gray-900 dark:text-[var(--app-text)]">{item.title || item.topic}</p>
                   </button>
                 ))
               )}
@@ -4732,52 +4960,62 @@ function Speaking({
           )}
 
           {messages.map((msg, idx) => (
-            <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-              <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl relative ${msg.role === 'user' ? 'bg-[#00C853] text-white rounded-br-none text-right' : msg.role === 'system' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 text-red-600 dark:text-red-400 w-full text-center' : 'bg-gray-100 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] text-gray-800 dark:text-[#FFFFFF] rounded-bl-none text-right'}`} dir="auto">
-                <p className="text-lg leading-relaxed">
+            <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-slideUp`} style={{ animationDelay: `${idx * 0.05}s` }}>
+              <div className={`max-w-[85%] md:max-w-[75%] p-4 lg:p-5 rounded-2xl ${msg.role === 'user'
+                ? 'bg-black dark:bg-white text-white dark:text-black shadow-sm'
+                : msg.role === 'system'
+                  ? 'bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 w-full text-center'
+                  : 'bg-gray-50 dark:bg-[var(--app-surface)] border border-gray-100 dark:border-[var(--app-border)] text-gray-900 dark:text-white shadow-sm'
+                }`} dir="auto">
+                <p className="text-base lg:text-lg leading-relaxed whitespace-pre-wrap">
                   {safeRender(msg.text)}
-                  {msg.streaming && <span className="inline-block w-[2px] h-5 bg-[#00C853] ml-0.5 align-middle animate-pulse rounded-full" />}
+                  {msg.streaming && <span className="inline-block w-1 h-5 bg-[var(--app-accent1)] ml-1 align-middle animate-pulse rounded-full" />}
                 </p>
 
                 {msg.role === 'ai' && !msg.streaming && (
-                  <button onClick={() => speakText(msg.text)} className="mt-3 bg-white/50 dark:bg-[#262626]/50 hover:bg-emerald-100 dark:hover:bg-[#00C853]/20 text-gray-500 dark:text-[#E0E0E0] hover:text-emerald-600 dark:hover:text-emerald-400 p-2 rounded-lg transition-colors border border-transparent hover:border-[#FF4081]/30 dark:hover:border-emerald-500/30">
-                    <Volume2 className="w-5 h-5" />
-                  </button>
+                  <div className="mt-4 flex items-center gap-2 border-t border-gray-100 dark:border-[var(--app-card)] pt-3">
+                    <button onClick={() => speakText(msg.text)} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-[var(--app-card)] text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                      <Volume2 className="w-4.5 h-4.5" />
+                    </button>
+                    <button className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-[var(--app-card)] text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                      <Copy className="w-4.5 h-4.5" />
+                    </button>
+                  </div>
                 )}
               </div>
 
               {msg.role === 'user' && msg.review && (
-                <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-2xl overflow-hidden shadow-sm animate-fadeIn transition-colors">
-                  <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[#262626] hover:bg-gray-100 dark:hover:bg-[#252525] flex justify-between items-center text-sm font-bold text-gray-700 dark:text-[#E0E0E0] transition-colors">
+                <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden shadow-sm animate-fadeIn transition-colors">
+                  <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[var(--app-card)] hover:bg-gray-100 dark:hover:bg-[var(--app-surface)] flex justify-between items-center text-sm font-bold text-gray-700 dark:text-[var(--app-text)] transition-colors">
                     <span className="flex items-center gap-2 text-emerald-600 dark:text-[#FF4081]"><CheckCircle2 className="w-4 h-4" /> {t.corrected}</span>
                     <ChevronRight className={`w-4 h-4 transition-transform ${expandedReviewId === msg.id ? 'rotate-90' : ''}`} />
                   </button>
 
                   {expandedReviewId === msg.id && (
-                    <div className="p-4 space-y-4 border-t border-gray-200 dark:border-[#333333] bg-white dark:bg-[#1E1E1E]">
+                    <div className="p-4 space-y-4 border-t border-gray-200 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-card)]">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-gray-50 dark:bg-[#262626] p-3 rounded-xl border border-gray-200 dark:border-[#333333] shadow-sm">
+                        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
                           <p className="text-xs text-gray-500 mb-1 font-bold">{t.clarity}</p>
-                          <p className="text-sm text-gray-800 dark:text-[#FFFFFF]">{safeRender(msg.review.clarity)}</p>
+                          <p className="text-sm text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.clarity)}</p>
                         </div>
-                        <div className="bg-gray-50 dark:bg-[#262626] p-3 rounded-xl border border-gray-200 dark:border-[#333333] shadow-sm">
+                        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
                           <p className="text-xs text-gray-500 mb-1 font-bold">{t.grammar}</p>
-                          <p className="text-sm text-gray-800 dark:text-[#FFFFFF]">{safeRender(msg.review.grammar)}</p>
+                          <p className="text-sm text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.grammar)}</p>
                         </div>
-                        <div className="bg-gray-50 dark:bg-[#262626] p-3 rounded-xl border border-gray-200 dark:border-[#333333] shadow-sm">
+                        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
                           <p className="text-xs text-gray-500 mb-1 font-bold">{t.fluency}</p>
-                          <p className="text-sm text-gray-800 dark:text-[#FFFFFF]">{safeRender(msg.review.fluency)}</p>
+                          <p className="text-sm text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.fluency)}</p>
                         </div>
                       </div>
 
-                      <div className="bg-emerald-50 dark:bg-[#00C853]/10 p-4 rounded-xl border border-emerald-100 dark:border-[#00FF85]/20 relative">
+                      <div className="bg-emerald-50 dark:bg-[var(--app-accent1)]/10 p-4 rounded-2xl border border-emerald-100 dark:border-[var(--app-accent1)]/20 relative">
                         <h4 className="text-sm font-bold text-emerald-700 dark:text-[#FF4081] mb-2 flex items-center gap-2">
                           <Target className="w-4 h-4" /> {t.native}
                         </h4>
-                        <p className="text-lg text-gray-900 dark:text-[#FFFFFF] font-medium" dir="ltr">"{safeRender(msg.review.native_way)}"</p>
+                        <p className="text-lg text-gray-900 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(msg.review.native_way)}"</p>
 
                         <div className="mt-4 flex gap-3">
-                          <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-[#00C853] hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-md">
+                          <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-[var(--app-accent1)] hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition shadow-md">
                             <Play className="w-4 h-4" /> {t.listen}
                           </button>
                         </div>
@@ -4791,51 +5029,62 @@ function Speaking({
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-gray-100 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] p-5 rounded-2xl rounded-bl-none flex items-center gap-3 shadow-sm">
-                <div className="w-2 h-2 bg-[#00C853] rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-[#00C853] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-[#00C853] rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              <div className="bg-gray-100 dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] p-5 rounded-2xl rounded-bl-none flex items-center gap-3 shadow-sm">
+                <div className="w-2 h-2 bg-[var(--app-accent1)] rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-[var(--app-accent1)] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 bg-[var(--app-accent1)] rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
               </div>
             </div>
           )}
           <div ref={chatEndRef} />
         </div>
 
-    <div className="bg-gray-50 dark:bg-[#1E1E1E] p-5 border-t border-gray-200 dark:border-[#333333] relative z-10 transition-colors">
-      <div className="flex items-center gap-3 bg-white dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl p-2 focus-within:border-emerald-400 transition-colors relative">
+        <div className="px-6 py-6 border-t border-gray-100 dark:border-[var(--app-border)] bg-white dark:bg-black transition-colors">
+          <div className="max-w-3xl mx-auto flex items-center gap-3 p-1.5 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-100 dark:border-[var(--app-border)] rounded-2xl focus-within:border-[var(--app-accent1)]/50 transition-all">
+            <button onClick={handleVoiceRecord} className={`p-3 rounded-2xl transition-all flex items-center justify-center ${isRecording ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
+              <Mic className="w-5 h-5" />
+            </button>
 
-        <button onClick={handleVoiceRecord} className={`p-3.5 rounded-full transition-colors flex items-center justify-center ${isRecording ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-500 animate-pulse' : 'bg-gray-100 dark:bg-[#262626] hover:bg-gray-200 dark:hover:bg-[#00E5FF] text-emerald-600 dark:text-[#FF4081]'}`} title={isRecording ? "Stop Recording" : "Record Voice"}>
-          {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-        </button>
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSend()}
+              placeholder={t.placeholder}
+              className="flex-1 bg-transparent border-none text-gray-900 dark:text-white text-base px-2 py-2 outline-none placeholder-gray-400"
+              dir="auto"
+              disabled={loading}
+            />
 
-        {isRecording && <span className="absolute right-16 text-xs text-red-500 dark:text-red-400 font-bold animate-pulse">Listening...</span>}
-
-        <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder={isRecording ? "" : t.placeholder} className="flex-1 bg-transparent border-none text-center text-gray-900 dark:text-[#FFFFFF] text-lg px-2 focus:outline-none focus:ring-0 placeholder-gray-400 dark:placeholder-gray-200 disabled:opacity-50" dir="ltr" disabled={isRecording} />
-        <button onClick={() => handleSend()} disabled={loading || !input.trim()} className="p-3.5 bg-[#00C853] hover:bg-[#00C853] rounded-full text-white transition-colors disabled:opacity-50 shadow-md">
-          <Send className="w-5 h-5 ml-[-2px]" />
-        </button>
-      </div>
-    </div>
-  </div>
-  {callReview && <div className="w-full mt-6 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl overflow-hidden animate-fadeIn">
-    <div className="bg-[#00C853] p-4 text-white flex justify-between items-center">
-      <h3 className="font-extrabold text-lg flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Call Corrections Review</h3>
-      <button onClick={() => setCallReview(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
-    </div>
-    <div className="p-5 space-y-4">
-      {callReview.map((msg, i) => (
-        <div key={i} className="p-4 bg-gray-50 dark:bg-[#262626] rounded-2xl border border-gray-200 dark:border-[#333333]">
-          <p className="text-xs text-gray-500 font-extrabold uppercase tracking-wider mb-2">You said:</p>
-          <p className="text-gray-900 dark:text-[#FFFFFF] font-medium mb-3" dir="ltr">"{safeRender(msg.text)}"</p>
-          {msg.review && <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-            {msg.review.grammar && <div className="p-2.5 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 rounded-xl"><p className="font-bold text-red-600 dark:text-red-400 text-xs mb-1">Grammar</p><p className="text-gray-800 dark:text-[#FFFFFF]">{safeRender(msg.review.grammar)}</p></div>}
-            {msg.review.clarity && <div className="p-2.5 bg-[#00C853]/10 dark:bg-[#00C853]/10 border border-[#00FF85]/30 dark:border-[#00FF85]/30 rounded-xl"><p className="font-bold text-[#FF4081] dark:text-[#FF4081] text-xs mb-1">Clarity</p><p className="text-gray-800 dark:text-[#FFFFFF]">{safeRender(msg.review.clarity)}</p></div>}
-            {msg.review.native_way && <div className="p-2.5 bg-emerald-50 dark:bg-[#00C853]/10 border border-[#FF4081]/30 dark:border-[#00FF85]/30 rounded-xl"><p className="font-bold text-emerald-600 dark:text-[#FF4081] text-xs mb-1">Native way</p><p className="text-gray-800 dark:text-[#FFFFFF] italic">"{safeRender(msg.review.native_way)}"</p></div>}
-          </div>}
+            <button
+              onClick={() => handleSend()}
+              disabled={loading || !input.trim()}
+              className={`p-3 rounded-2xl transition-all ${loading || !input.trim() ? 'text-gray-300' : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-90 shadow-sm'}`}
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-      ))}
-    </div>
-  </div>}
+      </div>
+      {callReview && <div className="w-full mt-6 bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden animate-fadeIn">
+        <div className="bg-[var(--app-accent1)] p-4 text-white flex justify-between items-center">
+          <h3 className="font-extrabold text-lg flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Call Corrections Review</h3>
+          <button onClick={() => setCallReview(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          {callReview.map((msg, i) => (
+            <div key={i} className="p-4 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl border border-gray-200 dark:border-[var(--app-border)]">
+              <p className="text-xs text-gray-500 font-extrabold uppercase tracking-wider mb-2">You said:</p>
+              <p className="text-gray-900 dark:text-[var(--app-text)] font-medium mb-3" dir="ltr">"{safeRender(msg.text)}"</p>
+              {msg.review && <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                {msg.review.grammar && <div className="p-2.5 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 rounded-2xl"><p className="font-bold text-red-600 dark:text-red-400 text-xs mb-1">Grammar</p><p className="text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.grammar)}</p></div>}
+                {msg.review.clarity && <div className="p-2.5 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30 rounded-2xl"><p className="font-bold text-[#FF4081] dark:text-[#FF4081] text-xs mb-1">Clarity</p><p className="text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.clarity)}</p></div>}
+                {msg.review.native_way && <div className="p-2.5 bg-emerald-50 dark:bg-[var(--app-accent1)]/10 border border-[#FF4081]/30 dark:border-[var(--app-accent1)]/30 rounded-2xl"><p className="font-bold text-emerald-600 dark:text-[#FF4081] text-xs mb-1">Native way</p><p className="text-gray-800 dark:text-[var(--app-text)] italic">"{safeRender(msg.review.native_way)}"</p></div>}
+              </div>}
+            </div>
+          ))}
+        </div>
+      </div>}
     </>
   );
 }
@@ -4845,7 +5094,8 @@ function Langeek({
   userLevel,
   lang,
   langeekVocab,
-  setLangeekVocab
+  setLangeekVocab,
+  theme
 }) {
   const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {});
   const [vocabMode, setVocabMode] = useState('browse');
@@ -5031,7 +5281,7 @@ function Langeek({
     if (!wordToPlay) return;
     const voiceName = accentCode === 'en-US' ? EDGE_VOICES.us.male
       : accentCode === 'en-GB' ? EDGE_VOICES.uk.male
-      : undefined;
+        : undefined;
     await edgeTTSSpeak(wordToPlay, 'male', voiceName);
   };
 
@@ -5106,19 +5356,19 @@ Rules:
     } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[#262626] p-1.5 rounded-xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
+    <div className="flex flex-col sm:flex-row bg-white dark:bg-[var(--app-card)] p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
       <button onClick={() => {
         setVocabMode('browse');
         setShowMeaning(false);
         setCardImage(null);
         setAiStory('');
-      }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'browse' ? 'bg-[#00C853] text-white shadow-md' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
+      }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'browse' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
       <button onClick={() => {
         setVocabMode('review');
         setShowMeaning(false);
         setCardImage(null);
         setAiStory('');
-      }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${vocabMode === 'review' ? 'bg-[#00C853] text-white' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}>
+      }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${vocabMode === 'review' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}>
         <Layers className="w-4 h-4" /> {t.review}
         {dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">{dueCards.length}</span>}
       </button>
@@ -5127,44 +5377,45 @@ Rules:
         setShowMeaning(false);
         setCardImage(null);
         setAiStory('');
-      }} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'lists' ? 'bg-[#1E90FF] text-white shadow-md' : 'text-gray-600 dark:text-[#E0E0E0] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[#252525]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
+      }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'lists' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
 
-    {vocabMode === 'lists' && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[#333333] pb-4 overflow-x-auto no-scrollbar">
-        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.hard} ({hardWords.length})</button>
-        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[#00C853]/10 dark:bg-[#00C853]/15 text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 dark:border-[#00FF85]/30' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.learning} ({learningWords.length})</button>
-        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-[#00C853]/12 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-[#1E90FF] hover:text-gray-900 dark:hover:text-[#B0B0B0]'}`}>{t.mastered} ({masteredWords.length})</button>
+    {vocabMode === 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[var(--app-border)] pb-4 overflow-x-auto no-scrollbar">
+        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.hard} ({hardWords.length})</button>
+        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.learning} ({learningWords.length})</button>
+        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-[var(--app-accent1)]/12 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.mastered} ({masteredWords.length})</button>
       </div>
 
       {listTab === 'hard' && hardWords.length > 0 && <div className="mb-6">
-        <button onClick={generateContextStory} disabled={loadingContextStory} className="w-full py-4 bg-orange-50 dark:bg-orange-600/10 text-[#1E90FF] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-100 dark:hover:bg-[#1E90FF]/20 transition-all shadow-sm">
+        <button onClick={generateContextStory} disabled={loadingContextStory} className="w-full py-4 bg-orange-50 dark:bg-orange-600/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-100 dark:hover:bg-[var(--app-accent1)]/20 transition-all shadow-sm">
           {loadingContextStory ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> ✨ {t.contextBtn}</>}
         </button>
-        {contextStory && <div className={`mt-4 p-5 bg-gray-50 dark:bg-[#262626] rounded-2xl border border-gray-200 dark:border-[#333333] ${_resolveTranslation(lang, 'text-right', 'text-left')} prose prose-orange dark:prose-invert max-w-none`}><div style={{
+        {contextStory && <div className={`mt-4 p-5 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl border border-gray-200 dark:border-[var(--app-border)] ${_resolveTranslation(lang, 'text-right', 'text-left')} prose prose-orange dark:prose-invert max-w-none`}><div style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(contextStory)}</div></div>}
       </div>}
 
+
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateWordsMsg}</p></div> : currentListView.map(item => {
           const srs = srsData[item.word];
-          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[#262626] p-4 rounded-xl border border-gray-200 dark:border-[#333333] hover:border-gray-300 dark:border-[#333333] transition-colors group">
+          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 dark:border-[var(--app-border)] transition-colors group">
             <div className="flex items-center gap-3">
-              <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 dark:text-[#1E90FF] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[#1E1E1E] border border-gray-100 dark:border-[#333333] rounded-full shadow-sm">
-                <Clock className="w-3 h-3 text-[#00E5FF] dark:text-[#00E5FF]" />
-                <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[#E0E0E0] tracking-wider">
+              <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 dark:text-[var(--app-accent1)] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[var(--app-card)] border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
+                <Clock className="w-3 h-3 text-black dark:text-white" />
+                <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[var(--app-text)] tracking-wider">
                   {formatCountdown(srs?.nextReview)}
                 </span>
               </div>
             </div>
             <div className="text-left" dir="ltr">
-              <p className="text-xl font-bold text-gray-900 dark:text-[#FFFFFF] flex items-center justify-start gap-2">
-                <button onClick={() => playAudio('en-US', item.word)} className="text-gray-500 hover:text-[#00E5FF] dark:hover:text-blue-400 transition-colors"><Volume2 className="w-4 h-4" /></button>
+              <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center justify-start gap-2">
+                <button onClick={() => playAudio('en-US', item.word)} className="text-gray-500 hover:text-black dark:text-white dark:hover:text-blue-400 transition-colors"><Volume2 className="w-4 h-4" /></button>
                 <span>{safeRender(item.word)}</span>
               </p>
-              <p className="text-sm text-gray-600 dark:text-[#E0E0E0] mt-1">{safeRender(item.meaning)}</p>
+              <p className="text-sm text-gray-600 dark:text-[var(--app-text)] mt-1">{safeRender(item.meaning)}</p>
             </div>
           </div>;
         })}
@@ -5172,115 +5423,136 @@ Rules:
     </div>}
 
     {vocabMode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[#1E1E1E] p-5 rounded-2xl border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[#FFFFFF] mb-1">{t.smartCards}</h2><p className="text-sm text-gray-600 dark:text-[#E0E0E0]">{t.totalWords} {langeekVocab.length}</p></div>
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{t.smartCards}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalWords} {langeekVocab.length}</p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm text-green-600 dark:text-green-400 font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
-          <label className="bg-orange-50 dark:bg-[#1E90FF]/10 text-[#1E90FF] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[#1E90FF] dark:hover:bg-[#1E90FF] dark:hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm">
+          <label className="bg-orange-50 dark:bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[var(--app-accent1)] dark:hover:bg-[var(--app-accent1)] dark:hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm">
             <UploadCloud className="w-4 h-4" /> {t.uploadCSV}
             <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
           </label>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white dark:bg-[#1E1E1E] p-5 rounded-2xl border border-gray-200 dark:border-[#333333] shadow-sm transition-colors">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-[#00E5FF] dark:text-[#00E5FF]" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none transition-colors" />
+      <div className="flex flex-col md:flex-row items-end gap-4 bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-black dark:text-white" /> {t.searchWord}</label>
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
         </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[#1E90FF] dark:text-[#8B5CF6]" /> {t.filterLevel}</label>
-          <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none transition-colors appearance-none cursor-pointer">
-            <option value="All">All Levels</option><option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option><option value="C1">C1</option><option value="C2">C2</option>
-          </select>
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[var(--app-accent1)] dark:text-[var(--app-accent2)]" /> {t.filterLevel}</label>
+          <CustomDropdown 
+            value={levelFilter} 
+            onChange={setLevelFilter} 
+            options={['All', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(lvl => ({ value: lvl, label: lvl === 'All' ? 'All Levels' : lvl }))} 
+            theme={theme}
+            className="w-full"
+          />
         </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[#1E90FF] dark:text-[#8B5CF6]" /> {t.filterCategory}</label>
-          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none transition-colors appearance-none cursor-pointer">
-            <option value="All">All Topics</option>
-            {[...new Set(langeekVocab.map(v => v.category).filter(Boolean))].map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[var(--app-accent1)] dark:text-[var(--app-accent2)]" /> {t.filterCategory}</label>
+          <CustomDropdown 
+            value={categoryFilter} 
+            onChange={setCategoryFilter} 
+            options={[{ value: 'All', label: 'All Topics' }, ...[...new Set(langeekVocab.map(v => v.category).filter(Boolean))].map(c => ({ value: c, label: c }))]} 
+            theme={theme}
+            className="w-full"
+          />
         </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm text-gray-600 dark:text-[#E0E0E0] font-bold flex items-center gap-2"><List className="w-4 h-4 text-[#00E5FF] dark:text-green-400" /> {t.manualSelect} ({filteredVocabList.length})</label>
-          <select value={safeIndex} onChange={e => {
-            setActiveWordIndex(Number(e.target.value));
-            setShowMeaning(false);
-            setAiStory('');
-            setCardImage(null);
-          }} className="w-full bg-gray-50 dark:bg-[#262626] border border-gray-200 dark:border-[#333333] rounded-xl px-4 py-3 text-gray-900 dark:text-[#FFFFFF] focus:border-[#00FF85] focus:outline-none transition-colors appearance-none cursor-pointer" dir="ltr">
-            {filteredVocabList.length === 0 ? <option value={0}>{t.noWords}</option> : filteredVocabList.map((item, idx) => <option key={idx} value={idx}>{safeRender(item.word)}</option>)}
-          </select>
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><List className="w-4 h-4 text-black dark:text-white dark:text-green-400" /> {t.manualSelect} ({filteredVocabList.length})</label>
+          <CustomDropdown 
+            value={safeIndex} 
+            onChange={val => {
+              setActiveWordIndex(Number(val));
+              setShowMeaning(false);
+              setAiStory('');
+              setCardImage(null);
+            }} 
+            options={filteredVocabList.length === 0 ? [{ value: 0, label: t.noWords }] : filteredVocabList.map((item, idx) => ({ value: idx, label: safeRender(item.word) }))} 
+            theme={theme}
+            className="w-full"
+          />
         </div>
       </div>
     </>}
 
-    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
-      <div className="w-24 h-24 bg-green-50 dark:bg-[#00C853]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-[#00E5FF] dark:text-green-400" /></div>
-      <h3 className="text-3xl text-gray-900 dark:text-[#FFFFFF] font-bold mb-4">{t.reviewDone}</h3>
-      <p className="text-gray-600 dark:text-[#E0E0E0] text-lg">{t.reviewDoneMsg}</p>
-      <button onClick={() => setVocabMode('browse')} className="mt-8 bg-[#00C853]/10 dark:bg-[#00C853]/15 text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 dark:border-[#00FF85]/40/50 px-8 py-3 rounded-xl font-bold">{t.browseLearn}</button>
+    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+      <div className="w-24 h-24 bg-green-50 dark:bg-[var(--app-accent1)]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-black dark:text-white dark:text-green-400" /></div>
+      <h3 className="text-3xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">{t.reviewDone}</h3>
+      <p className="text-gray-600 dark:text-[var(--app-text)] text-lg">{t.reviewDoneMsg}</p>
+      <button onClick={() => setVocabMode('browse')} className="mt-8 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/40/50 px-8 py-3 rounded-2xl font-bold">{t.browseLearn}</button>
     </div>}
 
-    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
-      <Search className="w-12 h-12 text-gray-400 dark:text-[#1E90FF] mb-4" />
-      <h3 className="text-xl text-gray-600 dark:text-[#E0E0E0] font-bold">{t.noMatch}</h3>
+    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-[40px] min-h-[400px] flex flex-col items-center justify-center p-12 shadow-sm text-center animate-fadeIn transition-colors">
+      <div className="w-20 h-20 bg-gray-100 dark:bg-[var(--app-surface)] rounded-full flex items-center justify-center mb-6">
+        <UploadCloud className="w-10 h-10 text-[var(--app-accent1)]" />
+      </div>
+      <h3 className="text-2xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">
+        {_resolveTranslation(lang, 'قسم لانجيك فارغ', 'Langeek Section is Empty')}
+      </h3>
+      <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto leading-relaxed mb-8">
+        {_resolveTranslation(lang, 'يرجى رفع ملف الكلمات (CSV) الخاص بك للبدء في المذاكرة. يمكنك تحويل ملفات Langeek PDF إلى صيغة CSV لتعمل هنا.', 'Please upload your wordlist (CSV) to start studying. You can convert Langeek PDF files to CSV format to work here.')}
+      </p>
+      <label className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black px-10 py-4 rounded-2xl font-bold transition-all shadow-xl cursor-pointer active:scale-95">
+        {t.uploadCSV}
+        <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+      </label>
     </div>}
 
-    {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-[#333333] rounded-xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
 
       <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
         <button onClick={e => {
           e.stopPropagation();
           playAudio('en-US');
-        }} className="p-3 bg-gray-50 dark:bg-[#262626] rounded-xl text-[#00E5FF] dark:text-[#00E5FF] shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
+        }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-black dark:text-white shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
         <button onClick={e => {
           e.stopPropagation();
           playAudio('en-GB');
-        }} className="p-3 bg-gray-50 dark:bg-[#262626] rounded-xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
+        }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
       </div>
       <div className="absolute top-6 right-6 flex flex-col gap-2 items-end">
-        <span className="bg-gray-50 dark:bg-[#262626] text-[#00E5FF] dark:text-[#00E5FF] border border-[#00FF85]/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.level)}</span>
-        {card.category && card.category !== 'All' && card.category !== 'General' && <span className="bg-[#00E5FF]/10 dark:bg-[#262626] text-[#00E5FF] dark:text-[#8B5CF6] border border-[#00E5FF]/30 dark:border-purple-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.category)}</span>}
-        {card.type && <span className="bg-emerald-50 dark:bg-[#262626] text-emerald-600 dark:text-[#00E5FF] border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.type)}</span>}
+        <span className="bg-gray-100 dark:bg-[var(--app-card)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-accent1)]/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.level)}</span>
+        {card.category && card.category !== 'All' && card.category !== 'General' && <span className="bg-indigo-50 dark:bg-[var(--app-accent1)]/10 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-[var(--app-accent1)]/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.category)}</span>}
+        {card.type && <span className="bg-emerald-50 dark:bg-[var(--app-accent2)]/10 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-[var(--app-accent2)]/30 px-3 py-1 rounded-full text-xs font-bold shadow-sm">{safeRender(card.type)}</span>}
       </div>
 
       {!showMeaning ? <div className="text-center w-full">
-        <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-[#FFFFFF] mb-6" dir="ltr">{safeRender(card.word)}</h3>
-        <p className="text-gray-600 dark:text-[#00E5FF] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[#262626]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+        <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
+        <p className="text-gray-600 dark:text-black dark:text-white text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
-        <h3 className="text-2xl md:text-3xl font-bold text-[#00E5FF] dark:text-[#00E5FF] leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[#262626] p-6 rounded-2xl border border-gray-200 dark:border-[#333333]/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[#FFFFFF] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
-        {card.synonyms && <div className="w-full bg-gray-100 dark:bg-[#262626]/30 p-4 rounded-xl border border-gray-200 text-sm text-gray-700 dark:text-[#E0E0E0]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-[#00E5FF] dark:text-[#00E5FF]">{safeRender(card.synonyms)}</span></div>}
+        <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        {card.example && <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        {card.synonyms && <div className="w-full bg-gray-100 dark:bg-[var(--app-card)]/30 p-4 rounded-2xl border border-gray-200 text-sm text-gray-700 dark:text-[var(--app-text)]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-black dark:text-white">{safeRender(card.synonyms)}</span></div>}
 
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
           {!aiStory && <button onClick={e => {
             e.stopPropagation();
             generateStory();
-          }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-[#00E5FF]/10 text-[#00E5FF] dark:text-[#00E5FF] px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
+          }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-black dark:bg-white/10 text-black dark:text-white px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
           {!cardImage && <button onClick={e => {
             e.stopPropagation();
             generateImage();
-          }} disabled={loadingImage} className="flex-1 bg-[#00C853]/10 dark:bg-[#00C853]/10 text-[#00E5FF] dark:text-[#00E5FF] px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
-          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[#00C853]/10 dark:bg-[#00C853]/8 text-[#00E5FF] dark:text-[#00E5FF] px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
+          }} disabled={loadingImage} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
+          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/8 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
         </div>
 
-        {collocationData && <div className="bg-gray-50 dark:bg-[#262626] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[#FFFFFF] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
-        {aiStory && <div className={`bg-gray-50 dark:bg-[#262626] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[#E0E0E0] text-sm" style={{
+        {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
+        {aiStory && <div className={`bg-gray-50 dark:bg-[var(--app-card)] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(aiStory)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[#262626] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[#00E5FF] mb-2 animate-bounce" /><span className="text-sm text-[#00E5FF] font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[#333333] shadow-sm relative bg-gray-50 dark:bg-[#262626]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
           e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found';
         }} /></div>}
       </div>}
     </div>}
 
     {showMeaning && card && vocabMode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-[#1E1830] text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain} <span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[#252525] text-[#00E5FF] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard} <span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[#262626] text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood} <span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
-      <button onClick={() => handleRate('easy')} className="bg-[#00C853]/10 dark:bg-[#262626] text-[#00E5FF] border border-[#00FF85]/30 py-3 rounded-2xl font-bold hover:bg-blue-100 flex flex-col items-center">{t.rateEasy} <span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain} <span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard} <span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood} <span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center">{t.rateEasy} <span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
     </div>}
   </div>;
 }

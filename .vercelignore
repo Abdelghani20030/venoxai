@@ -1,0 +1,14 @@
+.git
+.local
+.agents
+.config
+.replit
+.replitignore
+node_modules
+dist
+*.ps1
+*.md
+attached_assets
+scratch
+scripts
+pnpm-lock.yaml.bak

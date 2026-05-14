@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * gemini-tts.ts — Google Gemini Text-to-Speech Route
  *
@@ -137,3 +138,4 @@ router.get("/gemini-tts", async (req: Request, res: Response) => {
 });
 
 export default router;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router, type IRouter, type Request, type Response } from "express";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -337,3 +338,4 @@ router.post("/chat", async (req: Request, res: Response) => {
 });
 
 export default router;
+

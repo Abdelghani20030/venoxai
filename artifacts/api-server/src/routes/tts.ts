@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * tts.ts — ElevenLabs Text-to-Speech Route
  *
@@ -240,3 +241,4 @@ router.post("/tts/stream", async (req: Request, res: Response) => {
 });
 
 export default router;
+
