@@ -59,17 +59,17 @@ const OR_MODELS = [
 const orKey = (process.env["OPENROUTER_API_KEY"] ?? "").trim();
 
 if (!orKey || orKey.length < 10) {
-  throw new Error("OPENROUTER_API_KEY is not set. Please add it to your environment secrets.");
+  console.warn("OPENROUTER_API_KEY is not set or too short — OpenRouter will be unavailable.");
 }
 
-const orClient = new OpenAI({
+const orClient = orKey ? new OpenAI({
   apiKey: orKey,
   baseURL: "https://openrouter.ai/api/v1",
   defaultHeaders: {
     "HTTP-Referer": "https://venoxa.replit.app",
     "X-Title": "Venoxa AI Platform",
   },
-});
+}) : null;
 
 // ── Gemini ──────────────────────────────────────────────────────────────────
 const geminiKey = (process.env["GEMINI_API_KEY"] ?? "").trim();
@@ -115,6 +115,7 @@ async function streamFromOpenRouter(
   maxTokens = 512,
   log?: (msg: string) => void,
 ): Promise<void> {
+  if (!orClient) throw new Error("OpenRouter client not configured — OPENROUTER_API_KEY is missing.");
   if (isCooledDown("openrouter:auth")) throw new Error("OpenRouter auth circuit open");
 
   const messages = buildMessages(prompt);
