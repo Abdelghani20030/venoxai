@@ -66,7 +66,7 @@ const orClient = orKey ? new OpenAI({
   apiKey: orKey,
   baseURL: "https://openrouter.ai/api/v1",
   defaultHeaders: {
-    "HTTP-Referer": "https://venoxa.replit.app",
+    "HTTP-Referer": "https://venoxai.vercel.app",
     "X-Title": "Venoxa AI Platform",
   },
 }) : null;
