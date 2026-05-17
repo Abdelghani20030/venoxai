@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft } from 'lucide-react';
+import ReactDOM from 'react-dom';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
+import LiquidGlass from 'liquid-glass-react';
 
 function LanguageDropdown({ lang, setLang, theme }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,21 +21,34 @@ function LanguageDropdown({ lang, setLang, theme }) {
     <div className={`relative flex-1 ${isOpen ? 'z-[9999]' : 'z-auto'}`} ref={ref}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full h-11 flex items-center gap-2 px-3 rounded-2xl text-sm font-bold transition-all outline-none cursor-pointer border ${theme === 'dark' ? 'bg-[var(--app-surface)] text-white border-[var(--app-border)] hover:bg-[var(--app-hover)] hover:text-black' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
+        className={`w-full h-11 flex items-center gap-2 px-3 rounded-2xl text-sm font-bold transition-all outline-none cursor-pointer border ${theme === 'dark' ? 'text-white border-white/5 hover:border-white/10' : 'text-gray-700 border-black/5 hover:border-black/10'}`}
+        style={{
+          background: theme === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(255, 255, 255, 0.18)',
+          backdropFilter: 'blur(48px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+        }}
       >
         <Globe className="w-4 h-4 shrink-0 order-2" />
         <span className="flex-1 text-start order-1 font-bold text-sm">{langs.find(l => l.code === lang)?.label || 'Language'}</span>
 
       </button>
       {isOpen && (
-        <div className="dropdown-menu bottom-full left-0 mb-2 w-full min-w-[140px] max-h-[300px] overflow-y-auto no-scrollbar">
+        <div 
+          className="dropdown-menu bottom-full left-0 mb-2 w-full min-w-[140px] max-h-[300px] overflow-y-auto no-scrollbar"
+          style={{
+            background: theme === 'dark' ? 'rgb(33, 33, 42)' : 'rgba(255, 255, 255, 0.96)',
+            backdropFilter: 'blur(48px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+          }}
+        >
           {langs.map(l => (
             <button
               key={l.code}
               onClick={() => { setLang(l.code); setIsOpen(false); }}
               className={`dropdown-item ${lang === l.code ? 'active' : ''}`}
             >
-              {l.label}
+              <span className="truncate">{l.label}</span>
+              {lang === l.code && <div className={`w-1.5 h-1.5 rounded-full ${theme === 'dark' ? 'bg-white' : 'bg-[var(--app-accent1)]'} shadow-[0_0_10px_rgba(99,102,241,0.5)]`} />}
             </button>
           ))}
         </div>
@@ -58,9 +73,14 @@ function CustomDropdown({ value, onChange, options, icon: Icon, theme, placehold
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full h-11 flex items-center gap-3 px-4 rounded-2xl text-sm font-bold transition-all duration-300 outline-none cursor-pointer border ${isDark
-          ? 'bg-[var(--app-bg)] text-white border-[var(--app-border)] hover:border-gray-700 hover:bg-[#121212]'
-          : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+          ? 'text-white border-white/5 hover:border-white/10'
+          : 'text-gray-700 border-black/5 hover:border-black/10'
           } ${isOpen ? 'ring-2 ring-[var(--app-accent1)]/10 border-[var(--app-accent1)]/50' : ''}`}
+        style={{
+          background: isDark ? 'var(--app-input-bg)' : 'rgba(255, 255, 255, 0.18)',
+          backdropFilter: 'blur(48px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+        }}
       >
         {Icon && <Icon size={16} className={`${isDark ? 'text-white' : 'text-gray-400'} shrink-0`} />}
         <span className="flex-1 text-center truncate tracking-tight">{selectedLabel || value || placeholder || ''}</span>
@@ -68,7 +88,14 @@ function CustomDropdown({ value, onChange, options, icon: Icon, theme, placehold
       </button>
 
       {isOpen && (
-        <div className="dropdown-menu top-full left-0 right-0 mt-2 w-full max-h-[320px] overflow-y-auto custom-scrollbar">
+        <div 
+          className="dropdown-menu top-full left-0 right-0 mt-2 w-full max-h-[320px] overflow-y-auto custom-scrollbar"
+          style={{
+            background: isDark ? 'rgb(33, 33, 42)' : 'rgba(255, 255, 255, 0.96)',
+            backdropFilter: 'blur(48px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+          }}
+        >
           {options.map(o => (
             <button
               key={o.value}
@@ -149,15 +176,28 @@ function SolidDatePicker({ value, onChange, min, label, lang }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-white dark:bg-black border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 py-3 text-gray-900 dark:text-[var(--app-text)] font-bold text-left flex justify-between items-center focus:outline-none focus:border-[var(--app-accent1)] transition-colors"
+        className={`w-full h-11 flex items-center gap-3 px-4 rounded-2xl text-sm font-bold transition-all duration-300 outline-none cursor-pointer border dark:text-white dark:border-white/5 dark:hover:border-white/10 text-gray-700 border-black/5 hover:border-black/10`}
+        style={{
+          background: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.07)' : 'rgba(255, 255, 255, 0.92)',
+          backdropFilter: 'blur(48px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+        }}
       >
-        <span>{value || label}</span>
-        <Calendar className="w-5 h-5 text-gray-400 dark:text-[var(--app-text-muted)]" />
+        <span className="flex-1 text-start truncate">{value || label}</span>
+        <Calendar className="w-5 h-5 dark:text-white text-gray-400 shrink-0" />
       </button>
 
       {isOpen && (
         <div className="absolute top-full left-1/2 -translate-x-1/2 z-[9999] pt-2">
-          <div className="dropdown-menu !relative mt-0 w-[280px]" dir="ltr">
+          <div 
+            className="dropdown-menu !relative mt-0 w-[280px]" 
+            dir="ltr"
+            style={{
+              background: document.documentElement.classList.contains('dark') ? 'rgb(33, 33, 42)' : 'rgba(255, 255, 255, 0.96)',
+              backdropFilter: 'blur(48px) saturate(200%)',
+              WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+            }}
+          >
             <div className="text-center font-extrabold text-base mb-3 pb-3 border-b border-gray-100/20 dark:border-white/10 tracking-wide">
               {monthNames[month]} {year}
             </div>
@@ -880,6 +920,82 @@ const GRAMMAR_LEVELS = [{
   level: "C1 - متقدم",
   topics: ["Inversion", "Emphasis (cleft sentences)", "Advanced Conditionals", "Subjunctive", "Nominalization", "Advanced Passive", "Phrasal verbs", "Collocations & idiomatic structures", "Reduced relative clauses", "Complex verb patterns"]
 }];
+const GRAMMAR_CEFR_DETAILED = [
+  {
+    level: "A1", labelAr: "مبتدئ", color: "#22c55e",
+    categories: [
+      { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["Adjectives vs adverbs: word formation & word order (good → well, quick → quickly)", "Comparative adjectives with -er and more (happier, more comfortable)", "Superlative adjectives with -est and the most (the happiest, the most comfortable)"] },
+      { name: "Articles & Quantifiers", nameAr: "أدوات التعريف", rules: ["Articles: a, an, the, zero article (I am a singer. I have books. I feel love.)", "Superlative with the (the best, the most interesting)"] },
+      { name: "Conditionals", nameAr: "الجمل الشرطية", rules: ["Zero conditional (If you are ill, go to the doctor.)"] },
+      { name: "Future Tenses", nameAr: "المستقبل", rules: ["Future with will for sudden decisions (I will help you.)", "Future with going to for plans (I am going to see my sister.)", "Will for requests (Will you carry my bag, please?)"] },
+      { name: "Gerund & Infinitive", nameAr: "المصدر وإن+فعل", rules: ["Verbs followed by infinitive or gerund: like, love, want, would like (I like reading. I want to see my family.)", "Stative verbs: know, like, seem, love, have, want, see"] },
+      { name: "Past Tenses", nameAr: "الماضي", rules: ["Past simple for actions in the past (I worked last night. I didn't work.)", "Past simple of TO BE (I was, You were, She was…)", "Past simple: regular and irregular verbs (I visited London. I went to see a film.)"] },
+      { name: "Modal Verbs", nameAr: "الأفعال الناقصة", rules: ["Can / can't for abilities (I can't swim. I can cook.)", "Could / couldn't for past abilities (I could swim when I was five.)", "Could for polite requests (Could you help me?)", "Must / mustn't for obligation & prohibition (I must study. You mustn't smoke.)", "Need / needn't for necessity (You need to finish. You needn't hurry.)", "Can for permission & possibility (Can I bring my dog? I can see you after work.)", "Shall for suggestions (Shall I walk you to work?)"] },
+      { name: "Prepositions", nameAr: "حروف الجر", rules: ["Prepositions of place: at, in, on, in front of, under, behind, among, beside, near, next to, between, across, into, through, onto, out of", "By, of, etc."] },
+      { name: "Pronouns", nameAr: "الضمائر", rules: ["Personal pronouns (I, he, she, it, we, you, they)", "Possessive pronouns (my, your, his, her, its, our, their)", "Possessive with 's (Paul's daughter, my sister's house)", "Object pronouns (me, you, him, her, it, us, them)", "Demonstrative pronouns (this, that, these, those)", "Pronouns: something, anything"] },
+      { name: "Present Tenses", nameAr: "المضارع", rules: ["Have got: positive, negative, question (I have got blond hair. Has she got a car?)", "Have (I have breakfast at 8.)", "To be (I am, You are, He is…)", "There is / There are (There is a book. There are books.)", "Present simple for habits (I wake up at 8 every day.)", "Adverbs of frequency: always, never, often, seldom, usually (I usually drink coffee.)", "Present progressive for actions now (I am working now.)", "Present perfect with since and for (I have lived alone since 2000.)", "Present perfect with ever and never (Have you ever been to Britain?)", "Present perfect with already and yet (I haven't been yet. I have already done that.)", "Imperative (Stand up! Do this!)"] },
+      { name: "Questions", nameAr: "الأسئلة", rules: ["Interrogative pronouns: Where, When, Who, How, What, Which, Whose, What time", "Questions with TO BE (Are they relatives?)", "Questions with HAVE GOT (Have you got a car?)", "Questions with Present simple (Do you speak English?)", "Questions with Past simple (Did he do it? Was he at home?)", "Question tags (She is Spanish, isn't she?)"] },
+    ]
+  },
+  {
+    level: "A2", labelAr: "أساسي", color: "#84cc16",
+    categories: [
+      { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["Adjectives vs adverbs (quick → quickly, sudden → suddenly, bad → badly)", "Comparatives with -er and more (older, more expensive)", "Superlatives with -est and the most (the biggest, the most interesting)", "Irregular adjectives: less, good, bad, more", "Use of than (She is a better driver than me.)", "Adverbial phrases of time, place and frequency — including word order"] },
+      { name: "Articles & Quantifiers", nameAr: "أدوات التعريف", rules: ["A, an, the, zero article (a book, an orange, the book, students)", "Superlatives with the (He is the best man I have ever met.)"] },
+      { name: "Conditionals", nameAr: "الجمل الشرطية", rules: ["Zero conditional (Take medicine if you feel ill.)", "First conditional (If it rains tomorrow, I will stay home.)", "First conditional with unless, if only (I will come unless you cancel.)", "Wish (I wish I was taller.)"] },
+      { name: "Conjunctions", nameAr: "أدوات الربط", rules: ["Relative clauses: where, when, whose, who, that", "Basic compound sentences (I went out when it was raining. She is the woman who can speak five languages.)"] },
+      { name: "Future Tenses", nameAr: "المستقبل", rules: ["Will for sudden decisions (I will show you how to use the laptop.)", "Going to for plans (Sarah is going to sell her car.)", "Present simple for future (The plane leaves at 8.)", "Present progressive for future plans (He is not working tomorrow.)", "Will for requests / Shall for suggestions"] },
+      { name: "Gerund & Infinitive", nameAr: "المصدر وإن+فعل", rules: ["Verbs + infinitive or gerund: want, plan, decide, try, hope, expect, offer, forget, need, promise, refuse, learn", "Stative verbs: like, know, belong, love, hate, want, understand, seem, prefer"] },
+      { name: "Modal Verbs", nameAr: "الأفعال الناقصة", rules: ["Can / can't for abilities", "Could / couldn't for past abilities", "Could for polite requests", "Must for obligation / Mustn't for prohibition", "Have to for obligations in present and past (I had to go to the dentist.)", "Must vs have to distinction", "Need / needn't / have to for necessity and permission", "Should for giving advice (You should sleep more.)"] },
+      { name: "Past Tenses", nameAr: "الماضي", rules: ["Past simple: actions in the past (I worked. I didn't work. Did you work?)", "Past simple of TO BE", "Regular and irregular verbs", "Past progressive (I was watching the game.)", "Past progressive interrupted by past simple (I was playing when the phone rang.)", "Major irregular verbs"] },
+      { name: "Prepositions", nameAr: "حروف الجر", rules: ["Prepositions of place: at, in, on, in front of, under, behind, etc.", "Prepositions of time: on, in, for, at", "Prepositional phrases: on foot, etc.", "By, of, with"] },
+      { name: "Present Tenses", nameAr: "المضارع", rules: ["TO BE / There is / There are", "Have got (positive, negative)", "Present simple for habits & daily routines", "Present simple for future (The bank opens at 8.)", "Adverbs of frequency + word order (She ate quickly.)", "Present progressive now and for future", "Present perfect with since, for, ever, never, already, yet"] },
+      { name: "Pronouns", nameAr: "الضمائر", rules: ["Personal, possessive, object, demonstrative pronouns", "Possessive with 's", "Reflexive pronouns: myself, himself, herself, etc."] },
+      { name: "Questions", nameAr: "الأسئلة", rules: ["Interrogative pronouns: Where, When, Who, How, What, Which, Whose", "Questions with TO BE, HAVE GOT, Present simple/progressive, Past simple/progressive, Present perfect", "Question tags (You have a cat, don't you?)"] },
+    ]
+  },
+  {
+    level: "B1", labelAr: "تحت المتوسط", color: "#3b82f6",
+    categories: [
+      { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["Adjectives -ed vs -ing (boring vs bored, tiring vs tired)", "Adverbs of frequency and their word order (I never smoke. I am never late.)", "Comparatives and superlatives of irregular adjectives (little – less – the least)", "Same as, the same (You're just the same as your mother.)", "As… as (He isn't as old as he looks.)", "Like, alike, slightly (You look like your mother. She is slightly taller.)"] },
+      { name: "Conditionals", nameAr: "الجمل الشرطية", rules: ["Zero conditional", "First conditional (If you are late, I will be angry.)", "Second conditional (If they had time, they would go on holiday.)", "Third conditional (We would have won if we had played better.)"] },
+      { name: "Conjunctions", nameAr: "أدوات الربط", rules: ["Cause, effect and contrast: so, which, until, why, while, when, as, before, after, as long as, whenever"] },
+      { name: "Future Tenses", nameAr: "المستقبل", rules: ["Will for sudden decisions (I will phone tomorrow.)", "Future progressive (Will you be going away this summer?)", "Going to for plans", "Passive voice in future (The report will be done by tomorrow.)"] },
+      { name: "Gerund & Infinitive", nameAr: "المصدر وإن+فعل", rules: ["Verbs + infinitive: want, hope, need, plan, expect, promise, decide, offer, refuse, try, forget, learn, would like", "Verbs + gerund: enjoy, mind, finish, suggest", "Verbs + infinitive or gerund: stop", "Forming nouns from verbs using -ing (swim → swimming)"] },
+      { name: "Modal Verbs", nameAr: "الأفعال الناقصة", rules: ["May / might for probability and polite requests", "Can / can't in past (She can't have seen me.)", "Can for polite request and probability", "Could for ability and probability (Alcohol could cause cancer.)", "Must vs have to / Must/can't for deduction (That must be the entrance. It can't be far.)", "Be able to in past, present perfect and future", "Ought to for obligation", "Need / needn't — present and past", "Mustn't for obligation", "Shall for suggestions and polite offers"] },
+      { name: "Past Tenses", nameAr: "الماضي", rules: ["Past simple", "Past progressive (In 2010 we were living in Australia.)", "Past perfect (When I arrived, everybody had left.)", "Past perfect progressive (I had been playing basketball.)", "Used to (I used to have a dog.)", "Passive voice in past tenses", "Reported speech (She said she loved the film.)"] },
+      { name: "Prepositions", nameAr: "حروف الجر", rules: ["Prepositional phrases with in, for, from, to, at, about, with, of", "Among, Until, On, At, In"] },
+      { name: "Present Tenses", nameAr: "المضارع", rules: ["Present simple and progressive", "Present perfect with for, since, yet, already, never, ever, just", "Present perfect progressive (I have been learning English forever.)", "Passive voice in present tenses", "Present progressive and simple for future", "Reported speech", "There is / There are"] },
+      { name: "Pronouns", nameAr: "الضمائر", rules: ["Pronouns: something, anything, nothing", "Reflexive pronouns: myself, himself, herself, itself, ourselves, yourselves, themselves"] },
+      { name: "Questions", nameAr: "الأسئلة", rules: ["Complex question tags (It was raining, wasn't it? You did it, didn't you?)", "Wh- questions (Who is she with? What are they like? What kind of job do you need?)"] },
+    ]
+  },
+  {
+    level: "B2", labelAr: "فوق المتوسط", color: "#f59e0b",
+    categories: [
+      { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["Adjectives -ed vs -ing", "Adverbs of frequency and word order", "Comparative and superlative of irregular adjectives (far – further/farther – furthest/farthest)", "Same as, the same / As… as / Like, alike, slightly"] },
+      { name: "Conditionals", nameAr: "الجمل الشرطية", rules: ["Zero, first, second, third conditionals", "Mixed conditional (If I had worked harder, I would have a better job now.)", "Wish (I wish I was taller. I wish I had done that earlier.)"] },
+      { name: "Future Tenses", nameAr: "المستقبل", rules: ["Will / Going to / Future progressive", "Will and going to for prediction", "Will get used to (I will get used to living in a city.)", "Passive voice in future / Reported speech in future", "Future perfect (We will have been married for ten years.)", "Future perfect progressive"] },
+      { name: "Gerund & Infinitive", nameAr: "المصدر وإن+فعل", rules: ["Forming nouns from verbs using -ing", "Verbs + gerund: decide, hate, suggest, remember, prefer, try, etc.", "Verbs + infinitive: hope, advise, manage, mind, etc.", "Verbs + bare infinitive: I'd rather, had better", "Verbs + to + gerund: look forward to, help, etc."] },
+      { name: "Modal Verbs", nameAr: "الأفعال الناقصة", rules: ["May / might for probability and polite requests", "May and might for deduction or speculation (I might look for another job.)", "Can / can't have done (It could have been Sarah.)", "Can / could for polite requests and probability", "Could for ability, probability, and deduction", "Must vs have to / Have got to", "Must have done (She must have been asleep.)", "Must / can't for deduction", "Be able to in past, present perfect, future", "Ought to / Need / Needn't / Needn't have done", "Mustn't / Shall / Should / Should have done", "Would expressing past habits (My dad would read me stories every night.)", "Reported speech modals"] },
+      { name: "Past Tenses", nameAr: "الماضي", rules: ["Past simple (active & questions)", "Past progressive", "Past perfect (She found the keys she had lost.)", "Past perfect progressive (We had been playing tennis all evening.)", "Used to / Was used to / Got used to", "Had something done (I had my hair cut.)", "Passive voice of all past tenses", "Reported speech / Past tenses for narration", "All irregular verbs"] },
+      { name: "Prepositions", nameAr: "حروف الجر", rules: ["Prepositional phrases with in, for, from, to, at, about, with, of, etc.", "Among, Until, On, At, In case, By, Of, With, About, To, For, Out of"] },
+      { name: "Present Tenses", nameAr: "المضارع", rules: ["Present simple (including stative verbs: like, prefer, understand, want, know, believe)", "Present simple and progressive for future", "Present progressive with always (She is always screaming.)", "Present perfect with for, since, yet, already, never, ever, just, recently", "Present perfect progressive", "Passive voice of all present tenses", "Reported speech", "Is used to / get used to in all present tenses", "To have something done (I have had my hair cut.)"] },
+      { name: "Pronouns", nameAr: "الضمائر", rules: ["Pronouns: something, anything, someone, anyone, somewhere, anywhere, etc.", "Reflexive pronouns", "Relative pronouns for relative clauses: which, who, whose, whom, that, where, when"] },
+      { name: "Questions", nameAr: "الأسئلة", rules: ["Complex question tags (I'm going to get an email, aren't I?)", "Wh- questions (How long ago…)", "Auxiliary verbs: either, neither, So do I, I hope so, etc."] },
+    ]
+  },
+  {
+    level: "C1", labelAr: "متقدم", color: "#ef4444",
+    categories: [
+      { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["All forms of adjectives and adverbs", "Inversion with negative adverbials (Never have I seen… / Not only did she… / Hardly had he…)"] },
+      { name: "Modal Verbs", nameAr: "الأفعال الناقصة", rules: ["Modals in the past: could have done, may have seen, should have done, might have found, would have been", "Advanced modal distinctions and nuances"] },
+      { name: "Conditionals", nameAr: "الجمل الشرطية", rules: ["All conditional forms (zero through mixed)", "Wish / if only for expressing regrets (I wish I had studied harder. If only I had known.)", "Mixed conditionals combining past, present, and future"] },
+      { name: "Vocabulary & Collocations", nameAr: "المفردات والتراكيب", rules: ["Phrasal verbs — all forms", "Splitting phrasal verbs (She shut the door up.)", "Idioms — all forms and registers", "Advanced collocations and idiomatic structures across all topics"] },
+    ]
+  },
+];
+
 const SPEAKING_TOPICS = ["محادثة حرة (Free Talk)", "السفر والمطارات (Travel & Airports)", "العمل والمقابلات (Work & Interviews)", "الهوايات والاهتمامات (Hobbies)", "الطعام والمطاعم (Food)", "التسوق (Shopping)", "الصحة واللياقة (Health & Fitness)", "التكنولوجيا الذكية (Technology)", "الرياضة (Sports)", "العائلة والأصدقاء (Family & Friends)", "التعليم والجامعة (Education)", "الترفيه والأفلام (Movies)", "الروتين اليومي (Daily Routine)", "خطط المستقبل (Future Plans)", "ذكريات الطفولة (Childhood)", "الثقافات والتقاليد (Cultures)", "البيئة والطبيعة (Environment)", "وسائل التواصل (Social Media)", "الكتب والأدب (Books)", "الأخبار والأحداث (News)", "الموضة والأزياء (Fashion)", "الفنون والموسيقى (Art & Music)", "العلوم والفضاء (Science)", "الأهداف والطموحات (Goals)", "وسائل النقل (Transportation)", "الحيوانات الأليفة (Pets)", "العطلات والمناسبات (Holidays)", "العلاقات الاجتماعية (Relationships)", "ريادة الأعمال (Entrepreneurship)", "التحديات والمصاعب (Challenges)"];
 
 const formatCountdown = (nextReview) => {
@@ -909,6 +1025,50 @@ export default function App() {
   const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
   const [speakingHistory, setSpeakingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_speaking_history')) || []);
   const [writingHistory, setWritingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_writing_history')) || []);
+
+  const [planMeta, setPlanMeta] = useState(() => {
+    try {
+      const raw = localStorage.getItem('venoxa-plan-v3');
+      return raw ? JSON.parse(raw)?.planMeta || null : null;
+    } catch { return null; }
+  });
+  const [completedCells, setCompletedCells] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {}; } catch { return {}; }
+  });
+  const [streakData, setStreakData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0, lastDate: null };
+    } catch { return { current: 0, lastDate: null }; }
+  });
+
+  const recordActivity = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setStreakData(prev => {
+      if (prev.lastDate === today) return prev;
+      let newStreak = 1;
+      if (prev.lastDate) {
+        const last = new Date(prev.lastDate);
+        const current = new Date(today);
+        const diffDays = Math.floor((current - last) / 86400000);
+        if (diffDays === 1) {
+          newStreak = prev.current + 1;
+        } else if (diffDays === 0) {
+          newStreak = prev.current;
+        } else {
+          newStreak = 1;
+        }
+      }
+      const newData = { current: newStreak, lastDate: today };
+      localStorage.setItem('venoxa_streak', JSON.stringify(newData));
+      return newData;
+    });
+  };
+  const [currentWeek, setCurrentWeek] = useState(() => {
+    try {
+      const raw = localStorage.getItem('venoxa-plan-v3');
+      return raw ? JSON.parse(raw)?.currentWeek || 1 : 1;
+    } catch { return 1; }
+  });
 
   useEffect(() => localStorage.setItem('venoxa_global_vocab', JSON.stringify(globalVocab)), [globalVocab]);
   useEffect(() => localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(phrasalVocab)), [phrasalVocab]);
@@ -949,6 +1109,17 @@ export default function App() {
     localStorage.setItem('venoxa_lang', lang);
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
   }, [lang]);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const navDropdownRef = useRef(null);
+  useEffect(() => {
+    const handleNavDropdownClick = (e) => {
+      if (navDropdownRef.current && !navDropdownRef.current.contains(e.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    if (activeDropdown) document.addEventListener('mousedown', handleNavDropdownClick);
+    return () => document.removeEventListener('mousedown', handleNavDropdownClick);
+  }, [activeDropdown]);
   useEffect(() => {
     localStorage.setItem('userLevel', userLevel);
   }, [userLevel]);
@@ -962,9 +1133,20 @@ export default function App() {
     };
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard setTab={setActiveTab} {...props} />;
+        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} currentWeek={currentWeek} streakData={streakData} />;
       case 'plan':
-        return <StudyPlan {...props} globalVocab={globalVocab} />;
+        return <StudyPlan 
+          {...props} 
+          globalVocab={globalVocab}
+          langeekVocab={langeekVocab}
+          planMeta={planMeta} 
+          setPlanMeta={setPlanMeta} 
+          completedCells={completedCells} 
+          setCompletedCells={setCompletedCells}
+          currentWeek={currentWeek}
+          setCurrentWeek={setCurrentWeek}
+          recordActivity={recordActivity}
+        />;
       case 'vocab':
         return <Vocabulary {...props} globalVocab={globalVocab} setGlobalVocab={setGlobalVocab} />;
       case 'phrasal':
@@ -984,177 +1166,221 @@ export default function App() {
       case 'langeek':
         return <Langeek {...props} langeekVocab={langeekVocab} setLangeekVocab={setLangeekVocab} />;
       default:
-        return <Dashboard setTab={setActiveTab} {...props} />;
+        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} currentWeek={currentWeek} streakData={streakData} />;
     }
   };
-  const navItems = [{
-    id: 'dashboard',
-    label: _resolveTranslation(lang, 'الرئيسية', 'Dashboard'),
-    icon: Home
-  }, {
-    id: 'plan',
-    label: _resolveTranslation(lang, 'خطة المذاكرة', 'Study Plan'),
-    icon: Calendar
-  }, {
-    id: 'vocab',
-    label: _resolveTranslation(lang, 'الكلمات والمراجعة', 'Vocabulary (SRS)'),
-    icon: BookOpen,
-    badge: vocabDueCount
-  }, {
-    id: 'phrasal',
-    label: _resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs'),
-    icon: BookText
-  }, {
-    id: 'idioms',
-    label: _resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang'),
-    icon: Quote
-  }, {
-    id: 'writing',
-    label: _resolveTranslation(lang, 'الكتابة (AI)', 'Writing (AI)'),
-    icon: PenTool
-  }, {
-    id: 'speaking',
-    label: _resolveTranslation(lang, 'المحادثة والاتصال', 'Speaking (Call)'),
-    icon: MessageSquare
-  }, {
-    id: 'grammar',
-    label: _resolveTranslation(lang, 'القواعد (AI)', 'Grammar (AI)'),
-    icon: FileText
-  }, {
-    id: 'listening',
-    label: _resolveTranslation(lang, 'الاستماع', 'Listening'),
-    icon: Headphones
-  }, {
-    id: 'reading',
-    label: _resolveTranslation(lang, 'القراءة (AI)', 'Reading (AI)'),
-    icon: Brain
-  }, {
-    id: 'langeek',
-    label: _resolveTranslation(lang, 'لانجيك (PDF)', 'Langeek (PDF)'),
-    icon: Archive,
-    badge: langeekDueCount
-  }];
+  const navItems = [
+    { id: 'dashboard', label: _resolveTranslation(lang, 'الرئيسية', 'Dashboard'), icon: Home },
+    { id: 'plan', label: _resolveTranslation(lang, 'خطة المذاكرة', 'Study Plan'), icon: Calendar },
+    {
+      id: 'vocab_group',
+      label: _resolveTranslation(lang, 'المفردات', 'Vocabulary'),
+      icon: BookOpen,
+      items: [
+        { id: 'vocab', label: _resolveTranslation(lang, 'الكلمات والمراجعة', 'Vocabulary (SRS)'), icon: BookOpen, badge: vocabDueCount },
+        { id: 'phrasal', label: _resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs'), icon: BookText },
+        { id: 'idioms', label: _resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang'), icon: Quote },
+        { id: 'langeek', label: _resolveTranslation(lang, 'لانجيك (PDF)', 'Langeek (PDF)'), icon: Archive, badge: langeekDueCount },
+      ],
+      badge: vocabDueCount + langeekDueCount
+    },
+    {
+      id: 'skills_group',
+      label: _resolveTranslation(lang, 'المهارات', 'Skills'),
+      icon: Layers,
+      items: [
+        { id: 'listening', label: _resolveTranslation(lang, 'الاستماع', 'Listening'), icon: Headphones },
+        { id: 'reading', label: _resolveTranslation(lang, 'القراءة (AI)', 'Reading (AI)'), icon: Brain },
+        { id: 'speaking', label: _resolveTranslation(lang, 'المحادثة والاتصال', 'Speaking (Call)'), icon: MessageSquare },
+        { id: 'writing', label: _resolveTranslation(lang, 'الكتابة (AI)', 'Writing (AI)'), icon: PenTool },
+      ]
+    },
+    { id: 'grammar', label: _resolveTranslation(lang, 'القواعد (AI)', 'Grammar (AI)'), icon: FileText },
+  ];
 
   return (
-    <div className={`flex h-screen overflow-hidden transition-colors duration-500 ${theme === 'dark' ? 'bg-black' : 'bg-white'} font-sans`} dir={_resolveTranslation(lang, 'rtl', 'ltr')}>
-      {/* Mobile Sidebar Toggle Button */}
-      <button
-        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        className={`lg:hidden fixed top-4 sm:top-6 z-[70] p-2.5 rounded-2xl bg-white dark:bg-[var(--app-surface)] shadow-xl border border-gray-100 dark:border-[var(--app-border)] hover:scale-110 active:scale-95 transition-all duration-300 ${lang === 'ar' ? 'left-4 sm:left-6' : 'right-4 sm:right-6'}`}
-      >
-        <Menu className="w-5 h-5 text-black dark:text-white" />
-      </button>
-
-      {/* Sidebar Overlay (Mobile) */}
-      {!isSidebarCollapsed && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] animate-fadeIn"
-          onClick={() => setIsSidebarCollapsed(true)}
-        />
-      )}
-
-      {/* ── Sidebar ── */}
-      <aside className={`
-        fixed inset-y-0 z-[60] flex flex-col h-full shrink-0 border-e transition-all duration-300 ease-in-out overflow-hidden
-        ${theme === 'dark' ? 'bg-[var(--app-surface)] border-[var(--app-border)]' : 'bg-white border-gray-100'}
-        ${isSidebarCollapsed ? 'w-[72px]' : 'w-[280px]'}
-        ${lang === 'ar' 
-          ? (isSidebarCollapsed ? 'translate-x-full lg:translate-x-0 right-0' : 'translate-x-0 right-0') 
-          : (isSidebarCollapsed ? '-translate-x-full lg:translate-x-0 left-0' : 'translate-x-0 left-0')
-        }
-      `}>
-        {/* Sidebar Header */}
-        <div className={`p-8 pb-4 flex items-center ${isSidebarCollapsed ? 'justify-center ps-0 pe-[6px]' : 'justify-between'}`}>
-          <div className={`flex items-center ${isSidebarCollapsed ? '' : 'gap-2'} overflow-hidden`}>
-            {isSidebarCollapsed ? (
-              <button 
-                onClick={() => setIsSidebarCollapsed(false)}
-                className="w-9 h-9 rounded-xl bg-black dark:bg-white hover:bg-gray-100 dark:hover:bg-[#202123] flex items-center justify-center shrink-0 group transition-all duration-200"
-                title={_resolveTranslation(lang, 'توسيع القائمة', 'Expand Sidebar')}
-              >
-                <Sparkles className="w-5 h-5 text-white dark:text-black block group-hover:hidden" />
-                <PanelLeft className="w-5 h-5 text-gray-600 dark:text-gray-300 hidden group-hover:block" />
-              </button>
-            ) : (
-              <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
-                <Sparkles className="w-5 h-5 text-white dark:text-black" />
-              </div>
-            )}
-            {!isSidebarCollapsed && (
-              <h1 className="text-xl font-bold tracking-tight whitespace-nowrap">
-                فينوكسا<span className="text-[var(--app-accent1)]">.ai</span>
-              </h1>
-            )}
-          </div>
-          {!isSidebarCollapsed && (
-            <div className="flex items-center">
-              <button 
-                onClick={() => setIsSidebarCollapsed(true)} 
-                className="hidden lg:flex w-9 h-9 items-center justify-center rounded-xl text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#202123] shrink-0 transition-all duration-200"
-                title={_resolveTranslation(lang, 'طي القائمة', 'Collapse Sidebar')}
-              >
-                <PanelLeft className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={() => setIsSidebarCollapsed(true)} 
-                className="lg:hidden p-2 text-gray-400 hover:text-black dark:hover:text-white shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+    <div
+      className="flex flex-col h-screen overflow-hidden transition-colors duration-500 font-sans relative"
+      dir={_resolveTranslation(lang, 'rtl', 'ltr')}
+      style={{
+        background: theme === 'dark'
+          ? '#0A0A0E'
+          : '#f5f5fa',
+      }}
+    >
+      {/* ── Background ── */}
+      {theme === 'dark' ? (
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-0" style={{ background: '#0A0A0E' }} />
+          {/* Subtle dark-gray radial glow — top center */}
+          <div className="absolute top-[-20%] left-[50%] -translate-x-1/2 w-[70vw] h-[70vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(32,32,44,0.25) 0%, rgba(15,15,20,0) 65%)' }} />
+          {/* Soft charcoal accent — bottom left */}
+          <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(22,22,34,0.15) 0%, rgba(10,10,14,0) 65%)' }} />
+          {/* Very faint cool-gray shimmer — right edge */}
+          <div className="absolute top-[30%] right-[-15%] w-[40vw] h-[40vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(18,18,30,0.1) 0%, rgba(6,6,8,0) 65%)' }} />
         </div>
+      ) : (
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+          {/* Light mode base */}
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #f5f5fa 0%, #efeff5 50%, #e9e9f1 100%)' }} />
+          {/* Lavender glow — top center */}
+          <div className="absolute top-[-10%] left-[50%] -translate-x-1/2 w-[65vw] h-[65vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(167,139,250,0.12) 0%, rgba(245,245,250,0) 65%)' }} />
+          {/* Warm orange/peach glow — bottom left (mirrors accent1) */}
+          <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,87,34,0.08) 0%, rgba(239,239,245,0) 65%)' }} />
+          {/* Cool sky-blue shimmer — right edge */}
+          <div className="absolute top-[25%] right-[-15%] w-[42vw] h-[42vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(147,197,253,0.10) 0%, rgba(233,233,241,0) 65%)' }} />
+          {/* Extra soft warm center glow */}
+          <div className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(253,230,138,0.06) 0%, rgba(245,245,250,0) 70%)' }} />
+        </div>
+      )}
+      {/* ── Top Navigation Bar with Liquid Glass ── */}
+      <header
+        className="topbar-glass fixed top-3 left-3 right-3 z-[60] h-[64px] rounded-[32px] border border-black/5 dark:border-white/5 shadow-md dark:shadow-[0_4px_16px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.15)]"
+      >
+        {/* Background layer for the header's own blur, moved here to prevent backdrop-filter clipping for children */}
+        <div 
+          className="absolute inset-0 rounded-[32px] pointer-events-none"
+          style={{
+            background: theme === 'dark'
+              ? 'rgba(10, 10, 10, 0.25)'
+              : 'rgba(255, 255, 255, 0.18)',
+            backdropFilter: 'blur(48px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+          }}
+        />
+        {/* Bar content */}
+        <div className="relative z-[2] flex items-center h-full px-4 sm:px-6 gap-3">
+          {/* Logo */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-white dark:text-black" />
+            </div>
+            <h1 className="text-lg font-bold tracking-tight whitespace-nowrap hidden sm:block">
+              فينوكسا<span className="text-[var(--app-accent1)]">.ai</span>
+            </h1>
+          </div>
 
-        {/* Navigation List */}
-        <nav className={`flex-1 ${isSidebarCollapsed ? 'px-2' : 'px-4'} space-y-1 overflow-y-auto py-4 custom-scrollbar`}>
-          {navItems.map(item => {
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => { setActiveTab(item.id); if (window.innerWidth < 1024) setIsSidebarCollapsed(true); }}
-                title={isSidebarCollapsed ? item.label : undefined}
-                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-4'} py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 group relative ${isActive ? (theme === 'dark' ? 'bg-[var(--app-card)] text-white shadow-md' : 'bg-white text-black shadow-sm border border-gray-100') : (theme === 'dark' ? 'text-[var(--app-text)] hover:bg-[var(--app-hover)] hover:text-black' : 'text-gray-500 hover:text-black hover:bg-gray-100')}`}
-              >
-                <item.icon className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'opacity-70 group-hover:opacity-100'}`} />
-                {!isSidebarCollapsed && <span className="flex-1 text-start truncate">{item.label}</span>}
-                {item.badge > 0 && !isSidebarCollapsed && (
-                  <span className={`min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-bold ${isActive ? 'bg-[var(--app-accent1)] text-white' : 'bg-gray-200 dark:bg-[var(--app-card)] text-gray-500'}`}>
-                    {item.badge > 99 ? '99+' : item.badge}
-                  </span>
-                )}
-                {item.badge > 0 && isSidebarCollapsed && (
-                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--app-accent1)] shadow-sm" />
-                )}
-              </button>
-            );
-          })}
-        </nav>
+          {/* Navigation Icons */}
+          <nav className="flex-1 flex items-center justify-center gap-0.5 px-2">
+            {navItems.map(item => {
+              const isGroup = !!item.items;
+              const isActive = isGroup ? item.items.some(s => activeTab === s.id) : activeTab === item.id;
+              const isOpen = activeDropdown === item.id;
 
-        {/* Sidebar Footer */}
-        <div className={`p-6 mt-auto border-t border-gray-100 dark:border-[var(--app-border)] ${isSidebarCollapsed ? 'ps-0 pe-[6px] flex flex-col items-center gap-3' : ''}`}>
-          <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'flex-col w-full' : 'w-full'}`}>
-            {!isSidebarCollapsed ? (
-              <div className="flex-1 min-w-0"><LanguageDropdown lang={lang} setLang={setLang} theme={theme} /></div>
-            ) : (
-              <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className={`w-11 h-11 shrink-0 flex items-center justify-center rounded-2xl font-bold transition-all border ${theme === 'dark' ? 'bg-[var(--app-surface)] text-white border-[var(--app-card)] hover:bg-[var(--app-hover)] hover:text-black' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-200 hover:text-black'}`} title={lang === 'en' ? 'عربي' : 'English'}>
-                {lang === 'en' ? 'AR' : 'EN'}
-              </button>
-            )}
+              return (
+                <div key={item.id} className="relative" ref={isOpen ? navDropdownRef : null}>
+                  <button
+                    onClick={() => isGroup ? setActiveDropdown(isOpen ? null : item.id) : setActiveTab(item.id)}
+                    title={item.label}
+                    className={`relative flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 group shrink-0 ${
+                      isActive
+                        ? (theme === 'dark' ? 'bg-white/12 text-white' : 'bg-black/6 text-black')
+                        : (theme === 'dark' ? 'text-white/60 hover:text-white hover:bg-white/8' : 'text-gray-500 hover:text-black hover:bg-black/4')
+                    }`}
+                  >
+                    <item.icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`} />
+                    <span className="hidden lg:inline-block text-xs font-extrabold truncate">{item.label}</span>
+                    {isGroup && <ChevronDown className={`w-3 h-3 opacity-40 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />}
+                    {item.badge > 0 && (
+                      <span className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold bg-[var(--app-accent1)] text-white shrink-0">
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </span>
+                    )}
+                  </button>
+
+                  {isGroup && isOpen && (
+                    <div 
+                      className="dropdown-menu absolute top-full left-1/2 -translate-x-1/2 mt-3 p-1.5 rounded-2xl shadow-2xl z-[70] animate-in fade-in slide-in-from-top-2 duration-200 min-w-[calc(100%+12px)] w-max"
+                      style={{
+                        background: theme === 'dark' ? 'rgba(10, 10, 12, 0.6)' : 'rgba(255, 255, 255, 0.6)',
+                        backdropFilter: 'blur(40px) saturate(200%)',
+                        WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                        overflow: 'visible'
+                      }}
+                    >
+                      {item.items.map(sub => (
+                        <button
+                          key={sub.id}
+                          onClick={() => { setActiveTab(sub.id); setActiveDropdown(null); }}
+                          className={`flex items-center gap-1.5 w-full px-2.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                            activeTab === sub.id
+                              ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
+                              : (theme === 'dark' ? 'text-white/70 hover:bg-white/5 hover:text-white' : 'text-gray-600 hover:bg-black/5 hover:text-black')
+                          }`}
+                        >
+                          <sub.icon className="w-4 h-4 shrink-0" />
+                          <span className="flex-1 text-start">{sub.label}</span>
+                          {sub.badge > 0 && (
+                            <span className="min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[8px] font-bold bg-[var(--app-accent1)] text-white">
+                              {sub.badge}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+
+          {/* Right Controls */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
+              className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all ${
+                theme === 'dark'
+                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                  : 'text-gray-500 hover:text-black hover:bg-black/5'
+              }`}
+              title={lang === 'en' ? 'عربي' : 'English'}
+            >
+              {lang === 'en' ? 'AR' : 'EN'}
+            </button>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className={`w-11 h-11 shrink-0 flex items-center justify-center rounded-2xl transition-all border ${theme === 'dark' ? 'bg-[var(--app-surface)] text-white border-[var(--app-card)] hover:bg-[var(--app-hover)] hover:text-black' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-200 hover:text-black'}`}
+              className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                theme === 'dark'
+                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                  : 'text-gray-500 hover:text-black hover:bg-black/5'
+              }`}
               title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
             >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
           </div>
         </div>
-      </aside>
+      </header>
 
       {/* ── Main Content Area ── */}
-      <main className={`flex-1 h-full overflow-y-auto overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto bg-gray-50 dark:bg-[var(--app-bg)] ${lang === 'ar' ? (isSidebarCollapsed ? 'lg:pr-[72px]' : 'lg:pr-[280px]') : (isSidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[280px]')}`}>
-        <div className={`p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8 w-full max-w-[1400px] mx-auto print:p-0 print:pt-0`}>
+      <main className="relative z-10 flex-1 h-full overflow-y-auto overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px]">
+
+        {/* Top fade — content dissolves from the very top of the viewport through the topbar */}
+        <div
+          className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[55] print:hidden"
+          style={{
+            maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
+            background: theme === 'dark'
+              ? 'linear-gradient(to bottom, rgba(10,10,14,0.85) 0%, rgba(10,10,14,0.4) 55%, rgba(10,10,14,0) 100%)'
+              : 'linear-gradient(to bottom, rgba(245,245,250,0.92) 0%, rgba(245,245,250,0.5) 55%, rgba(245,245,250,0) 100%)',
+          }}
+        />
+
+        {/* Bottom fade — content gently dissolves at the bottom edge */}
+        <div
+          className="pointer-events-none fixed bottom-0 left-0 right-0 h-28 z-[55] print:hidden"
+          style={{
+            maskImage: 'linear-gradient(to top, black 0%, black 30%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to top, black 0%, black 30%, transparent 100%)',
+            background: theme === 'dark'
+              ? 'linear-gradient(to top, rgba(6,6,8,0.85) 0%, rgba(6,6,8,0.4) 55%, rgba(6,6,8,0) 100%)'
+              : 'linear-gradient(to top, rgba(245,245,250,0.92) 0%, rgba(245,245,250,0.5) 55%, rgba(245,245,250,0) 100%)',
+          }}
+        />
+
+        <div className={`${activeTab === 'speaking' ? 'w-full' : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8'} print:p-0 print:pt-0`}>
           <div className="animate-fadeIn">
             {renderContent()}
           </div>
@@ -1168,104 +1394,186 @@ function Dashboard({
   userLevel,
   AI_KEY,
   lang,
-  theme
+  theme,
+  planMeta,
+  completedCells,
+  currentWeek,
+  streakData
 }) {
-  const [insight, setInsight] = useState(null);
-  const [loadingInsight, setLoadingInsight] = useState(false);
-  useEffect(() => {
-    if (AI_KEY) {
-      generateDailyInsight();
-    } else {
-      setInsight({
-        quote: "Consistency is the key to mastery.",
-        translated_quote: "الاستمرار هو مفتاح الإتقان.",
-        pro_tip: "Try thinking in English for 5 minutes every morning.",
-        translated_tip: "حاول التفكير بالإنجليزية لمدة 5 دقائق كل صباح."
-      });
-    }
-  }, [userLevel, lang]);
-  const generateDailyInsight = async () => {
-    if (loadingInsight || !AI_KEY) return;
-    setLoadingInsight(true);
-    try {
-      const prompt = `You are a helpful AI English coach.
-      The user is at level ${userLevel}.
-      Generate a unique JSON object with:
-      1. "quote": An inspiring short English quote suitable for their level.
-      2. "pro_tip": A short, actionable tip to improve their English today.
-      3. "translated_quote": Translation of the quote into ${_resolveTranslation(lang, 'Arabic', 'English')}.
-      4. "translated_tip": Translation of the tip into ${_resolveTranslation(lang, 'Arabic', 'English')}.
-      Only return the JSON.`;
-      const response = await fetchFromGemini(prompt, AI_KEY);
-      const data = parseGeminiJSON(response);
-      if (data && data.error) {
-        setInsight({
-          quote: data.error,
-          translated_quote: "",
-          pro_tip: "Please verify your API key configuration.",
-          translated_tip: ""
-        });
-      } else if (data) {
-        setInsight(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingInsight(false);
-    }
-  };
   const isDark = theme === 'dark';
   const t = {
-    welcome: _resolveTranslation(lang, 'تعلّم الإنجليزية مع', 'Learn English with'),
-    levelLabel: _resolveTranslation(lang, `المستوى ${userLevel}`, `Level ${userLevel}`),
-    desc: _resolveTranslation(lang, 'جاهز لتطوير مستواك في اللغة الإنجليزية؟ يمكنك الآن إعداد خطتك الشخصية للوصول لهدفك في وقت قياسي.', 'Ready to improve your English? Set up your personalized plan to reach your goal in record time.'),
-    createPlan: _resolveTranslation(lang, 'إنشاء الخطة والمستوى', 'Set Plan & Level'),
-    quoteTitle: _resolveTranslation(lang, 'إلهام اليوم', 'Daily Inspiration'),
-    tipTitle: _resolveTranslation(lang, `نصيحة ذكية للمستوى ${userLevel}`, `Smart Tip for Level ${userLevel}`),
-    learningPaths: _resolveTranslation(lang, 'مسارات التعلم الأساسية', 'Core Learning Paths'),
+    welcome: _resolveTranslation(lang, 'أهلاً بك في', 'Welcome to'),
+    desc: _resolveTranslation(lang, 'شريكك الذكي في تعلم اللغات. ابدأ رحلتك التعليمية اليوم بذكاء وكفاءة.', 'Your intelligent language learning partner. Start your journey today with AI-powered efficiency.'),
+    levelLabel: _resolveTranslation(lang, `المستوى الحالي: ${userLevel}`, `Current Level: ${userLevel}`),
+    createPlan: _resolveTranslation(lang, 'إنشاء خطة دراسية', 'Create Study Plan'),
+    learningPaths: _resolveTranslation(lang, 'مسارات التعلم الموصى بها', 'Recommended Learning Paths'),
+    quoteTitle: _resolveTranslation(lang, 'إلهام اليوم', 'Today\'s Inspiration'),
+    tipTitle: _resolveTranslation(lang, 'نصيحة ذكية', 'Smart Tip'),
     paths: [
-      { id: 'vocab', icon: BookOpen, title: _resolveTranslation(lang, 'المفردات', 'Vocabulary'), desc: _resolveTranslation(lang, 'تعلّم مفردات الإنجليزية وراجعها بنظام التكرار.', 'Learn English vocabulary with spaced repetition.'), paletteIndex: 0 },
-      { id: 'writing', icon: PenTool, title: _resolveTranslation(lang, 'الكتابة AI', 'Writing AI'), desc: _resolveTranslation(lang, 'اكتب نصوصاً وصحّحها مع الذكاء الاصطناعي.', 'Write and correct texts with AI.'), paletteIndex: 1 },
-      { id: 'listening', icon: Headphones, title: _resolveTranslation(lang, 'الاستماع', 'Listening'), desc: _resolveTranslation(lang, 'درّب أذنك مع بودكاست حسب مستواك.', 'Train your ear with level-matched podcasts.'), paletteIndex: 2 },
-      { id: 'speaking', icon: MessageSquare, title: _resolveTranslation(lang, 'المحادثة AI', 'Speaking AI'), desc: _resolveTranslation(lang, 'تدرّب على محادثات حقيقية مع AI.', 'Practice real conversations with AI.'), paletteIndex: 3 },
-      { id: 'grammar', icon: Brain, title: _resolveTranslation(lang, 'القواعد AI', 'Grammar AI'), desc: _resolveTranslation(lang, 'دروس قواعد اللغة الإنجليزية التفاعلية.', 'Interactive English grammar lessons.'), paletteIndex: 4 },
+      { id: 'plan', title: _resolveTranslation(lang, 'خطة المذاكرة', 'Study Plan'), desc: _resolveTranslation(lang, 'جدول مخصص لتعلم المهارات الأربع', 'Custom schedule for the 4 skills'), icon: Calendar, paletteIndex: 0 },
+      { id: 'vocab', title: _resolveTranslation(lang, 'المفردات', 'Vocabulary'), desc: _resolveTranslation(lang, 'بناء حصيلة لغوية قوية بالذكاء الاصطناعي', 'Build strong vocabulary with AI'), icon: BookOpen, paletteIndex: 1 },
+      { id: 'grammar', title: _resolveTranslation(lang, 'القواعد', 'Grammar'), desc: _resolveTranslation(lang, 'فهم أعمق لهياكل اللغة وقواعدها', 'Deepen your understanding of grammar'), icon: Brain, paletteIndex: 2 },
+      { id: 'speaking', title: _resolveTranslation(lang, 'المحادثة', 'Speaking'), desc: _resolveTranslation(lang, 'تدرب على النطق بطلاقة مع الذكاء الاصطناعي', 'Practice fluent speech with AI'), icon: MessageSquare, paletteIndex: 3 },
+      { id: 'listening', title: _resolveTranslation(lang, 'الاستماع', 'Listening'), desc: _resolveTranslation(lang, 'تحسين فهمك للغة المنطوقة', 'Improve your listening comprehension'), icon: Headphones, paletteIndex: 4 },
     ]
   };
-  const dotPositions = [
-    [3, 8], [11, 5], [19, 12], [27, 3], [35, 9], [43, 15], [51, 6], [59, 11], [67, 4], [75, 13], [83, 7], [91, 10],
-    [5, 30], [13, 25], [21, 35], [29, 28], [37, 22], [45, 38], [53, 27], [61, 33], [69, 20], [77, 36], [85, 24], [93, 31],
-    [7, 55], [15, 48], [23, 62], [31, 50], [39, 58], [47, 44], [55, 65], [63, 52], [71, 60], [79, 47], [87, 68], [95, 56],
-    [2, 80], [10, 75], [18, 88], [26, 82], [34, 72], [42, 85], [50, 78], [58, 90], [66, 74], [74, 83], [82, 70], [90, 87],
-  ];
-  return <div className="space-y-10 lg:space-y-16 animate-fadeIn">
+
+  const [insight, setInsight] = useState(null);
+  const [loadingInsight, setLoadingInsight] = useState(true);
+
+  useEffect(() => {
+    const fetchInsight = async () => {
+      setLoadingInsight(true);
+      try {
+        const cached = localStorage.getItem('venoxa_daily_insight');
+        const now = new Date();
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const cacheDate = new Date(parsed.timestamp);
+          if (cacheDate.toDateString() === now.toDateString()) {
+            setInsight(parsed.data);
+            setLoadingInsight(false);
+            return;
+          }
+        }
+
+        const prompt = `Generate a short language learning quote in English with its Arabic translation, and one pro tip for learning English in English with its Arabic translation. Return strictly JSON: {"quote": "...", "translated_quote": "...", "pro_tip": "...", "translated_tip": "..."}`;
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${AI_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const clean = text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        setInsight(parsed);
+        localStorage.setItem('venoxa_daily_insight', JSON.stringify({ timestamp: now.toISOString(), data: parsed }));
+      } catch (e) {
+        console.error(e);
+        setInsight({
+          quote: "The limits of my language mean the limits of my world.",
+          translated_quote: "حدود لغتي هي حدود عالمي.",
+          pro_tip: "Think in your target language for 5 minutes daily.",
+          translated_tip: "فكر باللغة التي تتعلمها لمدة 5 دقائق يومياً."
+        });
+      } finally {
+        setLoadingInsight(false);
+      }
+    };
+    fetchInsight();
+  }, [AI_KEY]);
+
+  const safeRender = (val) => val || '...';
+
+  // --- Smart Stats Calculation ---
+  const stats = useMemo(() => {
+    const doneCells = Object.values(completedCells || {}).filter(v => v === 'done').length;
+    const xp = doneCells * 15; // 15 XP per task
+    
+    let progress = 0;
+    if (planMeta && planMeta.totalWeeks) {
+      // 1. Skills progress (Listen, Read, Speak, Write) - exactly as StudyPlan calculates it
+      const skillsPct = Math.min(100, Math.round((currentWeek / planMeta.totalWeeks) * 100));
+      
+      // 2. Vocab progress
+      const completedDays = Math.max(0, (currentWeek - 1) * 7);
+      const totalDays = planMeta.totalWeeks * 7;
+      const wpd = planMeta.wordsPerDay || 10;
+      // In StudyPlan: totalWords comes from wordsDelta or totalDays * wpd
+      const totalWords = planMeta.totalWords || totalDays * wpd;
+      const learnedWords = Math.min(completedDays * wpd, totalWords);
+      const wordsPct = totalWords ? Math.round((learnedWords / totalWords) * 100) : 0;
+      
+      // 3. Grammar progress
+      const totalRules = planMeta.totalRules || planMeta.totalWeeks;
+      const rpd = planMeta.rulesPerDay || 1;
+      const masteredRules = Math.min(completedDays * rpd, totalRules);
+      const rulesPct = totalRules ? Math.round((masteredRules / totalRules) * 100) : 0;
+
+      // Average the 6 components (4 skills + vocab + grammar)
+      progress = Math.round((skillsPct * 4 + wordsPct + rulesPct) / 6);
+    }
+
+    // Daily Goal (for today in current week)
+    const weekPrefix = `${currentWeek}-`;
+    const todayDone = Object.entries(completedCells || {})
+      .filter(([key, val]) => key.startsWith(weekPrefix) && val === 'done')
+      .length;
+    const dailyGoalPct = Math.min(100, Math.round((todayDone / 6) * 100)) || 0;
+
+    return { xp, progress, dailyGoalPct, streak: streakData.current };
+  }, [completedCells, planMeta, currentWeek, streakData]);
+
+  // Mouse follow glow state
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  return <div className="space-y-6 lg:space-y-10 animate-fadeIn" onMouseMove={handleMouseMove}>
     {/* ── Minimal Hero ── */}
-    <div className="relative pt-12 pb-8 text-center">
-      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-6 text-xs font-semibold tracking-wide uppercase transition-colors"
+    <div className="relative pt-2 pb-2 text-center group">
+      {/* Mouse follow glow effect */}
+      <div 
+        className="pointer-events-none absolute -inset-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0"
         style={{
-          background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-          color: isDark ? '#A1A1AA' : '#6B7280',
-          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
-        }}>
-        {t.levelLabel}
+          background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, ${isDark ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)'}, transparent 40%)`
+        }}
+      />
+      
+      <div className="relative z-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs font-semibold tracking-wide uppercase transition-colors"
+          style={{
+            background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+            color: isDark ? '#A1A1AA' : '#6B7280',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
+          }}>
+          {t.levelLabel}
+        </div>
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 tracking-tight text-black dark:text-white">
+          {t.welcome} <span className="text-purple-400">Venoxa</span>
+        </h2>
+        <p className="text-base lg:text-lg mb-4 max-w-2xl mx-auto leading-relaxed text-gray-600 dark:text-[#B0B0C0]">
+          {t.desc}
+        </p>
+        <div className="flex items-center justify-center gap-4">
+          <button onClick={() => setTab('plan')}
+            className="px-6 py-2.5 rounded-2xl font-semibold text-black dark:text-white transition-all hover:scale-[1.02] hover:bg-[var(--app-accent1)]/10 hover:border-[var(--app-accent1)]/40 active:scale-95 border border-black/10 dark:border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)]"
+            style={{
+              background: theme === 'dark' ? 'rgba(10, 10, 10, 0.25)' : 'rgba(255, 255, 255, 0.18)',
+              backdropFilter: 'blur(48px) saturate(200%)',
+              WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+            }}
+          >
+            {t.createPlan}
+          </button>
+        </div>
       </div>
-      <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 tracking-tight text-black dark:text-white">
-        {t.welcome} <span className="text-[var(--app-accent1)]">Venoxa</span>
-      </h2>
-      <p className="text-lg lg:text-xl mb-10 max-w-2xl mx-auto leading-relaxed text-gray-500 dark:text-gray-400">
-        {t.desc}
-      </p>
-      <div className="flex items-center justify-center gap-4">
-        <button onClick={() => setTab('plan')}
-          className="px-8 py-3 rounded-2xl font-semibold bg-black dark:bg-white text-white dark:text-black transition-all hover:scale-[1.02] active:scale-95 shadow-sm"
-        >
-          {t.createPlan}
-        </button>
-      </div>
+    </div>
+
+    {/* ── Quick Stats / Engagement ── */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+      <StreakWidget streak={stats.streak} lang={lang} isDark={isDark} theme={theme} />
+      <XPWidget xp={stats.xp} lang={lang} isDark={isDark} theme={theme} />
+      <ProgressWidget progress={stats.progress} lang={lang} isDark={isDark} theme={theme} />
+      <GoalWidget pct={stats.dailyGoalPct} lang={lang} isDark={isDark} theme={theme} />
     </div>
 
     {/* ── Quote + Tip ── */}
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="premium-card rounded-3xl relative group">
+      <div 
+        className="card-shine relative group p-6 sm:p-8 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all duration-400 hover:-translate-y-1"
+        style={{
+          background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
+          backdropFilter: 'blur(48px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+        }}
+      >
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-2xl bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]">
             <Sparkles className="w-4 h-4" />
@@ -1281,13 +1589,20 @@ function Dashboard({
             <p className="text-xl font-bold text-gray-900 dark:text-white leading-relaxed" dir="ltr">
               "{safeRender(insight?.quote)}"
             </p>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            <p className="text-sm font-medium text-gray-500 dark:text-[#B0B0C0]">
               {safeRender(insight?.translated_quote)}
             </p>
           </div>
         )}
       </div>
-      <div className="premium-card rounded-3xl relative group">
+      <div 
+        className="card-shine relative group p-6 sm:p-8 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all duration-400 hover:-translate-y-1"
+        style={{
+          background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
+          backdropFilter: 'blur(48px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+        }}
+      >
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-2xl bg-[var(--app-accent2)]/10 text-[var(--app-accent2)]">
             <Zap className="w-4 h-4" />
@@ -1303,7 +1618,7 @@ function Dashboard({
             <p className="text-xl font-bold text-gray-900 dark:text-white leading-relaxed" dir="ltr">
               {safeRender(insight?.pro_tip)}
             </p>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            <p className="text-sm font-medium text-gray-500 dark:text-[#B0B0C0]">
               {safeRender(insight?.translated_tip)}
             </p>
           </div>
@@ -1314,7 +1629,7 @@ function Dashboard({
     {/* ── LanGeek Staggered Learning Paths ── */}
     <div>
       <h3 className="text-base sm:text-lg font-bold text-[#0A0A0A] dark:text-[var(--app-text)] mb-5 flex items-center gap-2">
-        <Activity className="w-5 h-5 text-gray-900 dark:text-black dark:text-white" /> {t.learningPaths}
+        <Activity className="w-5 h-5 text-gray-700 dark:text-white" /> {t.learningPaths}
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
         {t.paths.map((path, i) => (
@@ -1324,12 +1639,88 @@ function Dashboard({
     </div>
   </div>;
 }
+
+function StreakWidget({ streak, lang, isDark, theme }) {
+  return (
+    <div className="card-shine relative group p-5 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] flex items-center gap-4 transition-all duration-400 hover:-translate-y-1"
+      style={{
+        background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
+        backdropFilter: 'blur(48px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+      }}>
+      <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:scale-110 transition-transform">
+        <Zap size={24} fill="currentColor" />
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'سلسلة التعلم', 'Streak')}</div>
+        <div className="text-xl font-black text-black dark:text-white">{streak} {_resolveTranslation(lang, 'أيام', 'Days')}</div>
+      </div>
+    </div>
+  );
+}
+
+function XPWidget({ xp, lang, isDark, theme }) {
+  return (
+    <div className="card-shine relative group p-5 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] flex items-center gap-4 transition-all duration-400 hover:-translate-y-1"
+      style={{
+        background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
+        backdropFilter: 'blur(48px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+      }}>
+      <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform">
+        <Award size={24} />
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'إجمالي النقاط', 'Total XP')}</div>
+        <div className="text-xl font-black text-black dark:text-white">{xp.toLocaleString()}</div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressWidget({ progress, lang, isDark, theme }) {
+  return (
+    <div className="card-shine relative group p-5 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] flex flex-col justify-center transition-all duration-400 hover:-translate-y-1"
+      style={{
+        background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
+        backdropFilter: 'blur(48px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+      }}>
+      <div className="flex justify-between items-center mb-3">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'التقدم الكلي', 'Overall Progress')}</div>
+        <div className="text-xs font-black text-emerald-500">{progress}%</div>
+      </div>
+      <div className="h-2 w-full bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+        <div className="h-full bg-emerald-500 rounded-full group-hover:scale-x-105 transition-transform origin-left" style={{ width: `${progress}%` }}></div>
+      </div>
+    </div>
+  );
+}
+
+function GoalWidget({ pct, lang, isDark, theme }) {
+  return (
+    <div className="card-shine relative group p-5 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] flex items-center gap-4 transition-all duration-400 hover:-translate-y-1"
+      style={{
+        background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
+        backdropFilter: 'blur(48px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+      }}>
+      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+        <CalendarCheck size={24} />
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'الهدف اليومي', 'Daily Goal')}</div>
+        <div className="text-xl font-black text-black dark:text-white">{pct}%</div>
+      </div>
+    </div>
+  );
+}
 const CARD_PALETTES = [
-  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent1)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
-  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent2)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
-  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent1)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
-  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-rose-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
-  { bg: 'bg-white dark:bg-[var(--app-bg)]', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-amber-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#A1A1AA]' },
+  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent1)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
+  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent2)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
+  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent1)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
+  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-rose-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
+  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-amber-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
 ];
 
 function DashboardCard({ icon: Icon, title, desc, onClick, paletteIndex = 0, index = 0, isDark = false }) {
@@ -1337,20 +1728,21 @@ function DashboardCard({ icon: Icon, title, desc, onClick, paletteIndex = 0, ind
   return (
     <div
       onClick={onClick}
-      className={`group relative cursor-pointer overflow-hidden rounded-[32px] p-6 sm:p-8 transition-all duration-500 border flex flex-col ${isDark ? 'bg-[var(--app-bg)] border-[var(--app-border)] hover:border-[var(--app-hover)] hover:bg-[var(--app-hover)]/10' : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
+      className="card-shine group relative cursor-pointer rounded-[32px] p-6 sm:p-8 transition-all duration-500 flex flex-col border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_16px_48px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.2)] dark:hover:border-white/15"
+      style={{
+        background: isDark ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
+        backdropFilter: 'blur(48px) saturate(200%)',
+        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
+      }}
     >
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-8 ${p.iconBg} group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-sm`}>
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-8 ${p.iconBg} transition-all duration-500 shadow-sm`}>
         <Icon className={`w-6 h-6 ${p.iconColor}`} />
       </div>
       <div className="space-y-3 text-start rtl:text-right">
         <h3 className={`font-bold text-xl tracking-tight ${p.text}`}>{title}</h3>
         <p className={`text-sm leading-relaxed font-medium ${p.sub}`}>{desc}</p>
       </div>
-      <div className="absolute top-6 right-6 rtl:right-auto rtl:left-6 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 rtl:-translate-x-2 rtl:group-hover:translate-x-0 transition-all duration-500">
-        <div className="p-2 rounded-full bg-[var(--app-hover)]/20 text-[var(--app-hover)]">
-          <ChevronRight className="w-4 h-4 rtl:rotate-180" />
-        </div>
-      </div>
+
     </div>
   );
 }
@@ -1361,8 +1753,10 @@ function PlanWeekTable({
   planData,
   userLevel,
   wordsPerDay,
-  relevantGrammarTopics,
+  planGrammarRules,
+  rulesPerDay,
   t,
+  lang,
   formatTime,
   getVocabRange,
   getSpacedRepetition,
@@ -1372,7 +1766,8 @@ function PlanWeekTable({
   openGrammarModal,
   interactive,
   completedCells,
-  onToggleCell
+  onToggleCell,
+  wordSource
 }) {
   // Row color map — each category gets a vivid left-border accent + subtle tinted bg
   const rowColors = {
@@ -1389,7 +1784,7 @@ function PlanWeekTable({
   const cellBase = `px-3 py-6 text-center border-b border-e ${B} relative transition-all duration-200`;
 
   return (
-    <div className="rounded-[28px] print:rounded-none overflow-hidden border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none bg-white dark:bg-[var(--app-bg)] print:bg-white">
+    <div className="rounded-[28px] print:rounded-none overflow-hidden border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none glass-panel print:bg-white">
       <div className="overflow-x-auto">
         <table className="w-full border-separate [border-spacing:0] min-w-[800px]">
           <thead>
@@ -1409,11 +1804,11 @@ function PlanWeekTable({
               return (
               <tr key={cat.id} className={`group hover:brightness-105 dark:hover:brightness-125 transition-all ${colors.bg} ${colors.border}`}>
                 <td className={`py-6 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
-                  <div className="flex items-center justify-center gap-4">
-                    <div className={`p-2.5 rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm`}>
-                      <cat.icon className="w-4.5 h-4.5" />
+                  <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
+                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm`}>
+                      <cat.icon className="w-5 h-5" />
                     </div>
-                    {cat.name}
+                    <span className="truncate leading-none">{cat.name}</span>
                   </div>
                 </td>
                 {[0, 1, 2, 3, 4, 5, 6].map(d => {
@@ -1423,7 +1818,7 @@ function PlanWeekTable({
                   return (
                     <td
                       key={d}
-                      className={`${cellBase} ${isInteractive ? 'cursor-pointer hover:bg-[var(--app-accent1)]/5' : ''}`}
+                      className={`${cellBase} plan-cell-hover ${isInteractive ? 'cursor-pointer' : ''}`}
                       onClick={isInteractive ? () => {
                         if (cat.id === 'vocab') openVocabModal(d);
                         if (cat.id === 'grammar') openGrammarModal(d);
@@ -1437,40 +1832,92 @@ function PlanWeekTable({
                       )}
                       <div className="flex flex-col items-center justify-center gap-1 min-h-[40px]">
                         {cat.id === 'vocab' ? (
-                          <span className="text-sm font-bold text-gray-900 dark:text-white" dir="ltr">{getVocabRange(weekNum, d)}</span>
-                        ) : cat.id === 'grammar' ? (
-                          <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 line-clamp-2 max-w-[80px]" dir="ltr">
-                            {relevantGrammarTopics[((weekNum - 1) * 7 + d) % relevantGrammarTopics.length]}
-                          </span>
-                        ) : null}
+                          <div className="flex flex-col items-center gap-1">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white" dir="ltr">{getVocabRange(weekNum, d)}</span>
+                            <span className={`text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${wordSource === 'vocab' ? 'bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]' : 'bg-orange-100 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400'}`}>
+                              {wordSource === 'vocab' ? 'CSV' : 'PDF'}
+                            </span>
+                          </div>
+                        ) : cat.id === 'grammar' ? (() => {
+                          const globalDayIdx = (weekNum - 1) * 7 + d;
+                          const rpd = rulesPerDay || 1;
+                          const startRuleIdx = globalDayIdx * rpd;
+                          const dayRules = planGrammarRules ? planGrammarRules.slice(startRuleIdx, startRuleIdx + rpd).filter(Boolean) : [];
+                          if (dayRules.length === 0) return <span className="text-[10px] text-gray-400 dark:text-gray-600">—</span>;
+                          return (
+                            <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 line-clamp-3 max-w-[80px] print:line-clamp-none print:max-w-none print:text-[11px]" dir="ltr">
+                              {dayRules.map((r, ri) => <span key={ri} className="block">{ri > 0 && <span className="text-gray-400">·</span>} {r}</span>)}
+                            </span>
+                          );
+                        })() : null}
                         <span className="text-[11px] font-extrabold text-gray-700 dark:text-gray-300 uppercase tracking-tight">{cat.mins}M</span>
                       </div>
                     </td>
                   );
                 })}
-                <td className={`py-6 border-b border-s ${B} text-center font-extrabold text-[13px] ${colors.summary}`}>
+                <td className={`py-6 border-b border-s ${B} text-center font-extrabold text-[13px] ${colors.summary} plan-cell-hover`}>
                   {formatTime(cat.mins * 7)}
                 </td>
               </tr>
             );
             })}
 
+            {/* ── Spaced Repetition Review Row ── */}
+            <tr className="bg-purple-50/70 dark:bg-purple-950/25 border-l-4 border-l-purple-500 group hover:brightness-105 dark:hover:brightness-125 transition-all">
+              <td className={`py-5 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
+                <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm">
+                    <RotateCcw className="w-5 h-5" />
+                  </div>
+                  <span className="truncate leading-none">{t.spacedRep}</span>
+                </div>
+              </td>
+              {[0, 1, 2, 3, 4, 5, 6].map(d => {
+                const phases = getSpacedRepetition(weekNum, d);
+                return (
+                  <td key={d} className={`${cellBase} align-top`}>
+                    {phases.length === 0 ? (
+                      <span className="text-[10px] text-gray-400 dark:text-gray-600">—</span>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1">
+                        {phases.map((range, ri) => (
+                          <span
+                            key={ri}
+                            dir="ltr"
+                            className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-500/15 border border-purple-200 dark:border-purple-500/25 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap"
+                          >
+                            {range}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                );
+              })}
+              <td className={`py-5 border-b border-s ${B} text-center plan-cell-hover`}>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[9px] uppercase tracking-wider text-purple-500 dark:text-purple-400 opacity-70">{_resolveTranslation(lang, 'الفجوات', 'intervals')}</span>
+                  <span dir="ltr" className="font-mono text-[9px] font-bold text-purple-600 dark:text-purple-300">+1·+4·+7·+12·+20</span>
+                </div>
+              </td>
+            </tr>
+
             {/* Summary Row */}
             <tr className="bg-teal-50 dark:bg-teal-950/30 border-l-4 border-l-teal-500">
               <td className={`py-8 border-e ${B} font-extrabold text-sm text-gray-900 dark:text-white`}>
-                <div className="flex items-center justify-center gap-4">
-                  <div className="p-2.5 rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+                <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
                     <Clock className="w-5 h-5" />
                   </div>
-                  {t.categories.total}
+                  <span className="leading-none">{t.categories.total}</span>
                 </div>
               </td>
               {[0, 1, 2, 3, 4, 5, 6].map(d => (
-                <td key={d} className={`px-6 py-8 text-center border-e ${B} font-extrabold text-sm text-teal-700 dark:text-teal-300`}>
+                <td key={d} className={`px-6 py-8 text-center border-e ${B} font-extrabold text-sm text-teal-700 dark:text-teal-300 plan-cell-hover`}>
                   {formatTime(dailyTotalMins)}
                 </td>
               ))}
-              <td className={`px-6 py-8 border-s ${B} text-center font-black text-sm text-teal-700 dark:text-teal-200 bg-teal-100/50 dark:bg-teal-500/10`}>
+              <td className={`px-6 py-8 border-s ${B} text-center font-black text-sm text-teal-700 dark:text-teal-200 bg-teal-100/50 dark:bg-teal-500/10 plan-cell-hover`}>
                 {formatTime(weeklyTotalMins)}
               </td>
             </tr>
@@ -1525,6 +1972,14 @@ function StudyPlan({
   setUserLevel,
   lang,
   globalVocab,
+  langeekVocab,
+  planMeta,
+  setPlanMeta,
+  completedCells,
+  setCompletedCells,
+  currentWeek,
+  setCurrentWeek,
+  recordActivity,
   theme
 }) {
   const stored = useMemo(() => loadStoredPlan(), []);
@@ -1551,15 +2006,11 @@ function StudyPlan({
     }
   });
   const [wordsMode, setWordsMode] = useState(stored?.wordsMode || 'auto'); // 'auto' | 'manual'
+  const [wordSource, setWordSource] = useState(stored?.wordSource || 'langeek'); // 'langeek' | 'vocab'
   const [totalInvestMinutes, setTotalInvestMinutes] = useState('');
   const [wordsManual, setWordsManual] = useState(stored?.wordsManual || 10);
-  const [planMeta, setPlanMeta] = useState(stored?.planMeta || null); // serialisable plan
-  const [currentWeek, setCurrentWeek] = useState(stored?.currentWeek || 1);
   const [vocabModal, setVocabModal] = useState(null);
   const [grammarModal, setGrammarModal] = useState(null);
-  const [completedCells, setCompletedCells] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {}; } catch { return {}; }
-  });
   const toggleCellCompletion = (weekNum, catId, dayIdx) => {
     const key = `${weekNum}-${catId}-${dayIdx}`;
     setCompletedCells(prev => {
@@ -1567,6 +2018,7 @@ function StudyPlan({
       const next = current === 'done' ? 'missed' : current === 'missed' ? null : 'done';
       const newData = { ...prev };
       if (next === null) delete newData[key]; else newData[key] = next;
+      if (next === 'done' && recordActivity) recordActivity();
       localStorage.setItem('venoxa_completed_cells', JSON.stringify(newData));
       return newData;
     });
@@ -1617,6 +2069,13 @@ function StudyPlan({
     alertTime: _resolveTranslation(lang, 'يرجى تحديد وقت المذاكرة لكل مهارة!', 'Please set a study time for at least one skill!'),
     alertDate: _resolveTranslation(lang, 'يرجى تحديد تاريخ الهدف بشكل صحيح!', 'Please select a valid target date!'),
     spacedRep: _resolveTranslation(lang, 'مراجعة متباعدة', 'Spaced Review'),
+    wordSourceTitle: _resolveTranslation(lang, 'مصدر الكلمات', 'Word Source'),
+    wordSourceLangeek: _resolveTranslation(lang, 'Langeek (PDF)', 'Langeek (PDF)'),
+    wordSourceVocab: _resolveTranslation(lang, 'مفرداتي (من رفع الملفات)', 'My Vocabulary (Uploads)'),
+    wordSourceHint: _resolveTranslation(lang, 'اختر مصدر الكلمات للخطة: مفرداتك المرفوعة أو قائمة Langeek القياسية', 'Choose the word source for your plan: your uploaded vocabulary or the standard Langeek list'),
+    langeekRefMsg: _resolveTranslation(lang, 'ارجع إلى ملف Langeek PDF الخاص بك وادرس الكلمات في هذا النطاق.', 'Refer to your Langeek PDF file and study the words in this range.'),
+    langeekRangeLabel: _resolveTranslation(lang, 'نطاق الكلمات (Langeek PDF)', 'Word Range (Langeek PDF)'),
+    noVocabUploaded: _resolveTranslation(lang, 'لم يتم رفع ملف مفردات بعد. يرجى رفع ملف CSV أو اختيار مصدر Langeek.', 'No vocabulary uploaded yet. Please upload a CSV file or choose Langeek as source.'),
     totalInvestTitle: _resolveTranslation(lang, 'إجمالي وقت المذاكرة اليومي', 'Total Daily Study Time'),
     totalInvestPlaceholder: _resolveTranslation(lang, '60', '60'),
     divideBtn: _resolveTranslation(lang, 'تقسيم الوقت تلقائياً', 'Auto-Divide Time'),
@@ -1647,8 +2106,8 @@ function StudyPlan({
     return Math.ceil((e - s) / 86400000);
   }, [startDate, targetDate]);
 
-  // Total NEW words to learn = sum of CEFR_LEVEL_WORDS for every level strictly above the user's current.
-  const wordsDelta = useMemo(() => {
+  // CEFR-based word delta: sum of CEFR_LEVEL_WORDS for every level strictly above the user's current.
+  const cefrWordsDelta = useMemo(() => {
     const curIdx = LEVEL_ORDER.indexOf(userLevel);
     const tgtIdx = LEVEL_ORDER.indexOf(targetLevel);
     if (curIdx < 0 || tgtIdx < 0 || tgtIdx <= curIdx) return 0;
@@ -1657,19 +2116,61 @@ function StudyPlan({
     return total;
   }, [userLevel, targetLevel]);
 
-  // Total grammar rules across every level from current+1 up to target (inclusive).
-  const rulesDelta = useMemo(() => {
+  // Base suitable vocab list (level-filtered from uploads) — independent of wordsPerDay to avoid circular deps.
+  const suitableVocabBase = useMemo(() => {
+    const getLevelWeight = l => {
+      if (!l) return 0;
+      const str = l.toUpperCase();
+      if (str.includes('A1')) return 1;
+      if (str.includes('A2')) return 2;
+      if (str.includes('B1')) return 3;
+      if (str.includes('B2')) return 4;
+      if (str.includes('C1')) return 5;
+      if (str.includes('C2')) return 6;
+      return 0;
+    };
+    const userWeight = getLevelWeight(userLevel) || 1;
+    const filtered = globalVocab.filter(w => {
+      const wWeight = getLevelWeight(w.level);
+      return wWeight >= userWeight || wWeight === 0;
+    });
+    return filtered.length > 0 ? filtered : globalVocab;
+  }, [globalVocab, userLevel]);
+
+  // Effective total words depends on the chosen source.
+  // 'vocab' → uploaded vocabulary count; 'langeek' → CEFR standard count.
+  const wordsDelta = useMemo(() => {
+    if (wordSource === 'vocab') {
+      return suitableVocabBase.length > 0 ? suitableVocabBase.length : cefrWordsDelta;
+    }
+    return cefrWordsDelta;
+  }, [wordSource, suitableVocabBase, cefrWordsDelta]);
+
+  // Flat ordered list of grammar rules from current level (inclusive) up to and including
+  // the first rule of the target level. This is what gets distributed across plan days.
+  const planGrammarRules = useMemo(() => {
     const curIdx = LEVEL_ORDER.indexOf(userLevel);
     const tgtIdx = LEVEL_ORDER.indexOf(targetLevel);
-    if (curIdx < 0 || tgtIdx < 0 || tgtIdx <= curIdx) return 0;
-    let total = 0;
-    for (let i = curIdx + 1; i <= tgtIdx; i++) {
+    if (curIdx < 0 || tgtIdx < 0 || tgtIdx <= curIdx) return [];
+    const rules = [];
+    // Add ALL rules from current level through the level just below target
+    for (let i = curIdx; i < tgtIdx; i++) {
       const lvlKey = LEVEL_ORDER[i];
-      const entry = GRAMMAR_LEVELS.find(g => g.level.startsWith(lvlKey));
-      if (entry) total += entry.topics.length;
+      const entry = GRAMMAR_CEFR_DETAILED.find(g => g.level === lvlKey);
+      if (entry) {
+        entry.categories.forEach(cat => cat.rules.forEach(r => rules.push(r)));
+      }
     }
-    return total;
+    // Add ONLY the first rule of the target level as the milestone
+    const tgtEntry = GRAMMAR_CEFR_DETAILED.find(g => g.level === LEVEL_ORDER[tgtIdx]);
+    if (tgtEntry && tgtEntry.categories.length > 0 && tgtEntry.categories[0].rules.length > 0) {
+      rules.push(tgtEntry.categories[0].rules[0]);
+    }
+    return rules;
   }, [userLevel, targetLevel]);
+
+  // Total grammar rules = length of the plan grammar rules list
+  const rulesDelta = useMemo(() => planGrammarRules.length, [planGrammarRules]);
 
   // Auto words-per-day: split the vocabulary delta over the days available.
   const autoWordsPerDay = useMemo(() => {
@@ -1738,12 +2239,13 @@ function StudyPlan({
         targetDate,
         skillSettings,
         wordsMode,
+        wordSource,
         wordsManual,
         planMeta,
         currentWeek
       }));
     } catch {/* quota or private mode — silently ignore */ }
-  }, [targetLevel, startDate, targetDate, skillSettings, wordsMode, wordsManual, planMeta, currentWeek]);
+  }, [targetLevel, startDate, targetDate, skillSettings, wordsMode, wordSource, wordsManual, planMeta, currentWeek]);
 
   // Live pre-generation summary: total minutes per skill across the whole plan.
   const planEstimate = useMemo(() => {
@@ -1764,31 +2266,17 @@ function StudyPlan({
     };
   }, [daysToTarget, wordsDelta, rulesDelta, skillSettings, wordsMode, wordsManual, autoWordsPerDay]);
   const suitableVocab = useMemo(() => {
-    const getLevelWeight = l => {
-      if (!l) return 0;
-      const str = l.toUpperCase();
-      if (str.includes('A1')) return 1;
-      if (str.includes('A2')) return 2;
-      if (str.includes('B1')) return 3;
-      if (str.includes('B2')) return 4;
-      if (str.includes('C1')) return 5;
-      if (str.includes('C2')) return 6;
-      return 0;
-    };
-    const userWeight = getLevelWeight(userLevel) || 1;
-    const filtered = globalVocab.filter(w => {
-      const wWeight = getLevelWeight(w.level);
-      return wWeight >= userWeight || wWeight === 0;
-    });
-    return filtered.length >= wordsPerDay ? filtered : globalVocab;
-  }, [globalVocab, userLevel, wordsPerDay]);
-  const relevantGrammarTopics = useMemo(() => {
-    const levelsToInclude = GRAMMAR_LEVELS.filter(g => {
-      return g.level.includes(userLevel) || g.level.includes(targetLevel);
-    });
-    if (levelsToInclude.length === 0) return GRAMMAR_LEVELS[2].topics;
-    return levelsToInclude.flatMap(g => g.topics);
-  }, [userLevel, targetLevel]);
+    // When source is Langeek, the user studies from their PDF — no uploaded word list used.
+    if (wordSource === 'langeek') return [];
+    return suitableVocabBase.length >= wordsPerDay ? suitableVocabBase : globalVocab;
+  }, [wordSource, suitableVocabBase, wordsPerDay, globalVocab]);
+  // rulesPerDay: how many grammar rules to assign per day
+  // If plan days >= total rules → 1 rule/day, stop when exhausted
+  // If plan days < total rules → spread multiple rules per day
+  const rulesPerDay = useMemo(() => {
+    if (!daysToTarget || planGrammarRules.length === 0) return 1;
+    return daysToTarget >= planGrammarRules.length ? 1 : Math.ceil(planGrammarRules.length / daysToTarget);
+  }, [daysToTarget, planGrammarRules]);
   const generatePlan = () => {
     const mins = {
       listen: effectiveSkillMins('listen'),
@@ -1816,10 +2304,15 @@ function StudyPlan({
     const diffDays = Math.ceil((end - start) / 86400000);
     const calculatedWeeks = Math.max(1, Math.ceil(diffDays / 7));
     const wpd = wordsMode === 'auto' ? autoWordsPerDay : Math.max(1, parseInt(wordsManual, 10) || 1);
+    const rpd = diffDays >= planGrammarRules.length && planGrammarRules.length > 0 ? 1 : Math.ceil(planGrammarRules.length / (diffDays || 1));
     setPlanMeta({
       totalWeeks: calculatedWeeks,
       mins,
-      wordsPerDay: wpd
+      wordsPerDay: wpd,
+      totalWords: wordsDelta || calculatedWeeks * 7 * wpd,
+      totalRules: planGrammarRules.length || calculatedWeeks,
+      rulesPerDay: rpd,
+      wordSource
     });
     setCurrentWeek(1);
   };
@@ -1868,6 +2361,34 @@ function StudyPlan({
     if (currentWeek > 1) setCurrentWeek(prev => prev - 1);
   };
   const openVocabModal = dayIndex => {
+    // Langeek source: show actual words from the uploaded Langeek CSV if available,
+    // otherwise fall back to the PDF range reference.
+    if (wordSource === 'langeek' || (planMeta?.wordSource === 'langeek')) {
+      const range = getVocabRange(currentWeek, dayIndex);
+      // If the user has uploaded their Langeek CSV, slice the actual words for this day.
+      if (langeekVocab && langeekVocab.length > 0) {
+        const startIdx = ((currentWeek - 1) * 7 + dayIndex) * wordsPerDay;
+        const dayWords = [];
+        for (let i = 0; i < wordsPerDay; i++) {
+          const globalIdx = startIdx + i;
+          if (globalIdx < langeekVocab.length) dayWords.push(langeekVocab[globalIdx]);
+        }
+        setVocabModal({
+          day: dayIndex + 1,
+          words: dayWords,
+          isLangeek: false,   // render as word cards (word + meaning)
+          langeekRange: range
+        });
+      } else {
+        setVocabModal({
+          day: dayIndex + 1,
+          words: [],
+          isLangeek: true,
+          langeekRange: range
+        });
+      }
+      return;
+    }
     const startIdx = ((currentWeek - 1) * 7 + dayIndex) * wordsPerDay;
     const dayWords = [];
     for (let i = 0; i < wordsPerDay; i++) {
@@ -1877,12 +2398,17 @@ function StudyPlan({
     }
     setVocabModal({
       day: dayIndex + 1,
-      words: dayWords
+      words: dayWords,
+      isLangeek: false
     });
   };
   const openGrammarModal = dayIndex => {
-    const globalIdx = (currentWeek - 1) * 7 + dayIndex;
-    const topic = relevantGrammarTopics[globalIdx % relevantGrammarTopics.length];
+    const globalDayIdx = (currentWeek - 1) * 7 + dayIndex; // 0-based
+    const rpd = planMeta?.rulesPerDay || rulesPerDay || 1;
+    const startRuleIdx = globalDayIdx * rpd;
+    const dayRules = planGrammarRules.slice(startRuleIdx, startRuleIdx + rpd).filter(Boolean);
+    const topic = dayRules.length > 0 ? dayRules.join(' · ') : null;
+    if (!topic) return;
     setGrammarModal({
       day: dayIndex + 1,
       topic
@@ -1944,8 +2470,11 @@ function StudyPlan({
           if (cat.id === 'vocab') {
             row.push(`${getVocabRange(w, d)} (${cat.mins}m)`);
           } else if (cat.id === 'grammar') {
-            const idx = (w - 1) * 7 + d;
-            const topic = relevantGrammarTopics[idx % relevantGrammarTopics.length] || '';
+            const globalDayIdx = (w - 1) * 7 + d;
+            const rpd = planMeta?.rulesPerDay || 1;
+            const startRuleIdx = globalDayIdx * rpd;
+            const dayRules = planGrammarRules.slice(startRuleIdx, startRuleIdx + rpd).filter(Boolean);
+            const topic = dayRules.join(' · ') || '-';
             row.push(`${topic} (${cat.mins}m)`);
           } else {
             row.push(`${cat.mins}m`);
@@ -1987,7 +2516,7 @@ function StudyPlan({
   const weeklyTotalMins = dailyTotalMins * 7;
   const todayStr = new Date().toISOString().split('T')[0];
   return <div className="space-y-8 animate-fadeIn print:m-0 print:p-0">
-    {!planData && <div className="bg-white dark:bg-[var(--app-card)] p-5 sm:p-8 lg:p-12 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] relative transition-colors">
+    {!planData && <div className="glass-panel p-5 sm:p-8 lg:p-12 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] relative transition-colors">
 
       <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-5 lg:mb-8 text-gray-900 dark:text-[var(--app-text)] flex items-center gap-3 relative z-10">
         <Sparkles className="text-black dark:text-white w-8 h-8" /> {t.title}
@@ -2036,7 +2565,7 @@ function StudyPlan({
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
           {/* Smart Auto-Divide Tool */}
-          <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full shadow-sm relative overflow-hidden group">
+          <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full shadow-sm relative overflow-hidden group">
             <div className="mb-2">
               <div className="flex items-center gap-2 font-bold text-black dark:text-white">
                 <Sparkles className="w-4 h-4 shrink-0" />
@@ -2072,7 +2601,7 @@ function StudyPlan({
             id: 'read',
             label: t.categories.read,
             Icon: BookText,
-            color: 'text-emerald-600 dark:text-black dark:text-white',
+            color: 'text-emerald-600 dark:text-white',
             ring: 'focus:border-[var(--app-accent2)]'
           }, {
             id: 'speak',
@@ -2097,7 +2626,7 @@ function StudyPlan({
               useDefault: true,
               mins: DEFAULT_SKILL_MINS[id]
             };
-            return <div key={id} className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full">
+            return <div key={id} className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full">
               <div className="flex items-center justify-between gap-4 mb-2">
                 <div className={`flex items-center gap-2 font-bold ${color} min-w-0`}>
                   <Icon className="w-4 h-4 shrink-0" />
@@ -2121,13 +2650,71 @@ function StudyPlan({
         </div>
       </div>
 
+      {/* Word Source Selector */}
+      <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 mb-6 relative z-10">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
+            <Layers className="w-5 h-5 text-[var(--app-accent1)]" /> {t.wordSourceTitle}
+          </h3>
+          <span className="text-xs text-gray-500 dark:text-[var(--app-text)] max-w-xs text-end">{t.wordSourceHint}</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+          {/* Langeek PDF option */}
+          <button
+            onClick={() => setWordSource('langeek')}
+            className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all duration-200 ${wordSource === 'langeek'
+              ? 'border-[var(--app-accent1)] bg-[var(--app-accent1)]/8 dark:bg-[var(--app-accent1)]/12'
+              : 'border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-[var(--app-surface)]'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${wordSource === 'langeek' ? 'bg-[var(--app-accent1)] text-white' : 'bg-gray-100 dark:bg-[var(--app-card)] text-gray-500'}`}>
+              <FileText className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className={`font-extrabold text-sm ${wordSource === 'langeek' ? 'text-[var(--app-accent1)]' : 'text-gray-700 dark:text-gray-200'}`}>
+                {t.wordSourceLangeek}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                {_resolveTranslation(lang, `${cefrWordsDelta.toLocaleString()} كلمة CEFR قياسية (${userLevel}→${targetLevel})`, `${cefrWordsDelta.toLocaleString()} standard CEFR words (${userLevel}→${targetLevel})`)}
+              </div>
+            </div>
+            {wordSource === 'langeek' && <CheckCircle2 className="w-5 h-5 text-[var(--app-accent1)] shrink-0 ml-auto" />}
+          </button>
+
+          {/* Vocabulary (uploads) option */}
+          <button
+            onClick={() => setWordSource('vocab')}
+            className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all duration-200 ${wordSource === 'vocab'
+              ? 'border-[var(--app-accent2)] bg-[var(--app-accent2)]/8 dark:bg-[var(--app-accent2)]/12'
+              : 'border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-[var(--app-surface)]'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${wordSource === 'vocab' ? 'bg-[var(--app-accent2)] text-white' : 'bg-gray-100 dark:bg-[var(--app-card)] text-gray-500'}`}>
+              <UploadCloud className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className={`font-extrabold text-sm ${wordSource === 'vocab' ? 'text-[var(--app-accent2)]' : 'text-gray-700 dark:text-gray-200'}`}>
+                {t.wordSourceVocab}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                {suitableVocabBase.length > 0
+                  ? _resolveTranslation(lang, `${suitableVocabBase.length.toLocaleString()} كلمة في مستواك (${userLevel}+)`, `${suitableVocabBase.length.toLocaleString()} words at your level (${userLevel}+)`)
+                  : t.noVocabUploaded
+                }
+              </div>
+            </div>
+            {wordSource === 'vocab' && <CheckCircle2 className="w-5 h-5 text-[var(--app-accent2)] shrink-0 ml-auto" />}
+          </button>
+        </div>
+      </div>
+
       {/* Words per day — auto vs manual */}
       <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 mb-8 relative z-10">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-[var(--app-accent2)]" /> {t.wordsTitle}
           </h3>
-          <div className="inline-flex bg-white dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-1 text-sm font-bold">
+          <div className="inline-flex glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-1 text-sm font-bold">
             <button onClick={() => setWordsMode('auto')} className={`px-3 py-1.5 rounded-xl transition-colors ${wordsMode === 'auto' ? 'bg-[#FF0099] text-white' : 'text-gray-600 dark:text-[var(--app-text)] hover:bg-gray-100 dark:hover:bg-[var(--app-surface)]'}`}>
               {t.wordsAuto}
             </button>
@@ -2137,18 +2724,21 @@ function StudyPlan({
           </div>
         </div>
 
-        {wordsMode === 'auto' ? <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
+        {wordsMode === 'auto' ? <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
           <div className="text-sm text-gray-600 dark:text-[var(--app-text)]" dir="ltr">
-            <span className="font-bold text-[#FF0099] dark:text-[var(--app-accent2)]">{userLevel} → {targetLevel}</span>
+            <span className={`font-bold ${wordSource === 'vocab' ? 'text-[var(--app-accent2)]' : 'text-[#FF0099] dark:text-[var(--app-accent2)]'}`}>{userLevel} → {targetLevel}</span>
             {' '}·{' '}
-            <span className="font-bold">{wordsDelta}</span> {t.wordsToLearn}
+            <span className="font-bold">{wordsDelta.toLocaleString()}</span> {t.wordsToLearn}
             {daysToTarget > 0 && <> · <span className="font-bold">{daysToTarget}</span> {t.days}</>}
+            <span className={`ml-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${wordSource === 'vocab' ? 'bg-[var(--app-accent2)]/10 text-[var(--app-accent2)]' : 'bg-orange-100 dark:bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]'}`}>
+              {wordSource === 'vocab' ? <UploadCloud className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+              {wordSource === 'vocab' ? _resolveTranslation(lang, 'مفرداتي', 'My Vocab') : 'Langeek PDF'}
+            </span>
           </div>
-          <div className="text-2xl font-extrabold text-[#FF0099] dark:text-[var(--app-accent2)]" dir="ltr">
+          <div className={`text-2xl font-extrabold ${wordSource === 'vocab' ? 'text-[var(--app-accent2)]' : 'text-[#FF0099] dark:text-[var(--app-accent2)]'}`} dir="ltr">
             {autoWordsPerDay} <span className="text-sm font-bold opacity-70">{t.perDay}</span>
           </div>
-        </div> : <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 flex items-center gap-3 flex-wrap">
-          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[#FF0099]/30" />
+        </div> : <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 flex items-center gap-3 flex-wrap">
           <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[var(--app-accent1)]" />
           <span className="font-bold text-gray-700 dark:text-[var(--app-text)]">{t.wordsToLearn} {t.perDay}</span>
         </div>}
@@ -2159,6 +2749,10 @@ function StudyPlan({
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h3 className="text-lg font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-black dark:text-white" /> {t.estimateTitle}
+            <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${wordSource === 'vocab' ? 'bg-[var(--app-accent2)]/10 text-[var(--app-accent2)]' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]'}`}>
+              {wordSource === 'vocab' ? <UploadCloud className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+              {wordSource === 'vocab' ? _resolveTranslation(lang, 'مفرداتي', 'My Vocab') : 'Langeek PDF'}
+            </span>
           </h3>
           <span className="text-xs text-gray-500 dark:text-[var(--app-text)] max-w-md text-end">{t.estimateHint}</span>
         </div>
@@ -2166,58 +2760,67 @@ function StudyPlan({
           {[{
             label: t.days,
             value: planEstimate.totalDays,
-            color: 'text-[var(--app-accent1)] dark:text-[var(--app-accent2)]',
-            bg: 'bg-[#1E90FF]/70 dark:bg-[var(--app-accent2)]/10',
+            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
+            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
+            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
             Icon: Calendar
           }, {
             label: t.words,
             value: planEstimate.totalWords.toLocaleString(),
-            color: 'text-[#FF0099] dark:text-[var(--app-accent2)]',
-            bg: 'bg-fuchsia-100/70 dark:bg-fuchsia-900/20',
+            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
+            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
+            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
             Icon: BookOpen
           }, {
             label: t.rules,
             value: planEstimate.totalRules,
-            color: 'text-[var(--app-accent1)] dark:text-orange-400',
-            bg: 'bg-orange-100/70 dark:bg-orange-900/20',
+            color: 'text-[var(--app-accent1)] dark:text-[var(--app-accent1)]',
+            bg: 'bg-orange-50 dark:bg-[var(--app-accent1)]/10',
+            border: 'border-orange-200/60 dark:border-[var(--app-accent1)]/20',
             Icon: FileText
           }, {
             label: `${t.categories.listen} (${t.hours})`,
             value: planEstimate.hours.listen.toFixed(1),
-            color: 'text-black dark:text-white',
-            bg: 'bg-blue-100/70 dark:bg-[var(--app-accent1)]/10',
+            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
+            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
+            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
             Icon: Headphones
           }, {
             label: `${t.categories.read} (${t.hours})`,
             value: planEstimate.hours.read.toFixed(1),
-            color: 'text-emerald-600 dark:text-black dark:text-white',
-            bg: 'bg-emerald-100/70 dark:bg-[var(--app-accent1)]/10',
+            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
+            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
+            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
             Icon: BookText
           }, {
             label: `${t.categories.speak} (${t.hours})`,
             value: planEstimate.hours.speak.toFixed(1),
-            color: 'text-pink-600 dark:text-pink-400',
-            bg: 'bg-pink-100/70 dark:bg-pink-900/20',
+            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
+            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
+            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
             Icon: MessageSquare
           }, {
             label: `${t.categories.write} (${t.hours})`,
             value: planEstimate.hours.write.toFixed(1),
-            color: 'text-indigo-600 dark:text-[var(--app-accent2)]',
-            bg: 'bg-indigo-100/70 dark:bg-[var(--app-accent2)]/10',
+            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
+            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
+            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
             Icon: PenTool
           }, {
             label: t.wordsTitle,
             value: `${planEstimate.wordsPerDay} ${t.perDay}`,
-            color: 'text-[#FF0099] dark:text-[var(--app-accent2)]',
-            bg: 'bg-fuchsia-100/70 dark:bg-fuchsia-900/20',
+            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
+            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
+            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
             Icon: Sparkles
           }].map(({
             label,
             value,
             color,
             bg,
+            border,
             Icon
-          }, i) => <div key={i} className={`${bg} rounded-2xl p-3 border border-white/40 dark:border-white/5`}>
+          }, i) => <div key={i} className={`${bg} rounded-2xl p-3 border ${border}`}>
               <div className={`flex items-center gap-1.5 text-[11px] font-bold ${color} opacity-90 uppercase tracking-wide`}>
                 <Icon className="w-3.5 h-3.5" /> {label}
               </div>
@@ -2229,7 +2832,7 @@ function StudyPlan({
       <button onClick={generatePlan} className="w-full bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black rounded-2xl py-4 font-bold transition shadow-lg active:scale-95 flex items-center justify-center gap-2">{t.gen}</button>
     </div>}
 
-    {planData && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
+    {planData && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex h-11 items-center gap-2 bg-gray-50 dark:bg-[var(--app-card)] px-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
@@ -2288,7 +2891,7 @@ function StudyPlan({
             label: t.categories.read,
             Icon: BookText,
             bar: 'from-[var(--app-accent2)] to-emerald-400',
-            text: 'text-emerald-600 dark:text-black dark:text-white'
+            text: 'text-emerald-600 dark:text-white'
           }, {
             id: 'speak',
             label: t.categories.speak,
@@ -2312,7 +2915,7 @@ function StudyPlan({
             const cat = planData.categories.find(c => c.id === id);
             const completedHours = ((currentWeek - 1) * 7 * (cat?.mins || 0) / 60).toFixed(1);
             const totalHours = (planData.totalWeeks * 7 * (cat?.mins || 0) / 60).toFixed(1);
-            return <div key={id} className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3">
+            return <div key={id} className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className={`flex items-center gap-1.5 font-bold ${text}`}>
                   <Icon className="w-4 h-4" /> {label}
@@ -2343,8 +2946,10 @@ function StudyPlan({
             const learnedWords = Math.min(completedDays * planData.wordsPerDay, planMeta?.totalWords || totalDays * planData.wordsPerDay);
             const totalWords = wordsDelta || totalDays * planData.wordsPerDay;
             const wordsPct = totalWords ? Math.round(learnedWords / totalWords * 100) : 0;
-            const totalRules = rulesDelta || planData.totalWeeks;
-            const masteredRules = Math.min(currentWeek - 1, totalRules);
+            const totalRules = planMeta?.totalRules || rulesDelta || planData.totalWeeks;
+            const rpd = planMeta?.rulesPerDay || 1;
+            const completedDaysForRules = Math.max(0, (currentWeek - 1) * 7);
+            const masteredRules = Math.min(completedDaysForRules * rpd, totalRules);
             const rulesPct = totalRules ? Math.round(masteredRules / totalRules * 100) : 0;
             return [{
               label: t.vocabProgress,
@@ -2362,7 +2967,7 @@ function StudyPlan({
               suffix: t.mastered,
               bar: 'from-orange-500 to-amber-500',
               text: 'text-[var(--app-accent1)] dark:text-orange-400'
-            }].map((row, i) => <div key={i} className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3">
+            }].map((row, i) => <div key={i} className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3">
               <div className="flex items-center justify-between mb-2 text-sm font-bold">
                 <span className={row.text}>{row.label}</span>
                 <span className={`${row.text}`} dir="ltr">{row.pct}%</span>
@@ -2382,7 +2987,7 @@ function StudyPlan({
 
       {/* Screen view: current week only */}
       <div className="print:hidden">
-        <PlanWeekTable weekNum={currentWeek} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} relevantGrammarTopics={relevantGrammarTopics} t={t} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive completedCells={completedCells} onToggleCell={toggleCellCompletion} />
+        <PlanWeekTable weekNum={currentWeek} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} planGrammarRules={planGrammarRules} rulesPerDay={planMeta?.rulesPerDay || rulesPerDay} t={t} lang={lang} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive completedCells={completedCells} onToggleCell={toggleCellCompletion} wordSource={planMeta?.wordSource || wordSource} />
       </div>
 
       {/* Print view: every week, page break between */}
@@ -2394,7 +2999,7 @@ function StudyPlan({
         {Array.from({
           length: planData.totalWeeks
         }, (_, i) => i + 1).map(w => (
-          <div key={w} className={`print:block ${w < planData.totalWeeks ? 'break-after-page' : ''}`} style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto' }}>
+          <div key={w} className={`print:block print:break-inside-avoid break-inside-avoid ${w < planData.totalWeeks ? 'break-after-page' : ''}`} style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto', breakInside: 'avoid', pageBreakInside: 'avoid' }}>
             <div className="text-center mb-4 print:pt-4">
               <h2 className="text-xl font-bold text-black">{t.week} {w}</h2>
             </div>
@@ -2403,8 +3008,10 @@ function StudyPlan({
               planData={planData} 
               userLevel={userLevel} 
               wordsPerDay={wordsPerDay} 
-              relevantGrammarTopics={relevantGrammarTopics} 
-              t={t} 
+              planGrammarRules={planGrammarRules}
+              rulesPerDay={planMeta?.rulesPerDay || rulesPerDay}
+              t={t}
+              lang={lang}
               formatTime={formatTime} 
               getVocabRange={getVocabRange} 
               getSpacedRepetition={getSpacedRepetition} 
@@ -2413,53 +3020,80 @@ function StudyPlan({
               openVocabModal={openVocabModal} 
               openGrammarModal={openGrammarModal} 
               interactive={false} 
-              completedCells={completedCells} 
+              completedCells={completedCells}
+              wordSource={planMeta?.wordSource || wordSource}
             />
           </div>
         ))}
       </div>
 
-      {vocabModal && <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden ${lang === 'ar' ? 'lg:pr-[280px]' : 'lg:pl-[280px]'}`} onClick={() => setVocabModal(null)}>
-        <div className="bg-white dark:bg-[var(--app-card)] rounded-2xl max-w-sm w-full border border-gray-200 dark:border-[var(--app-border)] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
-          <div className="bg-[var(--app-accent1)] p-5 text-white flex justify-between items-center">
-            <div>
-              <h3 className="font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5" /> {t.vocabHeader} ({t.day} {vocabModal.day})</h3>
-              <p className="text-sm opacity-80 mt-0.5">{wordsPerDay} {t.wordsToLearn}</p>
-            </div>
-            <button onClick={() => setVocabModal(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
-          </div>
-          <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar bg-gray-50 dark:bg-[var(--app-card)]">
-            {vocabModal.words.length === 0 ? <p className="text-center text-gray-500 py-10">لا توجد كلمات متاحة، يرجى رفع ملف الكلمات.</p> : vocabModal.words.map((w, i) => <div key={i} className="flex flex-col p-4 bg-white dark:bg-[var(--app-card)] rounded-2xl border border-gray-100 dark:border-[var(--app-border)] shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center gap-3 mb-1">
-                <span className="w-7 h-7 rounded-full bg-fuchsia-100 dark:bg-[var(--app-accent2)]/10 text-[#FF0099] dark:text-[var(--app-accent2)] flex items-center justify-center text-sm font-bold shrink-0">{i + 1}</span>
-                <span className="font-extrabold text-lg text-gray-900 dark:text-[var(--app-text)]" dir="ltr">{safeRender(w?.word)}</span>
+      {vocabModal && ReactDOM.createPortal(
+        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden`} onClick={() => setVocabModal(null)}>
+          <div className="glass-panel rounded-2xl max-w-sm w-full border border-gray-200 dark:border-[var(--app-border)] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+            <div className="bg-[var(--app-accent1)] p-5 text-white flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5" /> {t.vocabHeader} ({t.day} {vocabModal.day})</h3>
+                <p className="text-sm opacity-80 mt-0.5">
+                  {vocabModal.langeekRange
+                    ? `# ${vocabModal.langeekRange} · ${wordsPerDay} ${t.wordsToLearn}`
+                    : `${wordsPerDay} ${t.wordsToLearn}`}
+                </p>
               </div>
-              {w?.meaning && <span className="text-sm text-gray-500 dark:text-[var(--app-text)] mr-10">{safeRender(w.meaning)}</span>}
-            </div>)}
+              <button onClick={() => setVocabModal(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            {vocabModal.isLangeek ? (
+              <div className="p-8 text-center bg-gray-50 dark:bg-[var(--app-card)]">
+                <div className="inline-flex p-4 rounded-full bg-orange-100 dark:bg-[var(--app-accent1)]/20 text-[var(--app-accent1)] mb-5 shadow-sm">
+                  <FileText className="w-10 h-10" />
+                </div>
+                <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">{t.langeekRangeLabel}</div>
+                <div className="text-4xl font-extrabold text-[var(--app-accent1)] mb-4" dir="ltr"># {vocabModal.langeekRange}</div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed max-w-[260px] mx-auto">{t.langeekRefMsg}</p>
+              </div>
+            ) : (
+              <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar bg-gray-50 dark:bg-[var(--app-card)]">
+                {vocabModal.words.length === 0 ? (
+                  <div className="text-center py-10">
+                    <UploadCloud className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">{t.noVocabUploaded}</p>
+                  </div>
+                ) : vocabModal.words.map((w, i) => <div key={i} className="flex flex-col p-4 glass-panel rounded-2xl border border-gray-100 dark:border-[var(--app-border)] shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="w-7 h-7 rounded-full bg-fuchsia-100 dark:bg-[var(--app-accent2)]/10 text-[#FF0099] dark:text-[var(--app-accent2)] flex items-center justify-center text-sm font-bold shrink-0">{i + 1}</span>
+                    <span className="font-extrabold text-lg text-gray-900 dark:text-[var(--app-text)]" dir="ltr">{safeRender(w?.word)}</span>
+                  </div>
+                  {w?.meaning && <span className="text-sm text-gray-500 dark:text-[var(--app-text)] mr-10">{safeRender(w.meaning)}</span>}
+                </div>)}
+              </div>
+            )}
           </div>
-        </div>
-      </div>}
+        </div>,
+        document.body
+      )}
 
-      {grammarModal && <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden ${lang === 'ar' ? 'lg:pr-[280px]' : 'lg:pl-[280px]'}`} onClick={() => setGrammarModal(null)}>
-        <div className="bg-white dark:bg-[var(--app-card)] rounded-2xl max-w-sm w-full border border-gray-200 dark:border-[var(--app-border)] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
-          <div className="bg-[#1E90FF] p-5 text-white flex justify-between items-center">
-            <div>
-              <h3 className="font-bold text-lg flex items-center gap-2"><FileText className="w-5 h-5" /> {t.grammarHeader} ({t.day} {grammarModal.day})</h3>
-              <p className="text-sm opacity-80 mt-0.5">{t.grammarTarget}</p>
+      {grammarModal && ReactDOM.createPortal(
+        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden`} onClick={() => setGrammarModal(null)}>
+          <div className="glass-panel rounded-2xl max-w-sm w-full border border-gray-200 dark:border-[var(--app-border)] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#1E90FF] p-5 text-white flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-lg flex items-center gap-2"><FileText className="w-5 h-5" /> {t.grammarHeader} ({t.day} {grammarModal.day})</h3>
+                <p className="text-sm opacity-80 mt-0.5">{t.grammarTarget}</p>
+              </div>
+              <button onClick={() => setGrammarModal(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            <button onClick={() => setGrammarModal(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
-          </div>
-          <div className="p-8 text-center bg-gray-50 dark:bg-[var(--app-card)]">
-            <div className="inline-flex p-4 rounded-full bg-orange-100 dark:bg-[#1E90FF]/20 text-[var(--app-accent1)] dark:text-orange-400 mb-6 shadow-sm">
-              <Target className="w-10 h-10" />
+            <div className="p-8 text-center bg-gray-50 dark:bg-[var(--app-card)]">
+              <div className="inline-flex p-4 rounded-full bg-orange-100 dark:bg-[#1E90FF]/20 text-[var(--app-accent1)] dark:text-orange-400 mb-6 shadow-sm">
+                <Target className="w-10 h-10" />
+              </div>
+              <h4 className="text-2xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-4" dir="ltr">{safeRender(grammarModal.topic)}</h4>
+              <p className="text-sm text-gray-500 dark:text-[var(--app-text)] leading-relaxed">
+                {_resolveTranslation(lang, 'يمكنك التوجه لقسم "القواعد الشاملة" لطلب شرح مفصل لهذه القاعدة مع الأمثلة من معلم الذكاء الاصطناعي.', 'Head over to the "Comprehensive Grammar" section to get a detailed AI explanation of this rule.')}
+              </p>
             </div>
-            <h4 className="text-2xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-4" dir="ltr">{safeRender(grammarModal.topic)}</h4>
-            <p className="text-sm text-gray-500 dark:text-[var(--app-text)] leading-relaxed">
-              {_resolveTranslation(lang, 'يمكنك التوجه لقسم "القواعد الشاملة" لطلب شرح مفصل لهذه القاعدة مع الأمثلة من معلم الذكاء الاصطناعي.', 'Head over to the "Comprehensive Grammar" section to get a detailed AI explanation of this rule.')}
-            </p>
           </div>
-        </div>
-      </div>}
+        </div>,
+        document.body
+      )}
 
     </div>}
   </div>;
@@ -2526,6 +3160,7 @@ function Vocabulary({
     rateHard: _resolveTranslation(lang, 'صعب', 'Hard'),
     rateGood: _resolveTranslation(lang, 'جيد', 'Good'),
     rateEasy: _resolveTranslation(lang, 'سهل', 'Easy'),
+    rateSkip: _resolveTranslation(lang, 'تخطي', 'Skip'),
     time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
     time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
     time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
@@ -2620,7 +3255,7 @@ function Vocabulary({
     if (!card) return;
     const now = Date.now();
     let nextReview = now;
-    if (rating === 'again') nextReview = now + 1 * 60 * 1000; else if (rating === 'hard') nextReview = now + 10 * 60 * 1000; else if (rating === 'good') nextReview = now + 24 * 60 * 60 * 1000; else if (rating === 'easy') nextReview = now + 4 * 24 * 60 * 60 * 1000;
+    if (rating === 'again') nextReview = now + 1 * 60 * 1000; else if (rating === 'hard') nextReview = now + 10 * 60 * 1000; else if (rating === 'good') nextReview = now + 24 * 60 * 60 * 1000; else if (rating === 'easy') nextReview = now + 4 * 24 * 60 * 60 * 1000; else if (rating === 'skip') nextReview = now + 100 * 365 * 24 * 60 * 60 * 1000;
     const newData = {
       ...srsData,
       [card.word]: {
@@ -2729,7 +3364,7 @@ Rules:
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[var(--app-card)] p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+    <div className="flex flex-col sm:flex-row glass-panel p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
       <button
         onClick={() => { setVocabMode('browse'); setShowMeaning(false); setCardImage(null); setAiStory(''); }}
         className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'browse' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}
@@ -2751,7 +3386,7 @@ Rules:
       </button>
     </div>
 
-    {vocabMode === 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+    {vocabMode === 'lists' && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
       <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[var(--app-border)] pb-4 overflow-x-auto no-scrollbar">
         <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.hard} ({hardWords.length})</button>
         <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.learning} ({learningWords.length})</button>
@@ -2770,25 +3405,26 @@ Rules:
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateWordsMsg}</p></div> : currentListView.map(item => {
           const srs = srsData[item.word];
-          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 dark:border-[var(--app-border)] transition-colors group">
-            <div className="flex items-center gap-3">
+          const isAr = /[\u0600-\u06FF]/.test(item.word);
+          const isUiAr = lang === 'ar';
+          return <div key={item.word} className={`flex ${isUiAr ? 'flex-row-reverse' : 'flex-row'} justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 dark:border-[var(--app-border)] transition-colors group`}>
+            <div className={`flex-1 order-1 ${isAr ? 'text-right' : 'text-left'}`} dir={isAr ? 'rtl' : 'ltr'}>
+              <p className={`text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-3 ${isAr ? 'justify-end' : 'justify-start'}`}>
+                <button onClick={() => playAudio('en-US', item.word)} className={`text-gray-500 hover:text-black dark:text-white dark:hover:text-blue-400 transition-colors ${isAr ? 'order-first' : 'order-last'}`}><Volume2 className="w-4 h-4" /></button>
+                <span className="truncate">{safeRender(item.word)}</span>
+              </p>
+              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 opacity-70 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+            </div>
+            <div className="flex items-center gap-3 order-2">
               <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 dark:text-[var(--app-accent1)] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove word from SRS">
                 <Trash2 className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[var(--app-card)] border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1 glass-panel border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
                 <Clock className="w-3 h-3 text-black dark:text-white" />
                 <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[var(--app-text)] tracking-wider">
                   {formatCountdown(srs?.nextReview)}
                 </span>
               </div>
-            </div>
-
-            <div className="text-right" dir="ltr">
-              <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center justify-end gap-3">
-                <button onClick={() => playAudio('en-US', item.word)} className="text-gray-500 hover:text-black dark:text-white dark:hover:text-blue-400 transition-colors order-1"><Volume2 className="w-4 h-4" /></button>
-                <span className="order-2">{safeRender(item.word)}</span>
-              </p>
-              <p className="text-sm text-gray-600 dark:text-[var(--app-text)] mt-1">{safeRender(item.meaning)}</p>
             </div>
           </div>;
         })}
@@ -2798,7 +3434,7 @@ Rules:
     {vocabMode === 'browse' && <>
       {vocabMode === 'browse' && (
         <div className="space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+          <div className="flex flex-col md:flex-row justify-between items-center glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
             <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{t.smartCards}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalWords} {globalVocab.length}</p></div>
             <div className="mt-4 md:mt-0 flex items-center gap-3">
               {uploadMessage && <span className="text-sm text-green-600 dark:text-green-400 font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
@@ -2809,10 +3445,10 @@ Rules:
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row items-end gap-4 bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+          <div className="relative z-50 flex flex-col md:flex-row items-end gap-4 glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
             <div className="flex-1 w-full flex flex-col gap-2">
               <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-black dark:text-white" /> {t.searchWord}</label>
-              <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
+              <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[var(--app-input-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
             </div>
             <div className="flex-1 w-full flex flex-col gap-2">
               <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[var(--app-accent1)] dark:text-[var(--app-accent2)]" /> {t.filterLevel}</label>
@@ -2839,14 +3475,14 @@ Rules:
       )}
     </>}
 
-    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+    {vocabMode === 'review' && !card && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
       <div className="w-24 h-24 bg-green-50 dark:bg-[var(--app-accent1)]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-black dark:text-white dark:text-green-400" /></div>
       <h3 className="text-3xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">{t.reviewDone}</h3>
       <p className="text-gray-600 dark:text-[var(--app-text)] text-lg">{t.reviewDoneMsg}</p>
       <button onClick={() => setVocabMode('browse')} className="mt-8 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/40/50 px-8 py-3 rounded-2xl font-bold">{t.browseLearn}</button>
     </div>}
 
-    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
+    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
       <Search className="w-12 h-12 text-gray-400 dark:text-[var(--app-accent1)] mb-4" />
       <h3 className="text-xl text-gray-600 dark:text-[var(--app-text)] font-bold">{t.noMatch}</h3>
     </div>}
@@ -2854,7 +3490,7 @@ Rules:
     {card && vocabMode !== 'lists' && (
       <div className="w-full">
         <div
-          className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn"
+          className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn"
           onClick={() => setShowMeaning(!showMeaning)}
         >
           <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
@@ -2868,16 +3504,16 @@ Rules:
 
           {!showMeaning ? <div className="text-center w-full">
             <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
-            <p className="text-gray-600 dark:text-black dark:text-white text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+            <p className="text-gray-600 dark:text-white text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
           </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
             <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-            {card.example && <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
-            {card.synonyms && <div className="w-full bg-gray-100 dark:bg-[var(--app-card)]/30 p-4 rounded-2xl border border-gray-200 text-sm text-gray-700 dark:text-[var(--app-text)]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-black dark:text-white">{safeRender(card.synonyms)}</span></div>}
+            {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+            {card.synonyms && <div className="w-full bg-gray-100 dark:bg-transparent p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] text-sm text-gray-700 dark:text-[var(--app-text)]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-black dark:text-white">{safeRender(card.synonyms)}</span></div>}
 
             <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
-              {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-black dark:bg-white/10 text-black dark:text-white px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
-              {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
-              {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/8 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
+              {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5 text-amber-400" /> {t.storyBtn}</>}</button>}
+              {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5 text-blue-400" /> {t.imgBtn}</>}</button>}
+              {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5 text-emerald-400" /> {t.collocationsBtn}</>}</button>}
             </div>
 
             {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
@@ -2888,11 +3524,12 @@ Rules:
         </div>
 
         {showMeaning && (
-          <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-            <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain} <span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-            <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard} <span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-            <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood} <span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
-            <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center">{t.rateEasy} <span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+          <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
+            <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+            <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+            <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+            <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center text-xs md:text-sm">{t.rateEasy} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+            <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
           </div>
         )}
       </div>
@@ -2934,6 +3571,7 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab, 
     rateHard: _resolveTranslation(lang, 'صعب', 'Hard'),
     rateGood: _resolveTranslation(lang, 'جيد', 'Good'),
     rateEasy: _resolveTranslation(lang, 'سهل', 'Easy'),
+    rateSkip: _resolveTranslation(lang, 'تخطي', 'Skip'),
     time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
     time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
     time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
@@ -2982,7 +3620,7 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab, 
   const handleRate = rating => {
     if (!card) return;
     const now = Date.now();
-    let nextReview = rating === 'again' ? now + 60000 : rating === 'hard' ? now + 600000 : rating === 'good' ? now + 86400000 : now + 345600000;
+    let nextReview = rating === 'again' ? now + 60000 : rating === 'hard' ? now + 600000 : rating === 'good' ? now + 86400000 : rating === 'skip' ? now + 100 * 365 * 24 * 60 * 60 * 1000 : now + 345600000;
     const newData = { ...srsData, [card.word]: { nextReview, rating, lastReviewed: now } };
     setSrsData(newData); localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(newData));
     setShowMeaning(false); setAiStory(''); setCardImage(null); setCollocationData('');
@@ -3025,12 +3663,12 @@ Rules:
     } catch { setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Phrasal verb ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`); } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[var(--app-card)] p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+    <div className="flex flex-col sm:flex-row glass-panel p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
       <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
       <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">{dueCards.length}</span>}</button>
       <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiStory(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
-    {mode === 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+    {mode === 'lists' && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
       <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[var(--app-border)] pb-4 overflow-x-auto no-scrollbar">
         <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.hard} ({hardWords.length})</button>
         <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.learning} ({learningWords.length})</button>
@@ -3039,39 +3677,41 @@ Rules:
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => {
           const srs = srsData[item.word];
-          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 transition-colors">
-            <div className="flex items-center gap-3">
+          const isAr = /[\u0600-\u06FF]/.test(item.word);
+          const isUiAr = lang === 'ar';
+          return <div key={item.word} className={`flex ${isUiAr ? 'flex-row-reverse' : 'flex-row'} justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 transition-colors group`}>
+            <div className={`flex-1 order-1 ${isAr ? 'text-right' : 'text-left'}`} dir={isAr ? 'rtl' : 'ltr'}>
+              <p className={`text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2 ${isAr ? 'justify-end' : 'justify-start'}`}>
+                <button onClick={() => playAudio(item.word)} className={`text-gray-500 hover:text-black dark:text-white transition-colors ${isAr ? 'order-first' : 'order-last'}`}><Volume2 className="w-4 h-4" /></button>
+                <span>{safeRender(item.word)}</span>
+              </p>
+              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+            </div>
+            <div className="flex items-center gap-3 order-2">
               <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[var(--app-card)] border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1 glass-panel border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
                 <Clock className="w-3 h-3 text-black dark:text-white" />
                 <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[var(--app-text)] tracking-wider">
                   {formatCountdown(srs?.nextReview)}
                 </span>
               </div>
             </div>
-            <div className="text-left" dir="ltr">
-              <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2 justify-start">
-                <button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-black dark:text-white transition-colors"><Volume2 className="w-4 h-4" /></button>
-                <span>{safeRender(item.word)}</span>
-              </p>
-              <p className="text-sm text-gray-600 dark:text-[var(--app-text)] mt-1">{safeRender(item.meaning)}</p>
-            </div>
           </div>;
         })}
       </div>
     </div>}
     {mode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+      <div className="flex flex-col md:flex-row justify-between items-center glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{_resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs')}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalItems} {phrasalVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
           <label className="bg-orange-50 dark:bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[var(--app-accent1)] dark:hover:bg-[var(--app-accent1)] dark:hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
         </div>
       </div>
-      <div className="flex flex-col md:flex-row items-end gap-4 bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors relative z-50">
+      <div className="relative z-50 flex flex-col md:flex-row items-end gap-4 glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors relative z-50">
         <div className="flex-1 w-full flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-black dark:text-white" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[var(--app-input-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
         </div>
         <div className="flex-1 w-full flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><List className="w-4 h-4 text-black dark:text-white" /> {t.manualSelect} ({filteredList.length})</label>
@@ -3085,16 +3725,16 @@ Rules:
         </div>
       </div>
     </>}
-    {mode === 'review' && !card && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+    {mode === 'review' && !card && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
       <div className="w-24 h-24 bg-green-50 dark:bg-[var(--app-accent1)]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-black dark:text-white dark:text-green-400" /></div>
       <h3 className="text-3xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">{t.reviewDone}</h3>
       <p className="text-gray-600 dark:text-[var(--app-text)] text-lg">{t.reviewDoneMsg}</p>
       <button onClick={() => setMode('browse')} className="mt-8 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/40/50 px-8 py-3 rounded-2xl font-bold">{t.browseLearn}</button>
     </div>}
-    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
+    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
       <Search className="w-12 h-12 text-gray-400 dark:text-[var(--app-accent1)] mb-4" /><h3 className="text-xl text-gray-600 dark:text-[var(--app-text)] font-bold">{t.noWords}</h3>
     </div>}
-    {card && mode !== 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative z-0 hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && mode !== 'lists' && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative z-0 hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
       <div className="absolute top-6 left-6 z-10">
         <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-black dark:text-white shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
       </div>
@@ -3103,11 +3743,11 @@ Rules:
         <p className="text-gray-600 dark:text-[var(--app-accent1)] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
         <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
-          {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-black dark:bg-white/10 text-black dark:text-white px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
-          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
-          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/8 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
+          {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5 text-amber-400" /> {t.storyBtn}</>}</button>}
+          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5 text-blue-400" /> {t.imgBtn}</>}</button>}
+          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5 text-emerald-400" /> {t.collocationsBtn}</>}</button>}
         </div>
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiStory && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-orange-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
@@ -3115,11 +3755,12 @@ Rules:
         {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
-    {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain}<span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard}<span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood}<span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
-      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center">{t.rateEasy}<span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+    {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center text-xs md:text-sm">{t.rateEasy}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+      <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
     </div>}
   </div>;
 }
@@ -3162,6 +3803,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab, the
     rateHard: _resolveTranslation(lang, 'صعب', 'Hard'),
     rateGood: _resolveTranslation(lang, 'جيد', 'Good'),
     rateEasy: _resolveTranslation(lang, 'سهل', 'Easy'),
+    rateSkip: _resolveTranslation(lang, 'تخطي', 'Skip'),
     time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
     time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
     time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
@@ -3254,7 +3896,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab, the
   const handleRate = rating => {
     if (!card) return;
     const now = Date.now();
-    let nextReview = rating === 'again' ? now + 60000 : rating === 'hard' ? now + 600000 : rating === 'good' ? now + 86400000 : now + 345600000;
+    let nextReview = rating === 'again' ? now + 60000 : rating === 'hard' ? now + 600000 : rating === 'good' ? now + 86400000 : rating === 'skip' ? now + 100 * 365 * 24 * 60 * 60 * 1000 : now + 345600000;
     const newData = { ...srsData, [card.word]: { nextReview, rating, lastReviewed: now } };
     setSrsData(newData); localStorage.setItem('venoxa_idioms_srs', JSON.stringify(newData));
     setShowMeaning(false); setAiSentence(''); setCardImage(null); setCollocationData('');
@@ -3299,12 +3941,12 @@ Rules:
     } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[var(--app-card)] p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+    <div className="flex flex-col sm:flex-row glass-panel p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
       <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
       <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">{dueCards.length}</span>}</button>
       <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
-    {mode === 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+    {mode === 'lists' && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
       <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[var(--app-border)] pb-4 overflow-x-auto no-scrollbar">
         <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.hard} ({hardWords.length})</button>
         <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.learning} ({learningWords.length})</button>
@@ -3313,42 +3955,44 @@ Rules:
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => {
           const srs = srsData[item.word];
-          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 transition-colors">
-            <div className="flex items-center gap-3">
+          const isAr = /[\u0600-\u06FF]/.test(item.word);
+          const isUiAr = lang === 'ar';
+          return <div key={item.word} className={`flex ${isUiAr ? 'flex-row-reverse' : 'flex-row'} justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 transition-colors group`}>
+            <div className={`flex-1 order-1 ${isAr ? 'text-right' : 'text-left'}`} dir={isAr ? 'rtl' : 'ltr'}>
+              <div className={`flex items-center gap-2 flex-wrap ${isAr ? 'justify-end' : 'justify-start'}`}>
+                <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
+                  <button onClick={() => playAudio(item.word)} className={`text-gray-500 hover:text-black dark:text-white transition-colors ${isAr ? 'order-first' : 'order-last'}`}><Volume2 className="w-4 h-4" /></button>
+                  <span>{safeRender(item.word)}</span>
+                </p>
+                {item.topic && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#1E90FF]/10 dark:bg-[var(--app-accent2)]/10 text-[var(--app-accent1)] dark:text-[var(--app-accent2)] border border-[#1E90FF]/30 dark:border-purple-500/20">{safeRender(item.topic)}</span>}
+              </div>
+              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+            </div>
+            <div className="flex items-center gap-3 order-2">
               <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[var(--app-card)] border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1 glass-panel border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
                 <Clock className="w-3 h-3 text-black dark:text-white" />
                 <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[var(--app-text)] tracking-wider">
                   {formatCountdown(srs?.nextReview)}
                 </span>
               </div>
             </div>
-            <div className="text-left" dir="ltr">
-              <div className="flex items-center gap-2 flex-wrap justify-start">
-                <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
-                  <button onClick={() => playAudio(item.word)} className="text-gray-500 hover:text-black dark:text-white transition-colors"><Volume2 className="w-4 h-4" /></button>
-                  <span>{safeRender(item.word)}</span>
-                </p>
-                {item.topic && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#1E90FF]/10 dark:bg-[var(--app-accent2)]/10 text-[var(--app-accent1)] dark:text-[var(--app-accent2)] border border-[#1E90FF]/30 dark:border-purple-500/20">{safeRender(item.topic)}</span>}
-              </div>
-              <p className="text-sm text-gray-600 dark:text-[var(--app-text)] mt-1">{safeRender(item.meaning)}</p>
-            </div>
           </div>;
         })}
       </div>
     </div>}
     {mode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+      <div className="flex flex-col md:flex-row justify-between items-center glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{_resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang')}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalItems} {idiomsVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
           <label className="bg-orange-50 dark:bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[var(--app-accent1)] dark:hover:bg-[var(--app-accent1)] dark:hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
         </div>
       </div>
-      <div className="flex flex-col md:flex-row items-end gap-4 bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors relative z-50">
+      <div className="relative z-50 flex flex-col md:flex-row items-end gap-4 glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors relative z-50">
         <div className="flex-1 w-full flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-black dark:text-white" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[var(--app-input-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
         </div>
         <div className="flex-1 w-full flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[var(--app-accent1)]" /> {t.filterTopic}</label>
@@ -3372,16 +4016,16 @@ Rules:
         </div>
       </div>
     </>}
-    {mode === 'review' && !card && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+    {mode === 'review' && !card && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
       <div className="w-24 h-24 bg-green-50 dark:bg-[var(--app-accent1)]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-black dark:text-white dark:text-green-400" /></div>
       <h3 className="text-3xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">{t.reviewDone}</h3>
       <p className="text-gray-600 dark:text-[var(--app-text)] text-lg">{t.reviewDoneMsg}</p>
       <button onClick={() => setMode('browse')} className="mt-8 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/40/50 px-8 py-3 rounded-2xl font-bold">{t.browseLearn}</button>
     </div>}
-    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
+    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
       <Search className="w-12 h-12 text-gray-400 dark:text-[var(--app-accent1)] mb-4" /><h3 className="text-xl text-gray-600 dark:text-[var(--app-text)] font-bold">{t.noWords}</h3>
     </div>}
-    {card && mode !== 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative z-0 hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && mode !== 'lists' && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative z-0 hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
       <div className="absolute top-6 left-6 z-10">
         <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-[var(--app-accent1)] dark:text-[var(--app-accent2)] shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
       </div>
@@ -3391,11 +4035,11 @@ Rules:
         <p className="text-gray-600 dark:text-[var(--app-accent1)] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
         <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
-          {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-black dark:bg-white/10 text-black dark:text-white px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> {t.genSentenceBtn}</>}</button>}
-          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
-          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/8 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
+          {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5 text-purple-400" /> {t.genSentenceBtn}</>}</button>}
+          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5 text-blue-400" /> {t.imgBtn}</>}</button>}
+          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5 text-emerald-400" /> {t.collocationsBtn}</>}</button>}
         </div>
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiSentence && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
@@ -3403,11 +4047,12 @@ Rules:
         {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
-    {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain}<span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard}<span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood}<span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
-      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center">{t.rateEasy}<span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+    {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center text-xs md:text-sm">{t.rateEasy}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+      <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
     </div>}
   </div>;
 }
@@ -3418,95 +4063,150 @@ function Grammar({
   lang,
   theme
 }) {
-  const [openLevel, setOpenLevel] = useState(0);
-  const [activeTopic, setActiveTopic] = useState(null);
+  const [openLevel, setOpenLevel] = useState(() => {
+    const idx = GRAMMAR_CEFR_DETAILED.findIndex(l => l.level === userLevel);
+    return idx >= 0 ? idx : 0;
+  });
+  const [openCategory, setOpenCategory] = useState(null); // "levelIdx-catIdx"
+  const [activeTopic, setActiveTopic] = useState(null);   // "levelIdx-catIdx-ruleIdx"
   const [explanation, setExplanation] = useState("");
   const [loading, setLoading] = useState(false);
+
   const t = {
     title: _resolveTranslation(lang, 'القواعد الشاملة', 'Comprehensive Grammar'),
-    subtitle: _resolveTranslation(lang, '(مع معلم الذكاء الاصطناعي)', '(AI Teacher)'),
-    desc: _resolveTranslation(lang, 'مرتبة منهجياً من مستوى A1 إلى C1. اضغط على أي قاعدة ليقوم الذكاء الاصطناعي بشرحها لك.', 'Structured from A1 to C1. Click any rule for an AI-generated explanation.'),
-    explainBtn: _resolveTranslation(lang, 'اشرح لي بالذكاء الاصطناعي', 'Explain with AI'),
+    desc: _resolveTranslation(lang, 'مرتبة منهجياً من A1 إلى C1. اضغط على أي قاعدة ليشرحها الذكاء الاصطناعي.', 'Structured A1 to C1. Click any rule for an AI explanation.'),
+    rulesCount: _resolveTranslation(lang, 'قاعدة', 'rules'),
     loading: _resolveTranslation(lang, 'جاري توليد الشرح والأمثلة...', 'Generating explanation and examples...'),
-    error: _resolveTranslation(lang, 'عذراً، حدث خطأ.', 'Error generating response.')
+    error: _resolveTranslation(lang, 'عذراً، حدث خطأ.', 'Error generating response.'),
+    level: _resolveTranslation(lang, 'المستوى', 'Level'),
+    explain: _resolveTranslation(lang, 'اشرح', 'Explain'),
   };
-  const handleExplain = async (topic, levelStr) => {
-    if (activeTopic === topic) return;
-    setActiveTopic(topic);
+
+  const handleExplain = async (rule, levelLabel, catName, topicKey) => {
+    if (activeTopic === topicKey) { setActiveTopic(null); return; }
+    setActiveTopic(topicKey);
     setExplanation("");
     setLoading(true);
     try {
-      const prompt = `You are an expert English grammar teacher. Explain the grammar rule: "${topic}" for a ${levelStr} level student.
-      The explanation MUST be in ${_resolveTranslation(lang, 'Arabic', 'English')}. Keep it clear, simple, and provide 3 distinct examples in English with their translation in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
+      const prompt = `You are an expert English grammar teacher. Explain this grammar rule: "${rule}" for a ${levelLabel} level student.\nThe explanation MUST be in ${_resolveTranslation(lang, 'Arabic', 'English')}.\nFormat your response clearly:\n1. Brief explanation (2-3 sentences)\n2. Three distinct example sentences in English, each followed by its ${_resolveTranslation(lang, 'Arabic', 'English')} translation\n3. One common mistake to avoid`;
       await streamText(prompt, setExplanation);
-    } catch (err) {
+    } catch {
       setExplanation(t.error);
     } finally {
       setLoading(false);
     }
   };
-  return <div className="w-full max-w-4xl mx-auto animate-fadeIn pb-20">
-    <div className="text-center mb-12">
-      <h2 className="text-4xl font-bold text-black dark:text-white mb-4">{t.title}</h2>
-      <p className="text-gray-500 dark:text-gray-400">{t.desc}</p>
-    </div>
 
-    <div className="space-y-4">
-      {GRAMMAR_LEVELS.map((level, idx) => {
-        const isOpen = openLevel === idx;
-        return (
-          <div key={idx} className={`premium-card rounded-[28px] overflow-hidden transition-all duration-300 ${isOpen ? 'ring-2 ring-[var(--app-accent1)]/30' : ''}`}>
-            <button
-              onClick={() => { setOpenLevel(isOpen ? -1 : idx); setActiveTopic(null); }}
-              className={`w-full px-6 py-4 flex justify-between items-center transition-all duration-300 rounded-t-[28px] group/header ${isOpen ? 'bg-gray-50 dark:bg-[var(--app-surface)]' : 'rounded-b-[28px] hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50 hover:shadow-inner'}`}
-            >
-              <div className="flex items-center gap-4">
-                <span className={`text-base font-semibold ${isOpen ? 'text-black dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
-                  {_resolveTranslation(lang, 'المستوى', 'Level')} {level.level}
-                </span>
-              </div>
-              <ChevronRight className={`w-5 h-5 transition-transform duration-300 ${isOpen ? 'rotate-90' : 'text-gray-400'}`} />
-            </button>
+  const totalRules = GRAMMAR_CEFR_DETAILED.reduce((a, l) => a + l.categories.reduce((b, c) => b + c.rules.length, 0), 0);
 
-            {isOpen && (
-              <div className="p-4 bg-white dark:bg-black border-t border-gray-100 dark:border-[var(--app-border)] space-y-3 rounded-b-[28px]">
-                {level.topics.map((topic, tidx) => {
-                  const isActive = activeTopic === topic;
-                  return (
-                    <div key={tidx} className={`rounded-3xl border transition-all duration-300 ${isActive ? 'border-[var(--app-accent1)]/30 bg-[var(--app-accent1)]/5' : 'border-gray-100 dark:border-[var(--app-border)] hover:border-[var(--app-accent1)]/30 hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/20 hover:-translate-y-1 hover:shadow-lg'}`}>
-                      <div className="flex items-center justify-between p-4">
-                        <span className={`text-base font-medium ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300'}`}>{topic}</span>
+  return (
+    <div className="w-full max-w-4xl mx-auto animate-fadeIn pb-20">
+      {/* Header */}
+      <div className="text-center mb-10">
+        <h2 className="text-4xl font-bold text-black dark:text-white mb-3">{t.title}</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-3">{t.desc}</p>
+        <span className="inline-block text-xs font-bold px-3 py-1 rounded-full bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] border border-[var(--app-accent1)]/20">
+          {totalRules} {t.rulesCount} · A1 → C1
+        </span>
+      </div>
+
+      {/* Level accordions */}
+      <div className="space-y-3">
+        {GRAMMAR_CEFR_DETAILED.map((level, lidx) => {
+          const isLevelOpen = openLevel === lidx;
+          const levelRuleCount = level.categories.reduce((a, c) => a + c.rules.length, 0);
+          return (
+            <div key={lidx} className={`rounded-[28px] border transition-all duration-300 overflow-hidden ${isLevelOpen ? 'border-[var(--app-accent1)]/30 shadow-lg dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]' : 'border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 dark:hover:border-white/15'} bg-white dark:bg-[var(--app-card)]`}>
+              {/* Level header */}
+              <button
+                onClick={() => { setOpenLevel(isLevelOpen ? -1 : lidx); setOpenCategory(null); setActiveTopic(null); }}
+                className="w-full px-6 py-4 flex items-center justify-between gap-4 transition-colors hover:bg-gray-50 dark:hover:bg-white/5"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0" style={{ background: level.color }}>{level.level}</span>
+                  <div className="text-left">
+                    <div className="font-bold text-gray-900 dark:text-white text-base">{t.level} {level.level} — {level.labelAr}</div>
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{level.categories.length} {_resolveTranslation(lang, 'فئة', 'categories')} · {levelRuleCount} {t.rulesCount}</div>
+                  </div>
+                </div>
+                <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 flex-shrink-0 ${isLevelOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Categories */}
+              {isLevelOpen && (
+                <div className="border-t border-gray-100 dark:border-[var(--app-border)] divide-y divide-gray-100 dark:divide-[var(--app-border)]">
+                  {level.categories.map((cat, cidx) => {
+                    const catKey = `${lidx}-${cidx}`;
+                    const isCatOpen = openCategory === catKey;
+                    return (
+                      <div key={cidx}>
+                        {/* Category header */}
                         <button
-                          onClick={() => handleExplain(topic, level.level)}
-                          className={`p-2 rounded-2xl transition-colors ${isActive ? 'bg-[var(--app-accent1)] text-white' : 'text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[var(--app-surface)]'}`}
+                          onClick={() => { setOpenCategory(isCatOpen ? null : catKey); setActiveTopic(null); }}
+                          className="w-full px-6 py-3 flex items-center justify-between gap-3 transition-colors hover:bg-gray-50 dark:hover:bg-white/5"
                         >
-                          <Sparkles className="w-4 h-4" />
+                          <div className="flex items-center gap-3">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: level.color }} />
+                            <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">
+                              {lang === 'ar' ? cat.nameAr : cat.name}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-gray-400 font-medium">{cat.rules.length}</span>
+                          </div>
+                          <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isCatOpen ? 'rotate-90' : ''}`} />
                         </button>
+
+                        {/* Rules */}
+                        {isCatOpen && (
+                          <div className="px-4 pb-3 space-y-2 bg-gray-50/50 dark:bg-black/10">
+                            {cat.rules.map((rule, ridx) => {
+                              const ruleKey = `${lidx}-${cidx}-${ridx}`;
+                              const isActive = activeTopic === ruleKey;
+                              return (
+                                <div key={ridx} className={`rounded-2xl border transition-all duration-200 ${isActive ? 'border-[var(--app-accent1)]/40 bg-[var(--app-accent1)]/5 dark:bg-[var(--app-accent1)]/8' : 'border-gray-200 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-card)] hover:border-gray-300 dark:hover:border-white/15'}`}>
+                                  <div className="flex items-start justify-between gap-3 p-3">
+                                    <div className="flex items-start gap-2 flex-1 min-w-0">
+                                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 mt-0.5" style={{ background: level.color }}>{ridx + 1}</span>
+                                      <span className={`text-sm leading-relaxed ${isActive ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-gray-300'}`}>{rule}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => handleExplain(rule, `${level.level} (${level.labelAr})`, cat.name, ruleKey)}
+                                      title={t.explain}
+                                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold flex-shrink-0 transition-all ${isActive ? 'bg-[var(--app-accent1)] text-white' : 'bg-gray-100 dark:bg-white/8 text-gray-600 dark:text-gray-400 hover:bg-[var(--app-accent1)]/10 hover:text-[var(--app-accent1)]'}`}
+                                    >
+                                      <Sparkles className="w-3 h-3" />
+                                      {t.explain}
+                                    </button>
+                                  </div>
+                                  {isActive && (
+                                    <div className="px-4 pb-4 border-t border-[var(--app-accent1)]/15">
+                                      {loading ? (
+                                        <div className="flex items-center gap-2 pt-3 text-[var(--app-accent1)]">
+                                          <Activity className="w-4 h-4 animate-spin" />
+                                          <span className="text-sm font-medium">{t.loading}</span>
+                                        </div>
+                                      ) : (
+                                        <div className="pt-3 text-gray-700 dark:text-gray-300 text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>
+                                          {safeRender(explanation)}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                      {isActive && (
-                        <div className="p-6 border-t border-[var(--app-accent1)]/10 bg-white dark:bg-black rounded-b-3xl animate-fadeIn">
-                          {loading ? (
-                            <div className="flex items-center gap-3 text-[var(--app-accent1)]">
-                              <Activity className="w-4 h-4 animate-spin" />
-                              <span className="text-sm font-medium">{t.loading}</span>
-                            </div>
-                          ) : (
-                            <div className="text-gray-700 dark:text-gray-300 leading-relaxed text-base prose-sm dark:prose-invert" style={{ whiteSpace: 'pre-wrap' }}>
-                              {safeRender(explanation)}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
-  </div>;
+  );
 }
 function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
   const [story, setStory] = useState('');
@@ -3807,7 +4507,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
 
       {/* ── Header ── */}
-      <div className="bg-white dark:bg-[var(--app-card)] p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-6 transition-colors">
+      <div className="glass-panel p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-6 transition-colors">
         <div className="text-center md:text-start flex-1">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-2">{t.title}</h2>
           <p className="text-gray-600 dark:text-[var(--app-text)]">{t.desc}</p>
@@ -3816,8 +4516,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
           {type === 'reading' && (
             <>
               <div className="flex h-11 items-center gap-1 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
-                <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇬🇧 UK</button>
-                <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇺🇸 US</button>
+                <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇬🇧 UK</button>
+                <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇺🇸 US</button>
               </div>
               <button onClick={handleGenerate} disabled={loading} className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black px-8 h-11 rounded-2xl font-bold flex items-center gap-2 shadow-sm transition whitespace-nowrap">
                 {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
@@ -3829,7 +4529,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
 
       {/* ── Listening: topic / length / generate controls ── */}
       {type === 'listening' && (
-        <div className="bg-white dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="relative z-50 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
           <div className="flex flex-col md:flex-row items-center gap-3">
             <CustomDropdown
               value={listenTopic}
@@ -3859,8 +4559,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
             </button>
             {/* UK/US accent toggle for listening */}
             <div className="flex h-11 items-center gap-1 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
-              <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇬🇧 UK</button>
-              <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇺🇸 US</button>
+              <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇬🇧 UK</button>
+              <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇺🇸 US</button>
             </div>
           </div>
         </div>
@@ -3868,7 +4568,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
 
       {/* ── Listening: passage + player ── */}
       {story && type === 'listening' && (
-        <div className="bg-white dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="relative z-50 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
 
           {/* Player bar */}
           <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-gray-100 dark:border-[var(--app-border)]">
@@ -3926,7 +4626,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
 
       {/* ── Comprehension Quiz ── */}
       {quiz !== null && !dictMode && (
-        <div className="bg-white dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="relative z-50 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
           <h3 className="text-xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6 flex items-center gap-2">
             <HelpCircle className="w-5 h-5 text-[var(--app-accent1)]" />
             {_resolveTranslation(lang, 'أسئلة الفهم', 'Comprehension Quiz')}
@@ -3951,7 +4651,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
                           onClick={() => !quizSubmitted && setUserAnswers(prev => ({ ...prev, [i]: letter }))}
                           className={`text-left px-4 py-3 rounded-2xl border text-sm font-medium transition ${isCorrect ? 'bg-green-100 dark:bg-[var(--app-accent1)]/12 border-green-500 text-green-800 dark:text-green-300' :
                             isWrong ? 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-800 dark:text-red-300' :
-                              isSelected ? 'bg-blue-100 dark:bg-[var(--app-accent1)]/12 border-blue-500 text-blue-800 dark:text-black dark:text-white' :
+                              isSelected ? 'bg-blue-100 dark:bg-[var(--app-accent1)]/12 border-blue-500 text-blue-800 dark:text-white' :
                                 'bg-gray-50 dark:bg-[var(--app-card)] border-gray-200 dark:border-[var(--app-border)] text-gray-800 dark:text-[var(--app-text)] hover:border-blue-400'
                             }`}
                         >
@@ -3984,7 +4684,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
 
       {/* ── Dictation Mode ── */}
       {dictMode && (
-        <div className="bg-white dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="relative z-50 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
               <Mic className="w-5 h-5 text-black dark:text-white" />
@@ -4103,7 +4803,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
 
       {/* ── Golden Rules + Sources ── */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
-        <div className="md:col-span-3 bg-white dark:bg-[var(--app-card)] p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="md:col-span-3 glass-panel p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
           <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-5 lg:mb-8 border-b border-gray-200 dark:border-[var(--app-border)] pb-4">{_resolveTranslation(lang, 'القواعد الذهبية', 'Golden Rules')}</h3>
           <ul className="space-y-6">
             {contentSteps.map((step, idx) => (
@@ -4115,7 +4815,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
           </ul>
         </div>
 
-        <div className="md:col-span-2 bg-white dark:bg-[var(--app-card)] p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="md:col-span-2 glass-panel p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
           <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-5 lg:mb-8 border-b border-gray-200 dark:border-[var(--app-border)] pb-4">{_resolveTranslation(lang, 'المصادر', 'Sources')}</h3>
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {currentLinks.map((link, idx) => (
@@ -4227,7 +4927,7 @@ function Writing({
     </div>
 
     <div className="space-y-6">
-      <div className="premium-card rounded-3xl p-6">
+      <div className="premium-card rounded-3xl p-6 relative z-50">
         <div className="flex flex-col gap-4">
           <label className="text-sm font-semibold text-gray-900 dark:text-white">Topic (Optional)</label>
           <CustomDropdown
@@ -4270,7 +4970,7 @@ function Writing({
         <h3 className="text-green-700 dark:text-green-400 font-bold mb-4 flex justify-between items-center text-xl">{t.corrected} <span className="text-yellow-600 dark:text-yellow-400">{safeRender(feedback.score)}</span></h3>
         <p className="text-gray-900 dark:text-[var(--app-text)] text-xl leading-relaxed" dir="ltr">{safeRender(feedback.corrected_text)}</p>
       </div>
-      {feedback.explanation && <div className="bg-white dark:bg-[var(--app-card)] p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
+      {feedback.explanation && <div className="glass-panel p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
         <h3 className="text-black dark:text-white font-bold mb-2">{t.explanation}</h3>
         <p className="text-gray-700 dark:text-[var(--app-text)] leading-relaxed" style={{
           whiteSpace: 'pre-wrap'
@@ -4705,7 +5405,7 @@ function Speaking({
     const lastAiCallMsg = [...messages].reverse().find(m => m.role === 'ai' && m.text);
     const blobClass = loading ? 'blob-speak' : isRecording ? 'blob-listen' : 'blob-idle';
     const isDark = theme === 'dark';
-    return <div className={`relative w-full h-[88vh] flex flex-col animate-fadeIn select-none transition-colors duration-300 ${isDark ? 'bg-[var(--app-bg)]' : 'bg-[#f2f2ee]'}`}>
+    return <div className={`relative w-full min-h-[80vh] flex flex-col animate-fadeIn select-none transition-colors duration-300 bg-transparent`}>
 
       {/* ── Top-left: LIVE status + voice mode pill ── */}
       {/* ── Top Header: Status & Options ── */}
@@ -4766,10 +5466,18 @@ function Speaking({
 
         {/* AI transcript — bounded scrollable box with fade-to-top effect */}
         <div className="w-full max-w-md relative px-4" style={{ height: '180px' }}>
-          {/* Top fade — older messages dissolve upward */}
-          <div className="absolute top-0 left-4 right-4 h-14 z-10 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${isDark ? 'var(--app-bg)' : '#f2f2ee'} 30%, transparent)` }} />
-          {/* Scrollable transcript list */}
-          <div ref={transcriptScrollRef} className="h-full overflow-y-auto flex flex-col justify-end pb-14 gap-4" style={{ scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {/* Scrollable transcript list with mask-based fades */}
+          <div 
+            ref={transcriptScrollRef} 
+            className="h-full overflow-y-auto flex flex-col justify-end pb-10 gap-4" 
+            style={{ 
+              scrollBehavior: 'smooth', 
+              scrollbarWidth: 'none', 
+              msOverflowStyle: 'none',
+              maskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 85%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 85%, transparent 100%)'
+            }}
+          >
             {showCallTranscript ? (
               messages.filter(m => m.role === 'ai' && m.text).length > 0
                 ? messages.filter(m => m.role === 'ai' && m.text).map(m => (
@@ -4790,8 +5498,6 @@ function Speaking({
               <p className={`text-lg font-medium text-center ${isDark ? 'text-white/20' : 'text-black/25'}`}>{_resolveTranslation(lang, 'النص مخفي', 'Transcript off')}</p>
             )}
           </div>
-          {/* Bottom fade - height reduced to prevent obscuring text */}
-          <div className="absolute bottom-0 left-4 right-4 h-6 z-10 pointer-events-none" style={{ background: `linear-gradient(to top, ${isDark ? 'var(--app-bg)' : '#f2f2ee'} 10%, transparent)` }} />
         </div>
       </div>
 
@@ -4905,7 +5611,7 @@ function Speaking({
                   <button
                     key={mode}
                     onClick={() => setFormality(mode)}
-                    className={`px-4 h-full flex items-center text-sm font-bold rounded-xl transition-all ${formality === mode ? 'bg-white dark:bg-[var(--app-card)] text-black dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                    className={`px-4 h-full flex items-center text-sm font-bold rounded-xl transition-all ${formality === mode ? 'glass-panel text-black dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
                   >
                     {mode === 'informal' ? t.informal : t.formal}
                   </button>
@@ -4931,7 +5637,7 @@ function Speaking({
               </button>
 
               <div className="flex h-11 items-center bg-gray-50 dark:bg-[var(--app-surface)] p-1 rounded-2xl border border-gray-100 dark:border-[var(--app-border)]">
-                <button onClick={() => setShowHistory(!showHistory)} title={t.history} className={`px-3 h-full flex items-center rounded-xl transition-colors ${showHistory ? 'bg-white dark:bg-[var(--app-card)] text-[var(--app-accent1)]' : 'text-gray-400 hover:text-gray-600'}`}>
+                <button onClick={() => setShowHistory(!showHistory)} title={t.history} className={`px-3 h-full flex items-center rounded-xl transition-colors ${showHistory ? 'glass-panel text-[var(--app-accent1)]' : 'text-gray-400 hover:text-gray-600'}`}>
                   <Clock size={16} />
                 </button>
                 <div className="w-px h-4 bg-gray-200 dark:bg-[var(--app-card)]" />
@@ -4943,7 +5649,7 @@ function Speaking({
           </header>
         )}
 
-        <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-white dark:bg-[var(--app-bg)] scroll-smooth">
+        <div className="flex-1 p-6 overflow-y-auto space-y-6 glass-panel scroll-smooth">
           {showHistory && (
             <div className="mb-4 bg-white/90 dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 shadow-sm">
               {speakingHistory.length === 0 ? (
@@ -4985,14 +5691,14 @@ function Speaking({
               </div>
 
               {msg.role === 'user' && msg.review && (
-                <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden shadow-sm animate-fadeIn transition-colors">
+                <div className="mt-2 max-w-[85%] md:max-w-[70%] glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden shadow-sm animate-fadeIn transition-colors">
                   <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[var(--app-card)] hover:bg-gray-100 dark:hover:bg-[var(--app-surface)] flex justify-between items-center text-sm font-bold text-gray-700 dark:text-[var(--app-text)] transition-colors">
                     <span className="flex items-center gap-2 text-emerald-600 dark:text-[#FF4081]"><CheckCircle2 className="w-4 h-4" /> {t.corrected}</span>
                     <ChevronRight className={`w-4 h-4 transition-transform ${expandedReviewId === msg.id ? 'rotate-90' : ''}`} />
                   </button>
 
                   {expandedReviewId === msg.id && (
-                    <div className="p-4 space-y-4 border-t border-gray-200 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-card)]">
+                    <div className="p-4 space-y-4 border-t border-gray-200 dark:border-[var(--app-border)] glass-panel">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-gray-50 dark:bg-[var(--app-card)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
                           <p className="text-xs text-gray-500 mb-1 font-bold">{t.clarity}</p>
@@ -5040,7 +5746,7 @@ function Speaking({
         </div>
 
         <div className="px-6 py-6 border-t border-gray-100 dark:border-[var(--app-border)] bg-white dark:bg-black transition-colors">
-          <div className="max-w-3xl mx-auto flex items-center gap-3 p-1.5 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-100 dark:border-[var(--app-border)] rounded-2xl focus-within:border-[var(--app-accent1)]/50 transition-all">
+          <div className="max-w-3xl mx-auto flex items-center gap-3 p-1.5 bg-gray-50 dark:bg-[var(--app-input-bg)] border border-gray-100 dark:border-[var(--app-border)] rounded-2xl focus-within:border-[var(--app-accent1)]/50 transition-all">
             <button onClick={handleVoiceRecord} className={`p-3 rounded-2xl transition-all flex items-center justify-center ${isRecording ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
               <Mic className="w-5 h-5" />
             </button>
@@ -5066,7 +5772,7 @@ function Speaking({
           </div>
         </div>
       </div>
-      {callReview && <div className="w-full mt-6 bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden animate-fadeIn">
+      {callReview && <div className="w-full mt-6 glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden animate-fadeIn">
         <div className="bg-[var(--app-accent1)] p-4 text-white flex justify-between items-center">
           <h3 className="font-extrabold text-lg flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Call Corrections Review</h3>
           <button onClick={() => setCallReview(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
@@ -5153,6 +5859,7 @@ function Langeek({
     rateHard: _resolveTranslation(lang, 'صعب', 'Hard'),
     rateGood: _resolveTranslation(lang, 'جيد', 'Good'),
     rateEasy: _resolveTranslation(lang, 'سهل', 'Easy'),
+    rateSkip: _resolveTranslation(lang, 'تخطي', 'Skip'),
     time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
     time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
     time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
@@ -5249,7 +5956,7 @@ function Langeek({
     if (!card) return;
     const now = Date.now();
     let nextReview = now;
-    if (rating === 'again') nextReview = now + 1 * 60 * 1000; else if (rating === 'hard') nextReview = now + 10 * 60 * 1000; else if (rating === 'good') nextReview = now + 24 * 60 * 60 * 1000; else if (rating === 'easy') nextReview = now + 4 * 24 * 60 * 60 * 1000;
+    if (rating === 'again') nextReview = now + 1 * 60 * 1000; else if (rating === 'hard') nextReview = now + 10 * 60 * 1000; else if (rating === 'good') nextReview = now + 24 * 60 * 60 * 1000; else if (rating === 'easy') nextReview = now + 4 * 24 * 60 * 60 * 1000; else if (rating === 'skip') nextReview = now + 100 * 365 * 24 * 60 * 60 * 1000;
     const newData = {
       ...srsData,
       [card.word]: {
@@ -5356,7 +6063,7 @@ Rules:
     } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
-    <div className="flex flex-col sm:flex-row bg-white dark:bg-[var(--app-card)] p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+    <div className="flex flex-col sm:flex-row glass-panel p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
       <button onClick={() => {
         setVocabMode('browse');
         setShowMeaning(false);
@@ -5380,7 +6087,7 @@ Rules:
       }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${vocabMode === 'lists' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
     </div>
 
-    {vocabMode === 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+    {vocabMode === 'lists' && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
       <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[var(--app-border)] pb-4 overflow-x-auto no-scrollbar">
         <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.hard} ({hardWords.length})</button>
         <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.learning} ({learningWords.length})</button>
@@ -5400,22 +6107,24 @@ Rules:
       <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateWordsMsg}</p></div> : currentListView.map(item => {
           const srs = srsData[item.word];
-          return <div key={item.word} className="flex justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 dark:border-[var(--app-border)] transition-colors group">
+          const isAr = /[\u0600-\u06FF]/.test(item.word);
+          const isUiAr = lang === 'ar';
+          return <div key={item.word} className={`flex ${isUiAr ? 'flex-row-reverse' : 'flex-row'} justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 dark:border-[var(--app-border)] transition-colors group`}>
+            <div className={`flex-1 ${isAr ? 'text-right' : 'text-left'}`} dir={isAr ? 'rtl' : 'ltr'}>
+              <p className={`text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2 ${isAr ? 'justify-end' : 'justify-start'}`}>
+                <button onClick={() => playAudio('en-US', item.word)} className={`text-gray-500 hover:text-black dark:text-white dark:hover:text-blue-400 transition-colors ${isAr ? 'order-first' : 'order-last'}`}><Volume2 className="w-4 h-4" /></button>
+                <span className="truncate">{safeRender(item.word)}</span>
+              </p>
+              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 opacity-70 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+            </div>
             <div className="flex items-center gap-3">
               <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 dark:text-[var(--app-accent1)] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-[var(--app-card)] border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
+              <div className="flex items-center gap-1.5 px-3 py-1 glass-panel border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
                 <Clock className="w-3 h-3 text-black dark:text-white" />
                 <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[var(--app-text)] tracking-wider">
                   {formatCountdown(srs?.nextReview)}
                 </span>
               </div>
-            </div>
-            <div className="text-left" dir="ltr">
-              <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center justify-start gap-2">
-                <button onClick={() => playAudio('en-US', item.word)} className="text-gray-500 hover:text-black dark:text-white dark:hover:text-blue-400 transition-colors"><Volume2 className="w-4 h-4" /></button>
-                <span>{safeRender(item.word)}</span>
-              </p>
-              <p className="text-sm text-gray-600 dark:text-[var(--app-text)] mt-1">{safeRender(item.meaning)}</p>
             </div>
           </div>;
         })}
@@ -5423,7 +6132,7 @@ Rules:
     </div>}
 
     {vocabMode === 'browse' && <>
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+      <div className="flex flex-col md:flex-row justify-between items-center glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
         <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{t.smartCards}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalWords} {langeekVocab.length}</p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm text-green-600 dark:text-green-400 font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
@@ -5433,10 +6142,10 @@ Rules:
           </label>
         </div>
       </div>
-      <div className="flex flex-col md:flex-row items-end gap-4 bg-white dark:bg-[var(--app-card)] p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+      <div className="relative z-50 flex flex-col md:flex-row items-end gap-4 glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
         <div className="flex-1 w-full flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-black dark:text-white" /> {t.searchWord}</label>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-gray-50 dark:bg-[var(--app-input-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
         </div>
         <div className="flex-1 w-full flex flex-col gap-2">
           <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[var(--app-accent1)] dark:text-[var(--app-accent2)]" /> {t.filterLevel}</label>
@@ -5476,14 +6185,14 @@ Rules:
       </div>
     </>}
 
-    {vocabMode === 'review' && !card && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+    {vocabMode === 'review' && !card && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
       <div className="w-24 h-24 bg-green-50 dark:bg-[var(--app-accent1)]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-black dark:text-white dark:text-green-400" /></div>
       <h3 className="text-3xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">{t.reviewDone}</h3>
       <p className="text-gray-600 dark:text-[var(--app-text)] text-lg">{t.reviewDoneMsg}</p>
       <button onClick={() => setVocabMode('browse')} className="mt-8 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/40/50 px-8 py-3 rounded-2xl font-bold">{t.browseLearn}</button>
     </div>}
 
-    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-[40px] min-h-[400px] flex flex-col items-center justify-center p-12 shadow-sm text-center animate-fadeIn transition-colors">
+    {vocabMode === 'browse' && (filteredVocabList.length === 0 || !card) && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-[40px] min-h-[400px] flex flex-col items-center justify-center p-12 shadow-sm text-center animate-fadeIn transition-colors">
       <div className="w-20 h-20 bg-gray-100 dark:bg-[var(--app-surface)] rounded-full flex items-center justify-center mb-6">
         <UploadCloud className="w-10 h-10 text-[var(--app-accent1)]" />
       </div>
@@ -5499,7 +6208,7 @@ Rules:
       </label>
     </div>}
 
-    {card && vocabMode !== 'lists' && <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+    {card && vocabMode !== 'lists' && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative hover:border-blue-300 transition-all duration-300 group animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
 
       <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
         <button onClick={e => {
@@ -5519,22 +6228,16 @@ Rules:
 
       {!showMeaning ? <div className="text-center w-full">
         <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
-        <p className="text-gray-600 dark:text-black dark:text-white text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+        <p className="text-gray-600 dark:text-white text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
         <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
-        {card.example && <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
-        {card.synonyms && <div className="w-full bg-gray-100 dark:bg-[var(--app-card)]/30 p-4 rounded-2xl border border-gray-200 text-sm text-gray-700 dark:text-[var(--app-text)]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-black dark:text-white">{safeRender(card.synonyms)}</span></div>}
+        {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        {card.synonyms && <div className="w-full bg-gray-100 dark:bg-transparent p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] text-sm text-gray-700 dark:text-[var(--app-text)]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-black dark:text-white">{safeRender(card.synonyms)}</span></div>}
 
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
-          {!aiStory && <button onClick={e => {
-            e.stopPropagation();
-            generateStory();
-          }} disabled={loadingAi} className="flex-1 bg-orange-50 dark:bg-black dark:bg-white/10 text-black dark:text-white px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5" /> {t.storyBtn}</>}</button>}
-          {!cardImage && <button onClick={e => {
-            e.stopPropagation();
-            generateImage();
-          }} disabled={loadingImage} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5" /> {t.imgBtn}</>}</button>}
-          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/8 text-black dark:text-white px-6 py-3 rounded-xl font-bold flex justify-center items-center gap-2">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5" /> {t.collocationsBtn}</>}</button>}
+          {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5 text-amber-400" /> {t.storyBtn}</>}</button>}
+          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5 text-blue-400" /> {t.imgBtn}</>}</button>}
+          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5 text-emerald-400" /> {t.collocationsBtn}</>}</button>}
         </div>
 
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
@@ -5548,11 +6251,12 @@ Rules:
       </div>}
     </div>}
 
-    {showMeaning && card && vocabMode !== 'lists' && <div className="grid grid-cols-4 gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center">{t.rateAgain} <span className="text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center">{t.rateHard} <span className="text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center">{t.rateGood} <span className="text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
-      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center">{t.rateEasy} <span className="text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+    {showMeaning && card && vocabMode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center text-xs md:text-sm">{t.rateEasy} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+      <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
     </div>}
   </div>;
 }

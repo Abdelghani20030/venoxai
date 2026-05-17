@@ -6,24 +6,26 @@
    LanGeek Brand Tokens (Light) + Linear/Vercel Dark
    ══════════════════════════════════════════════ */
 body {
-  background: white;
+  background: linear-gradient(160deg, #f5f5fa 0%, #efeff5 50%, #e9e9f1 100%);
+  background-attachment: fixed;
   color: #000000;
   margin: 0;
-  font-weight: 500;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
 }
 
 .dark body {
-  background: #000000;
+  background: #0A0A0E;
   color: #FFFFFF;
 }
 
 :root {
   /* User Defined Palette */
-  --app-bg: #000000;
-  --app-surface: #121212;
-  --app-card: #222222;
-  --app-border: #2A2A2A;
+  --app-bg: #0A0A0E;
+  --app-surface: #0F0F13;
+  --app-card: #0F0F13;
+  --app-border: rgba(255, 255, 255, 0.1);
+  --app-input-bg: #21212A;
   --app-text: #FFFFFF;
   --app-text-muted: #E0E0E0;
   --app-accent1: #FF5722;
@@ -48,30 +50,47 @@ body {
   --card-radius: 28px;
 }
 
-.premium-card {
-  background: white;
-  border: 1px solid #F1F1F1;
-  border-radius: var(--card-radius);
-  padding: 2rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+.glass-panel {
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.dark .premium-card {
-  background: var(--app-card);
-  border: 1px solid var(--app-border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+.premium-card {
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: var(--card-radius);
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.premium-card:hover {
-  border-color: var(--app-accent1);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+.dark .premium-card, .dark .glass-panel {
+  background: rgba(15, 15, 19, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.dark .premium-card:hover {
-  border-color: var(--app-hover);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.7);
+.premium-card:hover, .glass-panel:hover {
+  border-color: rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+}
+
+.dark .premium-card:hover, .dark .glass-panel:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* ── Card Styles ── */
+.card-shine {
+  position: relative;
+  overflow: hidden;
 }
 
 /* ── Blob animations (call mode) ── */
@@ -237,11 +256,19 @@ body,
 button, 
 input, 
 select, 
-textarea,
-span,
-p,
-h1, h2, h3, h4, h5, h6 {
+textarea {
   font-weight: 600;
+}
+
+h1, h2, h3, h4, h5, h6,
+span {
+  font-weight: 600;
+}
+
+p {
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
 }
 
 [dir="rtl"] button,
@@ -275,10 +302,19 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Glass-card effect for dark sidebar + key panels */
 .dark .glass-panel {
-  background: rgba(10, 10, 10, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-color: var(--dk-border);
+  background: rgba(16, 16, 22, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Hide scrollbar on horizontal nav */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Subtle card glow on hover in dark mode */
@@ -462,7 +498,6 @@ html:not(.dark) .border-gray-100 {
     width: 98% !important;
     max-width: 98% !important;
     margin: 20px auto !important;
-    table-layout: fixed !important;
     border-collapse: collapse !important;
     border: 1px solid #000 !important;
     page-break-inside: avoid !important;
@@ -515,13 +550,14 @@ html:not(.dark) .border-gray-100 {
   border-radius: 24px;
   overflow-y: auto;
   max-height: 320px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   padding: 0.5rem;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   animation: dropdownAppear 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
-  background: white;
-  border: 1px solid #f3f4f6;
+  /* Solid base so the panel is always visible even inside glass-panel parents */
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
   scrollbar-width: none;          /* Firefox */
   -ms-overflow-style: none;       /* IE/Edge */
 }
@@ -530,11 +566,13 @@ html:not(.dark) .border-gray-100 {
   display: none;                  /* Chrome/Safari/Opera */
 }
 
+/* Dark: nearly-opaque dark glass — always looks solid regardless of parent backdrop-filter */
 .dark .dropdown-menu {
-  background: rgba(10, 10, 10, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 20px rgba(79, 124, 255, 0.1);
-  backdrop-filter: blur(25px);
+  background: rgba(33, 33, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(48px) saturate(180%);
+  -webkit-backdrop-filter: blur(48px) saturate(180%);
 }
 
 .dropdown-item {
@@ -577,3 +615,7 @@ html:not(.dark) .border-gray-100 {
     transform: translateY(0) scale(1);
   }
 }
+
+
+
+
