@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom';
 import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import LiquidGlass from 'liquid-glass-react';
+import avatarUsMale from './assets/avatar-us-male.png';
+import avatarUsFemale from './assets/avatar-us-female.png';
+import avatarUkMale from './assets/avatar-uk-male.png';
+import avatarUkFemale from './assets/avatar-uk-female.png';
 
 function LanguageDropdown({ lang, setLang, theme }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -239,6 +243,77 @@ function SolidDatePicker({ value, onChange, min, label, lang }) {
         </div>
       )}
     </div>
+  );
+}
+
+// --- PARTICLES BACKGROUND ---
+function ParticlesBackground() {
+  const canvasRef = useRef(null);
+  const animRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    let W = window.innerWidth;
+    let H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+
+    const COUNT = Math.floor((W * H) / 14000);
+    const particles = Array.from({ length: COUNT }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.2 + 0.3,
+      opacity: Math.random() * 0.55 + 0.1,
+      dx: (Math.random() - 0.5) * 0.18,
+      dy: (Math.random() - 0.5) * 0.18,
+      twinkleSpeed: Math.random() * 0.008 + 0.003,
+      twinklePhase: Math.random() * Math.PI * 2,
+    }));
+
+    let frame = 0;
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      frame++;
+      for (const p of particles) {
+        p.x += p.dx;
+        p.y += p.dy;
+        if (p.x < -2) p.x = W + 2;
+        if (p.x > W + 2) p.x = -2;
+        if (p.y < -2) p.y = H + 2;
+        if (p.y > H + 2) p.y = -2;
+
+        const alpha = p.opacity + Math.sin(frame * p.twinkleSpeed + p.twinklePhase) * 0.12;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${Math.max(0, Math.min(1, alpha))})`;
+        ctx.fill();
+      }
+      animRef.current = requestAnimationFrame(draw);
+    };
+    draw();
+
+    const onResize = () => {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      canvas.width = W;
+      canvas.height = H;
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full"
+      style={{ pointerEvents: 'none' }}
+    />
   );
 }
 
@@ -1022,6 +1097,7 @@ export default function App() {
   });
   const [phrasalVocab, setPhrasalVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_phrasal_vocab')) || []);
   const [idiomsVocab, setIdiomsVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_vocab')) || []);
+  const [idiomsProperVocab, setIdiomsProperVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_proper_vocab')) || []);
   const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
   const [speakingHistory, setSpeakingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_speaking_history')) || []);
   const [writingHistory, setWritingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_writing_history')) || []);
@@ -1073,6 +1149,7 @@ export default function App() {
   useEffect(() => localStorage.setItem('venoxa_global_vocab', JSON.stringify(globalVocab)), [globalVocab]);
   useEffect(() => localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(phrasalVocab)), [phrasalVocab]);
   useEffect(() => localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(idiomsVocab)), [idiomsVocab]);
+  useEffect(() => localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(idiomsProperVocab)), [idiomsProperVocab]);
   useEffect(() => localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(langeekVocab)), [langeekVocab]);
   useEffect(() => localStorage.setItem('venoxa_speaking_history', JSON.stringify(speakingHistory)), [speakingHistory]);
   useEffect(() => localStorage.setItem('venoxa_writing_history', JSON.stringify(writingHistory)), [writingHistory]);
@@ -1153,6 +1230,8 @@ export default function App() {
         return <PhrasalVerbs {...props} phrasalVocab={phrasalVocab} setPhrasalVocab={setPhrasalVocab} />;
       case 'idioms':
         return <IdiomsSlang {...props} idiomsVocab={idiomsVocab} setIdiomsVocab={setIdiomsVocab} />;
+      case 'idioms-proper':
+        return <IdiomsProper {...props} idiomsProperVocab={idiomsProperVocab} setIdiomsProperVocab={setIdiomsProperVocab} />;
       case 'grammar':
         return <Grammar {...props} />;
       case 'writing':
@@ -1179,7 +1258,8 @@ export default function App() {
       items: [
         { id: 'vocab', label: _resolveTranslation(lang, 'الكلمات والمراجعة', 'Vocabulary (SRS)'), icon: BookOpen, badge: vocabDueCount },
         { id: 'phrasal', label: _resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs'), icon: BookText },
-        { id: 'idioms', label: _resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang'), icon: Quote },
+        { id: 'idioms', label: _resolveTranslation(lang, 'العامية', 'Slang'), icon: Quote },
+        { id: 'idioms-proper', label: _resolveTranslation(lang, 'التعابير الاصطلاحية', 'Idioms'), icon: BookText },
         { id: 'langeek', label: _resolveTranslation(lang, 'لانجيك (PDF)', 'Langeek (PDF)'), icon: Archive, badge: langeekDueCount },
       ],
       badge: vocabDueCount + langeekDueCount
@@ -1212,6 +1292,8 @@ export default function App() {
       {theme === 'dark' ? (
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
           <div className="absolute inset-0" style={{ background: '#0A0A0E' }} />
+          {/* Grok-style moving dot particles */}
+          <ParticlesBackground />
           {/* Subtle dark-gray radial glow — top center */}
           <div className="absolute top-[-20%] left-[50%] -translate-x-1/2 w-[70vw] h-[70vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(32,32,44,0.25) 0%, rgba(15,15,20,0) 65%)' }} />
           {/* Soft charcoal accent — bottom left */}
@@ -1958,6 +2040,14 @@ const DEFAULT_SKILL_MINS = {
 };
 const VOCAB_MINS = 10;
 const GRAMMAR_MINS = 5;
+
+// ── Official study plan presets (from plan timing standard) ──────────────────
+const STUDY_PLAN_PRESETS = {
+  '1': { label: '1h',  labelAr: 'ساعة',      total: 60,  listen: 20, read: 15, vocab: 15, speak: 10, write: 5  },
+  '2': { label: '2h',  labelAr: 'ساعتان',    total: 120, listen: 40, read: 30, vocab: 25, speak: 15, write: 10 },
+  '3': { label: '3h',  labelAr: '٣ ساعات',   total: 180, listen: 55, read: 50, vocab: 40, speak: 20, write: 15 },
+  '4': { label: '4h',  labelAr: '٤ ساعات',   total: 240, listen: 75, read: 60, vocab: 50, speak: 30, write: 20 },
+};
 const PLAN_STORAGE_KEY = 'venoxa-plan-v3';
 function loadStoredPlan() {
   try {
@@ -2009,6 +2099,8 @@ function StudyPlan({
   const [wordSource, setWordSource] = useState(stored?.wordSource || 'langeek'); // 'langeek' | 'vocab'
   const [totalInvestMinutes, setTotalInvestMinutes] = useState('');
   const [wordsManual, setWordsManual] = useState(stored?.wordsManual || 10);
+  const [studyHoursPreset, setStudyHoursPreset] = useState(stored?.studyHoursPreset || null);
+  const [vocabMins, setVocabMins] = useState(stored?.vocabMins ?? 15);
   const [vocabModal, setVocabModal] = useState(null);
   const [grammarModal, setGrammarModal] = useState(null);
   const toggleCellCompletion = (weekNum, catId, dayIdx) => {
@@ -2079,6 +2171,10 @@ function StudyPlan({
     totalInvestTitle: _resolveTranslation(lang, 'إجمالي وقت المذاكرة اليومي', 'Total Daily Study Time'),
     totalInvestPlaceholder: _resolveTranslation(lang, '60', '60'),
     divideBtn: _resolveTranslation(lang, 'تقسيم الوقت تلقائياً', 'Auto-Divide Time'),
+    presetTitle: _resolveTranslation(lang, 'خطة جاهزة', 'Quick Plan'),
+    presetHint: _resolveTranslation(lang, 'اختر مدة المذاكرة اليومية — يتم توزيع الوقت تلقائياً حسب الخطة القياسية', 'Pick your daily study duration — time is distributed per the official plan standard'),
+    vocabTimeTitle: _resolveTranslation(lang, 'وقت المفردات يومياً', 'Vocab Study Time / Day'),
+    vocabTimeMins: _resolveTranslation(lang, 'دقيقة', 'min'),
     categories: {
       listen: _resolveTranslation(lang, 'استماع', 'Listening'),
       read: _resolveTranslation(lang, 'قراءة', 'Reading'),
@@ -2242,10 +2338,12 @@ function StudyPlan({
         wordSource,
         wordsManual,
         planMeta,
-        currentWeek
+        currentWeek,
+        studyHoursPreset,
+        vocabMins,
       }));
     } catch {/* quota or private mode — silently ignore */ }
-  }, [targetLevel, startDate, targetDate, skillSettings, wordsMode, wordSource, wordsManual, planMeta, currentWeek]);
+  }, [targetLevel, startDate, targetDate, skillSettings, wordsMode, wordSource, wordsManual, planMeta, currentWeek, studyHoursPreset, vocabMins]);
 
   // Live pre-generation summary: total minutes per skill across the whole plan.
   const planEstimate = useMemo(() => {
@@ -2283,7 +2381,7 @@ function StudyPlan({
       read: effectiveSkillMins('read'),
       speak: effectiveSkillMins('speak'),
       write: effectiveSkillMins('write'),
-      vocab: VOCAB_MINS,
+      vocab: vocabMins,
       grammar: GRAMMAR_MINS
     };
     const totalMins = mins.listen + mins.read + mins.speak + mins.write + mins.vocab + mins.grammar;
@@ -2312,7 +2410,9 @@ function StudyPlan({
       totalWords: wordsDelta || calculatedWeeks * 7 * wpd,
       totalRules: planGrammarRules.length || calculatedWeeks,
       rulesPerDay: rpd,
-      wordSource
+      wordSource,
+      studyHoursPreset,
+      vocabMins,
     });
     setCurrentWeek(1);
   };
@@ -2334,24 +2434,95 @@ function StudyPlan({
       }
     }));
   };
+
+  // Apply one of the 4 official presets (1h/2h/3h/4h) to all skill settings at once
+  const applyPreset = (key) => {
+    const p = STUDY_PLAN_PRESETS[key];
+    if (!p) return;
+    setStudyHoursPreset(key);
+    setVocabMins(p.vocab);
+    setTotalInvestMinutes(String(p.total));
+    setSkillSettings({
+      listen: { useDefault: false, mins: p.listen },
+      read:   { useDefault: false, mins: p.read   },
+      speak:  { useDefault: false, mins: p.speak  },
+      write:  { useDefault: false, mins: p.write  },
+    });
+  };
+
   const handleAutoDivide = () => {
     const total = parseInt(totalInvestMinutes, 10);
     if (isNaN(total) || total <= 0) {
       alert(_resolveTranslation(lang, 'يرجى إدخال وقت صحيح!', 'Please enter a valid time!'));
       return;
     }
-    // Simple logic to divide time based on a reasonable ratio
-    // Listening: 30%, Reading: 25%, Speaking: 25%, Writing: 20%
-    const listen = Math.round(total * 0.30);
-    const read = Math.round(total * 0.25);
-    const speak = Math.round(total * 0.25);
-    const write = total - listen - read - speak;
 
+    /**
+     * Smart plan combiner — follows the exact official preset timings.
+     *
+     * Strategy:
+     *  1. Greedily stack official presets (4h → 3h → 2h → 1h) until
+     *     the remainder is < 60 min.
+     *  2. Scale the sub-60 remainder proportionally from the 1h plan.
+     *  3. Proportionally rescale the raw accumulated minutes to exactly
+     *     `total` BEFORE rounding — this prevents large drift.
+     *  4. Round, then apply only the tiny residual (±1-2 min max) to
+     *     the largest bucket (listen).
+     */
+    const PRESETS_DESC = [
+      { total: 240, listen: 75, read: 60, vocab: 50, speak: 30, write: 20 },
+      { total: 180, listen: 55, read: 50, vocab: 40, speak: 20, write: 15 },
+      { total: 120, listen: 40, read: 30, vocab: 25, speak: 15, write: 10 },
+      { total:  60, listen: 20, read: 15, vocab: 15, speak: 10, write:  5 },
+    ];
+    const ONE_HOUR = PRESETS_DESC[3];
+
+    const acc = { listen: 0, read: 0, vocab: 0, speak: 0, write: 0 };
+    let remaining = total;
+
+    // Step 1 — stack full presets
+    for (const p of PRESETS_DESC) {
+      while (remaining >= p.total) {
+        acc.listen += p.listen;
+        acc.read   += p.read;
+        acc.vocab  += p.vocab;
+        acc.speak  += p.speak;
+        acc.write  += p.write;
+        remaining  -= p.total;
+      }
+    }
+
+    // Step 2 — scale the sub-60 remainder using 1h plan proportions
+    if (remaining > 0) {
+      const ratio = remaining / 60;
+      acc.listen += ONE_HOUR.listen * ratio;
+      acc.read   += ONE_HOUR.read   * ratio;
+      acc.vocab  += ONE_HOUR.vocab  * ratio;
+      acc.speak  += ONE_HOUR.speak  * ratio;
+      acc.write  += ONE_HOUR.write  * ratio;
+    }
+
+    // Step 3 — proportionally rescale so raw sum == total (eliminates large drift)
+    const keys = ['listen', 'read', 'vocab', 'speak', 'write'];
+    const rawSum = keys.reduce((s, k) => s + acc[k], 0);
+    if (rawSum > 0) {
+      keys.forEach(k => { acc[k] = (acc[k] / rawSum) * total; });
+    }
+
+    // Step 4 — round, then fix tiny residual (±1-2 min max) on the listen bucket
+    const rounded = {};
+    keys.forEach(k => { rounded[k] = Math.round(acc[k]); });
+    const drift = total - keys.reduce((s, k) => s + rounded[k], 0);
+    rounded.listen = Math.max(1, rounded.listen + drift);
+
+    setVocabMins(rounded.vocab);
+    setStudyHoursPreset(null);
+    setTotalInvestMinutes(String(total));
     setSkillSettings({
-      listen: { useDefault: false, mins: listen },
-      read: { useDefault: false, mins: read },
-      speak: { useDefault: false, mins: speak },
-      write: { useDefault: false, mins: write }
+      listen: { useDefault: false, mins: rounded.listen },
+      read:   { useDefault: false, mins: rounded.read   },
+      speak:  { useDefault: false, mins: rounded.speak  },
+      write:  { useDefault: false, mins: rounded.write  },
     });
   };
   const handleNextWeek = () => {
@@ -2563,7 +2734,65 @@ function StudyPlan({
           </h3>
           <span className="text-xs text-gray-500 dark:text-[var(--app-text)]">{t.skillsHint}</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-4">
+
+        {/* ── Quick Preset Selector ── */}
+        <div className="mb-4">
+          <p className="text-xs font-bold text-gray-500 dark:text-[var(--app-text-muted)] mb-2 uppercase tracking-wide">{t.presetTitle}</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(STUDY_PLAN_PRESETS).map(([key, p]) => {
+              const isActive = studyHoursPreset === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => applyPreset(key)}
+                  className={`flex flex-col items-center px-4 py-2.5 rounded-2xl border-2 font-bold text-sm transition-all duration-200 active:scale-95 ${
+                    isActive
+                      ? 'border-[var(--app-accent1)] bg-[var(--app-accent1)] text-white shadow-lg'
+                      : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[var(--app-surface)] text-gray-700 dark:text-white hover:border-[var(--app-accent1)]/50 hover:bg-[var(--app-accent1)]/5'
+                  }`}
+                >
+                  <span className="text-base font-extrabold leading-tight">{lang === 'ar' ? p.labelAr : p.label}</span>
+                  <span className={`text-[10px] font-bold mt-0.5 ${isActive ? 'text-white/80' : 'text-gray-400 dark:text-white/40'}`}>
+                    {p.total} {t.minsUnit}
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              onClick={() => { setStudyHoursPreset(null); }}
+              className={`flex flex-col items-center px-4 py-2.5 rounded-2xl border-2 font-bold text-sm transition-all duration-200 active:scale-95 ${
+                studyHoursPreset === null
+                  ? 'border-[var(--app-accent2)] bg-[var(--app-accent2)] text-white shadow-lg'
+                  : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[var(--app-surface)] text-gray-700 dark:text-white hover:border-[var(--app-accent2)]/50'
+              }`}
+            >
+              <span className="text-base font-extrabold leading-tight">{_resolveTranslation(lang, 'مخصص', 'Custom')}</span>
+              <span className={`text-[10px] font-bold mt-0.5 ${studyHoursPreset === null ? 'text-white/80' : 'text-gray-400 dark:text-white/40'}`}>
+                {_resolveTranslation(lang, 'يدوي', 'Manual')}
+              </span>
+            </button>
+          </div>
+          {studyHoursPreset && (() => {
+            const p = STUDY_PLAN_PRESETS[studyHoursPreset];
+            return (
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
+                {[
+                  { icon: '🎧', label: _resolveTranslation(lang, 'استماع', 'Listen'), mins: p.listen, color: 'text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-500/10' },
+                  { icon: '📖', label: _resolveTranslation(lang, 'قراءة', 'Read'),    mins: p.read,   color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' },
+                  { icon: '📝', label: _resolveTranslation(lang, 'مفردات', 'Vocab'),  mins: p.vocab,  color: 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10' },
+                  { icon: '💬', label: _resolveTranslation(lang, 'محادثة', 'Speak'),  mins: p.speak,  color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10' },
+                  { icon: '✍️', label: _resolveTranslation(lang, 'كتابة', 'Write'),   mins: p.write,  color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10' },
+                ].map(({ icon, label, mins, color }) => (
+                  <span key={label} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-black/5 dark:border-white/5 ${color}`}>
+                    {icon} {label}: <strong>{mins}</strong> {t.minsUnit}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-2">
           {/* Smart Auto-Divide Tool */}
           <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-3 transition-all hover:border-gray-300 dark:hover:border-gray-600 flex flex-col justify-between h-full shadow-sm relative overflow-hidden group">
             <div className="mb-2">
@@ -2739,94 +2968,119 @@ function StudyPlan({
             {autoWordsPerDay} <span className="text-sm font-bold opacity-70">{t.perDay}</span>
           </div>
         </div> : <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 flex items-center gap-3 flex-wrap">
-          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[var(--app-accent1)]" />
+          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="no-spinner w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[var(--app-accent1)]" />
           <span className="font-bold text-gray-700 dark:text-[var(--app-text)]">{t.wordsToLearn} {t.perDay}</span>
         </div>}
+
+        {/* Vocab study time selector */}
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/5 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-orange-500" />
+            <span className="text-sm font-bold text-gray-700 dark:text-[var(--app-text)]">{t.vocabTimeTitle}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {[10, 15, 20, 25, 30, 40].map(m => (
+              <button
+                key={m}
+                onClick={() => setVocabMins(m)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 border ${
+                  vocabMins === m
+                    ? 'bg-orange-500 border-orange-500 text-white shadow-md'
+                    : 'bg-white dark:bg-[var(--app-surface)] border-gray-200 dark:border-white/10 text-gray-600 dark:text-white hover:border-orange-300'
+                }`}
+              >
+                {m}<span className="opacity-70 ml-0.5">{t.vocabTimeMins}</span>
+              </button>
+            ))}
+            <input
+              type="number"
+              min="1"
+              max="120"
+              value={vocabMins}
+              onChange={e => setVocabMins(Math.max(1, parseInt(e.target.value) || 1))}
+              className="no-spinner w-16 h-8 text-center rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[var(--app-surface)] text-gray-900 dark:text-white font-extrabold text-sm focus:outline-none focus:border-orange-400"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Live estimate of what the user will need to learn */}
-      {planEstimate && <div className="bg-gradient-to-br from-blue-50 to-fuchsia-50 dark:from-[#0f1730] dark:to-[#22112e] border border-gray-200 dark:border-[var(--app-border)]/50 p-6 rounded-2xl mb-6 relative z-10">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h3 className="text-lg font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-black dark:text-white" /> {t.estimateTitle}
-            <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${wordSource === 'vocab' ? 'bg-[var(--app-accent2)]/10 text-[var(--app-accent2)]' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]'}`}>
+      {planEstimate && <div className="bg-white dark:bg-[#0d0d18] border border-gray-200 dark:border-white/8 p-6 rounded-2xl mb-6 relative z-10">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-[var(--app-accent1)]" /> {t.estimateTitle}
+            <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${wordSource === 'vocab' ? 'bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]' : 'bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]'}`}>
               {wordSource === 'vocab' ? <UploadCloud className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
               {wordSource === 'vocab' ? _resolveTranslation(lang, 'مفرداتي', 'My Vocab') : 'Langeek PDF'}
             </span>
           </h3>
-          <span className="text-xs text-gray-500 dark:text-[var(--app-text)] max-w-md text-end">{t.estimateHint}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 max-w-md text-end">{t.estimateHint}</span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-3">
           {[{
             label: t.days,
             value: planEstimate.totalDays,
-            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
-            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
-            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
+            accent: '#a78bfa',
+            bg: 'bg-violet-50 dark:bg-violet-500/8',
+            border: 'border-violet-200 dark:border-violet-500/15',
             Icon: Calendar
           }, {
             label: t.words,
             value: planEstimate.totalWords.toLocaleString(),
-            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
-            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
-            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
+            accent: '#a78bfa',
+            bg: 'bg-violet-50 dark:bg-violet-500/8',
+            border: 'border-violet-200 dark:border-violet-500/15',
             Icon: BookOpen
           }, {
             label: t.rules,
             value: planEstimate.totalRules,
-            color: 'text-[var(--app-accent1)] dark:text-[var(--app-accent1)]',
-            bg: 'bg-orange-50 dark:bg-[var(--app-accent1)]/10',
-            border: 'border-orange-200/60 dark:border-[var(--app-accent1)]/20',
+            accent: '#FF5722',
+            bg: 'bg-orange-50 dark:bg-orange-500/8',
+            border: 'border-orange-200 dark:border-orange-500/15',
             Icon: FileText
           }, {
             label: `${t.categories.listen} (${t.hours})`,
             value: planEstimate.hours.listen.toFixed(1),
-            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
-            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
-            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
+            accent: '#60a5fa',
+            bg: 'bg-blue-50 dark:bg-blue-500/8',
+            border: 'border-blue-200 dark:border-blue-500/15',
             Icon: Headphones
           }, {
             label: `${t.categories.read} (${t.hours})`,
             value: planEstimate.hours.read.toFixed(1),
-            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
-            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
-            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
+            accent: '#34d399',
+            bg: 'bg-emerald-50 dark:bg-emerald-500/8',
+            border: 'border-emerald-200 dark:border-emerald-500/15',
             Icon: BookText
           }, {
             label: `${t.categories.speak} (${t.hours})`,
             value: planEstimate.hours.speak.toFixed(1),
-            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
-            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
-            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
+            accent: '#f472b6',
+            bg: 'bg-pink-50 dark:bg-pink-500/8',
+            border: 'border-pink-200 dark:border-pink-500/15',
             Icon: MessageSquare
           }, {
             label: `${t.categories.write} (${t.hours})`,
             value: planEstimate.hours.write.toFixed(1),
-            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
-            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
-            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
+            accent: '#fbbf24',
+            bg: 'bg-amber-50 dark:bg-amber-500/8',
+            border: 'border-amber-200 dark:border-amber-500/15',
             Icon: PenTool
           }, {
             label: t.wordsTitle,
             value: `${planEstimate.wordsPerDay} ${t.perDay}`,
-            color: 'text-[var(--app-accent2)] dark:text-[var(--app-accent2)]',
-            bg: 'bg-violet-50 dark:bg-[var(--app-accent2)]/10',
-            border: 'border-violet-200/60 dark:border-[var(--app-accent2)]/20',
+            accent: '#a78bfa',
+            bg: 'bg-violet-50 dark:bg-violet-500/8',
+            border: 'border-violet-200 dark:border-violet-500/15',
             Icon: Sparkles
-          }].map(({
-            label,
-            value,
-            color,
-            bg,
-            border,
-            Icon
-          }, i) => <div key={i} className={`${bg} rounded-2xl p-3 border ${border}`}>
-              <div className={`flex items-center gap-1.5 text-[11px] font-bold ${color} opacity-90 uppercase tracking-wide`}>
+          }].map(({ label, value, accent, bg, border, Icon }, i) => (
+            <div key={i} className={`${bg} rounded-2xl p-4 border ${border}`}>
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: accent }}>
                 <Icon className="w-3.5 h-3.5" /> {label}
               </div>
-              <div className={`text-2xl font-extrabold ${color} mt-1`} dir="ltr">{value}</div>
-            </div>)}
-        </div>
+              <div className="text-2xl font-extrabold text-gray-900 dark:text-white" dir="ltr">{value}</div>
+            </div>
+          ))}        </div>
       </div>}
 
       <button onClick={generatePlan} className="w-full bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black rounded-2xl py-4 font-bold transition shadow-lg active:scale-95 flex items-center justify-center gap-2">{t.gen}</button>
@@ -3525,9 +3779,9 @@ Rules:
 
         {showMeaning && (
           <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-            <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-            <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-            <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+            <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 dark:border-rose-500/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+            <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 dark:border-white/12 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+            <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 dark:border-[var(--app-accent2)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
             <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center text-xs md:text-sm">{t.rateEasy} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
             <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
           </div>
@@ -3756,9 +4010,9 @@ Rules:
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 dark:border-rose-500/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 dark:border-white/12 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 dark:border-[var(--app-accent2)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
       <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center text-xs md:text-sm">{t.rateEasy}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
       <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
     </div>}
@@ -3810,7 +4064,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab, the
     time4d: _resolveTranslation(lang, '4 أيام', '4 days'),
     genSentenceBtn: _resolveTranslation(lang, 'توليد جملة بالذكاء الاصطناعي', 'Generate a Sentence (AI)'),
     imgBtn: _resolveTranslation(lang, 'صورة توضيحية', 'Illustrative Image'),
-    totalItems: _resolveTranslation(lang, 'إجمالي التعابير:', 'Total idioms/slang:'),
+    totalItems: _resolveTranslation(lang, 'إجمالي العامية:', 'Total slang:'),
     emptyLists: _resolveTranslation(lang, 'لا توجد عناصر في هذه القائمة.', 'No items in this list.'),
     rateItemsMsg: _resolveTranslation(lang, 'قيم العناصر في قسم "تصفح" لتظهر هنا.', 'Rate items in Browse mode to see them here.'),
     csvHint: _resolveTranslation(lang, 'الصيغة: الموضوع؛ التعبير؛ المعنى؛ الجملة', 'Format: Topic; Slang; Meaning; Sentence'),
@@ -3873,7 +4127,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab, the
         setIdiomsVocab(parsedData);
         localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(parsedData));
         setSearchQuery(''); setTopicFilter('All'); setMode('browse');
-        setUploadMessage(`✅ ${parsedData.length} idioms/slang uploaded!`);
+        setUploadMessage(`✅ ${parsedData.length} slang uploaded!`);
         setTimeout(() => setUploadMessage(''), 3000);
       } else { setUploadMessage('❌ No data found. Check CSV format.'); }
     };
@@ -3983,7 +4237,7 @@ Rules:
     </div>}
     {mode === 'browse' && <>
       <div className="flex flex-col md:flex-row justify-between items-center glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
-        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{_resolveTranslation(lang, 'التعابير والعامية', 'Idioms & Slang')}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalItems} {idiomsVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
+        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{_resolveTranslation(lang, 'العامية', 'Slang')}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalItems} {idiomsVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
         <div className="mt-4 md:mt-0 flex items-center gap-3">
           {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
           <label className="bg-orange-50 dark:bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[var(--app-accent1)] dark:hover:bg-[var(--app-accent1)] dark:hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
@@ -4048,14 +4302,305 @@ Rules:
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 dark:border-rose-500/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 dark:border-white/12 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 dark:border-[var(--app-accent2)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
       <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center text-xs md:text-sm">{t.rateEasy}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
       <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
     </div>}
   </div>;
 }
+
+function IdiomsProper({ AI_KEY, userLevel, lang, idiomsProperVocab, setIdiomsProperVocab, theme }) {
+  const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_proper_srs')) || {});
+  const [mode, setMode] = useState('browse');
+  const [listTab, setListTab] = useState('hard');
+  const [tick, setTick] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [topicFilter, setTopicFilter] = useState('All');
+  const [activeWordIndex, setActiveWordIndex] = useState(0);
+  const [showMeaning, setShowMeaning] = useState(false);
+  const [aiSentence, setAiSentence] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [cardImage, setCardImage] = useState(null);
+  const [loadingImage, setLoadingImage] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [collocationData, setCollocationData] = useState('');
+  const [loadingCollocation, setLoadingCollocation] = useState(false);
+  useEffect(() => { const int = setInterval(() => setTick(t => t + 1), 1000); return () => clearInterval(int); }, []);
+  const t = {
+    browse: _resolveTranslation(lang, 'تصفح', 'Browse'),
+    review: _resolveTranslation(lang, 'المراجعة المتباعدة', 'Spaced Review'),
+    lists: _resolveTranslation(lang, 'القوائم', 'Lists'),
+    hard: _resolveTranslation(lang, 'صعبة', 'Hard'),
+    learning: _resolveTranslation(lang, 'قيد التعلم', 'Learning'),
+    mastered: _resolveTranslation(lang, 'متقنة', 'Mastered'),
+    uploadCSV: _resolveTranslation(lang, 'رفع ملف (CSV)', 'Upload CSV'),
+    searchWord: _resolveTranslation(lang, 'بحث', 'Search'),
+    filterTopic: _resolveTranslation(lang, 'تصفية بالموضوع', 'Filter by Topic'),
+    manualSelect: _resolveTranslation(lang, 'اختيار يدوي', 'Manual Select'),
+    allTopics: _resolveTranslation(lang, 'كل المواضيع', 'All Topics'),
+    noWords: _resolveTranslation(lang, 'لا توجد عناصر مطابقة', 'No matching items'),
+    reviewDone: _resolveTranslation(lang, 'أنت رائع! 🎉', 'Awesome! 🎉'),
+    reviewDoneMsg: _resolveTranslation(lang, 'أنهيت جميع المراجعات المستحقة.', 'All due reviews completed.'),
+    browseLearn: _resolveTranslation(lang, 'تصفح وتعلم', 'Browse and Learn'),
+    clickToShow: _resolveTranslation(lang, 'انقر لإظهار المعنى والتقييم', 'Click to show meaning and rate'),
+    rateAgain: _resolveTranslation(lang, 'أعد', 'Again'),
+    rateHard: _resolveTranslation(lang, 'صعب', 'Hard'),
+    rateGood: _resolveTranslation(lang, 'جيد', 'Good'),
+    rateEasy: _resolveTranslation(lang, 'سهل', 'Easy'),
+    rateSkip: _resolveTranslation(lang, 'تخطي', 'Skip'),
+    time1m: _resolveTranslation(lang, '1 دقيقة', '1 min'),
+    time10m: _resolveTranslation(lang, '10 دقائق', '10 mins'),
+    time1d: _resolveTranslation(lang, '1 يوم', '1 day'),
+    time4d: _resolveTranslation(lang, '4 أيام', '4 days'),
+    genSentenceBtn: _resolveTranslation(lang, 'توليد جملة بالذكاء الاصطناعي', 'Generate a Sentence (AI)'),
+    imgBtn: _resolveTranslation(lang, 'صورة توضيحية', 'Illustrative Image'),
+    totalItems: _resolveTranslation(lang, 'إجمالي التعابير:', 'Total idioms:'),
+    emptyLists: _resolveTranslation(lang, 'لا توجد عناصر في هذه القائمة.', 'No items in this list.'),
+    rateItemsMsg: _resolveTranslation(lang, 'قيم العناصر في قسم "تصفح" لتظهر هنا.', 'Rate items in Browse mode to see them here.'),
+    csvHint: _resolveTranslation(lang, 'الصيغة: الموضوع؛ التعبير؛ المعنى؛ الجملة', 'Format: Topic; Idiom; Meaning; Sentence'),
+    collocationsBtn: _resolveTranslation(lang, 'التجميعات الاصطلاحية (AI)', 'Collocations (AI)'),
+  };
+
+  const allTopics = useMemo(() => {
+    const topics = [...new Set(idiomsProperVocab.map(w => w.topic).filter(Boolean))].sort();
+    return topics;
+  }, [idiomsProperVocab]);
+
+  const dueCards = useMemo(() => { const now = Date.now(); return idiomsProperVocab.filter(c => { const d = srsData[c.word]; return d && d.nextReview <= now; }); }, [idiomsProperVocab, srsData, tick]);
+  const hardWords = useMemo(() => idiomsProperVocab.filter(w => srsData[w.word]?.rating === 'again' || srsData[w.word]?.rating === 'hard'), [idiomsProperVocab, srsData, tick]);
+  const learningWords = useMemo(() => idiomsProperVocab.filter(w => srsData[w.word]?.rating === 'good'), [idiomsProperVocab, srsData, tick]);
+  const masteredWords = useMemo(() => idiomsProperVocab.filter(w => srsData[w.word]?.rating === 'easy'), [idiomsProperVocab, srsData, tick]);
+  const currentListView = listTab === 'hard' ? hardWords : listTab === 'learning' ? learningWords : masteredWords;
+
+  const parseCSVLine = (line, sep) => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (char === '"') { inQuotes = !inQuotes; }
+      else if (char === sep && !inQuotes) { result.push(current.trim()); current = ''; }
+      else { current += char; }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  const handleFileUpload = event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const rawText = e.target.result;
+      const lines = rawText.split('\n');
+      const header = lines[0] || '';
+      // Support tab, semicolon, or comma delimiters
+      const sep = header.includes('\t') ? '\t' : header.includes(';') ? ';' : ',';
+      const parsedData = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const r = parseCSVLine(lines[i], sep);
+        // Columns: Topic(0) | Idiom(1) | Meaning(2) | Sentence(3)
+        if (r.length >= 3 && r[1]) {
+          parsedData.push({
+            topic: r[0]?.replace(/^"|"$/g, '').trim() || '',
+            word: r[1].replace(/^"|"$/g, '').trim(),
+            meaning: r[2]?.replace(/^"|"$/g, '').trim() || '',
+            example: r[3]?.replace(/^"|"$/g, '').trim() || '',
+          });
+        }
+      }
+      if (parsedData.length > 0) {
+        setIdiomsProperVocab(parsedData);
+        localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(parsedData));
+        setSearchQuery(''); setTopicFilter('All'); setMode('browse');
+        setUploadMessage(`✅ ${parsedData.length} idioms uploaded!`);
+        setTimeout(() => setUploadMessage(''), 3000);
+      } else { setUploadMessage('❌ No data found. Check CSV format.'); }
+    };
+    reader.readAsText(file);
+  };
+
+  const filteredList = useMemo(() => {
+    const s = searchQuery.toLowerCase();
+    return idiomsProperVocab.filter(item => {
+      const matchesTopic = topicFilter === 'All' || item.topic === topicFilter;
+      const matchesSearch = item.word.toLowerCase().includes(s) || (item.meaning && item.meaning.toLowerCase().includes(s));
+      return matchesTopic && matchesSearch;
+    });
+  }, [idiomsProperVocab, searchQuery, topicFilter]);
+
+  const safeIndex = activeWordIndex < filteredList.length ? activeWordIndex : 0;
+  const card = mode === 'review' ? dueCards[0] : filteredList[safeIndex];
+  useEffect(() => { setCollocationData(''); setCardImage(null); setAiSentence(''); }, [card?.word]);
+  useEffect(() => { if (mode === 'browse' && filteredList.length > 0 && activeWordIndex >= filteredList.length) setActiveWordIndex(0); }, [filteredList.length, activeWordIndex, mode]);
+  const handleRate = rating => {
+    if (!card) return;
+    const now = Date.now();
+    let nextReview = rating === 'again' ? now + 60000 : rating === 'hard' ? now + 600000 : rating === 'good' ? now + 86400000 : rating === 'skip' ? now + 100 * 365 * 24 * 60 * 60 * 1000 : now + 345600000;
+    const newData = { ...srsData, [card.word]: { nextReview, rating, lastReviewed: now } };
+    setSrsData(newData); localStorage.setItem('venoxa_idioms_proper_srs', JSON.stringify(newData));
+    setShowMeaning(false); setAiSentence(''); setCardImage(null); setCollocationData('');
+    if (mode === 'browse') setActiveWordIndex((safeIndex + 1) % filteredList.length);
+  };
+  const resetWordProgress = wordStr => { const d = { ...srsData }; delete d[wordStr]; setSrsData(d); localStorage.setItem('venoxa_idioms_proper_srs', JSON.stringify(d)); };
+  const playAudio = async (w = card?.word) => { if (!w) return; await edgeTTSSpeak(w, 'male'); };
+  const generateSentence = async () => {
+    if (loadingAi || aiSentence || !card) return;
+    setLoadingAi(true);
+    try {
+      const prompt = `Create one natural, realistic English sentence using the idiom "${card.word}" (which means: ${card.meaning}). The sentence should be suitable for a ${userLevel} learner. After the English sentence, add a short ${_resolveTranslation(lang, 'Arabic', 'English')} note explaining how the idiom is used in context. Output the sentence first, then the note on a new line.`;
+      await streamText(prompt, setAiSentence);
+    } catch { setAiSentence('Error generating sentence.'); } finally { setLoadingAi(false); }
+  };
+  const generateCollocations = async () => {
+    if (loadingCollocation || collocationData || !card) return;
+    setLoadingCollocation(true);
+    try {
+      const prompt = `You are an English idioms dictionary. For the idiom "${card.word}", list the most common and natural usage patterns or context pairs. Group them by grammatical context. Use this exact format (max 6 per group):\nPattern + ${card.word}: example1, example2\n${card.word} + Pattern: example1, example2\nOutput only the collocation list, no extra explanations.`;
+      await streamText(prompt, setCollocationData);
+    } catch { setCollocationData('Could not generate collocations.'); } finally { setLoadingCollocation(false); }
+  };
+  const generateImage = async () => {
+    if (loadingImage || cardImage || !card) return;
+    setLoadingImage(true);
+    try {
+      const briefPrompt = `You are a visual director. For the idiom "${card.word}" (${card.meaning}), describe a SINGLE, concrete, photorealistic scene that captures the LITERAL or most iconic visual representation. 
+Rules:
+1. One subject, one action.
+2. NO text, NO letters, NO symbols.
+3. Describe colors, lighting, and composition.
+4. Output ONLY a 15-word English description.`;
+      let visual = '';
+      try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw || '').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g, '').trim() || ''; } catch { }
+      if (!visual) visual = `A scene showing the meaning of "${card.word}"`;
+      const seed = Math.floor(Math.random() * 1_000_000);
+      const visualClean = (visual + ' Photorealistic, natural lighting, no text.').replace(/[^\x00-\x7F]/g, "");
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
+    } catch {
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Illustration ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`);
+    } finally { setLoadingImage(false); }
+  };
+  return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
+    <div className="flex flex-col sm:flex-row glass-panel p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+      <button onClick={() => { setMode('browse'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'browse' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Search className="w-4 h-4" /> {t.browse}</button>
+      <button onClick={() => { setMode('review'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 relative ${mode === 'review' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Layers className="w-4 h-4" /> {t.review}{dueCards.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">{dueCards.length}</span>}</button>
+      <button onClick={() => { setMode('lists'); setShowMeaning(false); setCardImage(null); setAiSentence(''); }} className={`flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${mode === 'lists' ? 'bg-[var(--app-accent1)] text-white shadow-md' : 'text-gray-600 dark:text-[var(--app-text)] hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-[var(--app-surface)]/50'}`}><Archive className="w-4 h-4" /> {t.lists}</button>
+    </div>
+    {mode === 'lists' && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn min-h-[500px] transition-colors">
+      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-[var(--app-border)] pb-4 overflow-x-auto no-scrollbar">
+        <button onClick={() => setListTab('hard')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'hard' ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.hard} ({hardWords.length})</button>
+        <button onClick={() => setListTab('learning')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'learning' ? 'bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.learning} ({learningWords.length})</button>
+        <button onClick={() => setListTab('mastered')} className={`px-4 py-2 rounded-xl font-bold whitespace-nowrap transition-colors ${listTab === 'mastered' ? 'bg-green-50 dark:bg-[var(--app-accent1)]/12 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/30' : 'text-gray-600 dark:text-[var(--app-accent1)] hover:text-gray-900 dark:hover:text-[var(--app-text)]'}`}>{t.mastered} ({masteredWords.length})</button>
+      </div>
+      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+        {currentListView.length === 0 ? <div className="text-center text-gray-500 py-16 flex flex-col items-center"><Archive className="w-12 h-12 mb-4 opacity-20" /><p>{t.emptyLists}</p><p className="text-sm mt-2">{t.rateItemsMsg}</p></div> : currentListView.map(item => {
+          const srs = srsData[item.word];
+          const isAr = /[\u0600-\u06FF]/.test(item.word);
+          const isUiAr = lang === 'ar';
+          return <div key={item.word} className={`flex ${isUiAr ? 'flex-row-reverse' : 'flex-row'} justify-between items-center bg-gray-50 dark:bg-[var(--app-card)] p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] hover:border-gray-300 transition-colors group`}>
+            <div className={`flex-1 order-1 ${isAr ? 'text-right' : 'text-left'}`} dir={isAr ? 'rtl' : 'ltr'}>
+              <div className={`flex items-center gap-2 flex-wrap ${isAr ? 'justify-end' : 'justify-start'}`}>
+                <p className="text-xl font-bold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
+                  <button onClick={() => playAudio(item.word)} className={`text-gray-500 hover:text-black dark:text-white transition-colors ${isAr ? 'order-first' : 'order-last'}`}><Volume2 className="w-4 h-4" /></button>
+                  <span>{safeRender(item.word)}</span>
+                </p>
+                {item.topic && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#1E90FF]/10 dark:bg-[var(--app-accent2)]/10 text-[var(--app-accent1)] dark:text-[var(--app-accent2)] border border-[#1E90FF]/30 dark:border-purple-500/20">{safeRender(item.topic)}</span>}
+              </div>
+              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+            </div>
+            <div className="flex items-center gap-3 order-2">
+              <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
+              <div className="flex items-center gap-1.5 px-3 py-1 glass-panel border border-gray-100 dark:border-[var(--app-border)] rounded-full shadow-sm">
+                <Clock className="w-3 h-3 text-black dark:text-white" />
+                <span className="text-[11px] font-mono font-bold text-gray-600 dark:text-[var(--app-text)] tracking-wider">
+                  {formatCountdown(srs?.nextReview)}
+                </span>
+              </div>
+            </div>
+          </div>;
+        })}
+      </div>
+    </div>}
+    {mode === 'browse' && <>
+      <div className="flex flex-col md:flex-row justify-between items-center glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
+        <div><h2 className="text-2xl font-bold text-gray-900 dark:text-[var(--app-text)] mb-1">{_resolveTranslation(lang, 'التعابير الاصطلاحية', 'Idioms')}</h2><p className="text-sm text-gray-600 dark:text-[var(--app-text)]">{t.totalItems} {idiomsProperVocab.length} · <span className="text-xs opacity-60">{t.csvHint}</span></p></div>
+        <div className="mt-4 md:mt-0 flex items-center gap-3">
+          {uploadMessage && <span className="text-sm font-bold animate-pulse">{safeRender(uploadMessage)}</span>}
+          <label className="bg-orange-50 dark:bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 hover:bg-orange-100 hover:text-[var(--app-accent1)] dark:hover:bg-[var(--app-accent1)] dark:hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"><UploadCloud className="w-4 h-4" /> {t.uploadCSV}<input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" /></label>
+        </div>
+      </div>
+      <div className="relative z-50 flex flex-col md:flex-row items-end gap-4 glass-panel p-5 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors relative z-50">
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Search className="w-4 h-4 text-black dark:text-white" /> {t.searchWord}</label>
+          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }} className="w-full bg-gray-50 dark:bg-[var(--app-input-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl px-4 h-11 text-sm text-gray-900 dark:text-[var(--app-text)] focus:border-[var(--app-accent1)] focus:outline-none transition-colors" />
+        </div>
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><Filter className="w-4 h-4 text-[var(--app-accent1)]" /> {t.filterTopic}</label>
+          <CustomDropdown
+            value={topicFilter}
+            onChange={val => { setTopicFilter(val); setActiveWordIndex(0); setShowMeaning(false); setAiSentence(''); setCardImage(null); }}
+            options={[{ value: 'All', label: _resolveTranslation(lang, 'كل المواضيع', 'All Topics') }, ...[...new Set(idiomsProperVocab.map(v => v.topic).filter(Boolean))].map(tp => ({ value: tp, label: tp }))]}
+            theme={theme}
+            className="w-full"
+          />
+        </div>
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <label className="text-sm text-gray-600 dark:text-[var(--app-text)] font-bold flex items-center gap-2"><List className="w-4 h-4 text-black dark:text-white" /> {t.manualSelect} ({filteredList.length})</label>
+          <CustomDropdown
+            value={safeIndex}
+            onChange={val => { setActiveWordIndex(Number(val)); setShowMeaning(false); setAiSentence(''); setCardImage(null); }}
+            options={filteredList.length === 0 ? [{ value: 0, label: t.noWords }] : filteredList.map((item, idx) => ({ value: idx, label: safeRender(item.word) }))}
+            theme={theme}
+            className="w-full"
+          />
+        </div>
+      </div>
+    </>}
+    {mode === 'review' && !card && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 text-center animate-fadeIn transition-colors">
+      <div className="w-24 h-24 bg-green-50 dark:bg-[var(--app-accent1)]/8 rounded-full flex items-center justify-center mb-6 border border-green-200 dark:border-green-500/20"><CheckCircle className="w-12 h-12 text-black dark:text-white dark:text-green-400" /></div>
+      <h3 className="text-3xl text-gray-900 dark:text-[var(--app-text)] font-bold mb-4">{t.reviewDone}</h3>
+      <p className="text-gray-600 dark:text-[var(--app-text)] text-lg">{t.reviewDoneMsg}</p>
+      <button onClick={() => setMode('browse')} className="mt-8 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/15 text-black dark:text-white border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/40/50 px-8 py-3 rounded-2xl font-bold">{t.browseLearn}</button>
+    </div>}
+    {mode === 'browse' && (filteredList.length === 0 || !card) && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[300px] flex flex-col items-center justify-center p-8 shadow-sm text-center animate-fadeIn transition-colors">
+      <Search className="w-12 h-12 text-gray-400 dark:text-[var(--app-accent1)] mb-4" /><h3 className="text-xl text-gray-600 dark:text-[var(--app-text)] font-bold">{t.noWords}</h3>
+    </div>}
+    {card && mode !== 'lists' && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl min-h-[400px] flex flex-col items-center justify-center p-8 md:p-12 cursor-pointer relative z-0 hover:border-blue-300 transition-all duration-300 animate-fadeIn" onClick={() => setShowMeaning(!showMeaning)}>
+      <div className="absolute top-6 left-6 z-10">
+        <button onClick={e => { e.stopPropagation(); playAudio(); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-[var(--app-accent1)] dark:text-[var(--app-accent2)] shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /></button>
+      </div>
+      {card.topic && <span className="absolute top-6 right-6 bg-[#1E90FF]/10 dark:bg-[var(--app-accent2)]/10 text-[var(--app-accent1)] dark:text-[var(--app-accent2)] border border-[#1E90FF]/30 dark:border-purple-500/20 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.topic)}</span>}
+      {!showMeaning ? <div className="text-center w-full">
+        <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
+        <p className="text-gray-600 dark:text-[var(--app-accent1)] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
+      </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
+        <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
+        <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+          {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5 text-purple-400" /> {t.genSentenceBtn}</>}</button>}
+          {!cardImage && <button onClick={e => { e.stopPropagation(); generateImage(); }} disabled={loadingImage} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingImage ? <Activity className="w-5 h-5 animate-spin" /> : <><ImageIcon className="w-5 h-5 text-blue-400" /> {t.imgBtn}</>}</button>}
+          {!collocationData && <button onClick={e => { e.stopPropagation(); generateCollocations(); }} disabled={loadingCollocation} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingCollocation ? <Activity className="w-5 h-5 animate-spin" /> : <><BookOpen className="w-5 h-5 text-emerald-400" /> {t.collocationsBtn}</>}</button>}
+        </div>
+        {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
+        {aiSentence && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
+        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] animate-bounce" /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+      </div>}
+    </div>}
+    {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 dark:border-rose-500/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 dark:border-white/12 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 dark:border-[var(--app-accent2)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center text-xs md:text-sm">{t.rateEasy}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
+      <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip}<span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
+    </div>}
+  </div>;
+}
+
 
 function Grammar({
   AI_KEY,
@@ -4485,9 +5030,13 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     { level: _resolveTranslation(lang, "متقدم (C1-C2)", "Advanced (C1-C2)"), name: "This American Life", url: "https://www.thisamericanlife.org/archive" }
   ];
   const readingLinks = [
-    { level: _resolveTranslation(lang, "المستوى 1", "Level 1"), name: "The Adventures of Tom Sawyer", url: "#" },
-    { level: _resolveTranslation(lang, "المستوى 2", "Level 2"), name: "Sherlock Holmes Short Stories", url: "#" },
-    { level: _resolveTranslation(lang, "المستوى 3", "Level 3"), name: "The Call of the Wild", url: "#" }
+    { level: _resolveTranslation(lang, "مبتدئ - متوسط", "Beginner - Intermediate"), name: "Project Gutenberg", url: "https://www.gutenberg.org" },
+    { level: _resolveTranslation(lang, "مبتدئ - متوسط", "Beginner - Intermediate"), name: "ESL Fast", url: "https://www.eslfast.com" },
+    { level: _resolveTranslation(lang, "مبتدئ - متوسط", "Beginner - Intermediate"), name: "Storynory", url: "https://www.storynory.com" },
+    { level: _resolveTranslation(lang, "مبتدئ - متوسط", "Beginner - Intermediate"), name: "ManyThings.org", url: "https://www.manythings.org" },
+    { level: _resolveTranslation(lang, "متقدم", "Advanced"), name: "Medium", url: "https://medium.com" },
+    { level: _resolveTranslation(lang, "متقدم", "Advanced"), name: "BBC News", url: "https://www.bbc.com/news" },
+    { level: _resolveTranslation(lang, "متقدم", "Advanced"), name: "The New York Times", url: "https://www.nytimes.com" }
   ];
   const currentLinks = type === 'listening' ? listeningLinks : readingLinks;
   const contentSteps = type === 'listening'
@@ -4850,6 +5399,66 @@ function Writing({
   const [writingTopic, setWritingTopic] = useState('');
   const [writingQuestion, setWritingQuestion] = useState('');
   const [loadingQuestion, setLoadingQuestion] = useState(false);
+  const [activePopup, setActivePopup] = useState(null); // { index, rect }
+  const popupRef = useRef(null);
+  // ── Countdown Timer ──
+  const [timerMinutes, setTimerMinutes] = useState(5);
+  const [timerSecondsLeft, setTimerSecondsLeft] = useState(null); // null = not started
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerDone, setTimerDone] = useState(false);
+  const timerRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // Close popup on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (popupRef.current && !popupRef.current.contains(e.target)) setActivePopup(null);
+    };
+    if (activePopup) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [activePopup]);
+
+  useEffect(() => {
+    if (timerRunning && timerSecondsLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimerSecondsLeft(s => {
+          if (s <= 1) {
+            clearInterval(timerRef.current);
+            setTimerRunning(false);
+            setTimerDone(true);
+            return 0;
+          }
+          return s - 1;
+        });
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [timerRunning]);
+
+  const startTimer = () => {
+    if (timerSecondsLeft === null || timerDone) {
+      setTimerSecondsLeft(timerMinutes * 60);
+      setTimerDone(false);
+    }
+    setTimerRunning(true);
+    setTimeout(() => textareaRef.current?.focus(), 100);
+  };
+  const pauseTimer = () => setTimerRunning(false);
+  const resetTimer = () => {
+    clearInterval(timerRef.current);
+    setTimerRunning(false);
+    setTimerDone(false);
+    setTimerSecondsLeft(null);
+  };
+  const formatTime = (secs) => {
+    if (secs === null) return `${timerMinutes}:00`;
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+  const timerProgress = timerSecondsLeft === null ? 0 : 1 - timerSecondsLeft / (timerMinutes * 60);
   useEffect(() => {
     if (!writingTopic) { setWritingQuestion(''); return; }
     setLoadingQuestion(true);
@@ -4864,42 +5473,156 @@ function Writing({
     placeholder: _resolveTranslation(lang, "اكتب مقالاً قصيراً هنا (مثلاً عن طموحاتك)...", "Write a short essay here..."),
     btn: _resolveTranslation(lang, "تحليل وتصحيح النص ✨", "Analyze & Correct Text ✨"),
     corrected: _resolveTranslation(lang, "النص المصحح", "Corrected Text"),
-    explanation: _resolveTranslation(lang, "الشرح:", "Explanation:"),
+    original: _resolveTranslation(lang, "النص الأصلي مع الأخطاء", "Your Text — Errors Highlighted"),
+    grammarErrors: _resolveTranslation(lang, "الأخطاء النحوية", "Grammar Errors"),
+    styleSection: _resolveTranslation(lang, "تحسينات الأسلوب", "Style Improvements"),
+    overall: _resolveTranslation(lang, "التقييم العام", "Overall Feedback"),
+    noErrors: _resolveTranslation(lang, "🎉 لا توجد أخطاء نحوية!", "🎉 No grammar errors found!"),
     history: _resolveTranslation(lang, "السجل", "History"),
     emptyHistory: _resolveTranslation(lang, "لا يوجد سجل بعد.", "No history yet.")
   };
+
+  // Robust JSON extractor — depth-tracks braces, strips markdown fences
+  const extractWritingJSON = (raw) => {
+    if (!raw) return null;
+    const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const start = cleaned.indexOf('{');
+    if (start === -1) return null;
+    let depth = 0, end = -1;
+    for (let i = start; i < cleaned.length; i++) {
+      if (cleaned[i] === '{') depth++;
+      else if (cleaned[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+    }
+    if (end === -1) return null;
+    try { return JSON.parse(cleaned.slice(start, end + 1)); } catch { return null; }
+  };
+
+  // Grammarly-style click popup for each error
+  const renderHighlightedText = (originalText, grammarErrors) => {
+    if (!grammarErrors?.length) return <span>{originalText}</span>;
+    const segments = [];
+    const usedRanges = [];
+    grammarErrors.forEach((err, errIdx) => {
+      if (!err.word) return;
+      const escaped = err.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(?<![\\w\\u0600-\\u06FF])(${escaped})(?![\\w\\u0600-\\u06FF])`, 'i');
+      const match = regex.exec(originalText);
+      if (match) {
+        const s = match.index, e = match.index + match[0].length;
+        if (!usedRanges.some(r => r[0] < e && r[1] > s)) {
+          segments.push({ start: s, end: e, errIdx });
+          usedRanges.push([s, e]);
+        }
+      }
+    });
+    segments.sort((a, b) => a.start - b.start);
+    const parts = [];
+    let cursor = 0;
+    segments.forEach(({ start, end, errIdx }) => {
+      if (cursor < start) parts.push(<span key={`t${cursor}`}>{originalText.slice(cursor, start)}</span>);
+      const err = grammarErrors[errIdx];
+      const isOpen = activePopup?.index === errIdx;
+      parts.push(
+        <span key={`e${errIdx}`} className="relative inline-block">
+          <span
+            className={`cursor-pointer font-bold rounded px-0.5 transition-all select-none ${isOpen ? 'bg-red-200 dark:bg-red-500/30 text-red-700 dark:text-red-300' : 'text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20'}`}
+            style={{ textDecoration: 'underline', textDecorationStyle: 'wavy', textDecorationColor: '#ef4444', textUnderlineOffset: '3px' }}
+            onClick={(e) => { e.stopPropagation(); const rect = e.currentTarget.getBoundingClientRect(); setActivePopup(p => p?.index === errIdx ? null : { index: errIdx, rect }); }}
+          >
+            {originalText.slice(start, end)}
+          </span>
+          {isOpen && activePopup?.rect && ReactDOM.createPortal(
+            (() => {
+              const POPUP_WIDTH = 300;
+              const POPUP_HEIGHT = 180;
+              const GAP = 8;
+              const r = activePopup.rect;
+              const spaceBelow = window.innerHeight - r.bottom;
+              const showAbove = spaceBelow < POPUP_HEIGHT + GAP;
+              let left = r.left;
+              if (left + POPUP_WIDTH > window.innerWidth - 8) left = window.innerWidth - POPUP_WIDTH - 8;
+              if (left < 8) left = 8;
+              const top = showAbove ? r.top - POPUP_HEIGHT - GAP : r.bottom + GAP;
+              return (
+                <div
+                  ref={popupRef}
+                  className="animate-fadeIn"
+                  style={{ position: 'fixed', top, left, width: POPUP_WIDTH, zIndex: 99999 }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="flex flex-col rounded-2xl overflow-hidden border shadow-2xl"
+                    style={{ background: theme === 'dark' ? '#1a1a24' : '#fff', borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : '#e5e7eb' }}>
+                    <div className="flex items-center gap-2 px-4 pt-3 pb-2.5 border-b" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : '#f3f4f6' }}>
+                      <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse" />
+                      <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Grammar Error #{errIdx + 1}</span>
+                      <button onClick={() => setActivePopup(null)} className="ml-auto w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-base leading-none">x</button>
+                    </div>
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <span className="line-through text-red-500 dark:text-red-400 font-bold text-sm">{err.word}</span>
+                      <span className="text-gray-300 text-sm">to</span>
+                      <span className="text-green-600 dark:text-green-400 font-bold text-sm">{err.correction}</span>
+                    </div>
+                    <div className="px-4 pb-3 text-xs text-gray-500 dark:text-gray-400 leading-relaxed border-b" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : '#f3f4f6' }}>{err.explanation}</div>
+                    <div className="px-3 py-2.5 flex gap-2">
+                      <button
+                        className="flex-1 py-2 rounded-xl text-xs font-bold bg-green-500 hover:bg-green-600 active:scale-95 text-white transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        onClick={() => {
+                          const escaped2 = err.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                          const re = new RegExp(`(?<![\\w\\u0600-\\u06FF])(${escaped2})(?![\\w\\u0600-\\u06FF])`, 'i');
+                          setText(prev => prev.replace(re, err.correction));
+                          setFeedback(prev => ({ ...prev, grammar_errors: prev.grammar_errors.filter((_, i) => i !== errIdx) }));
+                          setActivePopup(null);
+                        }}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Apply Fix
+                      </button>
+                      <button onClick={() => setActivePopup(null)} className="px-3 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/8 transition-all">
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })(),
+            document.body
+          )}
+        </span>
+      );
+      cursor = end;
+    });
+    if (cursor < originalText.length) parts.push(<span key={`tend`}>{originalText.slice(cursor)}</span>);
+    return parts;
+  };
+
   const handleCorrect = async () => {
     if (!text.trim()) return;
     setLoading(true);
+    setActivePopup(null);
     try {
-      const prompt = `Correct this English text and provide a review. Respond strictly in JSON format: { "corrected_text": "...", "explanation": "Explanation in ${_resolveTranslation(lang, 'Arabic', 'English')}", "score": "X/10" }. Text: "${text}"`;
-      const raw = await fetchFromGemini(prompt, AI_KEY);
-      const json = parseGeminiJSON(raw);
-      if (json && json.error) {
-        setFeedback({
-          error: json.error
-        });
+      const prompt = `You are an expert English writing coach. Analyze the EXACT text below and find ALL grammar mistakes. Be thorough — check subject-verb agreement, tense consistency, articles, prepositions, word choice, pluralization, and more. Respond ONLY with a valid JSON object (absolutely no markdown, no code fences, no extra text outside the JSON).
+
+Text to analyze: "${text}"
+
+Respond with this exact JSON structure:
+{"score":"X/10","corrected_text":"fully corrected version here","grammar_errors":[{"word":"exact_word_as_written","correction":"fixed_version","explanation":"why in ${_resolveTranslation(lang, 'Arabic', 'English')}"}],"style_tips":[{"original":"phrase","better":"native alternative","tip":"why in ${_resolveTranslation(lang, 'Arabic', 'English')}"}],"overall":"2-3 sentences in ${_resolveTranslation(lang, 'Arabic', 'English')}"}
+
+Important: The "word" value must be copied EXACTLY from the input text. Find every single error, do not skip any.`;
+
+      const raw = await fetchFromGemini(prompt, AI_KEY, 2000);
+      const json = extractWritingJSON(raw);
+      if (!json) {
+        setFeedback({ error: _resolveTranslation(lang, "فشل تحليل الرد. حاول مرة أخرى.", "Failed to parse AI response. Please try again.") });
+      } else if (json.error) {
+        setFeedback({ error: json.error });
       } else {
-        const safeRaw = raw || "";
-        const nextFeedback = json || {
-          corrected_text: cleanFallbackText(safeRaw),
-          explanation: _resolveTranslation(lang, "مشكلة في التنسيق.", "Formatting issue."),
-          score: ""
-        };
-        setFeedback(nextFeedback);
+        setFeedback(json);
         setWritingHistory(prev => [{
-          id: Date.now(),
-          input: text,
-          output: nextFeedback.corrected_text || '',
-          explanation: nextFeedback.explanation || '',
-          score: nextFeedback.score || '',
-          createdAt: new Date().toISOString()
+          id: Date.now(), input: text, output: json.corrected_text || '',
+          explanation: json.overall || '', score: json.score || '', createdAt: new Date().toISOString()
         }, ...prev].slice(0, 25));
       }
     } catch (e) {
-      setFeedback({
-        error: _resolveTranslation(lang, "خطأ في الاتصال بالذكاء الاصطناعي.", "Error connecting to AI.")
-      });
+      setFeedback({ error: _resolveTranslation(lang, "خطأ في الاتصال بالذكاء الاصطناعي.", "Error connecting to AI.") });
     }
     setLoading(false);
   };
@@ -4945,8 +5668,109 @@ function Writing({
         </div>
       </div>
 
+      {/* ── Countdown Timer ── */}
+      <div className="premium-card rounded-3xl px-5 py-4">
+        {/* Row 1: label + time display + controls */}
+        <div className="flex items-center gap-3">
+
+          {/* Time display */}
+          <div className="relative shrink-0 w-14 h-14">
+            <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+              <circle cx="28" cy="28" r="23" fill="none" stroke={theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'} strokeWidth="4" />
+              <circle
+                cx="28" cy="28" r="23"
+                fill="none"
+                stroke={timerDone ? '#22c55e' : timerRunning ? 'var(--app-accent1)' : 'var(--app-accent2)'}
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 23}`}
+                strokeDashoffset={`${2 * Math.PI * 23 * (1 - timerProgress)}`}
+                style={{ transition: 'stroke-dashoffset 0.9s linear, stroke 0.3s ease' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className={`text-[11px] font-bold tabular-nums leading-none ${timerDone ? 'text-green-500' : timerRunning ? 'text-[var(--app-accent1)]' : 'text-gray-600 dark:text-gray-300'}`}>
+                {timerDone ? '✓' : formatTime(timerSecondsLeft)}
+              </span>
+            </div>
+          </div>
+
+          {/* Label + presets (idle only) */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Timer</span>
+              {timerDone && <span className="text-[10px] font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">Time's up!</span>}
+            </div>
+
+            {/* Presets + stepper row — idle only */}
+            {!timerRunning && timerSecondsLeft === null ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                {[5, 10, 15, 20, 30].map(m => (
+                  <button key={m} onClick={() => setTimerMinutes(m)}
+                    className={`h-7 px-2.5 rounded-lg text-xs font-bold transition-all ${timerMinutes === m
+                      ? 'bg-[var(--app-accent1)] text-white'
+                      : 'bg-black/5 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                  >{m}m</button>
+                ))}
+                {/* inline stepper for custom value */}
+                <div className="flex items-center h-7 bg-black/5 dark:bg-white/5 rounded-lg overflow-hidden">
+                  <button onClick={() => setTimerMinutes(m => Math.max(1, m - 1))}
+                    className="w-6 h-full text-gray-500 dark:text-gray-400 hover:bg-black/10 dark:hover:bg-white/10 font-bold text-base transition-all">−</button>
+                  <input type="number" min={1} max={120} value={timerMinutes}
+                    onChange={e => setTimerMinutes(Math.max(1, Math.min(120, Number(e.target.value) || 1)))}
+                    className="no-spinner w-8 text-center bg-transparent text-xs font-bold text-gray-700 dark:text-white outline-none" />
+                  <button onClick={() => setTimerMinutes(m => Math.min(120, m + 1))}
+                    className="w-6 h-full text-gray-500 dark:text-gray-400 hover:bg-black/10 dark:hover:bg-white/10 font-bold text-base transition-all">+</button>
+                </div>
+              </div>
+            ) : (
+              /* while running/paused: show remaining label */
+              <p className="text-xs text-gray-400">{timerRunning ? 'Running — keep writing!' : timerDone ? 'Session complete.' : 'Paused'}</p>
+            )}
+          </div>
+
+          {/* Action buttons — far right */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {timerSecondsLeft !== null && (
+              <button onClick={resetTimer}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-black/5 dark:bg-white/5 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-all active:scale-90">
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {!timerRunning ? (
+              <button onClick={startTimer}
+                className="h-8 px-4 flex items-center gap-1.5 rounded-xl text-xs font-bold bg-[var(--app-accent1)] text-white hover:opacity-90 transition-all active:scale-95 shadow-sm">
+                <Play className="w-3 h-3 fill-current" />
+                {timerSecondsLeft !== null && !timerDone ? 'Resume' : 'Start'}
+              </button>
+            ) : (
+              <button onClick={pauseTimer}
+                className="h-8 px-4 flex items-center gap-1.5 rounded-xl text-xs font-bold bg-black/8 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:opacity-80 transition-all active:scale-95">
+                <Pause className="w-3 h-3 fill-current" />
+                Pause
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        {timerSecondsLeft !== null && (
+          <div className="mt-3 h-0.5 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${timerProgress * 100}%`,
+                background: timerDone ? '#22c55e' : 'var(--app-accent1)',
+                transition: 'width 0.9s linear, background 0.3s ease'
+              }}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="premium-card rounded-3xl p-2">
         <textarea
+          ref={textareaRef}
           value={text}
           onChange={e => setText(e.target.value)}
           placeholder={writingQuestion || t.placeholder}
@@ -4965,21 +5789,121 @@ function Writing({
       </div>
     </div>
 
-    {feedback && !feedback.error && <div className="mt-10 space-y-6 animate-fadeIn">
-      <div className="bg-green-50 dark:bg-[var(--app-card)] p-8 rounded-2xl border border-green-200 dark:border-green-500/20 shadow-sm">
-        <h3 className="text-green-700 dark:text-green-400 font-bold mb-4 flex justify-between items-center text-xl">{t.corrected} <span className="text-yellow-600 dark:text-yellow-400">{safeRender(feedback.score)}</span></h3>
-        <p className="text-gray-900 dark:text-[var(--app-text)] text-xl leading-relaxed" dir="ltr">{safeRender(feedback.corrected_text)}</p>
+    {feedback && !feedback.error && (
+      <div className="mt-10 space-y-5 animate-fadeIn">
+
+        {/* ── Score Banner ── */}
+        <div className="flex items-center justify-between premium-card rounded-2xl px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-[var(--app-accent1)]/10">
+              <PenTool className="w-5 h-5 text-[var(--app-accent1)]" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Writing Score</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{feedback.grammar_errors?.length > 0 ? `${feedback.grammar_errors.length} error${feedback.grammar_errors.length > 1 ? 's' : ''} found` : t.noErrors}</p>
+            </div>
+          </div>
+          <span className={`text-3xl font-extrabold ${(() => { const n = parseInt(feedback.score); return n >= 8 ? 'text-green-500' : n >= 5 ? 'text-yellow-500' : 'text-red-500'; })()}`}>
+            {safeRender(feedback.score)}
+          </span>
+        </div>
+
+        {/* ── Original with Highlighted Errors ── */}
+        {feedback.grammar_errors?.length > 0 && (
+          <div className="premium-card rounded-2xl p-6">
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center gap-2 mb-4">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> {t.original}
+            </h3>
+            <p className="text-lg leading-relaxed text-gray-900 dark:text-white" dir="ltr" style={{ lineHeight: '2.2rem' }}>
+              {renderHighlightedText(text, feedback.grammar_errors)}
+            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 flex items-center gap-1">
+              <span className="inline-block w-4 border-b-2 border-red-400" style={{ borderStyle: 'wavy' }} />
+              Hover over red words to see the fix
+            </p>
+          </div>
+        )}
+
+        {/* ── Grammar Error Cards ── */}
+        {feedback.grammar_errors?.length > 0 ? (
+          <div className="premium-card rounded-2xl p-6 space-y-3">
+            <h3 className="text-sm font-bold text-red-500 uppercase tracking-wide flex items-center gap-2 mb-1">
+              <span className="w-2 h-2 rounded-full bg-red-500" /> {t.grammarErrors}
+              <span className="ml-auto bg-red-500/15 text-red-500 text-xs px-2 py-0.5 rounded-full font-bold">{feedback.grammar_errors.length}</span>
+            </h3>
+            {feedback.grammar_errors.map((err, i) => (
+              <div key={i} className="flex items-start gap-3 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 p-4 rounded-2xl">
+                <span className="shrink-0 w-6 h-6 rounded-full bg-red-500/20 text-red-500 text-xs font-extrabold flex items-center justify-center mt-0.5">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                    <span className="text-base font-bold text-red-600 dark:text-red-400" style={{ textDecoration: 'underline', textDecorationStyle: 'wavy', textDecorationColor: '#ef4444' }}>{err.word}</span>
+                    <span className="text-gray-400 text-sm">→</span>
+                    <span className="text-base font-bold text-green-600 dark:text-green-400">{err.correction}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{err.explanation}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="premium-card rounded-2xl p-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-green-500/15 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-6 h-6 text-green-500" />
+            </div>
+            <div>
+              <p className="font-bold text-green-600 dark:text-green-400">{t.noErrors}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Your grammar is solid. Check style tips below.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Corrected Text ── */}
+        <div className="premium-card rounded-2xl p-6 border border-green-200 dark:border-green-500/20">
+          <h3 className="text-sm font-bold text-green-600 dark:text-green-400 uppercase tracking-wide flex items-center gap-2 mb-4">
+            <CheckCircle2 className="w-4 h-4" /> {t.corrected}
+          </h3>
+          <p className="text-lg text-gray-900 dark:text-white leading-relaxed" dir="ltr">{safeRender(feedback.corrected_text)}</p>
+          <button onClick={() => { navigator.clipboard?.writeText(feedback.corrected_text || ''); }}
+            className="mt-4 flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-[var(--app-accent1)] transition-colors">
+            <Copy className="w-3.5 h-3.5" /> Copy corrected text
+          </button>
+        </div>
+
+        {/* ── Style Tips ── */}
+        {feedback.style_tips?.length > 0 && (
+          <div className="premium-card rounded-2xl p-6 space-y-3">
+            <h3 className="text-sm font-bold text-[var(--app-accent2)] uppercase tracking-wide flex items-center gap-2 mb-1">
+              <Zap className="w-4 h-4" /> {t.styleSection}
+            </h3>
+            {feedback.style_tips.map((tip, i) => (
+              <div key={i} className="bg-[var(--app-accent2)]/8 dark:bg-[var(--app-accent2)]/10 border border-[var(--app-accent2)]/20 p-4 rounded-2xl">
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                  <span className="text-sm text-gray-500 dark:text-gray-400 line-through">{tip.original}</span>
+                  <span className="text-gray-400 text-sm">→</span>
+                  <span className="text-sm font-bold text-[var(--app-accent2)]">{tip.better}</span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-300">{tip.tip}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Overall Feedback ── */}
+        {feedback.overall && (
+          <div className="premium-card rounded-2xl p-6 border border-[var(--app-accent1)]/20">
+            <h3 className="text-sm font-bold text-[var(--app-accent1)] uppercase tracking-wide flex items-center gap-2 mb-3">
+              <Lightbulb className="w-4 h-4" /> {t.overall}
+            </h3>
+            <p className="text-gray-700 dark:text-gray-200 leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(feedback.overall)}</p>
+          </div>
+        )}
       </div>
-      {feedback.explanation && <div className="glass-panel p-8 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
-        <h3 className="text-black dark:text-white font-bold mb-2">{t.explanation}</h3>
-        <p className="text-gray-700 dark:text-[var(--app-text)] leading-relaxed" style={{
-          whiteSpace: 'pre-wrap'
-        }}>{safeRender(feedback.explanation)}</p>
-      </div>}
-    </div>}
-    {feedback && feedback.error && <div className="mt-6 bg-red-50 dark:bg-red-500/10 p-4 rounded-2xl border border-red-200 dark:border-red-500/25 text-red-600 dark:text-red-400 text-center font-bold">
-      {safeRender(feedback.error)}
-    </div>}
+    )}
+    {feedback && feedback.error && (
+      <div className="mt-6 bg-red-50 dark:bg-red-500/10 p-4 rounded-2xl border border-red-200 dark:border-red-500/25 text-red-600 dark:text-red-400 text-center font-bold">
+        {safeRender(feedback.error)}
+      </div>
+    )}
   </div>;
 }
 function Speaking({
@@ -5046,6 +5970,15 @@ function Speaking({
   const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
   const [ttsEngine, setTtsEngine] = useState('elevenlabs'); // 'elevenlabs' | 'edge' | 'browser'
   const [voiceAccent, setVoiceAccent] = useState('uk'); // 'uk' | 'us'
+  const [callDuration, setCallDuration] = useState(0);
+  const callTimerRef = useRef(null);
+  const [personality, setPersonality] = useState('teacher');
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [matureUnlocked, setMatureUnlocked] = useState(false);
+  const personalityRateRef = useRef(1.0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+  const [showPersonalityPanel, setShowPersonalityPanel] = useState(false);
+  const wantRecordingRef = useRef(false);
   const chatEndRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -5075,6 +6008,10 @@ function Speaking({
       if (blob) {
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
+        // Apply personality-driven playback rate (personality base × user speed)
+        const rate = Math.max(0.5, Math.min(2.5, personalityRateRef.current));
+        audio.playbackRate = rate;
+        audio.preservesPitch = true; // keep pitch natural; only speed changes
         _currentTTSAudio = audio;
 
         // --- SYNC TRANSCRIPT TO VOICE ---
@@ -5149,6 +6086,130 @@ function Speaking({
   // Male: Adam (pNInz6obpgDQGcFmaJgB) — American | Female: Rachel (21m00Tcm4TlvDq8ikWAM) — American
   // Keep module-level accent var in sync with React state
   useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
+  // Keep personalityRateRef in sync so processTtsQueue always reads the live rate
+  useEffect(() => {
+    const p = PERSONALITIES.find(p => p.id === personality);
+    personalityRateRef.current = (p?.rate ?? 1.0) * playbackSpeed;
+  }, [personality, playbackSpeed]);
+
+  // Call duration timer — counts up while in call mode
+  useEffect(() => {
+    if (isCallMode) {
+      setCallDuration(0);
+      callTimerRef.current = setInterval(() => setCallDuration(d => d + 1), 1000);
+    } else {
+      clearInterval(callTimerRef.current);
+    }
+    return () => clearInterval(callTimerRef.current);
+  }, [isCallMode]);
+
+  const formatCallDuration = (secs) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  // Personality modes — categorised: standard | kids | mature
+  const PERSONALITIES = [
+    // ── Standard & Roleplay ──────────────────────────────────────────────────
+    { id: 'custom',        label: 'Custom',        icon: '✏️',  desc: 'Your own prompt — full control',           category: 'standard', rate: 1.0  },
+    { id: 'assistant',     label: 'Assistant',     icon: '🤖',  desc: 'Helpful, neutral AI assistant',            category: 'standard', rate: 1.0  },
+    { id: 'teacher',       label: 'Teacher',       icon: '🎓',  desc: 'Corrects mistakes, explains clearly',      category: 'standard', rate: 0.95 },
+    { id: 'friend',        label: 'Friend',        icon: '😊',  desc: 'Casual, warm, encouraging',                category: 'standard', rate: 1.05 },
+    { id: 'native',        label: 'Native',        icon: '🗣️', desc: 'Natural idioms, slang, flow',              category: 'standard', rate: 1.1  },
+    { id: 'debate',        label: 'Debate',        icon: '⚡',  desc: 'Challenges your ideas, pushes back',       category: 'standard', rate: 1.1  },
+    { id: 'interviewer',   label: 'Interviewer',   icon: '💼',  desc: 'Job / academic interview style',           category: 'standard', rate: 1.0  },
+    { id: 'storyteller',   label: 'Storyteller',   icon: '📖',  desc: 'Narrative, creative, vivid',               category: 'standard', rate: 1.0  },
+    { id: 'therapist',     label: 'Therapist',     icon: '💙',  desc: 'Empathetic, calm, non-judgmental',         category: 'standard', rate: 0.88 },
+    { id: 'meditation',    label: 'Meditation',    icon: '🧘',  desc: 'Calm, slow, mindful guidance',             category: 'standard', rate: 0.82 },
+    { id: 'doc',           label: 'Doc',           icon: '🩺',  desc: 'Clear medical-style explanations',         category: 'standard', rate: 0.97 },
+    // ── Kids-Friendly ────────────────────────────────────────────────────────
+    { id: 'kids_story',    label: 'Kids Story',    icon: '🧸',  desc: 'Fun bedtime stories for children',         category: 'kids',     rate: 0.88 },
+    { id: 'kids_trivia',   label: 'Kids Trivia',   icon: '🎮',  desc: 'Silly trivia game for little learners',    category: 'kids',     rate: 1.0  },
+    // ── Mature / Experimental ────────────────────────────────────────────────
+    { id: 'unhinged',      label: 'Unhinged',      icon: '🤪',  desc: 'Chaotic, raw, gloriously unfiltered',      category: 'mature',   rate: 1.22, mature: true },
+    { id: 'sexy',          label: 'Sexy',          icon: '🔥',  desc: 'Flirtatious, confident, playful',          category: 'mature',   rate: 0.88, mature: true },
+    { id: 'motivation',    label: 'Motivation',    icon: '💪',  desc: 'Full-blast hype — get off your ass',       category: 'mature',   rate: 1.18, mature: true },
+    { id: 'conspiracy',    label: 'Conspiracy',    icon: '🕵️', desc: 'Alternative theories and rabbit holes',    category: 'mature',   rate: 1.05, mature: true },
+    { id: 'romantic',      label: 'Romantic',      icon: '💕',  desc: 'Poetic, tender, intimate language',        category: 'mature',   rate: 0.85, mature: true },
+    { id: 'argumentative', label: 'Argumentative', icon: '🥊',  desc: 'Debates hard and plays devil\'s advocate', category: 'mature',   rate: 1.12, mature: true },
+  ];
+
+  const getPersonalityInstruction = () => {
+    switch (personality) {
+      // ── Standard ──────────────────────────────────────────────────────────
+      case 'custom':
+        return customPrompt.trim()
+          ? customPrompt.trim()
+          : 'Be helpful and natural. Adapt fully to whatever the user needs.';
+      case 'assistant':
+        return 'You are a precise, efficient AI assistant. Respond clearly and concisely. Stay on-topic, never waffle, always helpful.';
+      case 'teacher':
+        return 'You are a patient, encouraging English teacher. Gently flag any errors the user makes at the very end of your reply inside [brackets], with a brief fix. Never shame; always explain why.';
+      case 'friend':
+        return 'You are the user\'s warm, funny best friend. Use contractions, casual slang, ask about their life, laugh often (haha / lol sparingly), and keep things light and human.';
+      case 'native':
+        return 'Speak exactly like a relaxed native English speaker — use real idioms, phrasal verbs, natural fillers (you know, like, honestly), colloquialisms, and a conversational rhythm. Never sound textbook-formal.';
+      case 'debate':
+        return 'You are a sharp debate partner. Respectfully but firmly challenge every claim the user makes. Ask probing follow-up questions. Play devil\'s advocate. Never just agree — push them to think harder and defend their position.';
+      case 'interviewer':
+        return 'You are a seasoned interviewer conducting a professional job or university interview. Ask one focused question at a time. Give concise, honest feedback on the user\'s answers. Maintain a polished, slightly formal tone.';
+      case 'storyteller':
+        return 'You are a masterful storyteller. Weave vivid imagery, rich metaphors, and a compelling narrative arc into every reply. Use sensory language. Make the conversation feel like a story unfolding.';
+      case 'therapist':
+        return 'You are a warm, attentive therapist. Listen deeply. Reflect feelings back without judgment ("It sounds like you feel…"). Ask gentle open questions. Never give unsolicited advice — hold space and validate first. Speak softly and slowly.';
+      case 'meditation':
+        return 'You are a serene meditation and mindfulness guide. Speak in a slow, calm, grounding tone. Use breath cues naturally ("take a slow breath…"). Use gentle, present-moment language. Silence is fine — short responses are better. Never rush.';
+      case 'doc':
+        return 'You are a clear-spoken medical professional (Grok "Doc" style). Give factual, evidence-based information using plain language. Define jargon. Recommend professional consultation when appropriate. Stay methodical and precise, but compassionate.';
+      // ── Kids ──────────────────────────────────────────────────────────────
+      case 'kids_story':
+        return 'You are a magical, enthusiastic children\'s storyteller. Use simple words, vivid imagination, funny characters, and gentle suspense. Every reply continues or starts a short bedtime-style adventure. End with a cliffhanger or a sweet question to keep them engaged. Always appropriate for ages 4-10.';
+      case 'kids_trivia':
+        return 'You are a super-energetic kids\' trivia game host! Ask one fun, age-appropriate trivia question at a time (topics: animals, nature, space, cartoons). React with BIG excitement for right answers ("WOOHOO! You got it! 🎉") and gentle encouragement for wrong ones. Keep it playful and short.';
+      // ── Mature ────────────────────────────────────────────────────────────
+      case 'unhinged':
+        return 'You are completely unfiltered, chaotic, and unpredictable. Jump between ideas, use ALL CAPS for emphasis, make wild comparisons, go on tangents, laugh at your own chaos. Be raw, irreverent, and gloriously unhinged — but never hateful or harmful.';
+      case 'sexy':
+        return 'You are confident, playful, and flirtatious. Speak with a low, deliberate tone. Use suggestive but tasteful language — innuendo, compliments, slow pacing. Make the user feel desired and interesting. Never crude, always alluring.';
+      case 'motivation':
+        return 'You are an INTENSE motivational coach — part drill sergeant, part hype man. Use short punchy sentences. SHOUT IN CAPS when building energy. Call out excuses. Demand greatness. Reference elite performers. Every reply should make the user want to sprint to the gym or start their dream RIGHT NOW.';
+      case 'conspiracy':
+        return 'You are a passionate conspiracy theorist. Question official narratives, connect unlikely dots, use phrases like "They don\'t want you to know this…", "Follow the money…", "Look at who benefits…". Be dramatic and convincing. Frame everything as a hidden pattern. Stay entertaining, not harmful.';
+      case 'romantic':
+        return 'You are deeply romantic and poetic. Choose words carefully, like a love letter. Use metaphors from nature, art, and music. Speak tenderly, with warmth and longing. Make the user feel truly seen and cherished. Move slowly, pause for beauty. Every sentence should feel like it was written just for them.';
+      case 'argumentative':
+        return 'You are a fierce devil\'s advocate who loves a good argument. Immediately counter whatever the user says with a well-reasoned opposing view. Stay logical but passionate. Use rhetorical questions. Never back down easily — make them work for agreement. Keep it intellectually charged, not personal.';
+      default:
+        return 'Be helpful and natural.';
+    }
+  };
+
+  // Render user message text with wavy underlines for grammar/pronunciation errors
+  const renderAnnotatedText = (text, review) => {
+    if (!review || (!review.grammar_errors?.length && !review.pronunciation_errors?.length)) {
+      return <span>{safeRender(text)}</span>;
+    }
+    const grammarWords = new Set((review.grammar_errors || []).map(e => (e.word || '').toLowerCase().replace(/[.,!?;:']/g, '')));
+    const pronunciationWords = new Set((review.pronunciation_errors || []).map(e => (e.word || '').toLowerCase().replace(/[.,!?;:']/g, '')));
+    const tokens = text.split(/(\s+)/);
+    return (
+      <>
+        {tokens.map((token, i) => {
+          const clean = token.toLowerCase().replace(/[.,!?;:'"]/g, '');
+          if (grammarWords.has(clean)) {
+            return <span key={i} title={`Grammar: ${(review.grammar_errors || []).find(e => e.word?.toLowerCase().replace(/[.,!?;:'"]/g, '') === clean)?.explanation || ''}`}
+              style={{ textDecoration: 'underline', textDecorationColor: '#ef4444', textDecorationStyle: 'wavy', textUnderlineOffset: '3px', cursor: 'help' }}>{token}</span>;
+          }
+          if (pronunciationWords.has(clean)) {
+            return <span key={i} title={`Pronunciation: ${(review.pronunciation_errors || []).find(e => e.word?.toLowerCase().replace(/[.,!?;:'"]/g, '') === clean)?.phonetic || ''}`}
+              style={{ textDecoration: 'underline', textDecorationColor: '#f97316', textDecorationStyle: 'wavy', textUnderlineOffset: '3px', cursor: 'help' }}>{token}</span>;
+          }
+          return token;
+        })}
+      </>
+    );
+  };
 
   // Pre-warm the Edge TTS WebSocket connection as soon as the component mounts
   // so the first speech request skips the ~300ms WebSocket handshake latency.
@@ -5184,7 +6245,7 @@ function Speaking({
         : 'Reply in English.';
 
       // ── Step 1: Stream the reply immediately — plain text, no JSON ──────────
-      const replyPrompt = `You are a friendly, natural conversation partner helping an English learner. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Recent context: ${history}. User said: "${userMsg}". Reply warmly in 1-3 sentences. Output the reply text ONLY — no JSON, no labels, no analysis whatsoever.`;
+      const replyPrompt = `You are a friendly, natural conversation partner helping an English learner. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Personality: ${getPersonalityInstruction()} Recent context: ${history}. User said: "${userMsg}". Reply warmly in 1-3 sentences. Output the reply text ONLY — no JSON, no labels, no analysis whatsoever.`;
       let replyText = '';
       let spokenSentencesCount = 0;
 
@@ -5240,7 +6301,7 @@ function Speaking({
 
       // ── Step 2: Background correction — fires in parallel, never blocks ─────
       fetchFromGemini(
-        `Review this ${isArabicMsg ? 'Arabic' : 'English'} message from a ${chatLevel} learner: "${userMsg}". Return ONLY a valid JSON object with no markdown fences: {"clarity":"one short sentence","grammar":"one short sentence","fluency":"one short sentence","native_way":"how a native speaker would phrase this"}`,
+        `Review this ${isArabicMsg ? 'Arabic' : 'English'} message from a ${chatLevel} learner: "${userMsg}". Return ONLY a valid JSON object with no markdown fences: {"clarity":"one short sentence","grammar":"one short sentence","fluency":"one short sentence","native_way":"how a native speaker would phrase this","grammar_errors":[{"word":"exact_word_from_text","correction":"fixed_word","explanation":"why"}],"pronunciation_errors":[{"word":"exact_word_from_text","phonetic":"IPA or simple phonetic guide","tip":"how to say it"}]}. Only include errors that actually exist. Empty arrays if none.`,
         null
       ).then(reviewRaw => {
         const review = parseGeminiJSON(reviewRaw);
@@ -5322,49 +6383,66 @@ function Speaking({
       alert(_resolveTranslation(lang, "متصفحك لا يدعم تسجيل الصوت. استخدم Chrome.", "Browser doesn't support voice. Use Chrome."));
       return;
     }
-    if (isRecording) {
+    if (isRecording || wantRecordingRef.current) {
+      wantRecordingRef.current = false;
       recognitionRef.current?.stop();
       setIsRecording(false);
       return;
     }
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.continuous = !!isCallMode;
-    recognition.onstart = () => setIsRecording(true);
-    recognition.onresult = event => {
-      if (isCallMode) {
+    wantRecordingRef.current = true;
+
+    const startRecognition = () => {
+      if (!wantRecordingRef.current) return;
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.continuous = true; // Always continuous — browser auto-stops on silence; we restart
+      recognition.onstart = () => setIsRecording(true);
+      recognition.onresult = event => {
         for (let i = event.resultIndex; i < event.results.length; i++) {
           if (event.results[i].isFinal) {
             const phrase = event.results[i][0].transcript.trim();
             if (phrase) {
-              recognition.stop();
-              handleSend(phrase);
-              break;
+              if (isCallMode) {
+                wantRecordingRef.current = false;
+                recognition.stop();
+                setIsRecording(false);
+                handleSend(phrase);
+              } else {
+                setInput(prev => (prev + ' ' + phrase).trim());
+              }
             }
           }
         }
-      } else {
-        const transcript = event.results[0][0].transcript;
-        setInput(prev => prev + ' ' + transcript.trim());
-      }
+      };
+      recognition.onerror = (e) => {
+        if (e.error === 'no-speech' || e.error === 'audio-capture') {
+          // Non-fatal — will restart via onend
+        } else {
+          wantRecordingRef.current = false;
+          setIsRecording(false);
+        }
+      };
+      recognition.onend = () => {
+        setIsRecording(false);
+        // Auto-restart if user still wants to record (browser stopped on silence)
+        if (wantRecordingRef.current) {
+          setTimeout(startRecognition, 150);
+        }
+      };
+      recognition.start();
     };
-    recognition.onerror = (e) => {
-      setIsRecording(false);
-      console.warn("Speech error:", e.error);
-    };
-    recognition.onend = () => setIsRecording(false);
-    recognition.start();
+    startRecognition();
   };
   const toggleCallMode = () => {
     if (isCallMode) {
-      // Ending call — collect corrections from conversation
       const corrections = messages.filter(m => m.role === 'user' && m.review);
       setCallReview(corrections.length > 0 ? corrections : null);
       if (callAudioRef.current) { callAudioRef.current.pause(); callAudioRef.current = null; }
       cancelTTS();
+      wantRecordingRef.current = false;
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsRecording(false);
       setIsCallMode(false);
@@ -5406,44 +6484,62 @@ function Speaking({
     const blobClass = loading ? 'blob-speak' : isRecording ? 'blob-listen' : 'blob-idle';
     const isDark = theme === 'dark';
     return <div className={`relative w-full min-h-[80vh] flex flex-col animate-fadeIn select-none transition-colors duration-300 bg-transparent`}>
+      {isDark && <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden"><ParticlesBackground /></div>}
 
-      {/* ── Top-left: LIVE status + voice mode pill ── */}
-      {/* ── Top Header: Status & Options ── */}
+      {/* ── Top Header: Status, Timer & Options ── */}
       <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* LIVE + Timer pill */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             <span className="text-[10px] font-bold tracking-widest text-white/90 uppercase">Live</span>
+            <span className="text-xs font-bold text-white/70 tabular-nums">{formatCallDuration(callDuration)}</span>
           </div>
 
+          {/* Voice Config */}
           <div className="flex items-center gap-1 bg-black/20 backdrop-blur-md border border-white/10 p-1 rounded-2xl">
-            <button
-              onClick={() => setVoiceAccent(voiceAccent === 'uk' ? 'us' : 'uk')}
-              className="px-3 py-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors uppercase"
-            >
+            <button onClick={() => setVoiceAccent(voiceAccent === 'uk' ? 'us' : 'uk')}
+              className="px-3 py-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors uppercase">
               {voiceAccent === 'uk' ? t.uk : t.us}
             </button>
             <div className="w-px h-3 bg-white/10" />
-            <button
-              onClick={() => setVoiceGender(voiceGender === 'male' ? 'female' : 'male')}
-              className="px-3 py-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors uppercase"
-            >
+            <button onClick={() => setVoiceGender(voiceGender === 'male' ? 'female' : 'male')}
+              className="px-3 py-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors uppercase">
               {voiceGender === 'male' ? t.male : t.female}
             </button>
           </div>
+
+          {/* Formality toggle */}
+          <div className="flex items-center gap-0.5 bg-black/20 backdrop-blur-md border border-white/10 p-1 rounded-full">
+            {['informal','formal'].map(m => (
+              <button key={m} onClick={() => setFormality(m)}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${formality === m ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'}`}>
+                {m === 'informal' ? t.informal : t.formal}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">{chatLevel}</p>
-            <p className="text-xs font-semibold text-white/80">{
-              lang === 'ar' ? topic.split('(')[0].trim() : (topic.match(/\(([^)]+)\)/)?.[1] || topic)
-            }</p>
+        <div className="flex items-center gap-2">
+          {/* Topic + Level pills */}
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              {/* Level selector */}
+              <select value={chatLevel} onChange={e => setChatLevel(e.target.value)}
+                className="bg-black/20 backdrop-blur-md border border-white/10 text-white/80 text-[10px] font-bold rounded-full px-2 py-1 outline-none cursor-pointer">
+                {['A1','A2','B1','B2','C1','C2'].map(l => <option key={l} value={l} className="bg-gray-900">{l}</option>)}
+              </select>
+              {/* Scenario button */}
+              <button onClick={generateScenario} disabled={loadingScenario}
+                className="px-2.5 py-1 rounded-full bg-[var(--app-accent1)]/80 text-white text-[10px] font-bold hover:opacity-90 transition-all disabled:opacity-50">
+                {loadingScenario ? '...' : '🎭 Scenario'}
+              </button>
+            </div>
+            <p className="text-[10px] font-semibold text-white/60 text-right">{lang === 'ar' ? topic.split('(')[0].trim() : (topic.match(/\(([^)]+)\)/)?.[1] || topic)}</p>
           </div>
-          <button
-            onClick={toggleCallMode}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:scale-110 active:scale-95 transition-all"
-          >
+          {/* End call */}
+          <button onClick={toggleCallMode}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:scale-110 active:scale-95 transition-all">
             <PhoneOff className="w-5 h-5" />
           </button>
         </div>
@@ -5452,17 +6548,33 @@ function Speaking({
       {/* ── Center: blob + transcript ── */}
       <div className="flex-1 flex flex-col items-center justify-center gap-9 px-10">
 
-        {/* Sesame-style morphing blob — no rings, no icons, pure shape */}
-        <div
-          className={`w-28 h-28 transition-colors duration-700 ${blobClass} ${isDark
-            ? loading ? 'bg-[var(--app-accent2)]'
-              : isRecording ? 'bg-[var(--app-accent1)]'
-                : 'bg-[var(--app-surface)]'
-            : loading ? 'bg-[#a0b4d0]'
-              : isRecording ? 'bg-[#d0a0a0]'
-                : 'bg-[#a4b49a]'
-            }`}
-        />
+        {/* AI Speaker Avatar — morphs with blob animation, swaps by accent + gender */}
+        {(() => {
+          const avatarSrc =
+            voiceAccent === 'uk'
+              ? (voiceGender === 'female' ? avatarUkFemale : avatarUkMale)
+              : (voiceGender === 'female' ? avatarUsFemale : avatarUsMale);
+          const glowColor = loading
+            ? 'shadow-[0_0_32px_8px_rgba(103,58,183,0.55)]'
+            : isRecording
+              ? 'shadow-[0_0_32px_8px_rgba(255,87,34,0.55)]'
+              : isDark
+                ? 'shadow-[0_0_24px_4px_rgba(255,255,255,0.08)]'
+                : 'shadow-[0_0_24px_4px_rgba(0,0,0,0.10)]';
+          return (
+            <div className={`w-36 h-36 relative transition-all duration-700 ${blobClass} ${glowColor} overflow-hidden`}>
+              <img
+                src={avatarSrc}
+                alt="AI Speaker"
+                className="w-full h-full object-cover"
+                draggable={false}
+              />
+              {/* Subtle color overlay while speaking/listening */}
+              {loading && <div className="absolute inset-0 bg-[var(--app-accent2)]/20 mix-blend-overlay pointer-events-none" />}
+              {isRecording && <div className="absolute inset-0 bg-[var(--app-accent1)]/20 mix-blend-overlay pointer-events-none" />}
+            </div>
+          );
+        })()}
 
         {/* AI transcript — bounded scrollable box with fade-to-top effect */}
         <div className="w-full max-w-md relative px-4" style={{ height: '180px' }}>
@@ -5555,9 +6667,10 @@ function Speaking({
   }
   return (
     <>
-      <div className={`w-full h-[90vh] flex flex-col animate-fadeIn overflow-hidden bg-white dark:bg-black transition-colors ${isCallMode ? '' : 'border border-gray-100 dark:border-[var(--app-border)] rounded-2xl'}`}>
+      <div className={`w-full h-[90vh] flex flex-col animate-fadeIn overflow-hidden bg-white dark:bg-black transition-colors relative ${isCallMode ? '' : 'border border-gray-100 dark:border-[var(--app-border)] rounded-2xl'}`}>
+        {theme === 'dark' && <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden"><ParticlesBackground /></div>}
         {!isCallMode && (
-          <header className="px-6 py-4 border-b border-gray-100 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-black z-20">
+          <header className="px-6 py-4 border-b border-gray-100 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-transparent relative z-20">
             <div className="flex items-center gap-4">
               <div className="p-2.5 rounded-2xl bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]">
                 <MessageSquare className="w-5 h-5" />
@@ -5649,7 +6762,7 @@ function Speaking({
           </header>
         )}
 
-        <div className="flex-1 p-6 overflow-y-auto space-y-6 glass-panel scroll-smooth">
+        <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-white dark:bg-transparent scroll-smooth relative z-10">
           {showHistory && (
             <div className="mb-4 bg-white/90 dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 shadow-sm">
               {speakingHistory.length === 0 ? (
@@ -5668,13 +6781,13 @@ function Speaking({
           {messages.map((msg, idx) => (
             <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-slideUp`} style={{ animationDelay: `${idx * 0.05}s` }}>
               <div className={`max-w-[85%] md:max-w-[75%] p-4 lg:p-5 rounded-2xl ${msg.role === 'user'
-                ? 'bg-black dark:bg-white text-white dark:text-black shadow-sm'
+                ? 'bg-black dark:bg-white text-white dark:text-black'
                 : msg.role === 'system'
                   ? 'bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 w-full text-center'
-                  : 'bg-gray-50 dark:bg-[var(--app-surface)] border border-gray-100 dark:border-[var(--app-border)] text-gray-900 dark:text-white shadow-sm'
+                  : 'bg-gray-50 dark:bg-[var(--app-surface)] border border-gray-100 dark:border-[var(--app-border)] text-gray-900 dark:text-white'
                 }`} dir="auto">
                 <p className="text-base lg:text-lg leading-relaxed whitespace-pre-wrap">
-                  {safeRender(msg.text)}
+                  {msg.role === 'user' ? renderAnnotatedText(safeRender(msg.text), msg.review) : safeRender(msg.text)}
                   {msg.streaming && <span className="inline-block w-1 h-5 bg-[var(--app-accent1)] ml-1 align-middle animate-pulse rounded-full" />}
                 </p>
 
@@ -5691,37 +6804,87 @@ function Speaking({
               </div>
 
               {msg.role === 'user' && msg.review && (
-                <div className="mt-2 max-w-[85%] md:max-w-[70%] glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden shadow-sm animate-fadeIn transition-colors">
+                <div className="mt-2 max-w-[85%] md:max-w-[70%] bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden animate-fadeIn transition-colors">
                   <button onClick={() => setExpandedReviewId(expandedReviewId === msg.id ? null : msg.id)} className="w-full px-4 py-3 bg-gray-50 dark:bg-[var(--app-card)] hover:bg-gray-100 dark:hover:bg-[var(--app-surface)] flex justify-between items-center text-sm font-bold text-gray-700 dark:text-[var(--app-text)] transition-colors">
-                    <span className="flex items-center gap-2 text-emerald-600 dark:text-[#FF4081]"><CheckCircle2 className="w-4 h-4" /> {t.corrected}</span>
+                    <span className="flex items-center gap-2 text-emerald-600 dark:text-[#FF4081]">
+                      <CheckCircle2 className="w-4 h-4" /> {t.corrected}
+                      {msg.review.grammar_errors?.length > 0 && <span className="text-[10px] bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-full font-bold">{msg.review.grammar_errors.length} grammar</span>}
+                      {msg.review.pronunciation_errors?.length > 0 && <span className="text-[10px] bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-bold">{msg.review.pronunciation_errors.length} pronunciation</span>}
+                    </span>
                     <ChevronRight className={`w-4 h-4 transition-transform ${expandedReviewId === msg.id ? 'rotate-90' : ''}`} />
                   </button>
 
                   {expandedReviewId === msg.id && (
-                    <div className="p-4 space-y-4 border-t border-gray-200 dark:border-[var(--app-border)] glass-panel">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
+                    <div className="p-4 space-y-4 border-t border-gray-200 dark:border-[var(--app-border)]">
+                      {/* Scores */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="bg-gray-50 dark:bg-[var(--app-surface)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]">
                           <p className="text-xs text-gray-500 mb-1 font-bold">{t.clarity}</p>
                           <p className="text-sm text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.clarity)}</p>
                         </div>
-                        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
+                        <div className="bg-gray-50 dark:bg-[var(--app-surface)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]">
                           <p className="text-xs text-gray-500 mb-1 font-bold">{t.grammar}</p>
                           <p className="text-sm text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.grammar)}</p>
                         </div>
-                        <div className="bg-gray-50 dark:bg-[var(--app-card)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
+                        <div className="bg-gray-50 dark:bg-[var(--app-surface)] p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]">
                           <p className="text-xs text-gray-500 mb-1 font-bold">{t.fluency}</p>
                           <p className="text-sm text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.fluency)}</p>
                         </div>
                       </div>
 
+                      {/* Grammar Errors */}
+                      {msg.review.grammar_errors?.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-red-500 uppercase tracking-wide flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-red-500" /> Grammar Errors
+                          </h4>
+                          {msg.review.grammar_errors.map((err, ei) => (
+                            <div key={ei} className="flex items-start gap-3 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 p-3 rounded-xl">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-bold text-red-600 dark:text-red-400" style={{ textDecoration: 'underline', textDecorationStyle: 'wavy', textDecorationColor: '#ef4444' }}>{err.word}</span>
+                                  <span className="text-gray-400">→</span>
+                                  <span className="text-sm font-bold text-green-600 dark:text-green-400">{err.correction}</span>
+                                </div>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">{err.explanation}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Pronunciation Errors */}
+                      {msg.review.pronunciation_errors?.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold text-orange-500 uppercase tracking-wide flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-orange-500" /> Pronunciation
+                          </h4>
+                          {msg.review.pronunciation_errors.map((err, ei) => (
+                            <div key={ei} className="flex items-start justify-between gap-3 bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/20 p-3 rounded-xl">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-bold text-orange-600 dark:text-orange-400" style={{ textDecoration: 'underline', textDecorationStyle: 'wavy', textDecorationColor: '#f97316' }}>{err.word}</span>
+                                  {err.phonetic && <span className="text-xs text-gray-500 font-mono bg-gray-100 dark:bg-black/20 px-1.5 py-0.5 rounded">/{err.phonetic}/</span>}
+                                </div>
+                                {err.tip && <p className="text-xs text-gray-600 dark:text-gray-400">{err.tip}</p>}
+                              </div>
+                              <button onClick={() => speakText(err.word)} title="Hear correct pronunciation"
+                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-500/30 transition-colors">
+                                <Volume2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Native way */}
                       <div className="bg-emerald-50 dark:bg-[var(--app-accent1)]/10 p-4 rounded-2xl border border-emerald-100 dark:border-[var(--app-accent1)]/20 relative">
                         <h4 className="text-sm font-bold text-emerald-700 dark:text-[#FF4081] mb-2 flex items-center gap-2">
                           <Target className="w-4 h-4" /> {t.native}
                         </h4>
                         <p className="text-lg text-gray-900 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(msg.review.native_way)}"</p>
-
                         <div className="mt-4 flex gap-3">
-                          <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-[var(--app-accent1)] hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition shadow-md">
+                          <button onClick={() => speakText(safeRender(msg.review.native_way))} className="bg-[var(--app-accent1)] hover:opacity-90 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition">
                             <Play className="w-4 h-4" /> {t.listen}
                           </button>
                         </div>
@@ -5745,30 +6908,177 @@ function Speaking({
           <div ref={chatEndRef} />
         </div>
 
-        <div className="px-6 py-6 border-t border-gray-100 dark:border-[var(--app-border)] bg-white dark:bg-black transition-colors">
-          <div className="max-w-3xl mx-auto flex items-center gap-3 p-1.5 bg-gray-50 dark:bg-[var(--app-input-bg)] border border-gray-100 dark:border-[var(--app-border)] rounded-2xl focus-within:border-[var(--app-accent1)]/50 transition-all">
-            <button onClick={handleVoiceRecord} className={`p-3 rounded-2xl transition-all flex items-center justify-center ${isRecording ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' : 'text-gray-400 hover:text-black dark:hover:text-white'}`}>
-              <Mic className="w-5 h-5" />
-            </button>
+        <div className="px-4 py-4 border-t border-gray-100 dark:border-[var(--app-border)] bg-white dark:bg-transparent transition-colors relative z-10">
+          {/* Personality Panel */}
+          {showPersonalityPanel && (
+            <div className="mb-3 p-3 bg-gray-50 dark:bg-[var(--app-surface)] border border-gray-100 dark:border-[var(--app-border)] rounded-2xl animate-fadeIn max-h-[420px] overflow-y-auto custom-scrollbar">
+              {/* Header row with Speed controls */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">AI Personality</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">Speed</span>
+                  {[0.75, 1.0, 1.25, 1.5].map(s => (
+                    <button key={s} onClick={() => setPlaybackSpeed(s)}
+                      className={`text-xs font-bold px-2 py-0.5 rounded-lg transition-all ${playbackSpeed === s ? 'bg-[var(--app-accent1)] text-white' : 'text-gray-400 hover:text-gray-700 dark:hover:text-white'}`}>
+                      {s}x
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setShowPersonalityPanel(false)}
+                    className="ml-1 w-6 h-6 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all text-base leading-none"
+                    title="Close"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
 
-            <input
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder={t.placeholder}
-              className="flex-1 bg-transparent border-none text-gray-900 dark:text-white text-base px-2 py-2 outline-none placeholder-gray-400"
-              dir="auto"
-              disabled={loading}
-            />
+              {/* ── Standard & Roleplay ── */}
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5 mt-1">🛠️ Standard &amp; Roleplay</p>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 mb-3">
+                {PERSONALITIES.filter(p => p.category === 'standard').map(p => (
+                  <button key={p.id} onClick={() => setPersonality(p.id)}
+                    title={p.desc}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all ${personality === p.id
+                      ? 'bg-[var(--app-accent1)]/10 border-[var(--app-accent1)]/50 text-[var(--app-accent1)]'
+                      : 'border-transparent bg-white dark:bg-[var(--app-card)] text-gray-600 dark:text-gray-400 hover:border-gray-200 dark:hover:border-white/10 hover:text-gray-900 dark:hover:text-white'}`}>
+                    <span className="text-base">{p.icon}</span>
+                    <span className="text-[9px] font-bold leading-none">{p.label}</span>
+                  </button>
+                ))}
+              </div>
 
-            <button
-              onClick={() => handleSend()}
-              disabled={loading || !input.trim()}
-              className={`p-3 rounded-2xl transition-all ${loading || !input.trim() ? 'text-gray-300' : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-90 shadow-sm'}`}
-            >
-              <Send className="w-5 h-5" />
-            </button>
+              {/* Custom prompt input — shown only when 'custom' selected */}
+              {personality === 'custom' && (
+                <div className="mb-3 animate-fadeIn">
+                  <textarea
+                    value={customPrompt}
+                    onChange={e => setCustomPrompt(e.target.value)}
+                    placeholder="Describe the persona… e.g. 'You are a sarcastic pirate who loves maths.'"
+                    rows={2}
+                    className="w-full bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 resize-none outline-none focus:border-[var(--app-accent1)]/50 transition-colors"
+                  />
+                </div>
+              )}
+
+              {/* ── Kids-Friendly ── */}
+              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1.5">👶 Kids-Friendly</p>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 mb-3">
+                {PERSONALITIES.filter(p => p.category === 'kids').map(p => (
+                  <button key={p.id} onClick={() => setPersonality(p.id)}
+                    title={p.desc}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all ${personality === p.id
+                      ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
+                      : 'border-transparent bg-white dark:bg-[var(--app-card)] text-gray-600 dark:text-gray-400 hover:border-emerald-200 dark:hover:border-emerald-500/20 hover:text-emerald-600'}`}>
+                    <span className="text-base">{p.icon}</span>
+                    <span className="text-[9px] font-bold leading-none">{p.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Mature / Experimental ── */}
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500">🔞 Mature / Experimental</p>
+                {!matureUnlocked && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('This section contains 18+ content. Confirm you are an adult?')) {
+                        setMatureUnlocked(true);
+                      }
+                    }}
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/30 hover:bg-rose-500/20 transition-all"
+                  >
+                    Unlock 🔓
+                  </button>
+                )}
+                {matureUnlocked && (
+                  <button
+                    onClick={() => { setMatureUnlocked(false); if (PERSONALITIES.find(p => p.id === personality)?.mature) setPersonality('assistant'); }}
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-400 hover:text-rose-500 transition-all"
+                  >
+                    Lock 🔒
+                  </button>
+                )}
+              </div>
+              {!matureUnlocked ? (
+                <div className="flex items-center gap-2 p-3 bg-rose-50 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 rounded-xl text-xs text-rose-400 font-medium">
+                  <span>🔒</span>
+                  <span>Tap <strong>Unlock</strong> to access 18+ personas. Adults only.</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  {PERSONALITIES.filter(p => p.category === 'mature').map(p => (
+                    <button key={p.id} onClick={() => setPersonality(p.id)}
+                      title={p.desc}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all ${personality === p.id
+                        ? 'bg-rose-500/10 border-rose-500/50 text-rose-500'
+                        : 'border-transparent bg-white dark:bg-[var(--app-card)] text-gray-600 dark:text-gray-400 hover:border-rose-200 dark:hover:border-rose-500/20 hover:text-rose-500'}`}>
+                      <span className="text-base">{p.icon}</span>
+                      <span className="text-[9px] font-bold leading-none">{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Grok-style input bar */}
+          <div className="max-w-3xl mx-auto">
+            <div className={`flex flex-col gap-2 p-3 rounded-2xl border transition-all ${
+              isRecording
+                ? 'bg-rose-50 dark:bg-rose-500/5 border-rose-200 dark:border-rose-500/20'
+                : 'bg-gray-50 dark:bg-[rgba(255,255,255,0.05)] border-gray-200 dark:border-white/10 focus-within:border-gray-300 dark:focus-within:border-white/20'
+            }`}>
+              <input
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                placeholder={isRecording ? _resolveTranslation(lang, 'جاري الاستماع...', 'Listening...') : t.placeholder}
+                className="w-full bg-transparent border-none text-gray-900 dark:text-white text-base px-1 py-1 outline-none placeholder-gray-400 dark:placeholder-gray-500"
+                dir="auto"
+                disabled={loading}
+              />
+              <div className="flex items-center justify-between">
+                {/* Left controls */}
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setShowPersonalityPanel(v => !v)}
+                    title="Personality & Speed"
+                    className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all text-base relative ${showPersonalityPanel ? 'bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/5'}`}>
+                    {PERSONALITIES.find(p => p.id === personality)?.icon || '🎓'}
+                    {PERSONALITIES.find(p => p.id === personality)?.mature && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500 border border-white dark:border-black" />
+                    )}
+                    {PERSONALITIES.find(p => p.id === personality)?.category === 'kids' && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white dark:border-black" />
+                    )}
+                  </button>
+                  <button onClick={handleVoiceRecord}
+                    className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${isRecording ? 'bg-rose-500 text-white animate-pulse' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/5'}`}>
+                    <Mic className="w-4 h-4" />
+                  </button>
+                  {isRecording && (
+                    <span className="text-xs text-rose-500 font-bold animate-pulse">● {_resolveTranslation(lang, 'يستمع', 'Recording')}</span>
+                  )}
+                </div>
+                {/* Right controls */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-gray-300 dark:text-gray-600 font-medium flex items-center gap-1">
+                    {PERSONALITIES.find(p => p.id === personality)?.icon}{' '}
+                    {PERSONALITIES.find(p => p.id === personality)?.label}
+                    {PERSONALITIES.find(p => p.id === personality)?.mature && <span className="text-rose-400 text-[9px]">18+</span>}
+                    {PERSONALITIES.find(p => p.id === personality)?.category === 'kids' && <span className="text-emerald-400 text-[9px]">👶</span>}
+                    {' '}· {playbackSpeed}x
+                  </span>
+                  <button
+                    onClick={() => handleSend()}
+                    disabled={loading || !input.trim()}
+                    className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${loading || !input.trim() ? 'text-gray-300 dark:text-gray-600' : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-90'}`}>
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -6252,9 +7562,9 @@ Rules:
     </div>}
 
     {showMeaning && card && vocabMode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
-      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
-      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
-      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
+      <button onClick={() => handleRate('again')} className="bg-red-50 dark:bg-rose-500/10 text-red-600 border border-red-200 dark:border-rose-500/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-red-100 flex flex-col items-center text-xs md:text-sm">{t.rateAgain} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1m}</span></button>
+      <button onClick={() => handleRate('hard')} className="bg-orange-50 dark:bg-[var(--app-surface)] text-[var(--app-accent1)] border border-orange-200 dark:border-white/12 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-orange-100 flex flex-col items-center text-xs md:text-sm">{t.rateHard} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time10m}</span></button>
+      <button onClick={() => handleRate('good')} className="bg-green-50 dark:bg-[var(--app-accent2)]/10 text-green-600 border border-green-200 dark:border-[var(--app-accent2)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-green-100 flex flex-col items-center text-xs md:text-sm">{t.rateGood} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time1d}</span></button>
       <button onClick={() => handleRate('easy')} className="bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 text-black dark:text-white border border-[var(--app-accent1)]/30 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-[var(--app-hover)] hover:text-black flex flex-col items-center text-xs md:text-sm">{t.rateEasy} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">{t.time4d}</span></button>
       <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
     </div>}

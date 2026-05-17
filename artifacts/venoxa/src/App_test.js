@@ -2068,8 +2068,8 @@ function StudyPlan({
             {autoWordsPerDay} <span className="text-sm font-bold opacity-70">{t.perDay}</span>
           </div>
         </div> : <div className="bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl p-4 flex items-center gap-3 flex-wrap">
-          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-lg px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[#FF0099]/30" />
-          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-lg px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[var(--app-accent1)]" />
+          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="no-spinner w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-lg px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[#FF0099]/30" />
+          <input type="number" min="1" max="100" value={wordsManual} onChange={e => setWordsManual(e.target.value)} className="no-spinner w-32 bg-gray-50 dark:bg-[var(--app-bg)] border border-gray-200 dark:border-[var(--app-border)] rounded-lg px-3 py-2 text-gray-900 dark:text-[var(--app-text)] font-extrabold text-center text-2xl focus:outline-none focus:border-[var(--app-accent1)]" />
           <span className="font-bold text-gray-700 dark:text-[var(--app-text)]">{t.wordsToLearn} {t.perDay}</span>
         </div>}
       </div>
@@ -3743,9 +3743,13 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     { level: _resolveTranslation(lang, "متقدم (C1-C2)", "Advanced (C1-C2)"), name: "This American Life", url: "https://www.thisamericanlife.org/archive" }
   ];
   const readingLinks = [
-    { level: _resolveTranslation(lang, "المستوى 1", "Level 1"), name: "The Adventures of Tom Sawyer", url: "#" },
-    { level: _resolveTranslation(lang, "المستوى 2", "Level 2"), name: "Sherlock Holmes Short Stories", url: "#" },
-    { level: _resolveTranslation(lang, "المستوى 3", "Level 3"), name: "The Call of the Wild", url: "#" }
+    { level: _resolveTranslation(lang, "مبتدئ - متوسط", "Beginner - Intermediate"), name: "Project Gutenberg", url: "https://www.gutenberg.org" },
+    { level: _resolveTranslation(lang, "مبتدئ - متوسط", "Beginner - Intermediate"), name: "ESL Fast", url: "https://www.eslfast.com" },
+    { level: _resolveTranslation(lang, "مبتدئ - متوسط", "Beginner - Intermediate"), name: "Storynory", url: "https://www.storynory.com" },
+    { level: _resolveTranslation(lang, "مبتدئ - متوسط", "Beginner - Intermediate"), name: "ManyThings.org", url: "https://www.manythings.org" },
+    { level: _resolveTranslation(lang, "متقدم", "Advanced"), name: "Medium", url: "https://medium.com" },
+    { level: _resolveTranslation(lang, "متقدم", "Advanced"), name: "BBC News", url: "https://www.bbc.com/news" },
+    { level: _resolveTranslation(lang, "متقدم", "Advanced"), name: "The New York Times", url: "https://www.nytimes.com" }
   ];
   const currentLinks = type === 'listening' ? listeningLinks : readingLinks;
   const contentSteps = type === 'listening'
