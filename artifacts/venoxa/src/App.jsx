@@ -2,11 +2,100 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
+import Pronunciation from './Pronunciation';
 import LiquidGlass from 'liquid-glass-react';
 import avatarUsMale from './assets/avatar-us-male.png';
 import avatarUsFemale from './assets/avatar-us-female.png';
 import avatarUkMale from './assets/avatar-uk-male.png';
 import avatarUkFemale from './assets/avatar-uk-female.png';
+
+// ── SVG Flag Components ──────────────────────────────────────────────────────
+const GBFlag = ({ style = {}, className = "" }) => (
+  <svg viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+    <rect width="60" height="30" fill="#012169"/>
+    <line x1="0" y1="0" x2="60" y2="30" stroke="white" strokeWidth="10"/>
+    <line x1="60" y1="0" x2="0" y2="30" stroke="white" strokeWidth="10"/>
+    <polygon points="0,0 3,0 30,13.5 27,15 0,3"     fill="#C8102E"/>
+    <polygon points="57,0 60,0 60,3 33,15 30,13.5"   fill="#C8102E"/>
+    <polygon points="30,16.5 60,27 60,30 57,30"       fill="#C8102E"/>
+    <polygon points="27,15 30,16.5 3,30 0,30 0,27"   fill="#C8102E"/>
+    <rect x="23" y="0"  width="14" height="30" fill="white"/>
+    <rect x="0"  y="11" width="60" height="8"  fill="white"/>
+    <rect x="25.5" y="0"    width="9" height="30" fill="#C8102E"/>
+    <rect x="0"    y="12.5" width="60" height="5" fill="#C8102E"/>
+  </svg>
+);
+
+const USFlag = ({ style = {}, className = "" }) => {
+  const stripeH = 30 / 13;
+  const cantonW = 24;
+  const cantonH = 7 * stripeH;
+  const rowH    = cantonH / 10;
+  const starRows = [6, 5, 6, 5, 6, 5, 6, 5, 6];
+  return (
+    <svg viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      {Array.from({ length: 13 }).map((_, i) => (
+        <rect key={i} x="0" y={i * stripeH} width="60" height={stripeH}
+          fill={i % 2 === 0 ? '#B22234' : 'white'}/>
+      ))}
+      <rect x="0" y="0" width={cantonW} height={cantonH} fill="#3C3B6E"/>
+      {starRows.map((count, row) =>
+        Array.from({ length: count }).map((_, col) => (
+          <circle key={`${row}-${col}`}
+            cx={(cantonW / (count + 1)) * (col + 1)}
+            cy={rowH * (row + 1)}
+            r="0.65"
+            fill="white"/>
+        ))
+      )}
+    </svg>
+  );
+};
+
+// ── Compact dropdown for the call-mode overlay ───────────────────────────────
+function CallMiniDropdown({ value, onChange, options, prefix = '' }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    if (open) document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  const selected = options.find(o => o.value === value);
+  return (
+    <div className={`relative ${open ? 'z-[9999]' : 'z-auto'}`} ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-black/25 backdrop-blur-md border border-white/12 text-white text-[11px] font-bold rounded-2xl hover:border-white/25 hover:bg-black/35 transition-all"
+      >
+        {prefix && <span className="opacity-60">{prefix}</span>}
+        <span>{selected?.label ?? value}</span>
+        <ChevronDown className="w-3 h-3 opacity-50 shrink-0" />
+      </button>
+      {open && (
+        <div
+          className="dropdown-menu absolute top-full mt-2 left-1/2 -translate-x-1/2 min-w-[140px]"
+          style={{ background: 'rgba(33,33,42,0.97)', border: '1px solid rgba(255,255,255,0.10)' }}
+        >
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => { onChange(opt.value); setOpen(false); }}
+              className={`dropdown-item justify-center text-center ${value === opt.value ? 'active' : ''}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function LanguageDropdown({ lang, setLang, theme }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -1244,6 +1333,8 @@ export default function App() {
         return <ListeningReading type="reading" {...props} />;
       case 'langeek':
         return <Langeek {...props} langeekVocab={langeekVocab} setLangeekVocab={setLangeekVocab} />;
+      case 'pronunciation':
+        return <Pronunciation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={edgeTTSSpeak} />;
       default:
         return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} currentWeek={currentWeek} streakData={streakData} />;
     }
@@ -1273,6 +1364,7 @@ export default function App() {
         { id: 'reading', label: _resolveTranslation(lang, 'القراءة (AI)', 'Reading (AI)'), icon: Brain },
         { id: 'speaking', label: _resolveTranslation(lang, 'المحادثة والاتصال', 'Speaking (Call)'), icon: MessageSquare },
         { id: 'writing', label: _resolveTranslation(lang, 'الكتابة (AI)', 'Writing (AI)'), icon: PenTool },
+        { id: 'pronunciation', label: _resolveTranslation(lang, 'النطق', 'Pronunciation'), icon: Volume2 },
       ]
     },
     { id: 'grammar', label: _resolveTranslation(lang, 'القواعد (AI)', 'Grammar (AI)'), icon: FileText },
@@ -1332,15 +1424,57 @@ export default function App() {
         />
         {/* Bar content */}
         <div className="relative z-[2] flex items-center h-full px-4 sm:px-6 gap-3">
-          {/* Logo */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5 text-white dark:text-black" />
+
+          {/* LEFT slot — controls when EN, logo when AR */}
+          {lang === 'ar' ? (
+            /* AR: logo on left */
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-white dark:text-black" />
+              </div>
+              <h1 className="text-lg font-bold tracking-tight whitespace-nowrap hidden sm:block" dir="ltr">
+                <span className="text-[var(--app-accent1)]">ai.</span><span>فينوكسا</span>
+              </h1>
             </div>
-            <h1 className="text-lg font-bold tracking-tight whitespace-nowrap hidden sm:block">
-              فينوكسا<span className="text-[var(--app-accent1)]">.ai</span>
-            </h1>
-          </div>
+          ) : (
+            /* EN: controls on left */
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Theme toggle */}
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                  theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                    : 'text-gray-500 hover:text-black hover:bg-black/5'
+                }`}
+                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+              {/* Language toggle — SA flag */}
+              <button
+                onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                title="عربي"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" className="w-5 h-[14px] rounded-sm overflow-hidden">
+                  <rect width="900" height="600" fill="#006C35"/>
+                  <g fill="#fff">
+                    <text x="450" y="330" textAnchor="middle" fontSize="200" fontFamily="serif">&#x200E;</text>
+                    <path d="M220 180 h460 v30 h-460z"/>
+                    <path d="M220 210 h30 v160 h-30z"/>
+                    <path d="M610 210 h30 v160 h-30z"/>
+                    <path d="M220 340 h460 v30 h-460z"/>
+                    <path d="M335 210 h30 v100 q0 30 30 30 h120 q30 0 30-30 v-100 h30 v100 q0 55-60 55 h-120 q-60 0-60-55z"/>
+                    <path d="M455 210 h30 v130 h-30z"/>
+                    <path d="M455 340 h30 v30 h-30z"/>
+                  </g>
+                </svg>
+              </button>
+            </div>
+          )}
 
           {/* Navigation Icons */}
           <nav className="flex-1 flex items-center justify-center gap-0.5 px-2">
@@ -1407,31 +1541,51 @@ export default function App() {
             })}
           </nav>
 
-          {/* Right Controls */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-              className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all ${
-                theme === 'dark'
-                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                  : 'text-gray-500 hover:text-black hover:bg-black/5'
-              }`}
-              title={lang === 'en' ? 'عربي' : 'English'}
-            >
-              {lang === 'en' ? 'AR' : 'EN'}
-            </button>
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                theme === 'dark'
-                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                  : 'text-gray-500 hover:text-black hover:bg-black/5'
-              }`}
-              title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-          </div>
+          {/* RIGHT slot — logo when EN, controls when AR */}
+          {lang === 'ar' ? (
+            /* AR: controls on right */
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Language toggle — UK flag */}
+              <button
+                onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                title="English"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" className="w-5 h-[13px] rounded-sm overflow-hidden">
+                  <rect width="60" height="30" fill="#012169"/>
+                  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
+                  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" strokeWidth="4"/>
+                  <path d="M30,0 V30 M0,15 H60" stroke="#fff" strokeWidth="10"/>
+                  <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" strokeWidth="6"/>
+                </svg>
+              </button>
+              {/* Theme toggle */}
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                  theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                    : 'text-gray-500 hover:text-black hover:bg-black/5'
+                }`}
+                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+            </div>
+          ) : (
+            /* EN: logo on right — icon first, then name to its left */
+            <div className="flex items-center gap-2 shrink-0" dir="ltr">
+              <h1 className="text-lg font-bold tracking-tight whitespace-nowrap hidden sm:block">
+                <span className="text-[var(--app-accent1)]">ai.</span><span>فينوكسا</span>
+              </h1>
+              <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-white dark:text-black" />
+              </div>
+            </div>
+          )}
+
         </div>
       </header>
 
@@ -1450,17 +1604,7 @@ export default function App() {
           }}
         />
 
-        {/* Bottom fade — content gently dissolves at the bottom edge */}
-        <div
-          className="pointer-events-none fixed bottom-0 left-0 right-0 h-28 z-[55] print:hidden"
-          style={{
-            maskImage: 'linear-gradient(to top, black 0%, black 30%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to top, black 0%, black 30%, transparent 100%)',
-            background: theme === 'dark'
-              ? 'linear-gradient(to top, rgba(6,6,8,0.85) 0%, rgba(6,6,8,0.4) 55%, rgba(6,6,8,0) 100%)'
-              : 'linear-gradient(to top, rgba(245,245,250,0.92) 0%, rgba(245,245,250,0.5) 55%, rgba(245,245,250,0) 100%)',
-          }}
-        />
+
 
         <div className={`${activeTab === 'speaking' ? 'w-full' : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8'} print:p-0 print:pt-0`}>
           <div className="animate-fadeIn">
@@ -1890,7 +2034,7 @@ function PlanWeekTable({
                     <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm`}>
                       <cat.icon className="w-5 h-5" />
                     </div>
-                    <span className="truncate leading-none">{cat.name}</span>
+                    <span className="truncate leading-normal">{cat.name}</span>
                   </div>
                 </td>
                 {[0, 1, 2, 3, 4, 5, 6].map(d => {
@@ -1951,7 +2095,7 @@ function PlanWeekTable({
                   <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm">
                     <RotateCcw className="w-5 h-5" />
                   </div>
-                  <span className="truncate leading-none">{t.spacedRep}</span>
+                  <span className="truncate leading-normal">{t.spacedRep}</span>
                 </div>
               </td>
               {[0, 1, 2, 3, 4, 5, 6].map(d => {
@@ -1991,7 +2135,7 @@ function PlanWeekTable({
                   <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
                     <Clock className="w-5 h-5" />
                   </div>
-                  <span className="leading-none">{t.categories.total}</span>
+                  <span className="leading-normal">{t.categories.total}</span>
                 </div>
               </td>
               {[0, 1, 2, 3, 4, 5, 6].map(d => (
@@ -2103,6 +2247,17 @@ function StudyPlan({
   const [vocabMins, setVocabMins] = useState(stored?.vocabMins ?? 15);
   const [vocabModal, setVocabModal] = useState(null);
   const [grammarModal, setGrammarModal] = useState(null);
+  const [studiedWords, setStudiedWords] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('studiedWords') || '[]')); } catch { return new Set(); }
+  });
+  const toggleStudied = (word) => {
+    setStudiedWords(prev => {
+      const next = new Set(prev);
+      if (next.has(word)) next.delete(word); else next.add(word);
+      try { localStorage.setItem('studiedWords', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
   const toggleCellCompletion = (weekNum, catId, dayIdx) => {
     const key = `${weekNum}-${catId}-${dayIdx}`;
     setCompletedCells(prev => {
@@ -3291,6 +3446,7 @@ function StudyPlan({
                   {vocabModal.langeekRange
                     ? `# ${vocabModal.langeekRange} · ${wordsPerDay} ${t.wordsToLearn}`
                     : `${wordsPerDay} ${t.wordsToLearn}`}
+                  {vocabModal.words.length > 0 && (() => { const n = vocabModal.words.filter(w => studiedWords.has(w?.word)).length; return n > 0 ? ` · ✅ ${n}/${vocabModal.words.length}` : ''; })()}
                 </p>
               </div>
               <button onClick={() => setVocabModal(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
@@ -3311,13 +3467,19 @@ function StudyPlan({
                     <UploadCloud className="w-10 h-10 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-500 text-sm">{t.noVocabUploaded}</p>
                   </div>
-                ) : vocabModal.words.map((w, i) => <div key={i} className="flex flex-col p-4 glass-panel rounded-2xl border border-gray-100 dark:border-[var(--app-border)] shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="w-7 h-7 rounded-full bg-fuchsia-100 dark:bg-[var(--app-accent2)]/10 text-[#FF0099] dark:text-[var(--app-accent2)] flex items-center justify-center text-sm font-bold shrink-0">{i + 1}</span>
-                    <span className="font-extrabold text-lg text-gray-900 dark:text-[var(--app-text)]" dir="ltr">{safeRender(w?.word)}</span>
-                  </div>
-                  {w?.meaning && <span className="text-sm text-gray-500 dark:text-[var(--app-text)] mr-10">{safeRender(w.meaning)}</span>}
-                </div>)}
+                ) : vocabModal.words.map((w, i) => {
+                  const isStudied = studiedWords.has(w?.word);
+                  return <div key={i} onClick={() => toggleStudied(w?.word)} className={`flex items-center gap-3 p-4 glass-panel rounded-2xl border transition-all cursor-pointer select-none ${isStudied ? 'border-green-400 dark:border-green-500 bg-green-50/60 dark:bg-green-500/10' : 'border-gray-100 dark:border-[var(--app-border)] hover:border-gray-300 dark:hover:border-white/20'}`}>
+                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-colors ${isStudied ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400' : 'bg-fuchsia-100 dark:bg-[var(--app-accent2)]/10 text-[#FF0099] dark:text-[var(--app-accent2)]'}`}>{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className={`font-extrabold text-lg block leading-tight transition-colors ${isStudied ? 'text-green-700 dark:text-green-400 line-through decoration-green-400/60' : 'text-gray-900 dark:text-[var(--app-text)]'}`} dir="ltr">{safeRender(w?.word)}</span>
+                      {w?.meaning && <span className={`text-sm transition-colors ${isStudied ? 'text-green-600/70 dark:text-green-400/60' : 'text-gray-500 dark:text-[var(--app-text)]'}`}>{safeRender(w.meaning)}</span>}
+                    </div>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all ${isStudied ? 'bg-green-500 text-white scale-110 shadow-md shadow-green-500/30' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/30'}`}>
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                  </div>;
+                })}
               </div>
             )}
           </div>
@@ -3748,8 +3910,8 @@ Rules:
           onClick={() => setShowMeaning(!showMeaning)}
         >
           <div className="absolute top-6 left-6 flex flex-col gap-2 z-10">
-            <button onClick={e => { e.stopPropagation(); playAudio('en-US'); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-black dark:text-white shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
-            <button onClick={e => { e.stopPropagation(); playAudio('en-GB'); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
+            <button onClick={e => { e.stopPropagation(); playAudio('en-US'); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-black dark:text-white shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline"><USFlag style={{width:20,height:10,borderRadius:2}} /> US</span></button>
+            <button onClick={e => { e.stopPropagation(); playAudio('en-GB'); }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline"><GBFlag style={{width:20,height:10,borderRadius:2}} /> UK</span></button>
           </div>
 
           <div className="absolute top-6 right-6 flex flex-col gap-2 items-end">
@@ -5065,8 +5227,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
           {type === 'reading' && (
             <>
               <div className="flex h-11 items-center gap-1 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
-                <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇬🇧 UK</button>
-                <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇺🇸 US</button>
+                <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><GBFlag style={{width:20,height:10,borderRadius:2}} /> UK</button>
+                <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><USFlag style={{width:20,height:10,borderRadius:2}} /> US</button>
               </div>
               <button onClick={handleGenerate} disabled={loading} className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black px-8 h-11 rounded-2xl font-bold flex items-center gap-2 shadow-sm transition whitespace-nowrap">
                 {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
@@ -5108,8 +5270,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
             </button>
             {/* UK/US accent toggle for listening */}
             <div className="flex h-11 items-center gap-1 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
-              <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇬🇧 UK</button>
-              <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}>🇺🇸 US</button>
+              <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><GBFlag style={{width:20,height:10,borderRadius:2}} /> UK</button>
+              <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><USFlag style={{width:20,height:10,borderRadius:2}} /> US</button>
             </div>
           </div>
         </div>
@@ -5617,8 +5779,13 @@ Important: The "word" value must be copied EXACTLY from the input text. Find eve
       } else {
         setFeedback(json);
         setWritingHistory(prev => [{
-          id: Date.now(), input: text, output: json.corrected_text || '',
-          explanation: json.overall || '', score: json.score || '', createdAt: new Date().toISOString()
+          id: Date.now(),
+          input: text,
+          output: json.corrected_text || '',
+          explanation: json.overall || '',
+          score: json.score || '',
+          feedback: json,
+          createdAt: new Date().toISOString()
         }, ...prev].slice(0, 25));
       }
     } catch (e) {
@@ -5627,27 +5794,130 @@ Important: The "word" value must be copied EXACTLY from the input text. Find eve
     setLoading(false);
   };
   const startNewWriting = () => {
-    if (text.trim() || feedback) {
-      setWritingHistory(prev => [{
-        id: Date.now(),
-        input: text,
-        output: feedback?.corrected_text || '',
-        explanation: feedback?.explanation || '',
-        score: feedback?.score || '',
-        createdAt: new Date().toISOString()
-      }, ...prev].slice(0, 25));
+    if (text.trim()) {
+      setWritingHistory(prev => {
+        if (prev.some(item => item.input.trim() === text.trim())) return prev;
+        return [{
+          id: Date.now(),
+          input: text,
+          output: feedback?.corrected_text || '',
+          explanation: feedback?.overall || feedback?.explanation || '',
+          score: feedback?.score || '',
+          feedback: feedback && !feedback.error ? feedback : null,
+          createdAt: new Date().toISOString()
+        }, ...prev].slice(0, 25);
+      });
     }
     setText('');
     setFeedback(null);
   };
+  const handleSelectHistoryItem = (item) => {
+    setText(item.input);
+    if (item.feedback) {
+      setFeedback(item.feedback);
+    } else {
+      setFeedback({
+        score: item.score || '',
+        corrected_text: item.output || '',
+        overall: item.explanation || '',
+        grammar_errors: [],
+        style_tips: []
+      });
+    }
+  };
   return <div className="w-full max-w-4xl mx-auto animate-fadeIn pb-20">
-    <div className="text-center mb-12">
-      <h2 className="text-4xl font-bold text-black dark:text-white mb-4 flex items-center justify-center gap-4">
-        <PenTool className="text-[var(--app-accent1)] w-8 h-8" />
-        {t.title}
-      </h2>
-      <p className="text-gray-500 dark:text-gray-400">Improve your writing with AI-powered feedback and corrections.</p>
+    <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 text-center md:text-left">
+      <div>
+        <h2 className="text-4xl font-bold text-black dark:text-white mb-2 flex items-center justify-center md:justify-start gap-4">
+          <PenTool className="text-[var(--app-accent1)] w-8 h-8" />
+          {t.title}
+        </h2>
+        <p className="text-gray-500 dark:text-gray-400">Improve your writing with AI-powered feedback and corrections.</p>
+      </div>
+      <button
+        onClick={() => setShowHistory(!showHistory)}
+        className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm border transition-all duration-300 shrink-0 ${
+          showHistory
+            ? 'bg-[var(--app-accent1)]/10 border-[var(--app-accent1)]/20 text-[var(--app-accent1)]'
+            : 'bg-white/80 dark:bg-white/5 border-black/5 dark:border-white/5 text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10'
+        }`}
+      >
+        <Clock className="w-4 h-4" />
+        <span>{t.history}</span>
+        {writingHistory?.length > 0 && (
+          <span className="ml-1 bg-[var(--app-accent1)] text-white text-[11px] px-2 py-0.5 rounded-full">
+            {writingHistory.length}
+          </span>
+        )}
+      </button>
     </div>
+
+    {showHistory && (
+      <div className="premium-card rounded-3xl p-6 mb-8 animate-fadeIn space-y-4">
+        <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/10 pb-3">
+          <h3 className="text-lg font-bold text-gray-950 dark:text-white flex items-center gap-2">
+            <Clock className="w-5 h-5 text-[var(--app-accent1)]" />
+            {t.history}
+          </h3>
+          {writingHistory?.length > 0 && (
+            <button
+              onClick={() => {
+                if (confirm('Clear all writing history?')) {
+                  setWritingHistory([]);
+                }
+              }}
+              className="text-xs text-red-500 hover:text-red-600 font-bold transition-colors"
+            >
+              Clear All
+            </button>
+          )}
+        </div>
+        {!writingHistory || writingHistory.length === 0 ? (
+          <div className="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">
+            {t.emptyHistory}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto no-scrollbar pr-1">
+            {writingHistory.map((item) => {
+              const scoreNum = parseInt(item.score || '0');
+              const scoreColor = scoreNum >= 8 ? 'text-green-500 bg-green-500/10' : scoreNum >= 5 ? 'text-yellow-500 bg-yellow-500/10' : 'text-red-500 bg-red-500/10';
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3.5 rounded-2xl border border-black/5 dark:border-white/5 bg-white/50 dark:bg-white/5 hover:border-[var(--app-accent1)]/30 transition-all duration-300 group cursor-pointer"
+                  onClick={() => handleSelectHistoryItem(item)}
+                >
+                  <div className="flex-1 min-w-0 pr-3 text-left">
+                    <p className="text-[10px] text-gray-400 mb-1">
+                      {new Date(item.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                    </p>
+                    <p className="font-bold text-sm text-gray-800 dark:text-gray-200 truncate group-hover:text-[var(--app-accent1)] transition-colors">
+                      {item.input || 'Untitled Essay'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {item.score && (
+                      <span className={`text-xs font-black px-2.5 py-1 rounded-xl ${scoreColor}`}>
+                        {item.score}
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setWritingHistory((prev) => prev.filter((h) => h.id !== item.id));
+                      }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    )}
 
     <div className="space-y-6">
       <div className="premium-card rounded-3xl p-6 relative z-50">
@@ -6487,8 +6757,8 @@ function Speaking({
       {isDark && <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden"><ParticlesBackground /></div>}
 
       {/* ── Top Header: Status, Timer & Options ── */}
-      <div className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center">
-        <div className="flex items-center gap-3 flex-wrap">
+      <div className="absolute top-2 left-6 right-6 z-20 flex justify-between items-center flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* LIVE + Timer pill */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -6496,51 +6766,54 @@ function Speaking({
             <span className="text-xs font-bold text-white/70 tabular-nums">{formatCallDuration(callDuration)}</span>
           </div>
 
-          {/* Voice Config */}
-          <div className="flex items-center gap-1 bg-black/20 backdrop-blur-md border border-white/10 p-1 rounded-2xl">
+          {/* Accent + Gender pill */}
+          <div className="flex items-center gap-0.5 bg-black/20 backdrop-blur-md border border-white/10 p-1 rounded-2xl">
             <button onClick={() => setVoiceAccent(voiceAccent === 'uk' ? 'us' : 'uk')}
-              className="px-3 py-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors uppercase">
+              className="px-3 py-1 text-[10px] font-bold text-white/80 hover:text-white transition-colors uppercase">
               {voiceAccent === 'uk' ? t.uk : t.us}
             </button>
             <div className="w-px h-3 bg-white/10" />
             <button onClick={() => setVoiceGender(voiceGender === 'male' ? 'female' : 'male')}
-              className="px-3 py-1 text-[10px] font-bold text-white/70 hover:text-white transition-colors uppercase">
+              className="px-3 py-1 text-[10px] font-bold text-white/80 hover:text-white transition-colors uppercase">
               {voiceGender === 'male' ? t.male : t.female}
             </button>
           </div>
 
           {/* Formality toggle */}
-          <div className="flex items-center gap-0.5 bg-black/20 backdrop-blur-md border border-white/10 p-1 rounded-full">
+          <div className="flex items-center gap-0.5 bg-black/20 backdrop-blur-md border border-white/10 p-1 rounded-2xl">
             {['informal','formal'].map(m => (
               <button key={m} onClick={() => setFormality(m)}
-                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${formality === m ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'}`}>
+                className={`px-3 py-1 rounded-xl text-[10px] font-bold transition-all ${formality === m ? 'bg-white/18 text-white' : 'text-white/40 hover:text-white/70'}`}>
                 {m === 'informal' ? t.informal : t.formal}
               </button>
             ))}
           </div>
         </div>
 
+        {/* Right: Level + Topic + Scenario */}
         <div className="flex items-center gap-2">
-          {/* Topic + Level pills */}
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-1.5 flex-wrap justify-end">
-              {/* Level selector */}
-              <select value={chatLevel} onChange={e => setChatLevel(e.target.value)}
-                className="bg-black/20 backdrop-blur-md border border-white/10 text-white/80 text-[10px] font-bold rounded-full px-2 py-1 outline-none cursor-pointer">
-                {['A1','A2','B1','B2','C1','C2'].map(l => <option key={l} value={l} className="bg-gray-900">{l}</option>)}
-              </select>
-              {/* Scenario button */}
-              <button onClick={generateScenario} disabled={loadingScenario}
-                className="px-2.5 py-1 rounded-full bg-[var(--app-accent1)]/80 text-white text-[10px] font-bold hover:opacity-90 transition-all disabled:opacity-50">
-                {loadingScenario ? '...' : '🎭 Scenario'}
-              </button>
-            </div>
-            <p className="text-[10px] font-semibold text-white/60 text-right">{lang === 'ar' ? topic.split('(')[0].trim() : (topic.match(/\(([^)]+)\)/)?.[1] || topic)}</p>
-          </div>
-          {/* End call */}
-          <button onClick={toggleCallMode}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:scale-110 active:scale-95 transition-all">
-            <PhoneOff className="w-5 h-5" />
+          {/* Level dropdown */}
+          <CallMiniDropdown
+            value={chatLevel}
+            onChange={setChatLevel}
+            options={['A1','A2','B1','B2','C1','C2'].map(l => ({ value: l, label: l }))}
+          />
+
+          {/* Topic dropdown */}
+          <CallMiniDropdown
+            value={topic}
+            onChange={setTopic}
+            options={SPEAKING_TOPICS.map(tp => ({
+              value: tp,
+              label: lang === 'ar' ? tp.split('(')[0].trim() : (tp.match(/\(([^)]+)\)/)?.[1] || tp)
+            }))}
+          />
+
+          {/* Scenario button */}
+          <button onClick={generateScenario} disabled={loadingScenario}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[var(--app-accent1)] text-white text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 shadow-sm shadow-[var(--app-accent1)]/30">
+            <Lightbulb className="w-3.5 h-3.5" />
+            {loadingScenario ? '...' : t.scenario}
           </button>
         </div>
       </div>
@@ -7524,11 +7797,11 @@ Rules:
         <button onClick={e => {
           e.stopPropagation();
           playAudio('en-US');
-        }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-black dark:text-white shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇺🇸 US</span></button>
+        }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-black dark:text-white shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline"><USFlag style={{width:20,height:10,borderRadius:2}} /> US</span></button>
         <button onClick={e => {
           e.stopPropagation();
           playAudio('en-GB');
-        }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline">🇬🇧 UK</span></button>
+        }} className="p-3 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl text-red-600 dark:text-red-400 shadow-sm flex items-center gap-2"><Volume2 className="w-5 h-5" /> <span className="text-xs font-bold uppercase hidden sm:inline"><GBFlag style={{width:20,height:10,borderRadius:2}} /> UK</span></button>
       </div>
       <div className="absolute top-6 right-6 flex flex-col gap-2 items-end">
         <span className="bg-gray-100 dark:bg-[var(--app-card)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-accent1)]/30 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm">{safeRender(card.level)}</span>
