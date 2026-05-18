@@ -667,6 +667,14 @@ const EDGE_VOICES = {
 };
 
 /**
+ * withTimeout(promise, ms)
+ * Races a TTS promise against a deadline that resolves false.
+ * Prevents slow / unreachable backends from stalling the fallback chain.
+ */
+const withTimeout = (promise, ms) =>
+  Promise.race([promise, new Promise(resolve => setTimeout(() => resolve(false), ms))]);
+
+/**
  * edgeTTSSpeak(text, gender, voiceOverride, topLevelCacheKey?)
  * Free, unlimited Microsoft Edge TTS via the api-server proxy.
  * Caches audio in IndexedDB so any word heard once plays instantly from
@@ -677,17 +685,18 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
 
-  // 1. Try Groq (Orpheus) first as requested - very fast and high quality
-  const okGroq = await groqTTSSpeak(text, genderKey);
+  // 1. Try Groq (Orpheus) first — capped at 700 ms so a slow/down server
+  //    never delays the chain. If it responds in time it's the best quality.
+  const okGroq = await withTimeout(groqTTSSpeak(text, genderKey), 700);
   if (okGroq) return true;
 
-  // 2. Try Kokoro second (Best local quality)
-  const okKokoro = await kokoroTTSSpeak(text, genderKey, accent);
+  // 2. Try Kokoro second (best local quality) — same 700 ms cap.
+  const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent), 700);
   if (okKokoro) return true;
 
-  // 3. Try Gemini third (Cloud quality - works instantly with your key!)
+  // 3. Try Gemini third (Cloud quality) — same 700 ms cap.
   if (accent === 'us') {
-    const okGemini = await geminiTTSSpeak(text, genderKey);
+    const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 700);
     if (okGemini) return true;
   }
 
@@ -1334,7 +1343,11 @@ export default function App() {
       case 'langeek':
         return <Langeek {...props} langeekVocab={langeekVocab} setLangeekVocab={setLangeekVocab} />;
       case 'pronunciation':
-        return <Pronunciation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={edgeTTSSpeak} />;
+        return <Pronunciation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={async (text, gender, accentKey) => {
+          const saved = _voiceAccent;
+          if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
+          try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
+        }} />;
       default:
         return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} currentWeek={currentWeek} streakData={streakData} />;
     }

@@ -255,6 +255,7 @@ export default function Pronunciation({ lang, theme, speakFn }) {
   const [category, setCategory] = useState('vowels');
   const [selectedItem, setSelectedItem] = useState(null);
   const [accent, setAccent] = useState('us');
+  const [voiceGender, setVoiceGender] = useState('female'); // 'male' | 'female'
   const [bookmarks, setBookmarks] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_pron_bookmarks')) || []; } catch { return []; }
   });
@@ -276,7 +277,9 @@ export default function Pronunciation({ lang, theme, speakFn }) {
     setSpeaking(text);
     try {
       if (typeof speakFn === 'function') {
-        await speakFn(text, 'male');
+        // Pass accent ('us'|'uk') and gender ('male'|'female') so the wrapper in
+        // App.jsx temporarily sets _voiceAccent and all TTS backends honour the choice.
+        await speakFn(text, voiceGender, accent);
       } else {
         if (!('speechSynthesis' in window)) return;
         window.speechSynthesis.cancel();
@@ -296,7 +299,7 @@ export default function Pronunciation({ lang, theme, speakFn }) {
     } finally {
       setSpeaking(null);
     }
-  }, [accent, speakFn]);
+  }, [accent, voiceGender, speakFn]);
 
   const getData = () => {
     const map = { vowels: VOWEL_DATA, consonants: CONSONANT_DATA, alphabet: ALPHABET_DATA, multigraphs: MULTIGRAPH_DATA, phonological: PHONOLOGICAL_DATA };
@@ -410,6 +413,24 @@ export default function Pronunciation({ lang, theme, speakFn }) {
             style={{ background: accent === 'uk' ? '#C8102E' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)'), color: accent === 'uk' ? 'white' : (isDark ? 'rgba(255,255,255,0.6)' : '#666') }}
           >
             <GBFlagMini /> 🇬🇧 UK
+          </button>
+        </div>
+
+        {/* Voice gender toggle */}
+        <div className="flex rounded-2xl overflow-hidden border" style={{ borderColor: cardBorder }}>
+          <button
+            onClick={() => setVoiceGender('female')}
+            className="flex items-center gap-1 px-3 py-2 text-xs font-bold transition-all"
+            style={{ background: voiceGender === 'female' ? 'var(--app-accent2)' : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)'), color: voiceGender === 'female' ? 'white' : (isDark ? 'rgba(255,255,255,0.6)' : '#666') }}
+          >
+            ♀ {isRTL ? 'أنثى' : 'Female'}
+          </button>
+          <button
+            onClick={() => setVoiceGender('male')}
+            className="flex items-center gap-1 px-3 py-2 text-xs font-bold transition-all"
+            style={{ background: voiceGender === 'male' ? accentColor : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.7)'), color: voiceGender === 'male' ? 'white' : (isDark ? 'rgba(255,255,255,0.6)' : '#666') }}
+          >
+            ♂ {isRTL ? 'ذكر' : 'Male'}
           </button>
         </div>
 
