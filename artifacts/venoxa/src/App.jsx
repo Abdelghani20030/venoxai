@@ -2568,6 +2568,7 @@ function StudyPlan({
       wordSource,
       studyHoursPreset,
       vocabMins,
+      userLevel,
     });
     setCurrentWeek(1);
   };
@@ -2693,7 +2694,21 @@ function StudyPlan({
       const range = getVocabRange(currentWeek, dayIndex);
       // If the user has uploaded their Langeek CSV, slice the actual words for this day.
       if (langeekVocab && langeekVocab.length > 0) {
-        const startIdx = ((currentWeek - 1) * 7 + dayIndex) * wordsPerDay;
+        // Find where the user's starting level begins in the uploaded CSV so we skip
+        // lower-level words (e.g. if the user chose B1, we skip all A1 and A2 entries).
+        const _LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+        const startingLevel = ((planMeta?.userLevel || userLevel) + '').toUpperCase().trim().slice(0, 2);
+        const startLvlIdx = _LEVELS.indexOf(startingLevel);
+        const levelStartOffset = startLvlIdx > 0
+          ? (() => {
+              const idx = langeekVocab.findIndex(w => {
+                const wl = (w.level || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 2);
+                return _LEVELS.indexOf(wl) >= startLvlIdx;
+              });
+              return idx >= 0 ? idx : 0;
+            })()
+          : 0;
+        const startIdx = levelStartOffset + ((currentWeek - 1) * 7 + dayIndex) * wordsPerDay;
         const dayWords = [];
         for (let i = 0; i < wordsPerDay; i++) {
           const globalIdx = startIdx + i;
