@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import Pronunciation from './Pronunciation';
+import SmartTranslation from './SmartTranslation';
+import TimerTool from './TimerTool';
 import LiquidGlass from 'liquid-glass-react';
 import avatarUsMale from './assets/avatar-us-male.png';
 import avatarUsFemale from './assets/avatar-us-female.png';
@@ -1348,10 +1350,52 @@ export default function App() {
           if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
           try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
         }} />;
+      case 'smart-translation':
+        return <SmartTranslation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={async (text, gender, accentKey) => {
+          const saved = _voiceAccent;
+          if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
+          try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
+        }} />;
+      case 'timer':
+        return <TimerTool lang={lang} theme={theme} timerState={timerState} setTimerState={setTimerState} />;
       default:
         return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} currentWeek={currentWeek} streakData={streakData} />;
     }
   };
+  // ── Persistent Timer State (survives section changes) ──
+  const [timerState, setTimerState] = useState({
+    preset: 0, custMins: 25, custSecs: 0,
+    secsLeft: null, totalSecs: 1500, running: false, done: false,
+  });
+
+  // Keep ticking even when navigated away
+  const appTimerRef = useRef(null);
+  useEffect(() => {
+    if (!timerState.running) return;
+    appTimerRef.current = setInterval(() => {
+      setTimerState(s => {
+        if (!s.running || s.secsLeft === null || s.secsLeft <= 0) return s;
+        const next = s.secsLeft - 1;
+        if (next === 0) return { ...s, secsLeft: 0, running: false, done: true };
+        return { ...s, secsLeft: next };
+      });
+    }, 1000);
+    return () => clearInterval(appTimerRef.current);
+  }, [timerState.running]);
+
+  // Tab title while timer is running or paused
+  useEffect(() => {
+    if (timerState.secsLeft !== null && !timerState.done) {
+      const m = Math.floor(timerState.secsLeft / 60);
+      const s = timerState.secsLeft % 60;
+      const fmt = n => String(n).padStart(2, '0');
+      document.title = `${fmt(m)}:${fmt(s)} — Venoxa`;
+    } else {
+      document.title = 'Venoxa';
+    }
+    return () => { document.title = 'Venoxa'; };
+  }, [timerState.secsLeft, timerState.done]);
+
   const navItems = [
     { id: 'dashboard', label: _resolveTranslation(lang, 'الرئيسية', 'Dashboard'), icon: Home },
     { id: 'plan', label: _resolveTranslation(lang, 'خطة المذاكرة', 'Study Plan'), icon: Calendar },
@@ -1381,6 +1425,15 @@ export default function App() {
       ]
     },
     { id: 'grammar', label: _resolveTranslation(lang, 'القواعد (AI)', 'Grammar (AI)'), icon: FileText },
+    {
+      id: 'tools_group',
+      label: _resolveTranslation(lang, 'الأدوات', 'Tools'),
+      icon: Wrench,
+      items: [
+        { id: 'smart-translation', label: _resolveTranslation(lang, 'الترجمة الذكية', 'Smart Translation'), icon: Languages },
+        { id: 'timer', label: _resolveTranslation(lang, 'المؤقت', 'Focus Timer'), icon: Clock },
+      ]
+    },
   ];
 
   return (
