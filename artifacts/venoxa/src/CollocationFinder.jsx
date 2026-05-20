@@ -19,7 +19,7 @@ import React, { useState, useCallback } from 'react';
 import {
   Link2, Sparkles, Loader2, AlertCircle, Volume2
 } from 'lucide-react';
-import { fetchFromAPI, parseJSONLoose } from './aiHelpers';
+import { fetchFromAPI, parseJSONLoose, speakEdge } from './aiHelpers';
 
 const PROMPT = (word) => `You are a corpus lexicographer. For the English word "${word}", return a SINGLE JSON object (no markdown, no preamble) listing the most common collocations grouped by pattern.
 
@@ -47,15 +47,6 @@ Rules:
 - 4-6 items per group, sorted by frequency (most common first).
 - Examples should be 6-12 words and sound natural.
 - Output ONLY valid JSON. No markdown. No code fences. No commentary.`;
-
-const speakWord = (text) => {
-  if (!text || !('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = 'en-US';
-  utt.rate = 0.9;
-  window.speechSynthesis.speak(utt);
-};
 
 const FREQ_COLOR = {
   'very common':  { bg: 'bg-green-500/15',  text: 'text-green-600' },
@@ -174,7 +165,7 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
                             {it.phrase}
                           </span>
                           <button
-                            onClick={() => speakWord(it.phrase)}
+                            onClick={() => speakEdge(it.phrase)}
                             className={`p-1 rounded-lg transition-all ${
                               isDark ? 'text-gray-500 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
                             }`}

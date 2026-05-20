@@ -121,3 +121,61 @@ export const dailySeed = () => {
   const d = new Date();
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 };
+// ─── Edge TTS helper ──────────────────────────────────────────────────────────
+/**
+ * Voice map — matches exactly what App.jsx uses via edgeTTSSpeak():
+ *   en-US → en-US-AvaMultilingualNeural  (American female)
+ *   en-GB → en-GB-RyanNeural             (British male)
+ */
+const _EDGE_VOICES = {
+  'en-US': 'en-US-AvaMultilingualNeural',
+  'en-GB': 'en-GB-RyanNeural',
+};
+
+let _currentEdgeAudio = null;
+
+const _browserFallback = (text, accent) => {
+  if (!('speechSynthesis' in window)) return;
+  const utt = new SpeechSynthesisUtterance(text.trim());
+  utt.lang  = accent;
+  utt.rate  = 0.92;
+  const voices = window.speechSynthesis.getVoices();
+  const pick = voices.find(v => v.lang === accent && !v.localService)
+    || voices.find(v => v.lang === accent)
+    || voices.find(v => v.lang.startsWith(accent.split('-')[0]));
+  if (pick) utt.voice = pick;
+  window.speechSynthesis.speak(utt);
+};
+
+/**
+ * speakEdge(text, accent?)
+ * Speaks text using the Edge Neural TTS proxy (/api/edge-tts).
+ *   accent: 'en-US' (default) | 'en-GB'
+ * Cancels any previous playback first.
+ * Falls back to browser speechSynthesis if the proxy is unreachable.
+ */
+export const speakEdge = async (text, accent = 'en-US') => {
+  if (!text?.trim()) return;
+
+  // Cancel whatever is currently playing
+  if (_currentEdgeAudio) { _currentEdgeAudio.pause(); _currentEdgeAudio = null; }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+  const voice = _EDGE_VOICES[accent] ?? _EDGE_VOICES['en-US'];
+
+  try {
+    const params = new URLSearchParams({ text: text.trim(), voice });
+    const url    = `${BASE}api/edge-tts?${params}`;
+    const audio  = new Audio(url);
+    audio.preload = 'auto';
+    _currentEdgeAudio = audio;
+    audio.onended = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
+    audio.onerror = () => {
+      if (_currentEdgeAudio === audio) _currentEdgeAudio = null;
+      _browserFallback(text, accent);
+    };
+    await audio.play();          // resolves once playback starts (streaming)
+  } catch {
+    _browserFallback(text, accent);
+  }
+};

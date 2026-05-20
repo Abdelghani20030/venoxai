@@ -26,6 +26,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   Ear, Volume2, RotateCcw, Check, X, Loader2, Trophy, Zap
 } from 'lucide-react';
+import { speakEdge } from './aiHelpers';
 
 // ─── Curated minimal pairs ────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -76,21 +77,6 @@ const PAIRS = [
   { cat: 'ɒ_ɔː', a: 'pot',    b: 'port'  },
 ];
 
-// ─── Web Speech API helpers ───────────────────────────────────────────────────
-const speak = (text, accent = 'en-US') => {
-  if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = accent;
-  utt.rate = 0.85;
-  utt.pitch = 1;
-  // Try to pick a matching voice
-  const voices = window.speechSynthesis.getVoices();
-  const v = voices.find(x => x.lang === accent) || voices.find(x => x.lang.startsWith('en'));
-  if (v) utt.voice = v;
-  window.speechSynthesis.speak(utt);
-};
-
 const ACCENTS = [
   { id: 'en-US', label: 'US' },
   { id: 'en-GB', label: 'UK' },
@@ -107,14 +93,6 @@ export default function MinimalPairs({ lang: uiLang = 'ar', theme = 'dark' }) {
   const [busy, setBusy]         = useState(false);
   const [score, setScore]       = useState({ right: 0, total: 0 });
 
-  // Pre-load voices (some browsers populate voices async).
-  useEffect(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-    }
-  }, []);
-
   const pickRound = useCallback(() => {
     const filtered = category === 'all' ? PAIRS : PAIRS.filter(p => p.cat === category);
     if (!filtered.length) return;
@@ -125,7 +103,7 @@ export default function MinimalPairs({ lang: uiLang = 'ar', theme = 'dark' }) {
     // Speak after a tick so React has flushed
     setBusy(true);
     setTimeout(() => {
-      speak(pair[target], accent);
+      speakEdge(pair[target], accent);
       setBusy(false);
     }, 200);
   }, [category, accent]);
@@ -134,7 +112,7 @@ export default function MinimalPairs({ lang: uiLang = 'ar', theme = 'dark' }) {
     if (!current) return;
     setBusy(true);
     setTimeout(() => {
-      speak(current.pair[current.target], accent);
+      speakEdge(current.pair[current.target], accent);
       setBusy(false);
     }, 50);
   };

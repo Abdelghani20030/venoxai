@@ -2,10 +2,9 @@
  * SmartTranslation.jsx  — v4 (Accent Dropdown + Liquid Glass)
  * ─────────────────────────────────────────────────────────────────────
  * All v3 features preserved +
- *  • Accent pronunciation dropdown: US / UK / UK-RP / UK-YORKSHIRE /
- *    UK-SCOTTISH / US-SOUTHERN / IRISH / JAMAICAN
- *  • Playback-rate selector: 100% / 75% / 50%
- *  • Uses Web Speech API (SpeechSynthesis) — no external dependency
+ *  • US / UK accent toggle (pill switcher) — Edge Neural TTS via proxy
+ *     US: en-US-AvaMultilingualNeural (female) | UK: en-GB-RyanNeural (male)
+ *  • Browser speechSynthesis fallback
  *  • Liquid-glass panel styling on all major surfaces
  * ─────────────────────────────────────────────────────────────────────
  */
@@ -238,23 +237,12 @@ const MODES = [
   { id: 'literal',  label: 'Literal',  labelAr: 'حرفي',   hint: 'Word-for-word accuracy'  },
 ];
 
-// ─── Accent + Rate Config ─────────────────────────────────────────────────────
-
+// ─── Accent Config ────────────────────────────────────────────────────────────────────────────────
+// Two accents only: US (American female) and UK (British male)
+// Uses the same Edge Neural voices as App.jsx’s edgeTTSSpeak()
 const ACCENT_OPTIONS = [
-  { code: 'en-US',        label: 'US',           lang: 'en-US'         },
-  { code: 'en-GB',        label: 'UK',           lang: 'en-GB'         },
-  { code: 'en-GB-x-rp',  label: 'UK-RP',        lang: 'en-GB'         },
-  { code: 'en-GB-x-yrk', label: 'UK-YORKSHIRE', lang: 'en-GB'         },
-  { code: 'en-GB-x-sct', label: 'UK-SCOTTISH',  lang: 'en-GB-scotland'},
-  { code: 'en-US-x-sth', label: 'US-SOUTHERN',  lang: 'en-US'         },
-  { code: 'en-IE',        label: 'IRISH',        lang: 'en-IE'         },
-  { code: 'en-JM',        label: 'JAMAICAN',     lang: 'en-JM'         },
-];
-
-const RATE_OPTIONS = [
-  { value: 1.0,  label: '100%' },
-  { value: 0.75, label: '75%'  },
-  { value: 0.5,  label: '50%'  },
+  { code: 'en-US', label: 'US', edgeVoice: 'en-US-AvaMultilingualNeural' },
+  { code: 'en-GB', label: 'UK', edgeVoice: 'en-GB-RyanNeural'            },
 ];
 
 const HISTORY_KEY   = 'venoxa_translation_history';
@@ -345,79 +333,72 @@ function LangDropdown({ value, onChange, exclude, uiLang, theme, position = 'bot
   );
 }
 
-// ─── Accent Speak Button ──────────────────────────────────────────────────────
+// ─── Accent Speak Button ────────────────────────────────────────────
 /**
- * A combined Volume2 trigger + accent/rate dropdown.
- * Uses the Web Speech API (window.speechSynthesis) — no key needed.
+ * Volume2 trigger + US/UK pill toggle.
+ * Primary: Edge Neural TTS via /api/edge-tts proxy (same voices as App.jsx).
+ *   US → en-US-AvaMultilingualNeural  (American female)
+ *   UK → en-GB-RyanNeural             (British male)
+ * Fallback: browser speechSynthesis when proxy is unavailable.
  */
 function AccentSpeakButton({ text, isDark, label = 'Listen' }) {
   const [accent,   setAccent]   = useState('en-US');
-  const [rate,     setRate]     = useState(1.0);
-  const [open,     setOpen]     = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const ref = useRef(null);
+  const audioRef = useRef(null);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    if (open) document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [open]);
+  const selectedAccent = ACCENT_OPTIONS.find(a => a.code === accent) ?? ACCENT_OPTIONS[0];
 
-  const selectedAccent = ACCENT_OPTIONS.find(a => a.code === accent) || ACCENT_OPTIONS[0];
-  const selectedRate   = RATE_OPTIONS.find(r => r.value === rate)    || RATE_OPTIONS[0];
-
-  const speak = () => {
+  const speak = async () => {
     if (!text?.trim() || speaking) return;
-    if (!('speechSynthesis' in window)) {
-      console.warn('Web Speech API not supported in this browser.');
-      return;
-    }
-    window.speechSynthesis.cancel();
 
-    const utt  = new SpeechSynthesisUtterance(text.trim());
-    utt.lang   = selectedAccent.lang;
-    utt.rate   = rate;
-    utt.pitch  = 1;
-    utt.volume = 1;
-
-    // Try to find a matching voice
-    const assignVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (!voices.length) return;
-      // 1. Exact lang match
-      let voice = voices.find(v => v.lang === selectedAccent.lang);
-      // 2. Prefix match (e.g. en-GB-scotland → en-GB)
-      if (!voice) voice = voices.find(v => v.lang.startsWith(selectedAccent.lang.split('-').slice(0, 2).join('-')));
-      // 3. Any English voice
-      if (!voice) voice = voices.find(v => v.lang.startsWith('en'));
-      if (voice) utt.voice = voice;
-    };
-
-    assignVoice();
-
-    // Browsers may not have voices until the event fires
-    if (!utt.voice) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        assignVoice();
-        window.speechSynthesis.onvoiceschanged = null;
-      };
-    }
+    // Stop any current playback
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
     setSpeaking(true);
+
+    // ── Primary: Edge Neural TTS via proxy (same as App.jsx) ──
+    try {
+      const params = new URLSearchParams({ text: text.trim(), voice: selectedAccent.edgeVoice });
+      const url = `${BASE}api/edge-tts?${params}`;
+      const audio = new Audio(url);
+      audio.preload = 'auto';
+      audioRef.current = audio;
+      audio.onended  = () => { audioRef.current = null; setSpeaking(false); };
+      audio.onerror  = () => { audioRef.current = null; setSpeaking(false); browserFallback(); };
+      await audio.play();
+      return; // success — setSpeaking(false) fires via onended
+    } catch {
+      // proxy unreachable → fall through to browser
+    }
+
+    browserFallback();
+  };
+
+  const browserFallback = () => {
+    if (!('speechSynthesis' in window)) { setSpeaking(false); return; }
+    const utt = new SpeechSynthesisUtterance(text.trim());
+    utt.lang  = selectedAccent.code;
+    utt.rate  = 0.92;
+    const voices = window.speechSynthesis.getVoices();
+    // Prefer neural / online voices matching the accent
+    const pick = voices.find(v => v.lang === selectedAccent.code && !v.localService)
+      || voices.find(v => v.lang === selectedAccent.code)
+      || voices.find(v => v.lang.startsWith(selectedAccent.code.split('-')[0]));
+    if (pick) utt.voice = pick;
     utt.onend  = () => setSpeaking(false);
     utt.onerror = () => setSpeaking(false);
     window.speechSynthesis.speak(utt);
   };
 
   return (
-    <div ref={ref} className={`relative flex items-center gap-0.5 ${open ? 'z-[300]' : ''}`}>
+    <div className="flex items-center gap-1">
 
-      {/* ── Listen trigger button ── */}
+      {/* ── Listen trigger ── */}
       <button
         onClick={speak}
         disabled={!text?.trim()}
-        title={`${label} (${selectedAccent.label} · ${selectedRate.label})`}
+        title={`${label} – ${selectedAccent.label} accent`}
         className={`flex items-center gap-1.5 p-2 rounded-xl transition-all disabled:opacity-30 ${
           isDark
             ? 'text-gray-400 hover:text-white hover:bg-white/10'
@@ -430,56 +411,38 @@ function AccentSpeakButton({ text, isDark, label = 'Listen' }) {
         }
       </button>
 
-      {/* ── Accent/rate selector ── */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        title="Select accent & playback rate"
-        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-wide transition-all liquid-glass ${
-          isDark
-            ? 'bg-white/5 text-gray-300 hover:bg-white/10'
-            : 'bg-black/4 text-gray-500 hover:bg-black/7'
-        } ${open ? (isDark ? 'bg-white/12' : 'bg-black/8') : ''}`}
+      {/* ── US | UK pill toggle ── */}
+      <div
+        className="flex rounded-xl overflow-hidden text-[10px] font-extrabold uppercase tracking-wide"
+        style={{
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)'}`,
+        }}
       >
-        <span>{selectedAccent.label}</span>
-        <ChevronDown className={`w-3 h-3 opacity-50 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-      </button>
+        {ACCENT_OPTIONS.map((a, i) => (
+          <button
+            key={a.code}
+            onClick={() => setAccent(a.code)}
+            className="px-2.5 py-1 transition-all duration-150"
+            style={{
+              background: accent === a.code
+                ? 'var(--app-accent1)'
+                : 'transparent',
+              color: accent === a.code
+                ? '#fff'
+                : isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)',
+              borderRight: i === 0
+                ? `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)'}`
+                : 'none',
+            }}
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
 
-      {/* ── Dropdown ── */}
-      {open && (
-        <div className="dropdown-menu absolute top-full right-0 mt-2 min-w-[175px]">
-
-          {/* ACCENTS section */}
-          <div className="dropdown-section-label">Accents</div>
-          {ACCENT_OPTIONS.map(a => (
-            <button
-              key={a.code}
-              onClick={() => setAccent(a.code)}
-              className={`dropdown-item justify-start text-left text-xs ${accent === a.code ? 'active' : ''}`}
-            >
-              {a.label}
-            </button>
-          ))}
-
-          {/* Divider */}
-          <div className="dropdown-divider" />
-
-          {/* PLAYBACK RATE section */}
-          <div className="dropdown-section-label">Playback Rate</div>
-          {RATE_OPTIONS.map(r => (
-            <button
-              key={r.value}
-              onClick={() => { setRate(r.value); setOpen(false); }}
-              className={`dropdown-item justify-start text-left text-xs ${rate === r.value ? 'active' : ''}`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
-
 function CopyButton({ text, theme }) {
   const [copied, setCopied] = useState(false);
   const isDark = theme === 'dark';

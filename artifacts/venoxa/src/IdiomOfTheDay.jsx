@@ -20,7 +20,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Lightbulb, Loader2, AlertCircle, Volume2, RefreshCw, Quote
 } from 'lucide-react';
-import { fetchFromAPI, parseJSONLoose, dailySeed } from './aiHelpers';
+import { fetchFromAPI, parseJSONLoose, dailySeed, speakEdge } from './aiHelpers';
 
 const CACHE_KEY = 'venoxa_idiom_of_day';
 
@@ -49,15 +49,6 @@ Rules:
 - 2-4 similar idioms.
 - Avoid offensive idioms.
 - Output ONLY valid JSON. No markdown. No code fences. No commentary.`;
-
-const speakText = (text) => {
-  if (!text || !('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = 'en-US';
-  utt.rate = 0.9;
-  window.speechSynthesis.speak(utt);
-};
 
 const todayKey = () => {
   const d = new Date();
@@ -186,7 +177,7 @@ export default function IdiomOfTheDay({ lang: uiLang = 'ar', theme = 'dark' }) {
                   {data.idiom}
                 </span>
                 <button
-                  onClick={() => speakText(data.idiom)}
+                  onClick={() => speakEdge(data.idiom)}
                   className={`p-2 rounded-xl transition-all ${
                     isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
                   }`}
@@ -258,7 +249,7 @@ export default function IdiomOfTheDay({ lang: uiLang = 'ar', theme = 'dark' }) {
                       “{ex.en}”
                     </p>
                     <button
-                      onClick={() => speakText(ex.en)}
+                      onClick={() => speakEdge(ex.en)}
                       className={`shrink-0 p-1 rounded-lg transition-all ${
                         isDark ? 'text-gray-500 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
                       }`}

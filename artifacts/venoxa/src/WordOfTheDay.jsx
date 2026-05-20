@@ -24,7 +24,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   BookMarked, Sparkles, Loader2, AlertCircle, Volume2, RefreshCw, Plus, Check
 } from 'lucide-react';
-import { fetchFromAPI, parseJSONLoose, dailySeed } from './aiHelpers';
+import { fetchFromAPI, parseJSONLoose, dailySeed, speakEdge } from './aiHelpers';
 
 const CACHE_KEY = 'venoxa_word_of_day';
 
@@ -50,15 +50,6 @@ Rules:
 - Avoid super-rare archaic words. Pick words that real C1 learners would benefit from.
 - Avoid offensive or sensitive vocabulary.
 - Output ONLY valid JSON. No markdown. No code fences. No commentary.`;
-
-const speakWord = (text) => {
-  if (!text || !('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = 'en-US';
-  utt.rate = 0.9;
-  window.speechSynthesis.speak(utt);
-};
 
 const todayKey = () => {
   const d = new Date();
@@ -197,7 +188,7 @@ export default function WordOfTheDay({ lang: uiLang = 'ar', theme = 'dark', onAd
                 {data.word}
               </span>
               <button
-                onClick={() => speakWord(data.word)}
+                onClick={() => speakEdge(data.word)}
                 className={`mb-1 p-2 rounded-xl transition-all ${
                   isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
                 }`}

@@ -17,7 +17,7 @@ import React, { useState, useCallback } from 'react';
 import {
   GitFork, Sparkles, Loader2, AlertCircle, Volume2
 } from 'lucide-react';
-import { fetchFromAPI, parseJSONLoose } from './aiHelpers';
+import { fetchFromAPI, parseJSONLoose, speakEdge } from './aiHelpers';
 
 const PROMPT = (word) => `You are a lexicographer. For the English word "${word}", return a SINGLE JSON object (no markdown, no preamble) with the complete word family. Schema:
 
@@ -52,15 +52,6 @@ Rules:
 - Examples should be short (8-15 words) and natural.
 - Output ONLY valid JSON. No markdown. No code fences. No commentary.`;
 
-const speakWord = (text) => {
-  if (!text || !('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = 'en-US';
-  utt.rate = 0.9;
-  window.speechSynthesis.speak(utt);
-};
-
 function FormChip({ form, label, isDark }) {
   if (!form) return null;
   return (
@@ -72,7 +63,7 @@ function FormChip({ form, label, isDark }) {
       }`}>{label}</span>}
       <span>{form}</span>
       <button
-        onClick={() => speakWord(form)}
+        onClick={() => speakEdge(form)}
         className={`p-1 rounded-lg transition-all ${
           isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-400'
         }`}
@@ -195,7 +186,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
               }`}>{data.ipa}</span>
             )}
             <button
-              onClick={() => speakWord(data.base)}
+              onClick={() => speakEdge(data.base)}
               className={`ml-auto p-2 rounded-xl transition-all ${
                 isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
               }`}
