@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import Pronunciation from './Pronunciation';
 import SmartTranslation from './SmartTranslation';
 import TimerTool from './TimerTool';
+import ToneRewriter from './ToneRewriter';
+import SentenceDiagrammer from './SentenceDiagrammer';
+import MinimalPairs from './MinimalPairs';
+import WordFamilyExplorer from './WordFamilyExplorer';
+import CollocationFinder from './CollocationFinder';
+import EtymologyExplorer from './EtymologyExplorer';
+import WordOfTheDay from './WordOfTheDay';
+import IdiomOfTheDay from './IdiomOfTheDay';
 import LiquidGlass from 'liquid-glass-react';
 import avatarUsMale from './assets/avatar-us-male.png';
 import avatarUsFemale from './assets/avatar-us-female.png';
@@ -1358,6 +1366,22 @@ export default function App() {
         }} />;
       case 'timer':
         return <TimerTool lang={lang} theme={theme} timerState={timerState} setTimerState={setTimerState} />;
+      case 'tone-rewriter':
+        return <ToneRewriter lang={lang} theme={theme} />;
+      case 'sentence-diagrammer':
+        return <SentenceDiagrammer lang={lang} theme={theme} />;
+      case 'minimal-pairs':
+        return <MinimalPairs lang={lang} theme={theme} />;
+      case 'word-family':
+        return <WordFamilyExplorer lang={lang} theme={theme} />;
+      case 'collocations':
+        return <CollocationFinder lang={lang} theme={theme} />;
+      case 'etymology':
+        return <EtymologyExplorer lang={lang} theme={theme} />;
+      case 'word-of-day':
+        return <WordOfTheDay lang={lang} theme={theme} />;
+      case 'idiom-of-day':
+        return <IdiomOfTheDay lang={lang} theme={theme} />;
       default:
         return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} currentWeek={currentWeek} streakData={streakData} />;
     }
@@ -1430,8 +1454,16 @@ export default function App() {
       label: _resolveTranslation(lang, 'الأدوات', 'Tools'),
       icon: Wrench,
       items: [
-        { id: 'smart-translation', label: _resolveTranslation(lang, 'الترجمة الذكية', 'Smart Translation'), icon: Languages },
-        { id: 'timer', label: _resolveTranslation(lang, 'المؤقت', 'Focus Timer'), icon: Clock },
+        { id: 'smart-translation',    label: _resolveTranslation(lang, 'الترجمة الذكية',     'Smart Translation'),   icon: Languages    },
+        { id: 'tone-rewriter',        label: _resolveTranslation(lang, 'إعادة صياغة النبرة', 'Tone Rewriter'),        icon: Sliders      },
+        { id: 'sentence-diagrammer',  label: _resolveTranslation(lang, 'محلّل الجمل',         'Sentence Diagrammer'),  icon: GitBranch    },
+        { id: 'minimal-pairs',        label: _resolveTranslation(lang, 'الأزواج الدنيا',     'Minimal Pairs'),        icon: Ear          },
+        { id: 'word-family',          label: _resolveTranslation(lang, 'عائلة الكلمة',       'Word Family'),          icon: GitFork      },
+        { id: 'collocations',         label: _resolveTranslation(lang, 'متلازمات الكلمات',   'Collocations'),         icon: Link2        },
+        { id: 'etymology',            label: _resolveTranslation(lang, 'أصول الكلمات',       'Etymology'),            icon: ScrollText   },
+        { id: 'word-of-day',          label: _resolveTranslation(lang, 'كلمة اليوم',         'Word of the Day'),      icon: BookMarked   },
+        { id: 'idiom-of-day',         label: _resolveTranslation(lang, 'تعبير اليوم',        'Idiom of the Day'),     icon: Lightbulb    },
+        { id: 'timer',                label: _resolveTranslation(lang, 'المؤقت',            'Focus Timer'),           icon: Clock        },
       ]
     },
   ];
@@ -7924,4 +7956,3 @@ Rules:
     </div>}
   </div>;
 }
-
