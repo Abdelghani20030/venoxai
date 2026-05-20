@@ -1604,13 +1604,14 @@ export default function App() {
 
                   {isGroup && isOpen && (
                     <div 
-                      className="dropdown-menu absolute top-full left-1/2 -translate-x-1/2 mt-3 p-1.5 rounded-2xl shadow-2xl z-[70] animate-in fade-in slide-in-from-top-2 duration-200 min-w-[calc(100%+12px)] w-max"
+                      className="dropdown-menu absolute top-full left-1/2 -translate-x-1/2 mt-3 p-1.5 pb-3 rounded-2xl shadow-2xl z-[70] animate-in fade-in slide-in-from-top-2 duration-200 min-w-[calc(100%+12px)] w-max"
                       style={{
                         background: theme === 'dark' ? 'rgba(10, 10, 12, 0.6)' : 'rgba(255, 255, 255, 0.6)',
                         backdropFilter: 'blur(40px) saturate(200%)',
                         WebkitBackdropFilter: 'blur(40px) saturate(200%)',
                         border: theme === 'dark' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
-                        overflow: 'visible'
+                        maxHeight: 'min(480px, 80vh)',
+                        overflowY: 'auto'
                       }}
                     >
                       {item.items.map(sub => (
