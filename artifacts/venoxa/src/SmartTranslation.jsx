@@ -306,7 +306,12 @@ function LangDropdown({ value, onChange, exclude, uiLang, theme, position = 'bot
             : 'bg-white/60 text-gray-700 hover:bg-white/80'
         }`}
       >
-        <FlagNode lang={sel} />
+        <span
+          className="inline-flex items-center justify-center shrink-0"
+          style={{ width: 22, height: 14 }}
+        >
+          <FlagNode lang={sel} />
+        </span>
         <span className="truncate max-w-[90px]">{label}</span>
         <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
       </button>
@@ -320,10 +325,18 @@ function LangDropdown({ value, onChange, exclude, uiLang, theme, position = 'bot
             <button
               key={l.code}
               onClick={() => { onChange(l.code); setOpen(false); }}
-              className={`dropdown-item justify-start gap-3 ${value === l.code ? 'active' : ''}`}
+              className={`dropdown-item ${value === l.code ? 'active' : ''}`}
+              style={{ justifyContent: 'flex-start', textAlign: 'left', gap: 12 }}
             >
-              <FlagNode lang={l} />
-              <span>{uiLang === 'ar' ? l.labelAr : l.label}</span>
+              <span
+                className="inline-flex items-center justify-center shrink-0"
+                style={{ width: 22, height: 14 }}
+              >
+                <FlagNode lang={l} />
+              </span>
+              <span className="flex-1 text-left truncate">
+                {uiLang === 'ar' ? l.labelAr : l.label}
+              </span>
             </button>
           ))}
         </div>
