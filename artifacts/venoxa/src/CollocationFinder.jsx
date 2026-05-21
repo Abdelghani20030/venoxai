@@ -1,59 +1,44 @@
 /**
  * CollocationFinder.jsx
  * ─────────────────────────────────────────────────────────────────────
- * Type a word and see the natural word combinations English speakers
- * actually use. Categorises results by syntactic pattern:
- *   • Verb + (target)        e.g. "make" → "make a decision"
- *   • Adjective + (target)   e.g. "decision" → "tough decision"
- *   • (target) + Noun        e.g. "make" → "make sense"
- *   • Preposition + (target) e.g. "decision" → "on the decision"
- *   • Fixed expressions      e.g. "make do with"
+ * Type a word → see natural collocations from the Oxford Collocations
+ * Dictionary (BNC data) via ozdic.com.
  *
- * This is intentionally different from the WordReference-style analysis
- * inside Smart Translation — that one focuses on *meaning senses*,
- * while this one focuses on *combinatorial patterns*.
+ * Data priority:
+ *   1. /api/ozdic  — scrapes ozdic.com (BNC / Oxford Collocations Dict)
+ *   2. AI fallback — fetchFromAPI when Ozdic doesn't have the word
+ *
+ * Groups are rendered with a chip-grid for quick scanning + an example
+ * sentence per group when available.
  * ─────────────────────────────────────────────────────────────────────
  */
 
 import React, { useState, useCallback } from 'react';
 import {
-  Link2, Sparkles, Loader2, AlertCircle, Volume2
+  Link2, Sparkles, Loader2, AlertCircle, Volume2, Database, Cpu
 } from 'lucide-react';
 import { fetchFromAPI, parseJSONLoose, speakEdge } from './aiHelpers';
 
-const PROMPT = (word) => `You are a corpus lexicographer. For the English word "${word}", return a SINGLE JSON object (no markdown, no preamble) listing the most common collocations grouped by pattern.
+const BASE = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL)
+  ? import.meta.env.BASE_URL : '/';
+
+// ── AI fallback prompt ────────────────────────────────────────────────────────
+const AI_PROMPT = (word) => `You are a corpus lexicographer. For the English word "${word}", return a SINGLE JSON object listing collocations.
 
 {
   "word": "${word}",
   "groups": [
     {
-      "pattern": "verb + ${word}        | adjective + ${word} | ${word} + noun | ${word} + verb | preposition + ${word} | ${word} + preposition | fixed expression",
-      "patternAr": "Arabic translation of the pattern label",
-      "items": [
-        {
-          "phrase":     "the full collocation, e.g. 'make a decision'",
-          "meaning":    "short English gloss",
-          "meaningAr":  "ترجمة عربية مختصرة",
-          "example":    "natural example sentence",
-          "frequency":  "very common | common | less common"
-        }
-      ]
+      "pattern": "VERB + WORD | ADJ. | WORD + NOUN | PHRASES",
+      "collocations": ["make", "take", "reach"],
+      "example": "one natural example sentence"
     }
   ]
 }
 
-Rules:
-- Include 4-6 groups. Pick the patterns that genuinely apply.
-- 4-6 items per group, sorted by frequency (most common first).
-- Examples should be 6-12 words and sound natural.
-- Output ONLY valid JSON. No markdown. No code fences. No commentary.`;
+Rules: 4-6 groups, 5-10 short collocations per group, one example sentence per group.
+Output ONLY valid JSON. No markdown. No code fences.`;
 
-const FREQ_COLOR = {
-  'very common':  { bg: 'bg-green-500/15',  text: 'text-green-600' },
-  'common':       { bg: 'bg-blue-500/15',   text: 'text-blue-500'  },
-  'less common':  { bg: 'bg-gray-500/15',   text: 'text-gray-500'  },
-};
-const freqStyle = (f = '') => FREQ_COLOR[f.toLowerCase()] || FREQ_COLOR['common'];
 
 export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' }) {
   const isDark = theme === 'dark';
@@ -64,17 +49,41 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  const [source, setSource] = useState(null); // 'ozdic' | 'ai' | null
+
   const find = useCallback(async () => {
     if (!word.trim() || busy) return;
     setBusy(true);
     setError('');
     setData(null);
-    const raw = await fetchFromAPI(PROMPT(word.trim()), 3000);
+    setSource(null);
+
+    const w = word.trim().toLowerCase();
+
+    // ── 1. Try Ozdic (BNC / Oxford Collocations Dictionary) ──────────────
+    try {
+      const res = await fetch(`${BASE}api/ozdic?word=${encodeURIComponent(w)}`, {
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.found && json.groups?.length) {
+          setData({ word: json.word, groups: json.groups, source: 'ozdic' });
+          setSource('ozdic');
+          setBusy(false);
+          return;
+        }
+      }
+    } catch { /* ozdic unreachable — fall through to AI */ }
+
+    // ── 2. AI fallback ────────────────────────────────────────────────────
+    const raw    = await fetchFromAPI(AI_PROMPT(w), 2000);
     const parsed = parseJSONLoose(raw);
-    if (!parsed) {
+    if (!parsed?.groups?.length) {
       setError(t('Lookup failed. Please try again.', 'فشل البحث. حاول مرة أخرى.'));
     } else {
-      setData(parsed);
+      setData({ ...parsed, source: 'ai' });
+      setSource('ai');
     }
     setBusy(false);
   }, [word, busy, t]);
@@ -138,62 +147,70 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
         </div>
       )}
 
+      {/* Source badge */}
+      {data && source && (
+        <div className="flex items-center gap-2">
+          {source === 'ozdic' ? (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-widest bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
+              <Database className="w-3 h-3" />
+              Oxford Collocations · BNC
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-widest bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+              <Cpu className="w-3 h-3" />
+              AI generated
+            </span>
+          )}
+        </div>
+      )}
+
       {data?.groups?.map((group, gi) => (
         <div key={gi} className={`rounded-3xl overflow-hidden liquid-glass ${
           isDark ? 'bg-white/3' : 'bg-white/40'
         }`}>
-          <div className={`px-5 py-3 flex items-center justify-between text-xs font-extrabold uppercase tracking-widest ${
+          <div className={`px-5 py-3 text-xs font-extrabold uppercase tracking-widest ${
             isDark ? 'bg-white/5 text-[var(--app-accent2)]' : 'bg-black/4 text-[var(--app-accent2)]'
-          }`}>
-            <span dir="ltr">{group.pattern}</span>
-            {group.patternAr && uiLang === 'ar' && (
-              <span className="opacity-60 text-[10px] normal-case">{group.patternAr}</span>
-            )}
+          }`} dir="ltr">
+            {group.pattern}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <tbody>
-                {group.items?.map((it, i) => {
-                  const fs = freqStyle(it.frequency);
-                  return (
-                    <tr key={i} className={`border-b transition-colors ${
-                      isDark ? 'border-white/5 hover:bg-white/4' : 'border-black/4 hover:bg-black/3'
-                    } ${i % 2 === 1 ? (isDark ? 'bg-white/2' : 'bg-black/2') : ''}`}>
-                      <td className="px-4 py-3 align-top">
-                        <div className="flex items-start gap-2 flex-wrap">
-                          <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`} dir="ltr">
-                            {it.phrase}
-                          </span>
-                          <button
-                            onClick={() => speakEdge(it.phrase)}
-                            className={`p-1 rounded-lg transition-all ${
-                              isDark ? 'text-gray-500 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
-                            }`}
-                            title="Speak"
-                          >
-                            <Volume2 className="w-3.5 h-3.5" />
-                          </button>
-                          {it.frequency && (
-                            <span className={`text-[10px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded-md ${fs.bg} ${fs.text}`}>
-                              {it.frequency}
-                            </span>
-                          )}
-                        </div>
-                        {it.example && (
-                          <p className={`text-xs italic mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} dir="ltr">“{it.example}”</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 align-top text-right" style={{ minWidth: 180 }}>
-                        <p className={`text-sm font-bold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}
-                           dir={uiLang === 'ar' ? 'rtl' : 'ltr'}>
-                          {uiLang === 'ar' && it.meaningAr ? it.meaningAr : it.meaning}
-                        </p>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="px-5 py-4 flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2" dir="ltr">
+              {group.collocations?.map((coll, ci) => (
+                <button
+                  key={ci}
+                  onClick={() => speakEdge(coll)}
+                  title={`Speak "${coll}"`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                    isDark
+                      ? 'bg-white/6 text-white hover:bg-white/12 hover:text-[var(--app-accent1)]'
+                      : 'bg-white/70 text-gray-800 hover:bg-white hover:text-[var(--app-accent1)]'
+                  }`}
+                >
+                  {coll}
+                  <Volume2 className="w-3 h-3 opacity-40" />
+                </button>
+              ))}
+            </div>
+            {group.example && (
+              <div className="flex items-start gap-2">
+                <p className={`flex-1 text-sm italic border-l-2 border-[var(--app-accent1)]/40 pl-3 ${
+                  isDark ? 'text-gray-400' : 'text-gray-600'
+                }`} dir="ltr">
+                  "{group.example}"
+                </p>
+                <button
+                  onClick={() => speakEdge(group.example)}
+                  title="Play full sentence"
+                  className={`shrink-0 p-1.5 rounded-xl transition-all ${
+                    isDark
+                      ? 'text-gray-500 hover:text-white hover:bg-white/10'
+                      : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
+                  }`}
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}
