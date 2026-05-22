@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import Pronunciation from './Pronunciation';
 import SmartTranslation from './SmartTranslation';
@@ -628,15 +628,11 @@ const _playCachedAudio = async (arrayBuf) => {
   return new Promise((resolve) => {
     const finish = () => {
       URL.revokeObjectURL(url);
-      audio.removeEventListener('ended', finish);
-      audio.removeEventListener('error', finish);
-      audio.removeEventListener('pause', finish);
       if (_currentTTSAudio === audio) _currentTTSAudio = null;
       resolve();
     };
-    audio.addEventListener('ended', finish);
-    audio.addEventListener('error', finish);
-    audio.addEventListener('pause', finish);
+    audio.onended = finish;
+    audio.onerror = finish;
     audio.play().catch(finish);
   });
 };
@@ -682,237 +678,220 @@ const EDGE_VOICES = {
 
 /**
  * withTimeout(promise, ms)
- * Races a promise against a deadline that resolves null.
- * Used ONLY for fetch operations — never for promises that have
- * playback side effects.
+ * Races a TTS promise against a deadline that resolves false.
+ * Prevents slow / unreachable backends from stalling the fallback chain.
  */
 const withTimeout = (promise, ms) =>
-  Promise.race([promise, new Promise(resolve => setTimeout(() => resolve(null), ms))]);
-
-// Cached probe result for /api/edge-tts availability (per session).
-// 'unknown' | 'available' | 'unavailable'
-let _edgeTTSAvailable = 'unknown';
-
-/**
- * _probeEdgeTTS()
- * Checks whether the /api/edge-tts endpoint actually serves audio (not a
- * 503 JSON stub like Vercel serverless returns). Result is cached for the
- * session so subsequent calls are instant.
- */
-const _probeEdgeTTS = async () => {
-  if (_edgeTTSAvailable !== 'unknown') return _edgeTTSAvailable === 'available';
-  try {
-    const warmupUrl = `${import.meta.env.BASE_URL}api/edge-tts-warmup`;
-    const r = await fetch(warmupUrl, { signal: AbortSignal.timeout(3000) });
-    const data = await r.json().catch(() => ({}));
-    _edgeTTSAvailable = (r.ok && data.ok === true) ? 'available' : 'unavailable';
-  } catch {
-    _edgeTTSAvailable = 'unavailable';
-  }
-  return _edgeTTSAvailable === 'available';
-};
-
-// ── FETCH-ONLY TTS helpers ──────────────────────────────────────────────
-// These return an ArrayBuffer of audio data WITHOUT playing anything.
-// This separation prevents the dual-audio bug where withTimeout would race
-// against a TTS function that had already started playing audio.
-
-/**
- * _fetchGroqAudio(text, gender) → ArrayBuffer | null
- */
-const _fetchGroqAudio = async (text, gender) => {
-  const voice = gender === 'female' ? 'alice' : 'adam';
-  const normalized = normalizeTTSText(text);
-  if (normalized.length > 200) return null; // Orpheus limit
-  const ck = _audioCacheKey(normalized, 'groq:' + voice);
-  const cached = await _getCachedAudio(ck);
-  if (cached) return cached;
-  try {
-    const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
-    if (!r.ok) return null;
-    const ct = r.headers.get('content-type') || '';
-    if (!ct.includes('audio')) return null;
-    const buf = await r.arrayBuffer();
-    if (buf.byteLength < 100) return null; // too small to be real audio
-    _setCachedAudio(ck, buf);
-    return buf;
-  } catch { return null; }
-};
-
-/**
- * _fetchGeminiAudio(text, gender) → ArrayBuffer | null
- */
-const _fetchGeminiAudio = async (text, gender) => {
-  const voice = gender === 'female' ? 'aoede' : 'puck';
-  const normalized = normalizeTTSText(text);
-  const ck = _audioCacheKey(normalized, 'gemini:' + voice);
-  const cached = await _getCachedAudio(ck);
-  if (cached) return cached;
-  try {
-    const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return null;
-    const ct = r.headers.get('content-type') || '';
-    if (!ct.includes('audio')) return null;
-    const buf = await r.arrayBuffer();
-    if (buf.byteLength < 100) return null;
-    _setCachedAudio(ck, buf);
-    return buf;
-  } catch { return null; }
-};
-
-/**
- * _fetchKokoroAudio(text, gender, accent) → ArrayBuffer | null
- */
-const _fetchKokoroAudio = async (text, gender, accent) => {
-  const prefix = (accent === 'uk' ? 'b' : 'a') + (gender === 'female' ? 'f' : 'm');
-  const voices = { af: 'af_heart', am: 'am_fenrir', bf: 'bf_alice', bm: 'bm_george' };
-  const voice = voices[prefix] || 'af_heart';
-  const normalized = normalizeTTSText(text);
-  const ck = _audioCacheKey(normalized, 'kokoro:' + voice);
-  const cached = await _getCachedAudio(ck);
-  if (cached) return cached;
-  try {
-    const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/kokoro-tts?${params}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
-    if (!r.ok) return null;
-    const ct = r.headers.get('content-type') || '';
-    if (!ct.includes('audio')) return null;
-    const buf = await r.arrayBuffer();
-    if (buf.byteLength < 100) return null;
-    _setCachedAudio(ck, buf);
-    return buf;
-  } catch { return null; }
-};
-
-/**
- * _fetchEdgeAudio(text, voice) → ArrayBuffer | null
- */
-const _fetchEdgeAudio = async (text, voice) => {
-  const normalized = normalizeTTSText(text);
-  const ck = _audioCacheKey(normalized, 'edge:' + voice);
-  const cached = await _getCachedAudio(ck);
-  if (cached) return cached;
-  try {
-    const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return null;
-    const ct = r.headers.get('content-type') || '';
-    if (!ct.includes('audio')) { _edgeTTSAvailable = 'unavailable'; return null; }
-    const buf = await r.arrayBuffer();
-    if (buf.byteLength < 100) return null;
-    _setCachedAudio(ck, buf);
-    return buf;
-  } catch { return null; }
-};
+  Promise.race([promise, new Promise(resolve => setTimeout(() => resolve(false), ms))]);
 
 /**
  * edgeTTSSpeak(text, gender, voiceOverride, topLevelCacheKey?)
- *
- * FETCH-FIRST, PLAY-ONCE architecture:
- * Each TTS engine is tried as a pure data fetch (no playback side effects).
- * The first engine to return valid audio data wins — that data is played
- * exactly once via _playCachedAudio. This prevents the dual-audio bug
- * where a timed-out engine would still be playing while the next engine
- * starts its own playback.
- *
- * Returns true on success, false on failure.
+ * Free, unlimited Microsoft Edge TTS via the api-server proxy.
+ * Caches audio in IndexedDB so any word heard once plays instantly from
+ * cache on every future call — no network round-trip needed.
+ * Returns true on success, false on failure (so caller can fall back).
  */
 const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
+
+  // 1. Try Groq (Orpheus) first — capped at 700 ms so a slow/down server
+  //    never delays the chain. If it responds in time it's the best quality.
+  const okGroq = await withTimeout(groqTTSSpeak(text, genderKey), 700);
+  if (okGroq) return true;
+
+  // 2. Try Kokoro second (best local quality) — same 700 ms cap.
+  const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent), 700);
+  if (okKokoro) return true;
+
+  // 3. Try Gemini third (Cloud quality) — same 700 ms cap.
+  if (accent === 'us') {
+    const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 700);
+    if (okGemini) return true;
+  }
+
+  const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
   const normalized = normalizeTTSText(text);
+  const ck = _audioCacheKey(normalized, 'edge:' + voice);
 
-  let audioBuf = null;
-  let engine = null;
-  const sessionId = _currentTtsSessionId;
-
-  // 1. Try Groq (fastest cloud TTS) — generous timeout for cold starts
-  audioBuf = await withTimeout(_fetchGroqAudio(normalized, genderKey), 5000);
-  if (sessionId !== _currentTtsSessionId) return false;
-  if (audioBuf) { engine = 'groq'; }
-
-  // 2. Try Kokoro (local only, fast) — short timeout
-  if (!audioBuf) {
-    audioBuf = await withTimeout(_fetchKokoroAudio(normalized, genderKey, accent), 1500);
-    if (sessionId !== _currentTtsSessionId) return false;
-    if (audioBuf) engine = 'kokoro';
-  }
-
-  // 3. Try Gemini (cloud, works on Vercel) — generous timeout
-  if (!audioBuf) {
-    audioBuf = await withTimeout(_fetchGeminiAudio(normalized, genderKey), 6000);
-    if (sessionId !== _currentTtsSessionId) return false;
-    if (audioBuf) engine = 'gemini';
-  }
-
-  // 4. Try Edge TTS (local only — returns 503 JSON on Vercel)
-  if (!audioBuf) {
-    const edgeAvailable = await _probeEdgeTTS();
-    if (sessionId !== _currentTtsSessionId) return false;
-    if (edgeAvailable) {
-      const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
-      audioBuf = await _fetchEdgeAudio(normalized, voice);
-      if (sessionId !== _currentTtsSessionId) return false;
-      if (audioBuf) {
-        engine = 'edge';
-        // Also store under the top-level cache key if provided
-        if (topLevelCacheKey) {
-          const ck = _audioCacheKey(normalized, 'edge:' + voice);
-          if (topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, audioBuf);
-        }
-      }
-    }
-  }
-
-  // 5. Play the winning audio exactly once
-  if (audioBuf) {
-    await _playCachedAudio(audioBuf);
-    if (sessionId !== _currentTtsSessionId) return false;
-    _lastTTSEngine = engine;
+  const cached = await _getCachedAudio(ck);
+  if (cached) {
+    await _playCachedAudio(cached);
+    _lastTTSEngine = 'edge';
     return true;
   }
 
-  return false;
+  try {
+    const params = new URLSearchParams({ text: normalized, voice });
+    const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+    // Streaming playback — starts as soon as the first audio bytes arrive.
+    const audio = new Audio(url);
+    audio.preload = 'auto';
+    _currentTTSAudio = audio;
+
+    const wait = new Promise((resolve) => {
+      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+    });
+
+    // Background cache fill — does not block playback at all.
+    fetch(url)
+      .then(r => (r.ok ? r.arrayBuffer() : null))
+      .then(buf => {
+        if (!buf) return;
+        _setCachedAudio(ck, buf);
+        if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
+      })
+      .catch(() => { });
+
+    await audio.play();
+    _lastTTSEngine = 'edge';
+    await wait;
+    return true;
+  } catch (err) {
+    console.warn('[Venoxa] Edge TTS failed:', err.message);
+    return false;
+  }
 };
 
-// Legacy wrappers — kept so any code that directly calls these still works.
-// They now use the fetch-first helpers internally.
+/**
+ * High-quality, state-of-the-art TTS via Kokoro-FastAPI.
+ * Proxies to the backend /api/kokoro-tts.
+ * Falls back to Edge TTS if the service is unreachable.
+ */
 const kokoroTTSSpeak = async (text, gender, accent) => {
-  const buf = await _fetchKokoroAudio(text, gender, accent);
-  if (!buf) return false;
-  await _playCachedAudio(buf);
-  _lastTTSEngine = 'kokoro';
-  return true;
+  // Map our accent/gender to Kokoro voice codes
+  // US: af_heart (Female), am_fenrir (Male)
+  // UK: bf_alice (Female), bm_george (Male)
+  const prefix = (accent === 'uk' ? 'b' : 'a') + (gender === 'female' ? 'f' : 'm');
+  const voices = {
+    af: 'af_heart',
+    am: 'am_fenrir',
+    bf: 'bf_alice',
+    bm: 'bm_george'
+  };
+  const voice = voices[prefix] || 'af_heart';
+
+  const normalized = normalizeTTSText(text);
+  const ck = _audioCacheKey(normalized, 'kokoro:' + voice);
+
+  // 1. Cache hit - instant playback
+  const cached = await _getCachedAudio(ck);
+  if (cached) {
+    await _playCachedAudio(cached);
+    _lastTTSEngine = 'kokoro';
+    return true;
+  }
+
+  // 2. Network synthesis
+  try {
+    const params = new URLSearchParams({ text: normalized, voice });
+    const url = `${import.meta.env.BASE_URL}api/kokoro-tts?${params}`;
+
+    const audio = new Audio(url);
+    _currentTTSAudio = audio;
+
+    const wait = new Promise((resolve) => {
+      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+    });
+
+    // Fill cache in background
+    fetch(url)
+      .then(r => (r.ok ? r.arrayBuffer() : null))
+      .then(buf => buf && _setCachedAudio(ck, buf))
+      .catch(() => { });
+
+    await audio.play();
+    _lastTTSEngine = 'kokoro';
+    await wait;
+    return true;
+  } catch (err) {
+    console.warn('[Venoxa] Kokoro TTS failed:', err.message);
+    return false;
+  }
 };
 
+/**
+ * groqTTSSpeak(text, gender)
+ * Ultra-fast synthesis via Groq's Orpheus model.
+ * Proxies to /api/groq-tts.
+ */
 const groqTTSSpeak = async (text, gender) => {
-  const buf = await _fetchGroqAudio(text, gender);
-  if (!buf) return false;
-  await _playCachedAudio(buf);
-  _lastTTSEngine = 'groq';
-  return true;
+  const voice = gender === 'female' ? 'alice' : 'adam';
+  const normalized = normalizeTTSText(text);
+  // Short limit for Orpheus on Groq (200 chars)
+  if (normalized.length > 200) return false;
+
+  const ck = _audioCacheKey(normalized, 'groq:' + voice);
+
+  const cached = await _getCachedAudio(ck);
+  if (cached) {
+    await _playCachedAudio(cached);
+    _lastTTSEngine = 'groq';
+    return true;
+  }
+
+  try {
+    const params = new URLSearchParams({ text: normalized, voice });
+    const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
+    const audio = new Audio(url);
+    _currentTTSAudio = audio;
+    const wait = new Promise((resolve) => {
+      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+    });
+    await audio.play();
+    fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => { });
+    _lastTTSEngine = 'groq';
+    await wait;
+    return true;
+  } catch {
+    return false;
+  }
 };
 
+/**
+ * geminiTTSSpeak(text, gender)
+ * High-quality synthesis via Google Gemini Multimodal.
+ * Proxies to /api/gemini-tts. Works instantly with your Gemini API key.
+ */
 const geminiTTSSpeak = async (text, gender) => {
-  const buf = await _fetchGeminiAudio(text, gender);
-  if (!buf) return false;
-  await _playCachedAudio(buf);
-  _lastTTSEngine = 'gemini';
-  return true;
+  // Use gender-appropriate Gemini voices
+  const voice = gender === 'female' ? 'aoede' : 'puck';
+  const normalized = normalizeTTSText(text);
+  const ck = _audioCacheKey(normalized, 'gemini:' + voice);
+
+  const cached = await _getCachedAudio(ck);
+  if (cached) {
+    await _playCachedAudio(cached);
+    _lastTTSEngine = 'gemini';
+    return true;
+  }
+
+  try {
+    const params = new URLSearchParams({ text: normalized, voice });
+    const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
+    const audio = new Audio(url);
+    _currentTTSAudio = audio;
+    const wait = new Promise((resolve) => {
+      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+    });
+    await audio.play();
+    fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => { });
+    _lastTTSEngine = 'gemini';
+    await wait;
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 
 // Keeps a reference to the current Audio element so we can cancel it before
 // starting a new utterance.
 let _currentTTSAudio = null;
-let _currentTtsSessionId = 0;
-let _globalCancelTTSCallbacks = [];
 
 /**
  * elevenLabsSpeak(text, voiceId, interrupt = true)
@@ -927,22 +906,20 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID, inte
 
   // Stop any currently-playing audio only if requested
   if (interrupt) {
-    cancelTTS();
+    if (_currentTTSAudio) { _currentTTSAudio.pause(); _currentTTSAudio = null; }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   }
 
-  const sessionId = _currentTtsSessionId;
   const isArabic = hasArabicText(normalizedText);
   const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
 
   // --- Edge TTS (primary for all English text) ---
   if (!isArabic) {
     const ok = await edgeTTSSpeak(normalizedText, gender);
-    if (sessionId !== _currentTtsSessionId) return;
     if (ok) return;
   }
 
   // --- Browser speech synthesis (Arabic + Edge TTS failure fallback) ---
-  if (sessionId !== _currentTtsSessionId) return;
   if ('speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
     if (isArabic) {
@@ -964,32 +941,39 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID, inte
 /**
  * fetchTTSBlob(text, gender, accent)
  * Fetches the audio data as a Blob for pre-buffering.
- * Uses the same fetch-first engine chain as edgeTTSSpeak:
- *   Groq → Kokoro → Gemini → Edge TTS
- * Validates every response to ensure it's actual audio (not a JSON error).
+ * Uses Groq (Orpheus) as the primary engine for speed.
  */
 const fetchTTSBlob = async (text, gender, accent) => {
   const normalized = normalizeTTSText(text);
-  const genderKey = gender === 'female' ? 'female' : 'male';
-  const accentKey = accent === 'us' ? 'us' : 'uk';
+  const ck = _audioCacheKey(normalized, 'blob:' + (accent === 'us' ? 'us' : 'uk'));
 
-  // 1. Try Groq (fastest)
-  let buf = await _fetchGroqAudio(normalized, genderKey);
+  // Try local cache first
+  const cached = await _getCachedAudio(ck);
+  if (cached) return new Blob([cached], { type: 'audio/mpeg' });
 
-  // 2. Try Gemini (reliable cloud fallback)
-  if (!buf) buf = await _fetchGeminiAudio(normalized, genderKey);
+  try {
+    const voice = gender === 'female' ? 'alice' : 'adam';
+    const params = new URLSearchParams({ text: normalized, voice });
+    const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
 
-  // 3. Try Edge TTS (local only)
-  if (!buf) {
-    const edgeAvailable = await _probeEdgeTTS();
-    if (edgeAvailable) {
-      const voice = EDGE_VOICES[accentKey][genderKey];
-      buf = await _fetchEdgeAudio(normalized, voice);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Fetch failed');
+    const buf = await response.arrayBuffer();
+    _setCachedAudio(ck, buf);
+    return new Blob([buf], { type: 'audio/mpeg' });
+  } catch (err) {
+    // Fallback to Edge TTS if Groq fails
+    try {
+      const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender];
+      const params = new URLSearchParams({ text: normalized, voice });
+      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+      const response = await fetch(url);
+      const buf = await response.arrayBuffer();
+      return new Blob([buf], { type: 'audio/mpeg' });
+    } catch {
+      return null;
     }
   }
-
-  if (buf) return new Blob([buf], { type: 'audio/mpeg' });
-  return null;
 };
 
 /**
@@ -1059,15 +1043,11 @@ const _streamAudioResponse = async (response) => {
  * Stops any in-progress ElevenLabs audio playback.
  */
 const cancelTTS = () => {
-  _currentTtsSessionId++;
   if (_currentTTSAudio) {
     _currentTTSAudio.pause();
     _currentTTSAudio = null;
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-  _globalCancelTTSCallbacks.forEach(cb => {
-    try { cb(); } catch (e) {}
-  });
 };
 
 // --- DATA ---
@@ -1125,7 +1105,7 @@ const GRAMMAR_LEVELS = [{
 }];
 const GRAMMAR_CEFR_DETAILED = [
   {
-    level: "A1", labelAr: "مبتدئ", labelEn: "Beginner", color: "#22c55e",
+    level: "A1", labelAr: "مبتدئ", color: "#22c55e",
     categories: [
       { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["Adjectives vs adverbs: word formation & word order (good → well, quick → quickly)", "Comparative adjectives with -er and more (happier, more comfortable)", "Superlative adjectives with -est and the most (the happiest, the most comfortable)"] },
       { name: "Articles & Quantifiers", nameAr: "أدوات التعريف", rules: ["Articles: a, an, the, zero article (I am a singer. I have books. I feel love.)", "Superlative with the (the best, the most interesting)"] },
@@ -1141,7 +1121,7 @@ const GRAMMAR_CEFR_DETAILED = [
     ]
   },
   {
-    level: "A2", labelAr: "أساسي", labelEn: "Elementary", color: "#84cc16",
+    level: "A2", labelAr: "أساسي", color: "#84cc16",
     categories: [
       { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["Adjectives vs adverbs (quick → quickly, sudden → suddenly, bad → badly)", "Comparatives with -er and more (older, more expensive)", "Superlatives with -est and the most (the biggest, the most interesting)", "Irregular adjectives: less, good, bad, more", "Use of than (She is a better driver than me.)", "Adverbial phrases of time, place and frequency — including word order"] },
       { name: "Articles & Quantifiers", nameAr: "أدوات التعريف", rules: ["A, an, the, zero article (a book, an orange, the book, students)", "Superlatives with the (He is the best man I have ever met.)"] },
@@ -1158,7 +1138,7 @@ const GRAMMAR_CEFR_DETAILED = [
     ]
   },
   {
-    level: "B1", labelAr: "تحت المتوسط", labelEn: "Pre-Intermediate", color: "#3b82f6",
+    level: "B1", labelAr: "تحت المتوسط", color: "#3b82f6",
     categories: [
       { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["Adjectives -ed vs -ing (boring vs bored, tiring vs tired)", "Adverbs of frequency and their word order (I never smoke. I am never late.)", "Comparatives and superlatives of irregular adjectives (little – less – the least)", "Same as, the same (You're just the same as your mother.)", "As… as (He isn't as old as he looks.)", "Like, alike, slightly (You look like your mother. She is slightly taller.)"] },
       { name: "Conditionals", nameAr: "الجمل الشرطية", rules: ["Zero conditional", "First conditional (If you are late, I will be angry.)", "Second conditional (If they had time, they would go on holiday.)", "Third conditional (We would have won if we had played better.)"] },
@@ -1174,7 +1154,7 @@ const GRAMMAR_CEFR_DETAILED = [
     ]
   },
   {
-    level: "B2", labelAr: "فوق المتوسط", labelEn: "Upper-Intermediate", color: "#f59e0b",
+    level: "B2", labelAr: "فوق المتوسط", color: "#f59e0b",
     categories: [
       { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["Adjectives -ed vs -ing", "Adverbs of frequency and word order", "Comparative and superlative of irregular adjectives (far – further/farther – furthest/farthest)", "Same as, the same / As… as / Like, alike, slightly"] },
       { name: "Conditionals", nameAr: "الجمل الشرطية", rules: ["Zero, first, second, third conditionals", "Mixed conditional (If I had worked harder, I would have a better job now.)", "Wish (I wish I was taller. I wish I had done that earlier.)"] },
@@ -1189,7 +1169,7 @@ const GRAMMAR_CEFR_DETAILED = [
     ]
   },
   {
-    level: "C1", labelAr: "متقدم", labelEn: "Advanced", color: "#ef4444",
+    level: "C1", labelAr: "متقدم", color: "#ef4444",
     categories: [
       { name: "Adjectives & Adverbs", nameAr: "الصفات والأحوال", rules: ["All forms of adjectives and adverbs", "Inversion with negative adverbials (Never have I seen… / Not only did she… / Hardly had he…)"] },
       { name: "Modal Verbs", nameAr: "الأفعال الناقصة", rules: ["Modals in the past: could have done, may have seen, should have done, might have found, would have been", "Advanced modal distinctions and nuances"] },
@@ -1310,19 +1290,6 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
-
-  // ── Favicon fix: inject an SVG favicon so the Venoxa logo shows on the tab ──
-  useEffect(() => {
-    const svgFavicon = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#7C3AED"/><path d="M8 10 L16 22 L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="16" cy="10" r="2.5" fill="white"/></svg>`)}`;
-    let link = document.querySelector("link[rel~='icon']");
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'icon';
-      document.head.appendChild(link);
-    }
-    link.type = 'image/svg+xml';
-    link.href = svgFavicon;
-  }, []);
   useEffect(() => {
     localStorage.setItem('venoxa_lang', lang);
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -1373,8 +1340,6 @@ export default function App() {
         return <IdiomsSlang {...props} idiomsVocab={idiomsVocab} setIdiomsVocab={setIdiomsVocab} />;
       case 'idioms-proper':
         return <IdiomsProper {...props} idiomsProperVocab={idiomsProperVocab} setIdiomsProperVocab={setIdiomsProperVocab} />;
-      case 'test-gen':
-        return <TestGenerator {...props} />;
       case 'grammar':
         return <Grammar {...props} />;
       case 'writing':
@@ -1391,23 +1356,13 @@ export default function App() {
         return <Pronunciation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={async (text, gender, accentKey) => {
           const saved = _voiceAccent;
           if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
-          const sessionIdBefore = _currentTtsSessionId;
-          try {
-            const ok = await edgeTTSSpeak(text, gender);
-            if (_currentTtsSessionId !== sessionIdBefore) return 'cancelled';
-            return ok;
-          } finally { _voiceAccent = saved; }
+          try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
         }} />;
       case 'smart-translation':
         return <SmartTranslation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={async (text, gender, accentKey) => {
           const saved = _voiceAccent;
           if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
-          const sessionIdBefore = _currentTtsSessionId;
-          try {
-            const ok = await edgeTTSSpeak(text, gender);
-            if (_currentTtsSessionId !== sessionIdBefore) return 'cancelled';
-            return ok;
-          } finally { _voiceAccent = saved; }
+          try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
         }} />;
       case 'timer':
         return <TimerTool lang={lang} theme={theme} timerState={timerState} setTimerState={setTimerState} />;
@@ -1491,7 +1446,6 @@ export default function App() {
         { id: 'speaking', label: _resolveTranslation(lang, 'المحادثة والاتصال', 'Speaking (Call)'), icon: MessageSquare },
         { id: 'writing', label: _resolveTranslation(lang, 'الكتابة (AI)', 'Writing (AI)'), icon: PenTool },
         { id: 'pronunciation', label: _resolveTranslation(lang, 'النطق', 'Pronunciation'), icon: Volume2 },
-        { id: 'test-gen', label: _resolveTranslation(lang, 'منشئ الاختبارات', 'Test Generator'), icon: ClipboardList },
       ]
     },
     { id: 'grammar', label: _resolveTranslation(lang, 'القواعد (AI)', 'Grammar (AI)'), icon: FileText },
@@ -1790,56 +1744,11 @@ function Dashboard({
     ]
   };
 
-  // ── Curated quotes from famous authors (local, always instant, always different) ──
-  const FAMOUS_QUOTES = [
-    { quote: "The limits of my language mean the limits of my world.", author: "Ludwig Wittgenstein", translated_quote: "حدود لغتي هي حدود عالمي." },
-    { quote: "One language sets you in a corridor for life. Two languages open every door along the way.", author: "Frank Smith", translated_quote: "لغة واحدة تضعك في ممر مدى الحياة. لغتان تفتحان كل باب على طول الطريق." },
-    { quote: "To have another language is to possess a second soul.", author: "Charlemagne", translated_quote: "أن تمتلك لغة أخرى يعني امتلاك روح ثانية." },
-    { quote: "The man who does not know other languages, unless he is a man of genius, necessarily has deficiencies in his ideas.", author: "Victor Hugo", translated_quote: "من لا يعرف لغات أخرى لا يعرف شيئاً عن لغته الخاصة." },
-    { quote: "Knowledge of languages is the doorway to wisdom.", author: "Roger Bacon", translated_quote: "معرفة اللغات هي بوابة الحكمة." },
-    { quote: "A different language is a different vision of life.", author: "Federico Fellini", translated_quote: "اللغة المختلفة هي رؤية مختلفة للحياة." },
-    { quote: "Language is the road map of a culture. It tells you where its people come from and where they are going.", author: "Rita Mae Brown", translated_quote: "اللغة هي خريطة الطريق لثقافة ما. إنها تخبرك من أين أتى شعبها وإلى أين يتجهون." },
-    { quote: "Learning is not attained by chance, it must be sought for with ardor and attended to with diligence.", author: "Abigail Adams", translated_quote: "لا يُنال التعلم بالصدفة، بل يجب السعي إليه بحماس والاهتمام به بجد." },
-    { quote: "The more that you read, the more things you will know. The more that you learn, the more places you'll go.", author: "Dr. Seuss", translated_quote: "كلما قرأت أكثر، كلما عرفت أكثر. كلما تعلمت أكثر، كلما ذهبت إلى أماكن أبعد." },
-    { quote: "It is what you read when you don't have to that determines what you will be when you can't help it.", author: "Oscar Wilde", translated_quote: "ما تقرأه حين لا تكون مضطراً هو ما يحدد من ستكون حين لا تستطيع تغيير ذلك." },
-    { quote: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi", translated_quote: "عش كأنك ستموت غداً. تعلّم كأنك ستعيش إلى الأبد." },
-    { quote: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin", translated_quote: "الاستثمار في المعرفة يعطي أفضل عائد." },
-    { quote: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King", translated_quote: "الشيء الجميل في التعلم أن أحداً لا يستطيع انتزاعه منك." },
-    { quote: "Education is not the filling of a pail, but the lighting of a fire.", author: "W.B. Yeats", translated_quote: "التعليم ليس ملء دلو، بل إشعال نار." },
-    { quote: "The more I live, the more I learn. The more I learn, the more I realize, the less I know.", author: "Michel Legrand", translated_quote: "كلما عشت أكثر، تعلمت أكثر. كلما تعلمت أكثر، أدركت أنني أعرف أقل." },
-    { quote: "Develop a passion for learning. If you do, you will never cease to grow.", author: "Anthony J. D'Angelo", translated_quote: "طوّر شغفاً بالتعلم. إذا فعلت ذلك، فلن تتوقف أبداً عن النمو." },
-    { quote: "In learning you will teach, and in teaching you will learn.", author: "Phil Collins", translated_quote: "في التعلم ستعلّم، وفي التعليم ستتعلم." },
-    { quote: "The world is a book, and those who do not travel read only one page.", author: "Saint Augustine", translated_quote: "العالم كتاب، ومن لا يسافر لا يقرأ إلا صفحة واحدة منه." },
-    { quote: "A reader lives a thousand lives before he dies. The man who never reads lives only one.", author: "George R.R. Martin", translated_quote: "القارئ يعيش ألف حياة قبل أن يموت. من لا يقرأ أبداً يعيش حياة واحدة فقط." },
-    { quote: "Words are, of course, the most powerful drug used by mankind.", author: "Rudyard Kipling", translated_quote: "الكلمات، بالطبع، هي أقوى دواء يستخدمه البشر." },
-    { quote: "Language is not a genetic gift, it is a social gift. Learning a new language is becoming a member of the club.", author: "Frank Smith", translated_quote: "اللغة ليست هبة جينية، بل هبة اجتماعية. تعلّم لغة جديدة يعني الانضمام إلى النادي." },
-    { quote: "You can never understand one language until you understand at least two.", author: "Geoffrey Willans", translated_quote: "لا يمكنك أبداً فهم لغة واحدة حتى تفهم لغتين على الأقل." },
-    { quote: "Those who know nothing of foreign languages know nothing of their own.", author: "Johann Wolfgang von Goethe", translated_quote: "من لا يعرف شيئاً عن اللغات الأجنبية لا يعرف شيئاً عن لغته الخاصة." },
-    { quote: "Every language is a world. Without translation, we would inhabit parishes bordering on silence.", author: "George Steiner", translated_quote: "كل لغة عالم. بدون الترجمة، كنا سنسكن أحياء متاخمة للصمت." },
-    { quote: "Language is the blood of the soul into which thoughts run and out of which they grow.", author: "Oliver Wendell Holmes", translated_quote: "اللغة هي دم الروح الذي تتدفق فيه الأفكار وتنمو منه." },
-    { quote: "If you talk to a man in a language he understands, that goes to his head. If you talk to him in his language, that goes to his heart.", author: "Nelson Mandela", translated_quote: "إذا تحدثت إلى رجل بلغة يفهمها، فسيصل الأمر إلى رأسه. إذا تحدثت إليه بلغته، فسيصل إلى قلبه." },
-    { quote: "The conquest of learning is achieved through the knowledge of languages.", author: "Roger Ascham", translated_quote: "يتحقق فتح التعلم من خلال معرفة اللغات." },
-    { quote: "Change your language and you change your thoughts.", author: "Karl Albrecht", translated_quote: "غيّر لغتك وستغيّر أفكارك." },
-    { quote: "Learning another language is not only learning different words for the same things, but learning another way to think about things.", author: "Flora Lewis", translated_quote: "تعلّم لغة أخرى لا يعني فقط تعلّم كلمات مختلفة لنفس الأشياء، بل تعلّم طريقة أخرى للتفكير." },
-    { quote: "To learn a language is to have one more window from which to look at the world.", author: "Chinese Proverb", translated_quote: "تعلّم لغة يعني امتلاك نافذة إضافية تطل من خلالها على العالم." },
-    { quote: "With languages, you are at home anywhere.", author: "Edmund De Waal", translated_quote: "مع اللغات، أنت في بيتك في أي مكان." },
-    { quote: "Language is the key to the heart of people.", author: "Ahmed Deedat", translated_quote: "اللغة هي مفتاح قلوب الناس." },
-    { quote: "Speak a new language so that the world will be a new world.", author: "Rumi", translated_quote: "تحدث بلغة جديدة حتى يصبح العالم عالماً جديداً." },
-    { quote: "The eyes only see what the mind is prepared to comprehend.", author: "Henri Bergson", translated_quote: "العين لا ترى إلا ما هو العقل مستعد لاستيعابه." },
-    { quote: "If you want to go fast, go alone. If you want to go far, go together.", author: "African Proverb", translated_quote: "إذا أردت أن تسير بسرعة، سر وحدك. وإذا أردت أن تسير بعيداً، سر مع الآخرين." },
-    { quote: "Wisdom is not a product of schooling but of the lifelong attempt to acquire it.", author: "Albert Einstein", translated_quote: "الحكمة ليست نتاج التعليم المدرسي، بل نتاج المحاولة المستمرة مدى الحياة لاكتسابها." },
-    { quote: "I am not afraid of storms, for I am learning how to sail my ship.", author: "Louisa May Alcott", translated_quote: "لا أخشى العواصف، لأنني أتعلم كيف أقود سفينتي." },
-    { quote: "Intellectual growth should commence at birth and cease only at death.", author: "Albert Einstein", translated_quote: "يجب أن يبدأ النمو الفكري عند الولادة ولا يتوقف إلا عند الموت." },
-    { quote: "The more I read, the more I acquire, the more certain I am that I know nothing.", author: "Voltaire", translated_quote: "كلما قرأت أكثر، كلما اكتسبت أكثر، وكلما أيقنت أنني لا أعرف شيئاً." },
-    { quote: "Not all those who wander are lost.", author: "J.R.R. Tolkien", translated_quote: "ليس كل من يتجوّل ضائعاً." },
-    { quote: "The secret of getting ahead is getting started.", author: "Mark Twain", translated_quote: "سر التقدم هو البدء." },
-  ];
-
   const [insight, setInsight] = useState(null);
+  const [loadingInsight, setLoadingInsight] = useState(true);
 
   // Word of the Day — read from the same localStorage cache as WordOfTheDay.jsx
   const [wotd, setWotd] = useState(null);
-  const [loadingWotdNew, setLoadingWotdNew] = useState(false);
   useEffect(() => {
     try {
       const cached = JSON.parse(localStorage.getItem('venoxa_word_of_day') || 'null');
@@ -1847,133 +1756,48 @@ function Dashboard({
     } catch { /* ignore */ }
   }, []);
 
-  // Pick a quote on mount and cache by date; refresh picks a different random one
-  // ── Quote refresh: quotable.io (free, no key, real authors, unlimited) ──
-  const [loadingQuote, setLoadingQuote] = useState(false);
-
-  const fetchRandomQuote = async (excludeQuote = null) => {
-    setLoadingQuote(true);
-    try {
-      // Quotable.io: free public API, no key, CORS-enabled, thousands of real author quotes
-      const tags = ['wisdom', 'education', 'knowledge', 'inspirational', 'famous-quotes'];
-      const tag = tags[Math.floor(Math.random() * tags.length)];
-      const res = await fetch(`https://api.quotable.io/quotes/random?limit=1&tags=${tag}`, { cache: 'no-store' });
-      const data = await res.json();
-      const item = Array.isArray(data) ? data[0] : data;
-      if (!item?.content) throw new Error('empty');
-
-      // Arabic translation via proxy (best-effort; if it fails, show English only)
-      let translated_quote = '';
-      try {
-        const arRaw = await fetchFromGemini(
-          `Translate ONLY this English sentence to Arabic, return ONLY the Arabic translation with no extra text:\n"${item.content}"`,
-          null, 200
-        );
-        if (arRaw && !arRaw.includes('"error"')) translated_quote = arRaw.trim();
-      } catch { /* translation optional */ }
-
-      const q = { quote: item.content, author: item.author || 'Unknown', translated_quote };
-      setInsight(q);
-      localStorage.setItem('venoxa_daily_insight', JSON.stringify({ timestamp: new Date().toISOString(), data: q }));
-    } catch (e) {
-      // Fallback: pick from local list (excludes current quote)
-      const pool = FAMOUS_QUOTES.filter(q => q.quote !== excludeQuote);
-      const q = pool[Math.floor(Math.random() * pool.length)];
-      setInsight(q);
-      localStorage.setItem('venoxa_daily_insight', JSON.stringify({ timestamp: new Date().toISOString(), data: q }));
-    } finally {
-      setLoadingQuote(false);
-    }
-  };
-
   useEffect(() => {
-    try {
-      const cached = localStorage.getItem('venoxa_daily_insight');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        const cacheDate = new Date(parsed.timestamp);
-        if (cacheDate.toDateString() === new Date().toDateString() && parsed.data?.quote) {
-          setInsight(parsed.data);
-          return;
-        }
-      }
-    } catch { /* ignore */ }
-    fetchRandomQuote();
-  }, []);
-
-  const refreshQuote = () => fetchRandomQuote(insight?.quote);
-
-  // ── WOTD: pick from curated word list → free Dictionary API for definition ──
-  // 200 sophisticated words spanning all parts of speech
-  const WORD_POOL = [
-    'ephemeral','luminous','resilience','serendipity','eloquent','tenacious','ambiguous',
-    'benevolent','clandestine','discern','empathy','fervent','gregarious','hubris',
-    'idiosyncrasy','juxtapose','laconic','melancholy','nascent','obfuscate','pensive',
-    'quandary','recalcitrant','sagacious','tangential','ubiquitous','veracious','whimsical',
-    'xenophile','zealous','altruistic','belligerent','catharsis','diligent','erudite',
-    'fastidious','garrulous','hegemony','immutable','judicious','kinetic','loquacious',
-    'magnanimous','nefarious','ostentatious','pragmatic','quintessential','rambunctious',
-    'sycophant','tempestuous','untenable','vacuous','wistful','acerbic','byzantine',
-    'cavalier','diatribe','egregious','fallacious','grandiose','hypocrite','inimitable',
-    'jejune','kaleidoscopic','languish','mendacious','nonchalant','oblivious','perfidious',
-    'querulous','reticent','solipsistic','truculent','umbrage','verbose','wanton',
-    'acrimony','bucolic','castigate','demagogue','enervate','fortuitous','galvanize',
-    'harangue','inveterate','jocular','kindle','listless','munificent','numinous',
-    'opprobrium','parsimonious','quixotic','rancor','stoic','temerity','usurp',
-    'vindicate','wary','acumen','bombastic','callous','debacle','effusive',
-    'flabbergasted','guileless','haughty','incorrigible','jaded','keen','languid',
-    'mirth','nuanced','obtuse','pernicious','raucous','sanctimonious','taciturn',
-    'unequivocal','venerable','wayfarer','accolade','beguile','candor','dauntless',
-    'eclectic','fastuous','glib','hapless','insidious','jaundiced','labyrinthine',
-    'mercurial','nihilistic','ominous','perspicacious','recondite','scrupulous',
-    'tenuous','uncanny','verdant','wield','ameliorate','beseech','cogent','deft',
-    'exacerbate','foment','gaunt','harrowing','impetuous','jettison','luminescent',
-    'malleable','nettle','obdurate','palpable','ramify','sanguine','trepidation',
-    'unwavering','vicarious','zealotry','ardent','brevity','cogitate','discursive',
-    'enigmatic','flagrant','gullible','heedless','impasse','juxtaposition','kindle',
-    'lament','manifest','nascence','opaque','paradox','quell','reverie','sublime',
-    'transient','ulterior','vacillate','watershed'
-  ];
-
-  const generateNewWotd = async () => {
-    setLoadingWotdNew(true);
-    try {
-      // Pick a word the user hasn't seen yet (exclude current wotd)
-      const available = wotd?.word
-        ? WORD_POOL.filter(w => w.toLowerCase() !== wotd.word.toLowerCase())
-        : WORD_POOL;
-      const word = available[Math.floor(Math.random() * available.length)];
-
-      // Free Dictionary API — no key, CORS-enabled, always works
-      const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`, { cache: 'no-store' });
-      if (!dictRes.ok) throw new Error('dict fail');
-      const dictData = await dictRes.json();
-      const entry = dictData[0];
-      const meaning = entry.meanings?.[0];
-      const definition = meaning?.definitions?.[0]?.definition || '';
-      const example = meaning?.definitions?.[0]?.example || '';
-      const partOfSpeech = meaning?.partOfSpeech || '';
-      const ipa = entry.phonetics?.find(p => p.text)?.text || entry.phonetic || '';
-
-      // Arabic definition via proxy (best-effort)
-      let definitionAr = '';
+    const fetchInsight = async () => {
+      setLoadingInsight(true);
       try {
-        const arRaw = await fetchFromGemini(
-          `Translate this English word definition to Arabic, return ONLY the Arabic translation with no extra text:\n"${definition}"`,
-          null, 200
-        );
-        if (arRaw && !arRaw.includes('"error"')) definitionAr = arRaw.trim();
-      } catch { /* optional */ }
+        const cached = localStorage.getItem('venoxa_daily_insight');
+        const now = new Date();
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const cacheDate = new Date(parsed.timestamp);
+          if (cacheDate.toDateString() === now.toDateString()) {
+            setInsight(parsed.data);
+            setLoadingInsight(false);
+            return;
+          }
+        }
 
-      const parsed = { word, ipa, partOfSpeech, definition, definitionAr, example };
-      setWotd(parsed);
-      localStorage.setItem('venoxa_word_of_day', JSON.stringify({ timestamp: new Date().toISOString(), data: parsed }));
-    } catch (e) {
-      console.error('WOTD error:', e);
-    } finally {
-      setLoadingWotdNew(false);
-    }
-  };
+        const prompt = `Generate a short language learning quote in English with its Arabic translation, and one pro tip for learning English in English with its Arabic translation. Return strictly JSON: {"quote": "...", "translated_quote": "...", "pro_tip": "...", "translated_tip": "..."}`;
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${AI_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const clean = text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+        setInsight(parsed);
+        localStorage.setItem('venoxa_daily_insight', JSON.stringify({ timestamp: now.toISOString(), data: parsed }));
+      } catch (e) {
+        console.error(e);
+        setInsight({
+          quote: "The limits of my language mean the limits of my world.",
+          translated_quote: "حدود لغتي هي حدود عالمي.",
+          pro_tip: "Think in your target language for 5 minutes daily.",
+          translated_tip: "فكر باللغة التي تتعلمها لمدة 5 دقائق يومياً."
+        });
+      } finally {
+        setLoadingInsight(false);
+      }
+    };
+    fetchInsight();
+  }, [AI_KEY]);
 
   const safeRender = (val) => val || '...';
 
@@ -2090,28 +1914,21 @@ function Dashboard({
             <Sparkles className="w-4 h-4" />
           </div>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t.quoteTitle}</h3>
-          <button
-            onClick={refreshQuote}
-            disabled={loadingQuote}
-            title={lang === 'ar' ? 'اقتباس جديد' : 'New quote'}
-            className="ml-auto w-7 h-7 flex items-center justify-center rounded-xl text-gray-400 hover:text-[var(--app-accent1)] hover:bg-[var(--app-accent1)]/10 transition-all active:rotate-180 transition-transform duration-300"
-          >
-            <RotateCcw className={`w-3.5 h-3.5 transition-transform duration-500 ${loadingQuote ? 'animate-spin' : ''}`} />
-          </button>
         </div>
-        <div className="space-y-3 text-start rtl:text-right">
+        {loadingInsight ? (
+          <div className="h-24 flex items-center justify-center">
+            <Activity className="w-5 h-5 text-[var(--app-accent1)] animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-4 text-start rtl:text-right">
             <p className="text-xl font-bold text-gray-900 dark:text-white leading-relaxed" dir="ltr">
-              “{safeRender(insight?.quote)}”
+              "{safeRender(insight?.quote)}"
             </p>
-            {insight?.author && (
-              <p className="text-xs font-bold tracking-widest uppercase text-[var(--app-accent1)]" dir="ltr">
-                — {insight.author}
-              </p>
-            )}
-            <p className="text-sm font-medium text-gray-500 dark:text-[#B0B0C0] pt-1 border-t border-black/5 dark:border-white/8">
+            <p className="text-sm font-medium text-gray-500 dark:text-[#B0B0C0]">
               {safeRender(insight?.translated_quote)}
             </p>
           </div>
+        )}
       </div>
       {/* ── Word of the Day mini-card ── */}
       <div
@@ -2129,25 +1946,13 @@ function Dashboard({
           </div>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t.wotdTitle}</h3>
           {wotd?.partOfSpeech && (
-            <span className="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-md bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
+            <span className="ml-auto text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-md bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
               {wotd.partOfSpeech}
             </span>
           )}
-          <button
-            onClick={generateNewWotd}
-            disabled={loadingWotdNew}
-            title={lang === 'ar' ? 'كلمة جديدة' : 'New word'}
-            className="ml-auto w-7 h-7 flex items-center justify-center rounded-xl text-gray-400 hover:text-[var(--app-accent1)] hover:bg-[var(--app-accent1)]/10 transition-all disabled:opacity-40"
-          >
-            <RotateCcw className={`w-3.5 h-3.5 ${loadingWotdNew ? 'animate-spin' : ''}`} />
-          </button>
         </div>
 
-        {loadingWotdNew ? (
-          <div className="h-24 flex items-center justify-center">
-            <Activity className="w-5 h-5 text-[var(--app-accent1)] animate-spin" />
-          </div>
-        ) : wotd ? (
+        {wotd ? (
           <>
             {/* Word + IPA */}
             <div dir="ltr">
@@ -2173,23 +1978,21 @@ function Dashboard({
               </p>
             )}
 
-            {/* Buttons row */}
-            <div className="mt-auto flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => setTab('word-of-day')}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold transition-all bg-[var(--app-accent1)] text-white hover:opacity-90 active:scale-95 shadow-sm"
-              >
-                {t.wotdMore} →
-              </button>
-            </div>
+            {/* Learn more button */}
+            <button
+              onClick={() => setTab('word-of-day')}
+              className="mt-auto self-start flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold transition-all bg-[var(--app-accent1)] text-white hover:opacity-90 active:scale-95 shadow-sm"
+            >
+              {t.wotdMore} →
+            </button>
           </>
         ) : (
-          /* No cache yet — show generate button */
+          /* No cache yet — nudge user to open the tool */
           <div className="flex flex-col gap-3">
             <p className="text-sm text-gray-500 dark:text-gray-400" dir="auto">
               {lang === 'ar'
-                ? 'اضغط على زر التحديث لتوليد كلمة اليوم.'
-                : 'Hit the refresh button above to generate your Word of the Day, or open the full tool below.'}
+                ? 'افتح أداة "كلمة اليوم" لتظهر كلمة اليوم هنا تلقائياً.'
+                : 'Open the Word of the Day tool and your daily word will appear here automatically.'}
             </p>
             <button
               onClick={() => setTab('word-of-day')}
@@ -2456,42 +2259,15 @@ function PlanWeekTable({
                       <span className="text-[10px] text-gray-400 dark:text-gray-600">—</span>
                     ) : (
                       <div className="flex flex-col items-center gap-1">
-                        {phases.map((range, ri) => {
-                          const srsKey = `${weekNum}-srs-${ri}-${d}`;
-                          const srsState = completedCells?.[srsKey];
-                          return (
-                            <button
-                              key={ri}
-                              dir="ltr"
-                              title={srsState === 'done' ? 'Mark as missed' : srsState === 'missed' ? 'Clear' : 'Mark as done'}
-                              onClick={() => interactive && onToggleCell?.(weekNum, `srs-${ri}`, d)}
-                              className={`relative text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap transition-all duration-200 select-none
-                                ${interactive ? 'cursor-pointer hover:scale-110 active:scale-95' : 'cursor-default'}
-                                ${srsState === 'done'
-                                  ? 'text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-500/20 border border-green-300 dark:border-green-500/40'
-                                  : srsState === 'missed'
-                                  ? 'text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-500/20 border border-red-300 dark:border-red-500/40 line-through opacity-70'
-                                  : 'text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-500/15 border border-purple-200 dark:border-purple-500/25'
-                                }`}
-                            >
-                              {srsState === 'done' ? (
-                                <span className="flex items-center gap-0.5">
-                                  <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 12 12" fill="none">
-                                    <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                  {range}
-                                </span>
-                              ) : srsState === 'missed' ? (
-                                <span className="flex items-center gap-0.5">
-                                  <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 12 12" fill="none">
-                                    <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                  </svg>
-                                  {range}
-                                </span>
-                              ) : range}
-                            </button>
-                          );
-                        })}
+                        {phases.map((range, ri) => (
+                          <span
+                            key={ri}
+                            dir="ltr"
+                            className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-500/15 border border-purple-200 dark:border-purple-500/25 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap"
+                          >
+                            {range}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </td>
@@ -5224,7 +5000,7 @@ function Grammar({
                 <div className="flex items-center gap-3">
                   <span className="w-9 h-9 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0" style={{ background: level.color }}>{level.level}</span>
                   <div className="text-left">
-                    <div className="font-bold text-gray-900 dark:text-white text-base">{t.level} {level.level} — {lang === 'ar' ? level.labelAr : level.labelEn}</div>
+                    <div className="font-bold text-gray-900 dark:text-white text-base">{t.level} {level.level} — {level.labelAr}</div>
                     <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{level.categories.length} {_resolveTranslation(lang, 'فئة', 'categories')} · {levelRuleCount} {t.rulesCount}</div>
                   </div>
                 </div>
@@ -5268,7 +5044,7 @@ function Grammar({
                                       <span className={`text-sm leading-relaxed ${isActive ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-gray-300'}`}>{rule}</span>
                                     </div>
                                     <button
-                                      onClick={() => handleExplain(rule, `${level.level} (${lang === 'ar' ? level.labelAr : level.labelEn})`, cat.name, ruleKey)}
+                                      onClick={() => handleExplain(rule, `${level.level} (${level.labelAr})`, cat.name, ruleKey)}
                                       title={t.explain}
                                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold flex-shrink-0 transition-all ${isActive ? 'bg-[var(--app-accent1)] text-white' : 'bg-gray-100 dark:bg-white/8 text-gray-600 dark:text-gray-400 hover:bg-[var(--app-accent1)]/10 hover:text-[var(--app-accent1)]'}`}
                                     >
@@ -5340,16 +5116,9 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
   useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
 
   const LISTEN_TOPICS = [
-    { ar: 'الحياة اليومية والروتين',        en: 'Daily Life & Routine' },
-    { ar: 'السفر والثقافة',                 en: 'Travel & Culture' },
-    { ar: 'التكنولوجيا والذكاء الاصطناعي', en: 'Technology & AI' },
-    { ar: 'الصحة والعافية',                 en: 'Health & Wellness' },
-    { ar: 'البيئة والمناخ',                 en: 'Environment & Climate' },
-    { ar: 'العمل والوظيفة',                 en: 'Work & Career' },
-    { ar: 'التعليم والتعلم',                en: 'Education & Learning' },
-    { ar: 'الطعام والطبخ',                  en: 'Food & Cooking' },
-    { ar: 'الرياضة واللياقة',               en: 'Sports & Fitness' },
-    { ar: 'العلوم والاكتشافات',             en: 'Science & Discoveries' },
+    'الحياة اليومية والروتين', 'السفر والثقافة', 'التكنولوجيا والذكاء الاصطناعي',
+    'الصحة والعافية', 'البيئة والمناخ', 'العمل والوظيفة',
+    'التعليم والتعلم', 'الطعام والطبخ', 'الرياضة واللياقة', 'العلوم والاكتشافات'
   ];
   const WORD_COUNTS = { short: 80, medium: 150, long: 250 };
 
@@ -5405,9 +5174,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
   // ── Fetch audio via Edge TTS and return Audio element ──────────────
   const fetchAudioEl = async (text, speed) => {
     try {
-      const blob = await fetchTTSBlob(text, 'male', _voiceAccent);
-      if (!blob) return null;
-      const url = URL.createObjectURL(blob);
+      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
+      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
       const audio = new Audio(url);
       audio.playbackRate = speed;
       return { audio, url };
@@ -5459,7 +5227,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
       const { audio, url } = result;
       audioBlobUrlRef.current = url;
       audio.onended = () => { URL.revokeObjectURL(url); audioBlobUrlRef.current = null; setAudioState('idle'); };
-      audio.onerror = () => { URL.revokeObjectURL(url); audioBlobUrlRef.current = null; setAudioState('idle'); };
+      audio.onerror = () => setAudioState('idle');
       audioRef.current = audio;
       await audio.play();
       setAudioState('playing');
@@ -5543,7 +5311,6 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     if (result) {
       const { audio, url } = result;
       audio.onended = () => { URL.revokeObjectURL(url); setDictAudioState('idle'); };
-      audio.onerror = () => { URL.revokeObjectURL(url); setDictAudioState('idle'); };
       dictAudioRef.current = audio;
       await audio.play();
       setDictAudioState('playing');
@@ -5646,7 +5413,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
             <CustomDropdown
               value={listenTopic}
               onChange={setListenTopic}
-              options={[{ value: '', label: _resolveTranslation(lang, 'اختر موضوعاً...', 'Pick a topic...') }, ...LISTEN_TOPICS.map(tp => ({ value: lang === 'ar' ? tp.ar : tp.en, label: lang === 'ar' ? tp.ar : tp.en }))]}
+              options={[{ value: '', label: _resolveTranslation(lang, 'اختر موضوعاً...', 'Pick a topic...') }, ...LISTEN_TOPICS.map(tp => ({ value: tp, label: tp }))]}
               theme={theme}
               className="flex-1 w-full"
             />
@@ -6660,8 +6427,7 @@ function Speaking({
   const processTtsQueue = async () => {
     if (isTtsPlayingRef.current || ttsQueueRef.current.length === 0) return;
     isTtsPlayingRef.current = true;
-    const sessionId = _currentTtsSessionId;
-    while (ttsQueueRef.current.length > 0 && sessionId === _currentTtsSessionId) {
+    while (ttsQueueRef.current.length > 0) {
       const item = ttsQueueRef.current.shift();
       if (!item || !item.text) continue;
 
@@ -6676,8 +6442,6 @@ function Speaking({
         // Fallback if not pre-fetched
         blob = await fetchTTSBlob(text, voiceGender, voiceAccent);
       }
-
-      if (sessionId !== _currentTtsSessionId) break;
 
       if (blob) {
         const url = URL.createObjectURL(blob);
@@ -6699,51 +6463,17 @@ function Speaking({
         }
 
         await new Promise((resolve) => {
-          const onEndedOrError = () => {
-            URL.revokeObjectURL(url);
-            audio.removeEventListener('ended', onEndedOrError);
-            audio.removeEventListener('error', onEndedOrError);
-            audio.removeEventListener('pause', onEndedOrError);
-            resolve();
-          };
-          audio.addEventListener('ended', onEndedOrError);
-          audio.addEventListener('error', onEndedOrError);
-          audio.addEventListener('pause', onEndedOrError);
-          audio.play().catch(onEndedOrError);
+          audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.play().catch(resolve);
         });
-      } else {
-        // Fallback to browser speechSynthesis so Vercel doesn't stay silent
-        if ('speechSynthesis' in window) {
-          if (msgId && isCallMode) {
-            setMessages(prev => prev.map(msg =>
-              msg.id === msgId
-                ? { ...msg, text: (msg.text || '') + (msg.text ? ' ' : '') + text }
-                : msg
-            ));
-          }
-          await new Promise((resolve) => {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = voiceAccent === 'us' ? 'en-US' : 'en-GB';
-            const rate = Math.max(0.5, Math.min(2.5, personalityRateRef.current));
-            utterance.rate = rate;
-            const voices = window.speechSynthesis.getVoices();
-            const pick = voices.find(v => v.lang === utterance.lang && !v.localService)
-              || voices.find(v => v.lang === utterance.lang)
-              || voices.find(v => v.lang.startsWith('en'));
-            if (pick) utterance.voice = pick;
-            
-            utterance.onend = () => resolve();
-            utterance.onerror = () => resolve();
-            window.speechSynthesis.speak(utterance);
-          });
-        }
       }
       // Cleanup cache
       prefetchCacheRef.current.delete(text);
     }
     isTtsPlayingRef.current = false;
     // --- AUTO-MIC: Restart recording after AI finishes speaking ---
-    if (isCallMode && micAutoMode && !isRecording && sessionId === _currentTtsSessionId) {
+    if (isCallMode && micAutoMode && !isRecording) {
       setTimeout(() => {
         handleVoiceRecord();
       }, 400); // Small delay to ensure clean start
@@ -6790,16 +6520,6 @@ function Speaking({
       transcriptScrollRef.current.scrollTop = transcriptScrollRef.current.scrollHeight;
     }
   }, [messages]);
-  useEffect(() => {
-    const cancelQueue = () => {
-      ttsQueueRef.current = [];
-      isTtsPlayingRef.current = false;
-    };
-    _globalCancelTTSCallbacks.push(cancelQueue);
-    return () => {
-      _globalCancelTTSCallbacks = _globalCancelTTSCallbacks.filter(cb => cb !== cancelQueue);
-    };
-  }, []);
   // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
   // Male: Adam (pNInz6obpgDQGcFmaJgB) — American | Female: Rachel (21m00Tcm4TlvDq8ikWAM) — American
   // Keep module-level accent var in sync with React state
@@ -7823,1035 +7543,6 @@ function Speaking({
         </div>
       </div>}
     </>
-  );
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TEST GENERATOR  — all 22 ozdic question types
-// ─────────────────────────────────────────────────────────────────────────────
-function TestGenerator({ AI_KEY, userLevel, lang, theme }) {
-  const isDark = theme === 'dark';
-  const t = lang === 'ar';
-
-  // ── filter state ──────────────────────────────────────────────────────────
-  const [skill,      setSkill]      = useState('any');
-  const [framework,  setFramework]  = useState('any');
-  const [qType,      setQType]      = useState('any');
-  const [level,      setLevel]      = useState(userLevel || 'B1');
-  const [itemCount,  setItemCount]  = useState(6);
-
-  // ── session state ─────────────────────────────────────────────────────────
-  const [phase,     setPhase]     = useState('config');   // config | loading | session | results
-  const [questions, setQuestions] = useState([]);
-  const [answers,   setAnswers]   = useState({});
-  const [sessions,  setSessions]  = useState(() => {
-    try { return JSON.parse(localStorage.getItem('venoxa-test-sessions') || '[]'); } catch { return []; }
-  });
-
-  // drag-and-drop internal state per question id
-  const [dragArranged, setDragArranged] = useState({});  // id -> [words arranged so far]
-  const [dragPool,     setDragPool]     = useState({});  // id -> [remaining pool]
-
-  // ── static data ───────────────────────────────────────────────────────────
-  const SKILLS = [
-    { v:'any', en:'Any Skill', ar:'أي مهارة' },
-    { v:'grammar', en:'Grammar', ar:'قواعد' },
-    { v:'reading', en:'Reading', ar:'قراءة' },
-    { v:'vocabulary', en:'Vocabulary', ar:'مفردات' },
-  ];
-  const FRAMEWORKS = [
-    { v:'any', en:'Any Framework', ar:'أي إطار' },
-    { v:'general', en:'General English', ar:'إنجليزي عام' },
-    { v:'PTE', en:'PTE', ar:'PTE' },
-    { v:'IELTS', en:'IELTS', ar:'IELTS' },
-    { v:'TOEFL', en:'TOEFL', ar:'TOEFL' },
-    { v:'Cambridge', en:'Cambridge', ar:'كامبريدج' },
-  ];
-  const Q_TYPES = [
-    { v:'any',                     en:'Any Type',                  ar:'أي نوع' },
-    { v:'fill-in-the-blank',       en:'Fill in the Blank',         ar:'أكمل الفراغ' },
-    { v:'context-meaning',         en:'Context Meaning',           ar:'معنى السياق' },
-    { v:'synonym',                 en:'Synonym',                   ar:'مرادف' },
-    { v:'definition',              en:'Definition',                ar:'تعريف' },
-    { v:'antonym',                 en:'Antonym',                   ar:'مضاد' },
-    { v:'idiom-meaning',           en:'Idiom Meaning',             ar:'معنى التعبير' },
-    { v:'idiom-completion',        en:'Idiom Completion',          ar:'إكمال التعبير' },
-    { v:'preposition',             en:'Preposition',               ar:'حرف جر' },
-    { v:'multiple-choice',         en:'Multiple Choice',           ar:'اختيار متعدد' },
-    { v:'drag-and-drop',           en:'Drag and Drop',             ar:'رتب الكلمات' },
-    { v:'dropdown-fill-in',        en:'Dropdown Fill-in',          ar:'قائمة الإكمال' },
-    { v:'multi-select',            en:'Multi-select',              ar:'تحديد متعدد' },
-    { v:'true-false-not-given',    en:'True / False / Not Given',  ar:'صح / خطأ / غير مذكور' },
-    { v:'re-order-paragraphs',     en:'Re-order Paragraphs',       ar:'رتب الفقرات' },
-    { v:'MC-cloze',                en:'MC Cloze',                  ar:'فراغات بخيارات' },
-    { v:'open-cloze',              en:'Open Cloze',                ar:'فراغات مفتوحة' },
-    { v:'word-formation',          en:'Word Formation',            ar:'تصريف الكلمة' },
-    { v:'key-word-transformation', en:'Key Word Transformation',   ar:'تحويل الجملة' },
-    { v:'gapped-text',             en:'Gapped Text',               ar:'نص بفراغات' },
-    { v:'matching-headings',       en:'Matching Headings',         ar:'مطابقة العناوين' },
-    { v:'summary-completion',      en:'Summary Completion',        ar:'إكمال الملخص' },
-    { v:'matching-information',    en:'Matching Information',      ar:'مطابقة المعلومات' },
-  ];
-  const LEVELS = [
-    { v:'any', en:'Any Level', ar:'أي مستوى' },
-    { v:'A1',  en:'A1 – Beginner',           ar:'A1 – مبتدئ' },
-    { v:'A2',  en:'A2 – Elementary',         ar:'A2 – أساسي' },
-    { v:'B1',  en:'B1 – Pre-Intermediate',   ar:'B1 – تحت المتوسط' },
-    { v:'B2',  en:'B2 – Upper-Intermediate', ar:'B2 – فوق المتوسط' },
-    { v:'C1',  en:'C1 – Advanced',           ar:'C1 – متقدم' },
-  ];
-  const COUNTS = [6, 12, 18, 24];
-
-  const lbl = obj => t ? obj.ar : obj.en;
-
-  // ── AI prompt ─────────────────────────────────────────────────────────────
-  const buildPrompt = () => {
-    const skillTxt = skill === 'any' ? 'a balanced mix of grammar, vocabulary, and reading' : skill;
-    const fwkTxt   = framework === 'any' ? 'general English proficiency' : `${framework} exam`;
-    const lvlTxt   = level === 'any' ? 'B1-B2' : level;
-    const typeLine = qType === 'any'
-      ? 'Use a VARIED mix of these types: fill-in-the-blank, context-meaning, synonym, definition, antonym, idiom-meaning, preposition, multiple-choice, multi-select, word-formation, open-cloze, true-false-not-given, drag-and-drop, dropdown-fill-in, re-order-paragraphs, MC-cloze, key-word-transformation, matching-headings, summary-completion, matching-information, gapped-text, idiom-completion'
-      : `Use ONLY this question type: ${qType}`;
-
-    return `You are an expert English language test creator. Generate exactly ${itemCount} practice questions for ${fwkTxt}, focusing on ${skillTxt}, CEFR level ${lvlTxt}. ${typeLine}.
-
-Return ONLY a valid JSON object with a single key "questions" containing an array. No markdown, no code fences, no comments.
-
-Base fields every question MUST have:
-{ "id": <1..${itemCount}>, "type": <string>, "skill": "grammar"|"vocabulary"|"reading", "level": "<CEFR>", "instruction": "<brief student instruction>", "explanation": "<short answer explanation>" }
-
-TYPE-SPECIFIC extra fields — add exactly these per type:
-
-fill-in-the-blank:       "sentence": "...___...", "answer": "word", "options": ["a","b","c","d"]
-context-meaning:         "passage": "paragraph with targetWord", "targetWord": "word", "question": "What does X mean here?", "options": ["a","b","c","d"], "answer": "opt"
-synonym:                 "word": "w", "options": ["a","b","c","d"], "answer": "synonym"
-definition:              "definition": "text", "options": ["w1","w2","w3","w4"], "answer": "word"
-antonym:                 "word": "w", "options": ["a","b","c","d"], "answer": "antonym"
-idiom-meaning:           "idiom": "phrase", "options": ["a","b","c","d"], "answer": "meaning"
-idiom-completion:        "partial": "partial idiom with _____", "options": ["a","b","c","d"], "answer": "word"
-preposition:             "sentence": "...___...", "options": ["at","in","on","for","of","to","by","with"], "answer": "prep"
-multiple-choice:         "question": "q", "options": ["A) x","B) x","C) x","D) x"], "answer": "A) x"
-drag-and-drop:           "words": ["w1","w2","w3","w4","w5","w6"], "answer": "The correct full sentence."
-dropdown-fill-in:        "template": "Text [0] more [1] end.", "slots": [{"options":["a","b","c"],"answer":"a"},{"options":["x","y","z"],"answer":"y"}]
-multi-select:            "question": "q (select ALL that apply)", "options": ["a","b","c","d","e"], "answers": ["a","c"]
-true-false-not-given:    "passage": "paragraph", "statements": [{"text":"s1","answer":"True"},{"text":"s2","answer":"False"},{"text":"s3","answer":"Not Given"}]
-re-order-paragraphs:     "paragraphs": [{"label":"A","text":"..."},{"label":"B","text":"..."},{"label":"C","text":"..."},{"label":"D","text":"..."}], "correctOrder": ["B","A","D","C"]
-MC-cloze:                "passage": "text with [0] blank [1].", "blanks": [{"options":["a","b","c","d"],"answer":"a"},{"options":["w","x","y","z"],"answer":"z"}]
-open-cloze:              "passage": "text with _____(1) and _____(2).", "answers": ["word1","word2"]
-word-formation:          "sentence": "sentence with _____ (BASE).", "baseWord": "BASE", "answer": "formed_word"
-key-word-transformation: "original": "sentence.", "keyword": "WORD", "answer": "rewritten sentence using WORD"
-gapped-text:             "passage": "text [GAP_A] more [GAP_B].", "sentences": [{"id":"A","text":"sent"},{"id":"B","text":"sent"},{"id":"C","text":"distractor"},{"id":"D","text":"distractor"}], "answers": {"GAP_A":"C","GAP_B":"A"}
-matching-headings:       "paragraphs": [{"id":"1","text":"para"},{"id":"2","text":"para"},{"id":"3","text":"para"}], "headings": [{"id":"A","text":"h"},{"id":"B","text":"h"},{"id":"C","text":"h"},{"id":"D","text":"extra"}], "answers": {"1":"B","2":"A","3":"C"}
-summary-completion:      "passage": "source text", "summary": "summary with _____(1) and _____(2).", "wordBank": ["w1","w2","w3","w4","w5","w6"], "answers": ["w1","w3"]
-matching-information:    "paragraphs": [{"id":"A","text":"para"},{"id":"B","text":"para"},{"id":"C","text":"para"}], "statements": [{"text":"s1","answer":"B"},{"text":"s2","answer":"A"},{"text":"s3","answer":"C"}]
-
-Make questions natural, educational, and appropriate for ${lvlTxt} learners. Return ONLY the JSON object.`;
-  };
-
-  // ── helpers ───────────────────────────────────────────────────────────────
-  const updateAnswer = (id, val) => setAnswers(prev => ({ ...prev, [id]: val }));
-
-  const calculateScore = () => {
-    let correct = 0, total = 0;
-    questions.forEach(q => {
-      const ua = answers[q.id];
-      if (q.type === 'multi-select') {
-        total++;
-        const cs = new Set(q.answers || []);
-        const us = new Set(ua || []);
-        if (cs.size === us.size && [...cs].every(x => us.has(x))) correct++;
-      } else if (q.type === 'true-false-not-given') {
-        (q.statements || []).forEach((s, i) => { total++; if ((ua?.[i]||'').toLowerCase() === s.answer.toLowerCase()) correct++; });
-      } else if (q.type === 'dropdown-fill-in') {
-        (q.slots || []).forEach((sl, i) => { total++; if ((ua?.[i]||'').toLowerCase() === sl.answer.toLowerCase()) correct++; });
-      } else if (q.type === 'MC-cloze') {
-        (q.blanks || []).forEach((bl, i) => { total++; if ((ua?.[i]||'').toLowerCase() === bl.answer.toLowerCase()) correct++; });
-      } else if (q.type === 'open-cloze' || q.type === 'summary-completion') {
-        (q.answers || []).forEach((ans, i) => { total++; if ((ua?.[i]||'').trim().toLowerCase() === ans.toLowerCase()) correct++; });
-      } else if (q.type === 'matching-headings') {
-        Object.entries(q.answers || {}).forEach(([k, v]) => { total++; if ((ua?.[k]||'') === v) correct++; });
-      } else if (q.type === 'matching-information') {
-        (q.statements || []).forEach((s, i) => { total++; if ((ua?.[i]||'') === s.answer) correct++; });
-      } else if (q.type === 're-order-paragraphs') {
-        total++;
-        if (JSON.stringify(ua) === JSON.stringify(q.correctOrder)) correct++;
-      } else if (q.type === 'gapped-text') {
-        Object.entries(q.answers || {}).forEach(([g, sid]) => { total++; if ((ua?.[g]||'') === sid) correct++; });
-      } else {
-        total++;
-        if ((ua||'').trim().toLowerCase() === (q.answer||'').trim().toLowerCase()) correct++;
-      }
-    });
-    return { correct, total };
-  };
-
-  const isCorrect = (q) => {
-    const ua = answers[q.id];
-    if (q.type === 'multi-select') {
-      const cs = new Set(q.answers || []);
-      const us = new Set(ua || []);
-      return cs.size === us.size && [...cs].every(x => us.has(x));
-    }
-    if (q.type === 'true-false-not-given')
-      return (q.statements||[]).every((s,i) => (ua?.[i]||'').toLowerCase() === s.answer.toLowerCase());
-    if (q.type === 'dropdown-fill-in')
-      return (q.slots||[]).every((sl,i) => (ua?.[i]||'').toLowerCase() === sl.answer.toLowerCase());
-    if (q.type === 'MC-cloze')
-      return (q.blanks||[]).every((bl,i) => (ua?.[i]||'').toLowerCase() === bl.answer.toLowerCase());
-    if (q.type === 'open-cloze' || q.type === 'summary-completion')
-      return (q.answers||[]).every((ans,i) => (ua?.[i]||'').trim().toLowerCase() === ans.toLowerCase());
-    if (q.type === 'matching-headings')
-      return Object.entries(q.answers||{}).every(([k,v]) => (ua?.[k]||'') === v);
-    if (q.type === 'matching-information')
-      return (q.statements||[]).every((s,i) => (ua?.[i]||'') === s.answer);
-    if (q.type === 're-order-paragraphs')
-      return JSON.stringify(ua) === JSON.stringify(q.correctOrder);
-    if (q.type === 'gapped-text')
-      return Object.entries(q.answers||{}).every(([g,sid]) => (ua?.[g]||'') === sid);
-    return (ua||'').trim().toLowerCase() === (q.answer||'').trim().toLowerCase();
-  };
-
-  // ── generate ──────────────────────────────────────────────────────────────
-  const handleGenerate = async () => {
-    setPhase('loading');
-    setQuestions([]);
-    setAnswers({});
-    setDragArranged({});
-    setDragPool({});
-    try {
-      const raw  = await fetchFromGemini(buildPrompt(), AI_KEY, 4000);
-      const data = parseGeminiJSON(raw);
-      const qs   = data?.questions;
-      if (Array.isArray(qs) && qs.length > 0) {
-        // init drag state
-        const initArranged = {}, initPool = {};
-        qs.forEach(q => {
-          if (q.type === 'drag-and-drop') {
-            initArranged[q.id] = [];
-            initPool[q.id]     = [...(q.words || [])].sort(() => Math.random() - 0.5);
-          }
-        });
-        setDragArranged(initArranged);
-        setDragPool(initPool);
-        setQuestions(qs);
-        setPhase('session');
-      } else {
-        setPhase('config');
-        alert(t ? 'تعذّر توليد الأسئلة. حاول مجدداً.' : 'Could not generate questions. Please try again.');
-      }
-    } catch {
-      setPhase('config');
-    }
-  };
-
-  const handleSubmit = () => {
-    const { correct, total } = calculateScore();
-    setPhase('results');
-    const sess = {
-      id: Date.now(),
-      date: new Date().toLocaleDateString(),
-      skill: skill === 'any' ? 'Mixed' : skill,
-      framework: framework === 'any' ? 'General' : framework,
-      qType: qType === 'any' ? 'Mixed' : qType,
-      level: level === 'any' ? 'Mixed' : level,
-      count: questions.length,
-      correct,
-      total,
-    };
-    const updated = [sess, ...sessions].slice(0, 10);
-    setSessions(updated);
-    localStorage.setItem('venoxa-test-sessions', JSON.stringify(updated));
-  };
-
-  // ── shared style helpers ──────────────────────────────────────────────────
-  const panelCls  = 'glass-panel rounded-2xl border border-gray-200 dark:border-[var(--app-border)] p-5';
-  const inputBase = 'w-full rounded-xl border border-gray-200 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-accent1)]/40';
-  const selectCls = `${inputBase} cursor-pointer`;
-  const optionBtn = (active, correct_, wrong_) =>
-    `w-full text-left px-4 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150 cursor-pointer
-     ${correct_ ? 'bg-green-50 dark:bg-green-500/15 border-green-400 text-green-700 dark:text-green-300'
-     : wrong_   ? 'bg-red-50 dark:bg-red-500/15 border-red-400 text-red-700 dark:text-red-300'
-     : active   ? 'bg-[var(--app-accent1)]/15 border-[var(--app-accent1)] text-gray-900 dark:text-white'
-     :             'bg-white dark:bg-[var(--app-surface)] border-gray-200 dark:border-[var(--app-border)] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'}`;
-
-  // ── QUESTION RENDERERS ────────────────────────────────────────────────────
-  const renderQuestion = (q, idx) => {
-    const ua        = answers[q.id];
-    const submitted = phase === 'results';
-    const correct   = submitted ? isCorrect(q) : false;
-    const typeLabel = Q_TYPES.find(x => x.v === q.type)?.[t ? 'ar' : 'en'] || q.type;
-
-    // MC-style (fill-in-the-blank, synonym, definition, antonym, context-meaning,
-    // idiom-meaning, idiom-completion, preposition, multiple-choice)
-    const renderMC = (prompt, opts, correctAns) => (
-      <div className="space-y-2">
-        <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed font-medium">{prompt}</p>
-        <div className="grid gap-2 mt-3">
-          {(opts||[]).map((opt, i) => {
-            const isActive   = ua === opt;
-            const isCorrect_ = submitted && opt === correctAns;
-            const isWrong_   = submitted && isActive && opt !== correctAns;
-            return (
-              <button key={i} disabled={submitted}
-                className={optionBtn(isActive, isCorrect_, isWrong_)}
-                onClick={() => updateAnswer(q.id, opt)}>
-                <span className="opacity-50 mr-2">{String.fromCharCode(65+i)}.</span>{opt}
-              </button>
-            );
-          })}
-        </div>
-        {submitted && (
-          <div className={`mt-3 text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-            {correct ? '✓ Correct' : `✗ Correct answer: ${correctAns}`}
-            {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-          </div>
-        )}
-      </div>
-    );
-
-    const renderFillBlank = () => {
-      const parts = (q.sentence || '').split('_____');
-      return (
-        <div className="space-y-3">
-          <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
-            {parts[0]}<span className="inline-block w-24 border-b-2 border-[var(--app-accent1)] mx-1 align-bottom" />{parts[1]}
-          </p>
-          {renderMC('Choose the correct word:', q.options, q.answer)}
-        </div>
-      );
-    };
-
-    const renderOpenInput = (label, correctAns, ansKey = null) => {
-      const val = ansKey !== null ? (ua?.[ansKey] || '') : (ua || '');
-      const upd = v => ansKey !== null ? updateAnswer(q.id, { ...(ua||{}), [ansKey]: v }) : updateAnswer(q.id, v);
-      const isRight = submitted && val.trim().toLowerCase() === (correctAns||'').toLowerCase();
-      const isWrng  = submitted && !isRight;
-      return (
-        <div>
-          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{label}</label>
-          <input disabled={submitted} value={val} onChange={e => upd(e.target.value)}
-            className={`${inputBase} ${isRight ? 'border-green-400 bg-green-50 dark:bg-green-500/10' : isWrng ? 'border-red-400 bg-red-50 dark:bg-red-500/10' : ''}`}
-            placeholder={t ? 'اكتب إجابتك...' : 'Type your answer...'} />
-          {submitted && (
-            <p className={`text-xs mt-1 ${isRight ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {isRight ? '✓' : `✗ ${correctAns}`}
-            </p>
-          )}
-        </div>
-      );
-    };
-
-    const renderContextMeaning = () => (
-      <div className="space-y-3">
-        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t ? 'اقرأ الفقرة' : 'Read the passage'}</p>
-        <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 text-sm text-gray-700 dark:text-gray-200 leading-relaxed border border-gray-200 dark:border-[var(--app-border)]">
-          {(q.passage||'').split(new RegExp(`(${q.targetWord})`, 'gi')).map((part, i) =>
-            part.toLowerCase() === (q.targetWord||'').toLowerCase()
-              ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-500/30 text-yellow-900 dark:text-yellow-200 px-0.5 rounded">{part}</mark>
-              : <span key={i}>{part}</span>
-          )}
-        </div>
-        {renderMC(q.question || `What does "${q.targetWord}" mean in this context?`, q.options, q.answer)}
-      </div>
-    );
-
-    const renderMultiSelect = () => {
-      const selected = ua || [];
-      return (
-        <div className="space-y-2">
-          <p className="text-sm text-gray-700 dark:text-gray-200 font-medium leading-relaxed">{q.question}</p>
-          <p className="text-xs text-[var(--app-accent1)]">{t ? 'اختر جميع الإجابات الصحيحة' : 'Select ALL correct answers'}</p>
-          <div className="grid gap-2 mt-2">
-            {(q.options||[]).map((opt, i) => {
-              const on       = selected.includes(opt);
-              const isCorr   = submitted && (q.answers||[]).includes(opt);
-              const isWrng   = submitted && on && !(q.answers||[]).includes(opt);
-              return (
-                <button key={i} disabled={submitted}
-                  className={optionBtn(on, isCorr, isWrng)}
-                  onClick={() => {
-                    const cur = ua || [];
-                    updateAnswer(q.id, on ? cur.filter(x => x !== opt) : [...cur, opt]);
-                  }}>
-                  <span className={`inline-flex w-4 h-4 rounded border mr-2 items-center justify-center text-xs
-                    ${on ? 'bg-[var(--app-accent1)] border-[var(--app-accent1)] text-white' : 'border-gray-300 dark:border-gray-600'}`}>
-                    {on && '✓'}
-                  </span>
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
-          {submitted && (
-            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-              {correct ? '✓ Correct' : `✗ Correct: ${(q.answers||[]).join(', ')}`}
-              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const renderTFNG = () => (
-      <div className="space-y-3">
-        <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 text-sm leading-relaxed border border-gray-200 dark:border-[var(--app-border)] text-gray-700 dark:text-gray-200">{q.passage}</div>
-        <div className="space-y-3">
-          {(q.statements||[]).map((s, i) => {
-            const choice = ua?.[i] || '';
-            const labels = ['True','False','Not Given'];
-            const isCorr = submitted && choice.toLowerCase() === s.answer.toLowerCase();
-            return (
-              <div key={i} className="rounded-xl border border-gray-200 dark:border-[var(--app-border)] p-3 space-y-2">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{i+1}. {s.text}</p>
-                <div className="flex gap-2 flex-wrap">
-                  {labels.map(lb => {
-                    const active = choice === lb;
-                    const isC2   = submitted && lb === s.answer;
-                    const isW2   = submitted && active && lb !== s.answer;
-                    return (
-                      <button key={lb} disabled={submitted}
-                        onClick={() => updateAnswer(q.id, { ...(ua||{}), [i]: lb })}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all
-                          ${isC2 ? 'bg-green-100 dark:bg-green-500/20 border-green-400 text-green-700 dark:text-green-300'
-                          : isW2 ? 'bg-red-100 dark:bg-red-500/20 border-red-400 text-red-700 dark:text-red-300'
-                          : active ? 'bg-[var(--app-accent1)] border-[var(--app-accent1)] text-white'
-                          : 'bg-white dark:bg-[var(--app-card)] border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
-                        {lb}
-                      </button>
-                    );
-                  })}
-                </div>
-                {submitted && <p className={`text-xs ${isCorr ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isCorr ? '✓' : `✗ ${s.answer}`}</p>}
-              </div>
-            );
-          })}
-        </div>
-        {submitted && q.explanation && <p className="text-xs text-gray-500 dark:text-gray-400 italic">{q.explanation}</p>}
-      </div>
-    );
-
-    const renderReorderParagraphs = () => {
-      const order    = ua || [];
-      const allLabels= (q.paragraphs||[]).map(p => p.label);
-      const remaining= allLabels.filter(l => !order.includes(l));
-      return (
-        <div className="space-y-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">{t ? 'رتب الفقرات بالترتيب الصحيح' : 'Click paragraphs in the correct order'}</p>
-          {/* Arranged */}
-          <div className="space-y-2 min-h-[60px]">
-            {order.map((lbl2, pos) => {
-              const para = (q.paragraphs||[]).find(p => p.label === lbl2);
-              return (
-                <div key={lbl2} className="flex items-start gap-2 bg-[var(--app-accent1)]/10 border border-[var(--app-accent1)]/30 rounded-xl p-3 cursor-pointer"
-                  onClick={() => !submitted && updateAnswer(q.id, order.filter(x => x !== lbl2))}>
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--app-accent1)] text-white text-xs font-bold flex items-center justify-center">{pos+1}</span>
-                  <div><span className="font-bold text-xs text-[var(--app-accent1)] mr-2">{lbl2}.</span><span className="text-sm text-gray-700 dark:text-gray-200">{para?.text}</span></div>
-                </div>
-              );
-            })}
-          </div>
-          {/* Pool */}
-          {!submitted && remaining.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs text-gray-400">{t ? 'انقر لإضافة:' : 'Click to add:'}</p>
-              {remaining.map(lbl2 => {
-                const para = (q.paragraphs||[]).find(p => p.label === lbl2);
-                return (
-                  <div key={lbl2} className="flex items-start gap-2 bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5"
-                    onClick={() => updateAnswer(q.id, [...order, lbl2])}>
-                    <span className="shrink-0 w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold flex items-center justify-center">{lbl2}</span>
-                    <span className="text-sm text-gray-700 dark:text-gray-200">{para?.text}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {submitted && (
-            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-              {correct ? '✓ Correct order!' : `✗ Correct order: ${(q.correctOrder||[]).join(' → ')}`}
-              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const renderDragDrop = () => {
-      const arranged = dragArranged[q.id] || [];
-      const pool2    = dragPool[q.id]     || [];
-      const dropWord = (w) => {
-        setDragArranged(prev => ({ ...prev, [q.id]: [...(prev[q.id]||[]), w] }));
-        setDragPool(prev     => ({ ...prev, [q.id]: (prev[q.id]||[]).filter(x => x !== w) }));
-        updateAnswer(q.id, [...arranged, w].join(' '));
-      };
-      const removeWord = (idx2) => {
-        const arr  = dragArranged[q.id] || [];
-        const word = arr[idx2];
-        setDragArranged(prev => ({ ...prev, [q.id]: arr.filter((_, i) => i !== idx2) }));
-        setDragPool(prev     => ({ ...prev, [q.id]: [...(prev[q.id]||[]), word] }));
-        const newArr = arr.filter((_, i) => i !== idx2);
-        updateAnswer(q.id, newArr.join(' '));
-      };
-      return (
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500 dark:text-gray-400">{t ? 'رتب الكلمات لتكوين جملة صحيحة' : 'Arrange words to form a correct sentence'}</p>
-          {/* Drop zone */}
-          <div className="min-h-[48px] flex flex-wrap gap-2 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl border-2 border-dashed border-[var(--app-accent1)]/40 p-3">
-            {arranged.length === 0 && <span className="text-xs text-gray-400 self-center">{t ? 'انقر على الكلمات أدناه...' : 'Click words below to add...'}</span>}
-            {arranged.map((w, i) => (
-              <button key={i} disabled={submitted} onClick={() => !submitted && removeWord(i)}
-                className="px-3 py-1 rounded-lg bg-[var(--app-accent1)] text-white text-sm font-medium hover:bg-[var(--app-accent1)]/80 transition-all">
-                {w}
-              </button>
-            ))}
-          </div>
-          {/* Word pool */}
-          {!submitted && (
-            <div className="flex flex-wrap gap-2">
-              {pool2.map((w, i) => (
-                <button key={i} onClick={() => dropWord(w)}
-                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
-                  {w}
-                </button>
-              ))}
-            </div>
-          )}
-          {submitted && (
-            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-              {correct ? '✓ Correct!' : `✗ Correct answer: ${q.answer}`}
-              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const renderDropdownFillIn = () => {
-      const parts = (q.template || '').split(/\[(\d+)\]/);
-      return (
-        <div className="space-y-3">
-          <div className="text-sm leading-loose text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)]">
-            {parts.map((part, i) => {
-              if (/^\d+$/.test(part)) {
-                const idx2 = parseInt(part);
-                const slot = (q.slots||[])[idx2];
-                const val  = ua?.[idx2] || '';
-                const isC2 = submitted && val === slot?.answer;
-                const isW2 = submitted && val !== slot?.answer;
-                return (
-                  <select key={i} disabled={submitted} value={val}
-                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [idx2]: e.target.value })}
-                    className={`mx-1 px-2 py-0.5 rounded-lg border text-sm cursor-pointer focus:outline-none
-                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300'
-                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'
-                      : 'border-[var(--app-accent1)]/50 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
-                    <option value="">—</option>
-                    {(slot?.options||[]).map((o, j) => <option key={j} value={o}>{o}</option>)}
-                  </select>
-                );
-              }
-              return <span key={i}>{part}</span>;
-            })}
-          </div>
-          {submitted && (
-            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-              {correct ? '✓ All correct!' : `✗ Correct: ${(q.slots||[]).map(sl => sl.answer).join(', ')}`}
-              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const renderMCCloze = () => {
-      const parts = (q.passage||'').split(/\[(\d+)\]/);
-      return (
-        <div className="space-y-3">
-          <div className="text-sm leading-loose text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)]">
-            {parts.map((part, i) => {
-              if (/^\d+$/.test(part)) {
-                const idx2  = parseInt(part);
-                const blank = (q.blanks||[])[idx2];
-                const val   = ua?.[idx2] || '';
-                const isC2  = submitted && val === blank?.answer;
-                const isW2  = submitted && val !== blank?.answer;
-                return (
-                  <select key={i} disabled={submitted} value={val}
-                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [idx2]: e.target.value })}
-                    className={`mx-1 px-2 py-0.5 rounded-lg border text-sm cursor-pointer focus:outline-none
-                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300'
-                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'
-                      : 'border-[var(--app-accent1)]/50 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
-                    <option value="">—</option>
-                    {(blank?.options||[]).map((o, j) => <option key={j} value={o}>{o}</option>)}
-                  </select>
-                );
-              }
-              return <span key={i}>{part}</span>;
-            })}
-          </div>
-          {submitted && (
-            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-              {correct ? '✓ All correct!' : `✗ Correct: ${(q.blanks||[]).map(b => b.answer).join(', ')}`}
-              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const renderOpenCloze = () => {
-      const parts = (q.passage||'').split(/(_____\(\d+\))/);
-      let blankIdx = -1;
-      return (
-        <div className="space-y-3">
-          <div className="text-sm leading-loose text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)]">
-            {parts.map((part, i) => {
-              if (/^_____\(\d+\)$/.test(part)) {
-                blankIdx++;
-                const idx2    = blankIdx;
-                const ans     = (q.answers||[])[idx2] || '';
-                const val     = ua?.[idx2] || '';
-                const isC2    = submitted && val.trim().toLowerCase() === ans.toLowerCase();
-                const isW2    = submitted && !isC2;
-                return (
-                  <span key={i} className="inline-flex items-center mx-1">
-                    <input disabled={submitted} value={val} onChange={e => updateAnswer(q.id, { ...(ua||{}), [idx2]: e.target.value })}
-                      className={`w-24 px-2 py-0.5 rounded-lg border text-sm focus:outline-none text-center
-                        ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
-                        : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
-                        : 'border-[var(--app-accent1)]/50 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}
-                      placeholder={`(${idx2+1})`} />
-                    {submitted && isW2 && <span className="ml-1 text-xs text-green-600 dark:text-green-400">→{ans}</span>}
-                  </span>
-                );
-              }
-              return <span key={i}>{part}</span>;
-            })}
-          </div>
-          {submitted && q.explanation && <p className="text-xs text-gray-500 dark:text-gray-400 italic">{q.explanation}</p>}
-        </div>
-      );
-    };
-
-    const renderWordFormation = () => (
-      <div className="space-y-3">
-        <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
-          {(q.sentence||'').split('_____').map((p2, i) => {
-            if (i === 0) return <span key={i}>{p2}</span>;
-            return <span key={i}><span className="inline-flex items-center gap-1">
-              <span className="border-b-2 border-[var(--app-accent1)] w-20 inline-block" />
-              <span className="text-xs text-[var(--app-accent1)] font-bold">({q.baseWord})</span>
-            </span>{p2}</span>;
-          })}
-        </p>
-        {renderOpenInput(t ? 'الصيغة الصحيحة:' : 'Correct form:', q.answer)}
-        {submitted && q.explanation && <p className="text-xs text-gray-500 dark:text-gray-400 italic">{q.explanation}</p>}
-      </div>
-    );
-
-    const renderKeyWordTransform = () => (
-      <div className="space-y-3">
-        <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)]">
-          <p className="text-xs text-gray-400 mb-1">{t ? 'أعد كتابة الجملة مستخدماً الكلمة المفتاحية:' : 'Rewrite using the key word:'}</p>
-          <p className="text-sm text-gray-700 dark:text-gray-200 font-medium">{q.original}</p>
-          <p className="mt-2 text-sm font-bold text-[var(--app-accent1)]">KEY: {q.keyword}</p>
-        </div>
-        {renderOpenInput(t ? 'الجملة المعاد كتابتها:' : 'Rewritten sentence:', q.answer)}
-        {submitted && q.explanation && <p className="text-xs text-gray-500 dark:text-gray-400 italic">{q.explanation}</p>}
-      </div>
-    );
-
-    const renderGappedText = () => {
-      const gaps = Object.keys(q.answers || {});
-      return (
-        <div className="space-y-4">
-          <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)] text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
-            {(q.passage||'').split(/(\[GAP_[A-Z]\])/g).map((part, i) => {
-              const gapMatch = part.match(/\[GAP_([A-Z])\]/);
-              if (gapMatch) {
-                const gapId  = `GAP_${gapMatch[1]}`;
-                const val    = ua?.[gapId] || '';
-                const isC2   = submitted && val === (q.answers||{})[gapId];
-                const isW2   = submitted && !isC2;
-                return (
-                  <select key={i} disabled={submitted} value={val}
-                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [gapId]: e.target.value })}
-                    className={`mx-1 px-2 py-0.5 rounded-lg border text-xs cursor-pointer focus:outline-none
-                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
-                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
-                      : 'border-[var(--app-accent1)]/40 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
-                    <option value="">— {gapId} —</option>
-                    {(q.sentences||[]).map(s => <option key={s.id} value={s.id}>{s.id}</option>)}
-                  </select>
-                );
-              }
-              return <span key={i}>{part}</span>;
-            })}
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs text-gray-400 uppercase tracking-wider">{t ? 'الجمل المتاحة:' : 'Available sentences:'}</p>
-            {(q.sentences||[]).map(s => (
-              <div key={s.id} className="flex gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-bold text-[var(--app-accent1)] shrink-0">{s.id}.</span><span>{s.text}</span>
-              </div>
-            ))}
-          </div>
-          {submitted && (
-            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-              {correct ? '✓ Correct!' : `✗ Correct: ${Object.entries(q.answers||{}).map(([g,s2]) => `${g}→${s2}`).join(', ')}`}
-              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const renderMatchingHeadings = () => (
-      <div className="space-y-4">
-        <div className="space-y-3">
-          {(q.paragraphs||[]).map(para => {
-            const val  = ua?.[para.id] || '';
-            const isC2 = submitted && val === (q.answers||{})[para.id];
-            const isW2 = submitted && !isC2;
-            return (
-              <div key={para.id} className="rounded-xl border border-gray-200 dark:border-[var(--app-border)] p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[var(--app-accent1)] shrink-0">{t ? 'فقرة' : 'Para'} {para.id}</span>
-                  <select disabled={submitted} value={val}
-                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [para.id]: e.target.value })}
-                    className={`flex-1 px-2 py-1 rounded-lg border text-xs cursor-pointer focus:outline-none
-                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
-                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
-                      : 'border-gray-200 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
-                    <option value="">{t ? '— اختر عنواناً —' : '— Choose heading —'}</option>
-                    {(q.headings||[]).map(h => <option key={h.id} value={h.id}>{h.id}. {h.text}</option>)}
-                  </select>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">{para.text}</p>
-              </div>
-            );
-          })}
-        </div>
-        {submitted && (
-          <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-            {correct ? '✓ All correct!' : `✗ Correct: ${Object.entries(q.answers||{}).map(([p2,h]) => `Para ${p2}→${h}`).join(', ')}`}
-            {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-          </div>
-        )}
-      </div>
-    );
-
-    const renderSummaryCompletion = () => {
-      const parts  = (q.summary||'').split(/(_____\(\d+\))/);
-      let bi = -1;
-      return (
-        <div className="space-y-4">
-          {q.passage && (
-            <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)] text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-4">{q.passage}</div>
-          )}
-          <div className="bg-white dark:bg-[var(--app-card)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)] text-sm leading-loose text-gray-700 dark:text-gray-200">
-            <p className="text-xs text-gray-400 mb-2">{t ? 'أكمل الملخص:' : 'Complete the summary:'}</p>
-            {parts.map((part, i) => {
-              if (/^_____\(\d+\)$/.test(part)) {
-                bi++;
-                const idx2  = bi;
-                const ans   = (q.answers||[])[idx2] || '';
-                const sel   = ua?.[idx2] || '';
-                const isC2  = submitted && sel === ans;
-                const isW2  = submitted && !isC2;
-                return (
-                  <select key={i} disabled={submitted} value={sel}
-                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [idx2]: e.target.value })}
-                    className={`mx-1 px-2 py-0.5 rounded-lg border text-sm cursor-pointer focus:outline-none
-                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
-                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
-                      : 'border-[var(--app-accent1)]/40 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
-                    <option value="">{t ? '— اختر —' : '— choose —'}</option>
-                    {(q.wordBank||[]).map((w, j) => <option key={j} value={w}>{w}</option>)}
-                  </select>
-                );
-              }
-              return <span key={i}>{part}</span>;
-            })}
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">{t ? 'بنك الكلمات:' : 'Word bank:'}</p>
-            <div className="flex flex-wrap gap-2">
-              {(q.wordBank||[]).map((w, i) => (
-                <span key={i} className="px-3 py-1 rounded-full bg-[var(--app-accent1)]/10 border border-[var(--app-accent1)]/20 text-sm text-[var(--app-accent1)] font-medium">{w}</span>
-              ))}
-            </div>
-          </div>
-          {submitted && (
-            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-              {correct ? '✓ Correct!' : `✗ Correct: ${(q.answers||[]).join(', ')}`}
-              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const renderMatchingInfo = () => (
-      <div className="space-y-4">
-        <div className="grid gap-3">
-          {(q.paragraphs||[]).map(para => (
-            <div key={para.id} className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-3 border border-gray-200 dark:border-[var(--app-border)]">
-              <span className="font-bold text-xs text-[var(--app-accent1)] block mb-1">{t ? 'فقرة' : 'Paragraph'} {para.id}</span>
-              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{para.text}</p>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-3">
-          <p className="text-xs text-gray-400 uppercase tracking-wider">{t ? 'طابق كل عبارة مع الفقرة:' : 'Match each statement to a paragraph:'}</p>
-          {(q.statements||[]).map((s, i) => {
-            const val  = ua?.[i] || '';
-            const isC2 = submitted && val === s.answer;
-            const isW2 = submitted && !isC2;
-            return (
-              <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-200 dark:border-[var(--app-border)] p-3">
-                <p className="flex-1 text-sm text-gray-700 dark:text-gray-200">{s.text}</p>
-                <select disabled={submitted} value={val}
-                  onChange={e => updateAnswer(q.id, { ...(ua||{}), [i]: e.target.value })}
-                  className={`w-24 px-2 py-1 rounded-lg border text-sm cursor-pointer focus:outline-none
-                    ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
-                    : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
-                    : 'border-gray-200 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
-                  <option value="">—</option>
-                  {(q.paragraphs||[]).map(p2 => <option key={p2.id} value={p2.id}>{t ? 'فقرة' : 'Para'} {p2.id}</option>)}
-                </select>
-              </div>
-            );
-          })}
-        </div>
-        {submitted && (
-          <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-            {correct ? '✓ All matched correctly!' : `✗ Correct: ${(q.statements||[]).map((s,i)=>`S${i+1}→${s.answer}`).join(', ')}`}
-            {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
-          </div>
-        )}
-      </div>
-    );
-
-    // ── Dispatch to renderer ────────────────────────────────────────────────
-    let body;
-    switch (q.type) {
-      case 'fill-in-the-blank':       body = renderFillBlank(); break;
-      case 'context-meaning':         body = renderContextMeaning(); break;
-      case 'synonym':                 body = renderMC(`${t?'ما مرادف':'Find the synonym of'} "${q.word}":`, q.options, q.answer); break;
-      case 'definition':              body = renderMC(q.definition, q.options, q.answer); break;
-      case 'antonym':                 body = renderMC(`${t?'ما مضاد':'Find the antonym of'} "${q.word}":`, q.options, q.answer); break;
-      case 'idiom-meaning':           body = renderMC(`${t?'ما معنى':'What does the idiom'} "${q.idiom}" ${t?'':' mean?'}`, q.options, q.answer); break;
-      case 'idiom-completion':        body = renderMC(q.partial, q.options, q.answer); break;
-      case 'preposition':             body = renderMC(q.sentence?.replace('_____','_____'), q.options, q.answer); break;
-      case 'multiple-choice':         body = renderMC(q.question, q.options, q.answer); break;
-      case 'drag-and-drop':           body = renderDragDrop(); break;
-      case 'dropdown-fill-in':        body = renderDropdownFillIn(); break;
-      case 'multi-select':            body = renderMultiSelect(); break;
-      case 'true-false-not-given':    body = renderTFNG(); break;
-      case 're-order-paragraphs':     body = renderReorderParagraphs(); break;
-      case 'MC-cloze':                body = renderMCCloze(); break;
-      case 'open-cloze':              body = renderOpenCloze(); break;
-      case 'word-formation':          body = renderWordFormation(); break;
-      case 'key-word-transformation': body = renderKeyWordTransform(); break;
-      case 'gapped-text':             body = renderGappedText(); break;
-      case 'matching-headings':       body = renderMatchingHeadings(); break;
-      case 'summary-completion':      body = renderSummaryCompletion(); break;
-      case 'matching-information':    body = renderMatchingInfo(); break;
-      default:                        body = <p className="text-sm text-gray-500">Unsupported type: {q.type}</p>;
-    }
-
-    const cefrColor = { A1:'bg-green-500', A2:'bg-lime-500', B1:'bg-blue-500', B2:'bg-amber-500', C1:'bg-red-500' }[q.level] || 'bg-gray-400';
-    const skillColor = { grammar:'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-500/15', vocabulary:'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/15', reading:'text-teal-600 dark:text-teal-400 bg-teal-100 dark:bg-teal-500/15' }[q.skill] || 'text-gray-500 bg-gray-100 dark:bg-gray-700';
-
-    return (
-      <div key={q.id} className={`${panelCls} space-y-4 ${phase === 'results' ? (correct ? 'border-green-300 dark:border-green-500/30' : 'border-red-300 dark:border-red-500/30') : ''}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-gray-400">Q{idx+1}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${skillColor}`}>{q.skill}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-bold text-white ${cefrColor}`}>{q.level}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-[var(--app-surface)] text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-[var(--app-border)]">{typeLabel}</span>
-          </div>
-          {phase === 'results' && (
-            <span className={`text-sm font-bold ${correct ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {correct ? '✓' : '✗'}
-            </span>
-          )}
-        </div>
-        {/* Instruction */}
-        {q.instruction && <p className="text-xs text-gray-400 italic">{q.instruction}</p>}
-        {/* Body */}
-        {body}
-      </div>
-    );
-  };
-
-  // ── PANELS ────────────────────────────────────────────────────────────────
-  const FilterChip = ({ options, value, onChange, label }) => (
-    <div className="space-y-2">
-      <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</label>
-      <div className="flex flex-wrap gap-2">
-        {options.map(opt => (
-          <button key={opt.v} onClick={() => onChange(opt.v)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all duration-150
-              ${value === opt.v
-                ? 'bg-[var(--app-accent1)] border-[var(--app-accent1)] text-white shadow-sm'
-                : 'bg-white dark:bg-[var(--app-card)] border-gray-200 dark:border-[var(--app-border)] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
-            {lbl(opt)}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  const { correct: sc, total: st } = phase === 'results' ? calculateScore() : { correct:0, total:0 };
-  const pct    = st > 0 ? Math.round((sc/st)*100) : 0;
-  const grade  = pct >= 90 ? 'A' : pct >= 75 ? 'B' : pct >= 60 ? 'C' : pct >= 40 ? 'D' : 'F';
-  const gradeColor = pct >= 75 ? 'text-green-600 dark:text-green-400' : pct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
-
-  return (
-    <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6 space-y-6" dir={t ? 'rtl' : 'ltr'}>
-      {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <div className={`${panelCls} bg-gradient-to-r from-[var(--app-accent1)]/10 to-[var(--app-accent2)]/10`}>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--app-accent1)] flex items-center justify-center shrink-0 shadow-lg">
-            <ClipboardList className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t ? 'منشئ الاختبارات' : 'Test Generator'}</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {t ? 'اختر المهارة والإطار وعدد الأسئلة — سيولّد الذكاء الاصطناعي جلسة تدريبية متكاملة.'
-                 : 'Pick a skill, framework and item count — AI assembles a full practice session with 22 question types.'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── CONFIG PANEL ─────────────────────────────────────────────────── */}
-      <div className={`${panelCls} space-y-6`}>
-        <h2 className="font-bold text-gray-800 dark:text-white text-base flex items-center gap-2">
-          <Shuffle className="w-4 h-4 text-[var(--app-accent1)]" />
-          {t ? 'إعدادات الاختبار' : 'Session Settings'}
-        </h2>
-        <FilterChip options={SKILLS}     value={skill}     onChange={setSkill}     label={t ? 'المهارة الرئيسية' : 'Primary Skill'} />
-        <FilterChip options={FRAMEWORKS} value={framework} onChange={setFramework} label={t ? 'إطار الاختبار' : 'Test Framework'} />
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t ? 'نوع السؤال' : 'Question Type'}</label>
-          <CustomDropdown
-            value={qType}
-            onChange={setQType}
-            options={Q_TYPES.map(qt => ({ value: qt.v, label: lbl(qt) }))}
-            theme={theme}
-          />
-        </div>
-        <FilterChip options={LEVELS} value={level} onChange={setLevel} label={t ? 'مستوى CEFR' : 'CEFR Level'} />
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t ? 'عدد الأسئلة' : 'Items per session'}</label>
-          <div className="flex gap-2">
-            {COUNTS.map(c => (
-              <button key={c} onClick={() => setItemCount(c)}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all
-                  ${itemCount === c ? 'bg-[var(--app-accent1)] border-[var(--app-accent1)] text-white' : 'bg-white dark:bg-[var(--app-card)] border-gray-200 dark:border-[var(--app-border)] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-        <button onClick={handleGenerate} disabled={phase === 'loading'}
-          className="w-full py-3 rounded-2xl bg-[var(--app-accent1)] text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[var(--app-accent1)]/20 disabled:opacity-60">
-          {phase === 'loading'
-            ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t ? 'جاري التوليد...' : 'Generating...'}</>
-            : <><Sparkles className="w-4 h-4" />{t ? 'ابدأ الجلسة' : 'Start Practice Session'}</>}
-        </button>
-      </div>
-
-      {/* ── SESSION QUESTIONS ─────────────────────────────────────────────── */}
-      {(phase === 'session' || phase === 'results') && questions.length > 0 && (
-        <div className="space-y-4">
-          {/* progress bar */}
-          {phase === 'session' && (
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-2 bg-[var(--app-accent1)] rounded-full transition-all duration-500"
-                  style={{ width: `${(Object.keys(answers).length / questions.length) * 100}%` }} />
-              </div>
-              <span className="text-xs text-gray-500 shrink-0">{Object.keys(answers).length}/{questions.length}</span>
-            </div>
-          )}
-
-          {/* questions */}
-          {questions.map((q, idx) => renderQuestion(q, idx))}
-
-          {/* submit / new */}
-          {phase === 'session' && (
-            <button onClick={handleSubmit}
-              className="w-full py-3 rounded-2xl bg-green-600 dark:bg-green-500 text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg">
-              <CheckCircle2 className="w-4 h-4" />
-              {t ? 'تسليم الإجابات' : 'Submit Answers'}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ── RESULTS PANEL ────────────────────────────────────────────────── */}
-      {phase === 'results' && (
-        <div className={`${panelCls} text-center space-y-4`}>
-          <Trophy className="w-12 h-12 mx-auto text-yellow-500" />
-          <div>
-            <p className="text-4xl font-black text-gray-900 dark:text-white">{pct}<span className="text-2xl">%</span></p>
-            <p className={`text-2xl font-black mt-1 ${gradeColor}`}>{grade}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{sc} / {st} {t ? 'إجابة صحيحة' : 'correct'}</p>
-          </div>
-          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div className={`h-3 rounded-full transition-all duration-700 ${pct >= 75 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
-              style={{ width: `${pct}%` }} />
-          </div>
-          <button onClick={() => { setPhase('config'); setQuestions([]); setAnswers({}); }}
-            className="w-full py-2.5 rounded-2xl bg-[var(--app-accent1)] text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2">
-            <RotateCcw className="w-4 h-4" />
-            {t ? 'جلسة جديدة' : 'New Session'}
-          </button>
-        </div>
-      )}
-
-      {/* ── RECENT SESSIONS ──────────────────────────────────────────────── */}
-      <div className={`${panelCls} space-y-4`}>
-        <h2 className="font-bold text-gray-800 dark:text-white text-sm flex items-center gap-2">
-          <Clock className="w-4 h-4 text-gray-400" />
-          {t ? 'الجلسات الأخيرة' : 'Recent Sessions'}
-        </h2>
-        {sessions.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">{t ? 'لا توجد جلسات بعد. ابدأ ممارستك!' : 'No sessions yet. Start your first practice!'}</p>
-        ) : (
-          <div className="space-y-2">
-            {sessions.map(sess => (
-              <div key={sess.id} className="flex items-center justify-between gap-3 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl px-4 py-3 border border-gray-100 dark:border-[var(--app-border)]">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200 capitalize">{sess.skill}</span>
-                    <span className="text-xs text-gray-400">·</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{sess.framework}</span>
-                    <span className="text-xs text-gray-400">·</span>
-                    <span className="text-xs font-bold text-[var(--app-accent1)]">{sess.level}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5">{sess.date} · {sess.count} {t ? 'سؤال' : 'questions'}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className={`text-sm font-black ${Math.round((sess.correct/sess.total)*100) >= 75 ? 'text-green-600 dark:text-green-400' : Math.round((sess.correct/sess.total)*100) >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
-                    {Math.round((sess.correct/sess.total)*100)}%
-                  </p>
-                  <p className="text-xs text-gray-400">{sess.correct}/{sess.total}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
   );
 }
 

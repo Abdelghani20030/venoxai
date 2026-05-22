@@ -341,36 +341,7 @@ function LangDropdown({ value, onChange, exclude, uiLang, theme, position = 'bot
  *   UK → en-GB-RyanNeural             (British male)
  * Fallback: browser speechSynthesis when proxy is unavailable.
  */
-// Cached probe result for Edge TTS (per session, shared across instances).
-let _stEdgeTTSAvailable = 'unknown'; // 'unknown' | 'available' | 'unavailable'
-
-async function _probeEdgeTTSST() {
-  if (_stEdgeTTSAvailable !== 'unknown') return _stEdgeTTSAvailable === 'available';
-  try {
-    const r = await fetch(`${BASE}api/edge-tts-warmup`, { signal: AbortSignal.timeout(3000) });
-    const data = await r.json().catch(() => ({}));
-    _stEdgeTTSAvailable = (r.ok && data.ok === true) ? 'available' : 'unavailable';
-  } catch {
-    _stEdgeTTSAvailable = 'unavailable';
-  }
-  return _stEdgeTTSAvailable === 'available';
-}
-
-async function _geminiTTSST(text, gender) {
-  const voice = gender === 'female' ? 'aoede' : 'puck';
-  try {
-    const params = new URLSearchParams({ text, voice });
-    const url = `${BASE}api/gemini-tts?${params}`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
-    if (!r.ok) return null;
-    const ct = r.headers.get('content-type') || '';
-    if (!ct.includes('audio')) return null;
-    const buf = await r.arrayBuffer();
-    return new Blob([buf], { type: ct });
-  } catch { return null; }
-}
-
-function AccentSpeakButton({ text, isDark, label = 'Listen', speakFn }) {
+function AccentSpeakButton({ text, isDark, label = 'Listen' }) {
   const [accent,   setAccent]   = useState('en-US');
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef(null);
@@ -386,65 +357,20 @@ function AccentSpeakButton({ text, isDark, label = 'Listen', speakFn }) {
 
     setSpeaking(true);
 
-    if (speakFn) {
-      try {
-        const accentKey = selectedAccent.code === 'en-US' ? 'us' : 'uk';
-        const gender = selectedAccent.code === 'en-US' ? 'female' : 'male';
-        const res = await speakFn(text.trim(), gender, accentKey);
-        if (res === 'cancelled') {
-          setSpeaking(false);
-          return;
-        }
-        if (!res) {
-          browserFallback();
-        } else {
-          setSpeaking(false);
-        }
-      } catch {
-        browserFallback();
-      }
-      return;
-    }
-
-    // ── Primary: Edge Neural TTS via proxy — probe first to avoid playing
-    //    a 503 JSON error blob (which causes robotic garbled noise on Vercel).
-    const edgeAvailable = await _probeEdgeTTSST();
-    if (edgeAvailable) {
-      try {
-        const params = new URLSearchParams({ text: text.trim(), voice: selectedAccent.edgeVoice });
-        const url = `${BASE}api/edge-tts?${params}`;
-        // Fetch & validate before playing
-        const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
-        if (resp.ok && (resp.headers.get('content-type') || '').includes('audio')) {
-          const buf = await resp.arrayBuffer();
-          const blob = new Blob([buf], { type: 'audio/mpeg' });
-          const blobUrl = URL.createObjectURL(blob);
-          const audio = new Audio(blobUrl);
-          audioRef.current = audio;
-          audio.onended  = () => { URL.revokeObjectURL(blobUrl); audioRef.current = null; setSpeaking(false); };
-          audio.onerror  = () => { URL.revokeObjectURL(blobUrl); audioRef.current = null; setSpeaking(false); browserFallback(); };
-          await audio.play();
-          return;
-        } else {
-          _stEdgeTTSAvailable = 'unavailable';
-        }
-      } catch { /* fall through */ }
-    }
-
-    // ── Secondary: Gemini TTS (cloud, works on Vercel) ──
+    // ── Primary: Edge Neural TTS via proxy (same as App.jsx) ──
     try {
-      const gender = selectedAccent.code === 'en-US' ? 'female' : 'male';
-      const blob = await _geminiTTSST(text.trim(), gender);
-      if (blob) {
-        const blobUrl = URL.createObjectURL(blob);
-        const audio = new Audio(blobUrl);
-        audioRef.current = audio;
-        audio.onended  = () => { URL.revokeObjectURL(blobUrl); audioRef.current = null; setSpeaking(false); };
-        audio.onerror  = () => { URL.revokeObjectURL(blobUrl); audioRef.current = null; setSpeaking(false); browserFallback(); };
-        await audio.play();
-        return;
-      }
-    } catch { /* fall through */ }
+      const params = new URLSearchParams({ text: text.trim(), voice: selectedAccent.edgeVoice });
+      const url = `${BASE}api/edge-tts?${params}`;
+      const audio = new Audio(url);
+      audio.preload = 'auto';
+      audioRef.current = audio;
+      audio.onended  = () => { audioRef.current = null; setSpeaking(false); };
+      audio.onerror  = () => { audioRef.current = null; setSpeaking(false); browserFallback(); };
+      await audio.play();
+      return; // success — setSpeaking(false) fires via onended
+    } catch {
+      // proxy unreachable → fall through to browser
+    }
 
     browserFallback();
   };
@@ -1360,7 +1286,6 @@ ${text}
                     text={sourceText}
                     isDark={isDark}
                     label={t('Listen (source)', 'استمع للمصدر')}
-                    speakFn={speakFn}
                   />
                   <CopyButton text={sourceText} theme={theme} />
                   {sourceText && (
@@ -1443,7 +1368,6 @@ ${text}
                     text={translatedText}
                     isDark={isDark}
                     label={t('Listen (translation)', 'استمع للترجمة')}
-                    speakFn={speakFn}
                   />
                   <HeartButton
                     isFav={isFavorited(sourceText, targetLang)}

@@ -54,3 +54,8 @@ Thumbs.db
 .env.*.local
 
 .vercel
+
+# Agent-specific files and folders
+.agents/
+.claude/
+
