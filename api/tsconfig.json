@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
+    "module": "ESNext",
     "target": "ESNext",
     "noEmit": false,
     "skipLibCheck": true,
@@ -8,7 +8,7 @@
     "strict": false,
     "checkJs": false,
     "allowJs": true,
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true
   },
   "include": ["**/*.ts"]
