@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm --filter \"@workspace/venoxa\" run build",
+  "installCommand": "pnpm install",
+  "outputDirectory": "artifacts/venoxa/dist/public",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.ts" },
+    { "source": "/(.*)", "destination": "/$1" }
+  ]
+}
