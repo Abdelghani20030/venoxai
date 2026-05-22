@@ -370,7 +370,7 @@ async function _geminiTTSST(text, gender) {
   } catch { return null; }
 }
 
-function AccentSpeakButton({ text, isDark, label = 'Listen' }) {
+function AccentSpeakButton({ text, isDark, label = 'Listen', speakFn }) {
   const [accent,   setAccent]   = useState('en-US');
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef(null);
@@ -385,6 +385,26 @@ function AccentSpeakButton({ text, isDark, label = 'Listen' }) {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
     setSpeaking(true);
+
+    if (speakFn) {
+      try {
+        const accentKey = selectedAccent.code === 'en-US' ? 'us' : 'uk';
+        const gender = selectedAccent.code === 'en-US' ? 'female' : 'male';
+        const res = await speakFn(text.trim(), gender, accentKey);
+        if (res === 'cancelled') {
+          setSpeaking(false);
+          return;
+        }
+        if (!res) {
+          browserFallback();
+        } else {
+          setSpeaking(false);
+        }
+      } catch {
+        browserFallback();
+      }
+      return;
+    }
 
     // ── Primary: Edge Neural TTS via proxy — probe first to avoid playing
     //    a 503 JSON error blob (which causes robotic garbled noise on Vercel).
@@ -1340,6 +1360,7 @@ ${text}
                     text={sourceText}
                     isDark={isDark}
                     label={t('Listen (source)', 'استمع للمصدر')}
+                    speakFn={speakFn}
                   />
                   <CopyButton text={sourceText} theme={theme} />
                   {sourceText && (
@@ -1422,6 +1443,7 @@ ${text}
                     text={translatedText}
                     isDark={isDark}
                     label={t('Listen (translation)', 'استمع للترجمة')}
+                    speakFn={speakFn}
                   />
                   <HeartButton
                     isFav={isFavorited(sourceText, targetLang)}

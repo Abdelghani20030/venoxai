@@ -628,11 +628,15 @@ const _playCachedAudio = async (arrayBuf) => {
   return new Promise((resolve) => {
     const finish = () => {
       URL.revokeObjectURL(url);
+      audio.removeEventListener('ended', finish);
+      audio.removeEventListener('error', finish);
+      audio.removeEventListener('pause', finish);
       if (_currentTTSAudio === audio) _currentTTSAudio = null;
       resolve();
     };
-    audio.onended = finish;
-    audio.onerror = finish;
+    audio.addEventListener('ended', finish);
+    audio.addEventListener('error', finish);
+    audio.addEventListener('pause', finish);
     audio.play().catch(finish);
   });
 };
@@ -826,29 +830,35 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
 
   let audioBuf = null;
   let engine = null;
+  const sessionId = _currentTtsSessionId;
 
   // 1. Try Groq (fastest cloud TTS) — generous timeout for cold starts
   audioBuf = await withTimeout(_fetchGroqAudio(normalized, genderKey), 5000);
+  if (sessionId !== _currentTtsSessionId) return false;
   if (audioBuf) { engine = 'groq'; }
 
   // 2. Try Kokoro (local only, fast) — short timeout
   if (!audioBuf) {
     audioBuf = await withTimeout(_fetchKokoroAudio(normalized, genderKey, accent), 1500);
+    if (sessionId !== _currentTtsSessionId) return false;
     if (audioBuf) engine = 'kokoro';
   }
 
   // 3. Try Gemini (cloud, works on Vercel) — generous timeout
   if (!audioBuf) {
     audioBuf = await withTimeout(_fetchGeminiAudio(normalized, genderKey), 6000);
+    if (sessionId !== _currentTtsSessionId) return false;
     if (audioBuf) engine = 'gemini';
   }
 
   // 4. Try Edge TTS (local only — returns 503 JSON on Vercel)
   if (!audioBuf) {
     const edgeAvailable = await _probeEdgeTTS();
+    if (sessionId !== _currentTtsSessionId) return false;
     if (edgeAvailable) {
       const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
       audioBuf = await _fetchEdgeAudio(normalized, voice);
+      if (sessionId !== _currentTtsSessionId) return false;
       if (audioBuf) {
         engine = 'edge';
         // Also store under the top-level cache key if provided
@@ -863,6 +873,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   // 5. Play the winning audio exactly once
   if (audioBuf) {
     await _playCachedAudio(audioBuf);
+    if (sessionId !== _currentTtsSessionId) return false;
     _lastTTSEngine = engine;
     return true;
   }
@@ -900,6 +911,8 @@ const geminiTTSSpeak = async (text, gender) => {
 // Keeps a reference to the current Audio element so we can cancel it before
 // starting a new utterance.
 let _currentTTSAudio = null;
+let _currentTtsSessionId = 0;
+let _globalCancelTTSCallbacks = [];
 
 /**
  * elevenLabsSpeak(text, voiceId, interrupt = true)
@@ -914,20 +927,22 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID, inte
 
   // Stop any currently-playing audio only if requested
   if (interrupt) {
-    if (_currentTTSAudio) { _currentTTSAudio.pause(); _currentTTSAudio = null; }
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    cancelTTS();
   }
 
+  const sessionId = _currentTtsSessionId;
   const isArabic = hasArabicText(normalizedText);
   const gender = voiceId === ELEVENLABS_SARAH_ID ? 'female' : 'male';
 
   // --- Edge TTS (primary for all English text) ---
   if (!isArabic) {
     const ok = await edgeTTSSpeak(normalizedText, gender);
+    if (sessionId !== _currentTtsSessionId) return;
     if (ok) return;
   }
 
   // --- Browser speech synthesis (Arabic + Edge TTS failure fallback) ---
+  if (sessionId !== _currentTtsSessionId) return;
   if ('speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
     if (isArabic) {
@@ -1044,11 +1059,15 @@ const _streamAudioResponse = async (response) => {
  * Stops any in-progress ElevenLabs audio playback.
  */
 const cancelTTS = () => {
+  _currentTtsSessionId++;
   if (_currentTTSAudio) {
     _currentTTSAudio.pause();
     _currentTTSAudio = null;
   }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  _globalCancelTTSCallbacks.forEach(cb => {
+    try { cb(); } catch (e) {}
+  });
 };
 
 // --- DATA ---
@@ -1372,13 +1391,23 @@ export default function App() {
         return <Pronunciation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={async (text, gender, accentKey) => {
           const saved = _voiceAccent;
           if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
-          try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
+          const sessionIdBefore = _currentTtsSessionId;
+          try {
+            const ok = await edgeTTSSpeak(text, gender);
+            if (_currentTtsSessionId !== sessionIdBefore) return 'cancelled';
+            return ok;
+          } finally { _voiceAccent = saved; }
         }} />;
       case 'smart-translation':
         return <SmartTranslation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={async (text, gender, accentKey) => {
           const saved = _voiceAccent;
           if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
-          try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
+          const sessionIdBefore = _currentTtsSessionId;
+          try {
+            const ok = await edgeTTSSpeak(text, gender);
+            if (_currentTtsSessionId !== sessionIdBefore) return 'cancelled';
+            return ok;
+          } finally { _voiceAccent = saved; }
         }} />;
       case 'timer':
         return <TimerTool lang={lang} theme={theme} timerState={timerState} setTimerState={setTimerState} />;
@@ -5376,8 +5405,9 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
   // ── Fetch audio via Edge TTS and return Audio element ──────────────
   const fetchAudioEl = async (text, speed) => {
     try {
-      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
-      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+      const blob = await fetchTTSBlob(text, 'male', _voiceAccent);
+      if (!blob) return null;
+      const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audio.playbackRate = speed;
       return { audio, url };
@@ -5429,7 +5459,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
       const { audio, url } = result;
       audioBlobUrlRef.current = url;
       audio.onended = () => { URL.revokeObjectURL(url); audioBlobUrlRef.current = null; setAudioState('idle'); };
-      audio.onerror = () => setAudioState('idle');
+      audio.onerror = () => { URL.revokeObjectURL(url); audioBlobUrlRef.current = null; setAudioState('idle'); };
       audioRef.current = audio;
       await audio.play();
       setAudioState('playing');
@@ -5513,6 +5543,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     if (result) {
       const { audio, url } = result;
       audio.onended = () => { URL.revokeObjectURL(url); setDictAudioState('idle'); };
+      audio.onerror = () => { URL.revokeObjectURL(url); setDictAudioState('idle'); };
       dictAudioRef.current = audio;
       await audio.play();
       setDictAudioState('playing');
@@ -6629,7 +6660,8 @@ function Speaking({
   const processTtsQueue = async () => {
     if (isTtsPlayingRef.current || ttsQueueRef.current.length === 0) return;
     isTtsPlayingRef.current = true;
-    while (ttsQueueRef.current.length > 0) {
+    const sessionId = _currentTtsSessionId;
+    while (ttsQueueRef.current.length > 0 && sessionId === _currentTtsSessionId) {
       const item = ttsQueueRef.current.shift();
       if (!item || !item.text) continue;
 
@@ -6644,6 +6676,8 @@ function Speaking({
         // Fallback if not pre-fetched
         blob = await fetchTTSBlob(text, voiceGender, voiceAccent);
       }
+
+      if (sessionId !== _currentTtsSessionId) break;
 
       if (blob) {
         const url = URL.createObjectURL(blob);
@@ -6665,17 +6699,51 @@ function Speaking({
         }
 
         await new Promise((resolve) => {
-          audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-          audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-          audio.play().catch(resolve);
+          const onEndedOrError = () => {
+            URL.revokeObjectURL(url);
+            audio.removeEventListener('ended', onEndedOrError);
+            audio.removeEventListener('error', onEndedOrError);
+            audio.removeEventListener('pause', onEndedOrError);
+            resolve();
+          };
+          audio.addEventListener('ended', onEndedOrError);
+          audio.addEventListener('error', onEndedOrError);
+          audio.addEventListener('pause', onEndedOrError);
+          audio.play().catch(onEndedOrError);
         });
+      } else {
+        // Fallback to browser speechSynthesis so Vercel doesn't stay silent
+        if ('speechSynthesis' in window) {
+          if (msgId && isCallMode) {
+            setMessages(prev => prev.map(msg =>
+              msg.id === msgId
+                ? { ...msg, text: (msg.text || '') + (msg.text ? ' ' : '') + text }
+                : msg
+            ));
+          }
+          await new Promise((resolve) => {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = voiceAccent === 'us' ? 'en-US' : 'en-GB';
+            const rate = Math.max(0.5, Math.min(2.5, personalityRateRef.current));
+            utterance.rate = rate;
+            const voices = window.speechSynthesis.getVoices();
+            const pick = voices.find(v => v.lang === utterance.lang && !v.localService)
+              || voices.find(v => v.lang === utterance.lang)
+              || voices.find(v => v.lang.startsWith('en'));
+            if (pick) utterance.voice = pick;
+            
+            utterance.onend = () => resolve();
+            utterance.onerror = () => resolve();
+            window.speechSynthesis.speak(utterance);
+          });
+        }
       }
       // Cleanup cache
       prefetchCacheRef.current.delete(text);
     }
     isTtsPlayingRef.current = false;
     // --- AUTO-MIC: Restart recording after AI finishes speaking ---
-    if (isCallMode && micAutoMode && !isRecording) {
+    if (isCallMode && micAutoMode && !isRecording && sessionId === _currentTtsSessionId) {
       setTimeout(() => {
         handleVoiceRecord();
       }, 400); // Small delay to ensure clean start
@@ -6722,6 +6790,16 @@ function Speaking({
       transcriptScrollRef.current.scrollTop = transcriptScrollRef.current.scrollHeight;
     }
   }, [messages]);
+  useEffect(() => {
+    const cancelQueue = () => {
+      ttsQueueRef.current = [];
+      isTtsPlayingRef.current = false;
+    };
+    _globalCancelTTSCallbacks.push(cancelQueue);
+    return () => {
+      _globalCancelTTSCallbacks = _globalCancelTTSCallbacks.filter(cb => cb !== cancelQueue);
+    };
+  }, []);
   // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
   // Male: Adam (pNInz6obpgDQGcFmaJgB) — American | Female: Rachel (21m00Tcm4TlvDq8ikWAM) — American
   // Keep module-level accent var in sync with React state
