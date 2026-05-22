@@ -684,30 +684,67 @@ const EDGE_VOICES = {
 const withTimeout = (promise, ms) =>
   Promise.race([promise, new Promise(resolve => setTimeout(() => resolve(false), ms))]);
 
+// Cached probe result for /api/edge-tts availability (per session).
+// 'unknown' | 'available' | 'unavailable'
+let _edgeTTSAvailable = 'unknown';
+
+/**
+ * _probeEdgeTTS()
+ * Checks whether the /api/edge-tts endpoint actually serves audio (not a
+ * 503 JSON stub like Vercel serverless returns). Result is cached for the
+ * session so subsequent calls are instant.
+ */
+const _probeEdgeTTS = async () => {
+  if (_edgeTTSAvailable !== 'unknown') return _edgeTTSAvailable === 'available';
+  try {
+    const warmupUrl = `${import.meta.env.BASE_URL}api/edge-tts-warmup`;
+    const r = await fetch(warmupUrl, { signal: AbortSignal.timeout(3000) });
+    const data = await r.json().catch(() => ({}));
+    // The local dev server returns { ok: true }; Vercel returns { ok: false }.
+    _edgeTTSAvailable = (r.ok && data.ok === true) ? 'available' : 'unavailable';
+  } catch {
+    _edgeTTSAvailable = 'unavailable';
+  }
+  return _edgeTTSAvailable === 'available';
+};
+
 /**
  * edgeTTSSpeak(text, gender, voiceOverride, topLevelCacheKey?)
  * Free, unlimited Microsoft Edge TTS via the api-server proxy.
  * Caches audio in IndexedDB so any word heard once plays instantly from
  * cache on every future call — no network round-trip needed.
  * Returns true on success, false on failure (so caller can fall back).
+ *
+ * On Vercel/serverless the /api/edge-tts endpoint stubs out to a 503 JSON
+ * response. Playing that JSON blob as an Audio src produces garbled robotic
+ * noise. We probe availability first and skip directly to cloud TTS engines
+ * (Groq → Gemini → browser fallback) when Edge is unavailable.
  */
 const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
 
-  // 1. Try Groq (Orpheus) first — capped at 700 ms so a slow/down server
-  //    never delays the chain. If it responds in time it's the best quality.
-  const okGroq = await withTimeout(groqTTSSpeak(text, genderKey), 700);
+  // 1. Try Groq (Orpheus) first — use a generous timeout so serverless cold
+  //    starts (typically 1-3 s) don't cause premature fallthrough.
+  const okGroq = await withTimeout(groqTTSSpeak(text, genderKey), 4000);
   if (okGroq) return true;
 
-  // 2. Try Kokoro second (best local quality) — same 700 ms cap.
+  // 2. Try Kokoro second (best local quality) — 700 ms cap (local only, fast).
   const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent), 700);
   if (okKokoro) return true;
 
-  // 3. Try Gemini third (Cloud quality) — same 700 ms cap.
-  if (accent === 'us') {
-    const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 700);
-    if (okGemini) return true;
+  // 3. Try Gemini (Cloud quality) — works on both UK and US accents on Vercel.
+  //    Give it a generous timeout for serverless cold starts.
+  const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 4000);
+  if (okGemini) return true;
+
+  // 4. Microsoft Edge TTS (only when running locally — returns 503 on Vercel).
+  //    Probe first to avoid feeding a JSON error blob to the Audio player,
+  //    which is what produces the robotic/garbled sound on Vercel.
+  const edgeAvailable = await _probeEdgeTTS();
+  if (!edgeAvailable) {
+    // Edge TTS is not available in this environment — skip it entirely.
+    return false;
   }
 
   const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
@@ -724,29 +761,27 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   try {
     const params = new URLSearchParams({ text: normalized, voice });
     const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
-    // Streaming playback — starts as soon as the first audio bytes arrive.
-    const audio = new Audio(url);
-    audio.preload = 'auto';
-    _currentTTSAudio = audio;
 
-    const wait = new Promise((resolve) => {
-      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-    });
+    // Fetch first to validate the response is actual audio, not an error JSON.
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) {
+      console.warn('[Venoxa] Edge TTS returned non-OK status:', resp.status);
+      return false;
+    }
+    const contentType = resp.headers.get('content-type') || '';
+    if (!contentType.includes('audio')) {
+      console.warn('[Venoxa] Edge TTS returned non-audio content-type:', contentType);
+      _edgeTTSAvailable = 'unavailable'; // Mark as unavailable for this session
+      return false;
+    }
 
-    // Background cache fill — does not block playback at all.
-    fetch(url)
-      .then(r => (r.ok ? r.arrayBuffer() : null))
-      .then(buf => {
-        if (!buf) return;
-        _setCachedAudio(ck, buf);
-        if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
-      })
-      .catch(() => { });
+    const buf = await resp.arrayBuffer();
+    // Cache in background
+    _setCachedAudio(ck, buf);
+    if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
 
-    await audio.play();
+    await _playCachedAudio(buf);
     _lastTTSEngine = 'edge';
-    await wait;
     return true;
   } catch (err) {
     console.warn('[Venoxa] Edge TTS failed:', err.message);
