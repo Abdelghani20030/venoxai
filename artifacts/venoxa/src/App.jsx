@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import Pronunciation from './Pronunciation';
 import SmartTranslation from './SmartTranslation';
@@ -162,19 +162,51 @@ function LanguageDropdown({ lang, setLang, theme }) {
 
 function CustomDropdown({ value, onChange, options, icon: Icon, theme, placeholder, className = "" }) {
   const [isOpen, setIsOpen] = useState(false);
-  const ref = useRef(null);
+  const [menuStyle, setMenuStyle] = useState({});
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
+
+  // Close on outside click
   useEffect(() => {
-    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
+    const handleClick = (e) => {
+      if (
+        btnRef.current && !btnRef.current.contains(e.target) &&
+        menuRef.current && !menuRef.current.contains(e.target)
+      ) setIsOpen(false);
+    };
     if (isOpen) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen]);
+
+  // Recalculate position on open or scroll/resize
+  useEffect(() => {
+    if (!isOpen || !btnRef.current) return;
+    const calc = () => {
+      const r = btnRef.current.getBoundingClientRect();
+      setMenuStyle({
+        position: 'fixed',
+        top: r.bottom + 8,
+        left: r.left,
+        width: r.width,
+        zIndex: 99999,
+      });
+    };
+    calc();
+    window.addEventListener('scroll', calc, true);
+    window.addEventListener('resize', calc);
+    return () => {
+      window.removeEventListener('scroll', calc, true);
+      window.removeEventListener('resize', calc);
+    };
+  }, [isOpen]);
+
   const isDark = theme === 'dark';
   const selectedLabel = options.find(o => o.value === value)?.label || placeholder;
 
   return (
-    <div className={`relative ${className} ${isOpen ? 'z-[9999]' : 'z-auto'}`} ref={ref}>
+    <div className={`relative ${className}`} ref={btnRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen(o => !o)}
         className={`w-full h-11 flex items-center gap-3 px-4 rounded-2xl text-sm font-bold transition-all duration-300 outline-none cursor-pointer border ${isDark
           ? 'text-white border-white/5 hover:border-white/10'
           : 'text-gray-700 border-black/5 hover:border-black/10'
@@ -187,13 +219,15 @@ function CustomDropdown({ value, onChange, options, icon: Icon, theme, placehold
       >
         {Icon && <Icon size={16} className={`${isDark ? 'text-white' : 'text-gray-400'} shrink-0`} />}
         <span className="flex-1 text-center truncate tracking-tight">{selectedLabel || value || placeholder || ''}</span>
-
+        <ChevronDown size={14} className={`shrink-0 opacity-50 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {isOpen && (
-        <div 
-          className="dropdown-menu top-full left-0 right-0 mt-2 w-full max-h-[320px] overflow-y-auto custom-scrollbar"
+      {isOpen && ReactDOM.createPortal(
+        <div
+          ref={menuRef}
+          className="dropdown-menu max-h-[320px] overflow-y-auto custom-scrollbar"
           style={{
+            ...menuStyle,
             background: isDark ? 'rgb(33, 33, 42)' : 'rgba(255, 255, 255, 0.96)',
             backdropFilter: 'blur(48px) saturate(200%)',
             WebkitBackdropFilter: 'blur(48px) saturate(200%)',
@@ -209,7 +243,8 @@ function CustomDropdown({ value, onChange, options, icon: Icon, theme, placehold
               {value === o.value && <div className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-white' : 'bg-[var(--app-accent1)]'} shadow-[0_0_10px_rgba(99,102,241,0.5)]`} />}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -1353,6 +1388,8 @@ export default function App() {
         return <IdiomsSlang {...props} idiomsVocab={idiomsVocab} setIdiomsVocab={setIdiomsVocab} />;
       case 'idioms-proper':
         return <IdiomsProper {...props} idiomsProperVocab={idiomsProperVocab} setIdiomsProperVocab={setIdiomsProperVocab} />;
+      case 'test-gen':
+        return <TestGenerator {...props} />;
       case 'grammar':
         return <Grammar {...props} />;
       case 'writing':
@@ -1459,6 +1496,7 @@ export default function App() {
         { id: 'speaking', label: _resolveTranslation(lang, 'المحادثة والاتصال', 'Speaking (Call)'), icon: MessageSquare },
         { id: 'writing', label: _resolveTranslation(lang, 'الكتابة (AI)', 'Writing (AI)'), icon: PenTool },
         { id: 'pronunciation', label: _resolveTranslation(lang, 'النطق', 'Pronunciation'), icon: Volume2 },
+        { id: 'test-gen', label: _resolveTranslation(lang, 'منشئ الاختبارات', 'Test Generator'), icon: ClipboardList },
       ]
     },
     { id: 'grammar', label: _resolveTranslation(lang, 'القواعد (AI)', 'Grammar (AI)'), icon: FileText },
@@ -7741,6 +7779,1035 @@ function Speaking({
         </div>
       </div>}
     </>
+  );
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEST GENERATOR  — all 22 ozdic question types
+// ─────────────────────────────────────────────────────────────────────────────
+function TestGenerator({ AI_KEY, userLevel, lang, theme }) {
+  const isDark = theme === 'dark';
+  const t = lang === 'ar';
+
+  // ── filter state ──────────────────────────────────────────────────────────
+  const [skill,      setSkill]      = useState('any');
+  const [framework,  setFramework]  = useState('any');
+  const [qType,      setQType]      = useState('any');
+  const [level,      setLevel]      = useState(userLevel || 'B1');
+  const [itemCount,  setItemCount]  = useState(6);
+
+  // ── session state ─────────────────────────────────────────────────────────
+  const [phase,     setPhase]     = useState('config');   // config | loading | session | results
+  const [questions, setQuestions] = useState([]);
+  const [answers,   setAnswers]   = useState({});
+  const [sessions,  setSessions]  = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa-test-sessions') || '[]'); } catch { return []; }
+  });
+
+  // drag-and-drop internal state per question id
+  const [dragArranged, setDragArranged] = useState({});  // id -> [words arranged so far]
+  const [dragPool,     setDragPool]     = useState({});  // id -> [remaining pool]
+
+  // ── static data ───────────────────────────────────────────────────────────
+  const SKILLS = [
+    { v:'any', en:'Any Skill', ar:'أي مهارة' },
+    { v:'grammar', en:'Grammar', ar:'قواعد' },
+    { v:'reading', en:'Reading', ar:'قراءة' },
+    { v:'vocabulary', en:'Vocabulary', ar:'مفردات' },
+  ];
+  const FRAMEWORKS = [
+    { v:'any', en:'Any Framework', ar:'أي إطار' },
+    { v:'general', en:'General English', ar:'إنجليزي عام' },
+    { v:'PTE', en:'PTE', ar:'PTE' },
+    { v:'IELTS', en:'IELTS', ar:'IELTS' },
+    { v:'TOEFL', en:'TOEFL', ar:'TOEFL' },
+    { v:'Cambridge', en:'Cambridge', ar:'كامبريدج' },
+  ];
+  const Q_TYPES = [
+    { v:'any',                     en:'Any Type',                  ar:'أي نوع' },
+    { v:'fill-in-the-blank',       en:'Fill in the Blank',         ar:'أكمل الفراغ' },
+    { v:'context-meaning',         en:'Context Meaning',           ar:'معنى السياق' },
+    { v:'synonym',                 en:'Synonym',                   ar:'مرادف' },
+    { v:'definition',              en:'Definition',                ar:'تعريف' },
+    { v:'antonym',                 en:'Antonym',                   ar:'مضاد' },
+    { v:'idiom-meaning',           en:'Idiom Meaning',             ar:'معنى التعبير' },
+    { v:'idiom-completion',        en:'Idiom Completion',          ar:'إكمال التعبير' },
+    { v:'preposition',             en:'Preposition',               ar:'حرف جر' },
+    { v:'multiple-choice',         en:'Multiple Choice',           ar:'اختيار متعدد' },
+    { v:'drag-and-drop',           en:'Drag and Drop',             ar:'رتب الكلمات' },
+    { v:'dropdown-fill-in',        en:'Dropdown Fill-in',          ar:'قائمة الإكمال' },
+    { v:'multi-select',            en:'Multi-select',              ar:'تحديد متعدد' },
+    { v:'true-false-not-given',    en:'True / False / Not Given',  ar:'صح / خطأ / غير مذكور' },
+    { v:'re-order-paragraphs',     en:'Re-order Paragraphs',       ar:'رتب الفقرات' },
+    { v:'MC-cloze',                en:'MC Cloze',                  ar:'فراغات بخيارات' },
+    { v:'open-cloze',              en:'Open Cloze',                ar:'فراغات مفتوحة' },
+    { v:'word-formation',          en:'Word Formation',            ar:'تصريف الكلمة' },
+    { v:'key-word-transformation', en:'Key Word Transformation',   ar:'تحويل الجملة' },
+    { v:'gapped-text',             en:'Gapped Text',               ar:'نص بفراغات' },
+    { v:'matching-headings',       en:'Matching Headings',         ar:'مطابقة العناوين' },
+    { v:'summary-completion',      en:'Summary Completion',        ar:'إكمال الملخص' },
+    { v:'matching-information',    en:'Matching Information',      ar:'مطابقة المعلومات' },
+  ];
+  const LEVELS = [
+    { v:'any', en:'Any Level', ar:'أي مستوى' },
+    { v:'A1',  en:'A1 – Beginner',           ar:'A1 – مبتدئ' },
+    { v:'A2',  en:'A2 – Elementary',         ar:'A2 – أساسي' },
+    { v:'B1',  en:'B1 – Pre-Intermediate',   ar:'B1 – تحت المتوسط' },
+    { v:'B2',  en:'B2 – Upper-Intermediate', ar:'B2 – فوق المتوسط' },
+    { v:'C1',  en:'C1 – Advanced',           ar:'C1 – متقدم' },
+  ];
+  const COUNTS = [6, 12, 18, 24];
+
+  const lbl = obj => t ? obj.ar : obj.en;
+
+  // ── AI prompt ─────────────────────────────────────────────────────────────
+  const buildPrompt = () => {
+    const skillTxt = skill === 'any' ? 'a balanced mix of grammar, vocabulary, and reading' : skill;
+    const fwkTxt   = framework === 'any' ? 'general English proficiency' : `${framework} exam`;
+    const lvlTxt   = level === 'any' ? 'B1-B2' : level;
+    const typeLine = qType === 'any'
+      ? 'Use a VARIED mix of these types: fill-in-the-blank, context-meaning, synonym, definition, antonym, idiom-meaning, preposition, multiple-choice, multi-select, word-formation, open-cloze, true-false-not-given, drag-and-drop, dropdown-fill-in, re-order-paragraphs, MC-cloze, key-word-transformation, matching-headings, summary-completion, matching-information, gapped-text, idiom-completion'
+      : `Use ONLY this question type: ${qType}`;
+
+    return `You are an expert English language test creator. Generate exactly ${itemCount} practice questions for ${fwkTxt}, focusing on ${skillTxt}, CEFR level ${lvlTxt}. ${typeLine}.
+
+Return ONLY a valid JSON object with a single key "questions" containing an array. No markdown, no code fences, no comments.
+
+Base fields every question MUST have:
+{ "id": <1..${itemCount}>, "type": <string>, "skill": "grammar"|"vocabulary"|"reading", "level": "<CEFR>", "instruction": "<brief student instruction>", "explanation": "<short answer explanation>" }
+
+TYPE-SPECIFIC extra fields — add exactly these per type:
+
+fill-in-the-blank:       "sentence": "...___...", "answer": "word", "options": ["a","b","c","d"]
+context-meaning:         "passage": "paragraph with targetWord", "targetWord": "word", "question": "What does X mean here?", "options": ["a","b","c","d"], "answer": "opt"
+synonym:                 "word": "w", "options": ["a","b","c","d"], "answer": "synonym"
+definition:              "definition": "text", "options": ["w1","w2","w3","w4"], "answer": "word"
+antonym:                 "word": "w", "options": ["a","b","c","d"], "answer": "antonym"
+idiom-meaning:           "idiom": "phrase", "options": ["a","b","c","d"], "answer": "meaning"
+idiom-completion:        "partial": "partial idiom with _____", "options": ["a","b","c","d"], "answer": "word"
+preposition:             "sentence": "...___...", "options": ["at","in","on","for","of","to","by","with"], "answer": "prep"
+multiple-choice:         "question": "q", "options": ["A) x","B) x","C) x","D) x"], "answer": "A) x"
+drag-and-drop:           "words": ["w1","w2","w3","w4","w5","w6"], "answer": "The correct full sentence."
+dropdown-fill-in:        "template": "Text [0] more [1] end.", "slots": [{"options":["a","b","c"],"answer":"a"},{"options":["x","y","z"],"answer":"y"}]
+multi-select:            "question": "q (select ALL that apply)", "options": ["a","b","c","d","e"], "answers": ["a","c"]
+true-false-not-given:    "passage": "paragraph", "statements": [{"text":"s1","answer":"True"},{"text":"s2","answer":"False"},{"text":"s3","answer":"Not Given"}]
+re-order-paragraphs:     "paragraphs": [{"label":"A","text":"..."},{"label":"B","text":"..."},{"label":"C","text":"..."},{"label":"D","text":"..."}], "correctOrder": ["B","A","D","C"]
+MC-cloze:                "passage": "text with [0] blank [1].", "blanks": [{"options":["a","b","c","d"],"answer":"a"},{"options":["w","x","y","z"],"answer":"z"}]
+open-cloze:              "passage": "text with _____(1) and _____(2).", "answers": ["word1","word2"]
+word-formation:          "sentence": "sentence with _____ (BASE).", "baseWord": "BASE", "answer": "formed_word"
+key-word-transformation: "original": "sentence.", "keyword": "WORD", "answer": "rewritten sentence using WORD"
+gapped-text:             "passage": "text [GAP_A] more [GAP_B].", "sentences": [{"id":"A","text":"sent"},{"id":"B","text":"sent"},{"id":"C","text":"distractor"},{"id":"D","text":"distractor"}], "answers": {"GAP_A":"C","GAP_B":"A"}
+matching-headings:       "paragraphs": [{"id":"1","text":"para"},{"id":"2","text":"para"},{"id":"3","text":"para"}], "headings": [{"id":"A","text":"h"},{"id":"B","text":"h"},{"id":"C","text":"h"},{"id":"D","text":"extra"}], "answers": {"1":"B","2":"A","3":"C"}
+summary-completion:      "passage": "source text", "summary": "summary with _____(1) and _____(2).", "wordBank": ["w1","w2","w3","w4","w5","w6"], "answers": ["w1","w3"]
+matching-information:    "paragraphs": [{"id":"A","text":"para"},{"id":"B","text":"para"},{"id":"C","text":"para"}], "statements": [{"text":"s1","answer":"B"},{"text":"s2","answer":"A"},{"text":"s3","answer":"C"}]
+
+Make questions natural, educational, and appropriate for ${lvlTxt} learners. Return ONLY the JSON object.`;
+  };
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+  const updateAnswer = (id, val) => setAnswers(prev => ({ ...prev, [id]: val }));
+
+  const calculateScore = () => {
+    let correct = 0, total = 0;
+    questions.forEach(q => {
+      const ua = answers[q.id];
+      if (q.type === 'multi-select') {
+        total++;
+        const cs = new Set(q.answers || []);
+        const us = new Set(ua || []);
+        if (cs.size === us.size && [...cs].every(x => us.has(x))) correct++;
+      } else if (q.type === 'true-false-not-given') {
+        (q.statements || []).forEach((s, i) => { total++; if ((ua?.[i]||'').toLowerCase() === s.answer.toLowerCase()) correct++; });
+      } else if (q.type === 'dropdown-fill-in') {
+        (q.slots || []).forEach((sl, i) => { total++; if ((ua?.[i]||'').toLowerCase() === sl.answer.toLowerCase()) correct++; });
+      } else if (q.type === 'MC-cloze') {
+        (q.blanks || []).forEach((bl, i) => { total++; if ((ua?.[i]||'').toLowerCase() === bl.answer.toLowerCase()) correct++; });
+      } else if (q.type === 'open-cloze' || q.type === 'summary-completion') {
+        (q.answers || []).forEach((ans, i) => { total++; if ((ua?.[i]||'').trim().toLowerCase() === ans.toLowerCase()) correct++; });
+      } else if (q.type === 'matching-headings') {
+        Object.entries(q.answers || {}).forEach(([k, v]) => { total++; if ((ua?.[k]||'') === v) correct++; });
+      } else if (q.type === 'matching-information') {
+        (q.statements || []).forEach((s, i) => { total++; if ((ua?.[i]||'') === s.answer) correct++; });
+      } else if (q.type === 're-order-paragraphs') {
+        total++;
+        if (JSON.stringify(ua) === JSON.stringify(q.correctOrder)) correct++;
+      } else if (q.type === 'gapped-text') {
+        Object.entries(q.answers || {}).forEach(([g, sid]) => { total++; if ((ua?.[g]||'') === sid) correct++; });
+      } else {
+        total++;
+        if ((ua||'').trim().toLowerCase() === (q.answer||'').trim().toLowerCase()) correct++;
+      }
+    });
+    return { correct, total };
+  };
+
+  const isCorrect = (q) => {
+    const ua = answers[q.id];
+    if (q.type === 'multi-select') {
+      const cs = new Set(q.answers || []);
+      const us = new Set(ua || []);
+      return cs.size === us.size && [...cs].every(x => us.has(x));
+    }
+    if (q.type === 'true-false-not-given')
+      return (q.statements||[]).every((s,i) => (ua?.[i]||'').toLowerCase() === s.answer.toLowerCase());
+    if (q.type === 'dropdown-fill-in')
+      return (q.slots||[]).every((sl,i) => (ua?.[i]||'').toLowerCase() === sl.answer.toLowerCase());
+    if (q.type === 'MC-cloze')
+      return (q.blanks||[]).every((bl,i) => (ua?.[i]||'').toLowerCase() === bl.answer.toLowerCase());
+    if (q.type === 'open-cloze' || q.type === 'summary-completion')
+      return (q.answers||[]).every((ans,i) => (ua?.[i]||'').trim().toLowerCase() === ans.toLowerCase());
+    if (q.type === 'matching-headings')
+      return Object.entries(q.answers||{}).every(([k,v]) => (ua?.[k]||'') === v);
+    if (q.type === 'matching-information')
+      return (q.statements||[]).every((s,i) => (ua?.[i]||'') === s.answer);
+    if (q.type === 're-order-paragraphs')
+      return JSON.stringify(ua) === JSON.stringify(q.correctOrder);
+    if (q.type === 'gapped-text')
+      return Object.entries(q.answers||{}).every(([g,sid]) => (ua?.[g]||'') === sid);
+    return (ua||'').trim().toLowerCase() === (q.answer||'').trim().toLowerCase();
+  };
+
+  // ── generate ──────────────────────────────────────────────────────────────
+  const handleGenerate = async () => {
+    setPhase('loading');
+    setQuestions([]);
+    setAnswers({});
+    setDragArranged({});
+    setDragPool({});
+    try {
+      const raw  = await fetchFromGemini(buildPrompt(), AI_KEY, 4000);
+      const data = parseGeminiJSON(raw);
+      const qs   = data?.questions;
+      if (Array.isArray(qs) && qs.length > 0) {
+        // init drag state
+        const initArranged = {}, initPool = {};
+        qs.forEach(q => {
+          if (q.type === 'drag-and-drop') {
+            initArranged[q.id] = [];
+            initPool[q.id]     = [...(q.words || [])].sort(() => Math.random() - 0.5);
+          }
+        });
+        setDragArranged(initArranged);
+        setDragPool(initPool);
+        setQuestions(qs);
+        setPhase('session');
+      } else {
+        setPhase('config');
+        alert(t ? 'تعذّر توليد الأسئلة. حاول مجدداً.' : 'Could not generate questions. Please try again.');
+      }
+    } catch {
+      setPhase('config');
+    }
+  };
+
+  const handleSubmit = () => {
+    const { correct, total } = calculateScore();
+    setPhase('results');
+    const sess = {
+      id: Date.now(),
+      date: new Date().toLocaleDateString(),
+      skill: skill === 'any' ? 'Mixed' : skill,
+      framework: framework === 'any' ? 'General' : framework,
+      qType: qType === 'any' ? 'Mixed' : qType,
+      level: level === 'any' ? 'Mixed' : level,
+      count: questions.length,
+      correct,
+      total,
+    };
+    const updated = [sess, ...sessions].slice(0, 10);
+    setSessions(updated);
+    localStorage.setItem('venoxa-test-sessions', JSON.stringify(updated));
+  };
+
+  // ── shared style helpers ──────────────────────────────────────────────────
+  const panelCls  = 'glass-panel rounded-2xl border border-gray-200 dark:border-[var(--app-border)] p-5';
+  const inputBase = 'w-full rounded-xl border border-gray-200 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-accent1)]/40';
+  const selectCls = `${inputBase} cursor-pointer`;
+  const optionBtn = (active, correct_, wrong_) =>
+    `w-full text-left px-4 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150 cursor-pointer
+     ${correct_ ? 'bg-green-50 dark:bg-green-500/15 border-green-400 text-green-700 dark:text-green-300'
+     : wrong_   ? 'bg-red-50 dark:bg-red-500/15 border-red-400 text-red-700 dark:text-red-300'
+     : active   ? 'bg-[var(--app-accent1)]/15 border-[var(--app-accent1)] text-gray-900 dark:text-white'
+     :             'bg-white dark:bg-[var(--app-surface)] border-gray-200 dark:border-[var(--app-border)] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'}`;
+
+  // ── QUESTION RENDERERS ────────────────────────────────────────────────────
+  const renderQuestion = (q, idx) => {
+    const ua        = answers[q.id];
+    const submitted = phase === 'results';
+    const correct   = submitted ? isCorrect(q) : false;
+    const typeLabel = Q_TYPES.find(x => x.v === q.type)?.[t ? 'ar' : 'en'] || q.type;
+
+    // MC-style (fill-in-the-blank, synonym, definition, antonym, context-meaning,
+    // idiom-meaning, idiom-completion, preposition, multiple-choice)
+    const renderMC = (prompt, opts, correctAns) => (
+      <div className="space-y-2">
+        <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed font-medium">{prompt}</p>
+        <div className="grid gap-2 mt-3">
+          {(opts||[]).map((opt, i) => {
+            const isActive   = ua === opt;
+            const isCorrect_ = submitted && opt === correctAns;
+            const isWrong_   = submitted && isActive && opt !== correctAns;
+            return (
+              <button key={i} disabled={submitted}
+                className={optionBtn(isActive, isCorrect_, isWrong_)}
+                onClick={() => updateAnswer(q.id, opt)}>
+                <span className="opacity-50 mr-2">{String.fromCharCode(65+i)}.</span>{opt}
+              </button>
+            );
+          })}
+        </div>
+        {submitted && (
+          <div className={`mt-3 text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+            {correct ? '✓ Correct' : `✗ Correct answer: ${correctAns}`}
+            {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+          </div>
+        )}
+      </div>
+    );
+
+    const renderFillBlank = () => {
+      const parts = (q.sentence || '').split('_____');
+      return (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+            {parts[0]}<span className="inline-block w-24 border-b-2 border-[var(--app-accent1)] mx-1 align-bottom" />{parts[1]}
+          </p>
+          {renderMC('Choose the correct word:', q.options, q.answer)}
+        </div>
+      );
+    };
+
+    const renderOpenInput = (label, correctAns, ansKey = null) => {
+      const val = ansKey !== null ? (ua?.[ansKey] || '') : (ua || '');
+      const upd = v => ansKey !== null ? updateAnswer(q.id, { ...(ua||{}), [ansKey]: v }) : updateAnswer(q.id, v);
+      const isRight = submitted && val.trim().toLowerCase() === (correctAns||'').toLowerCase();
+      const isWrng  = submitted && !isRight;
+      return (
+        <div>
+          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">{label}</label>
+          <input disabled={submitted} value={val} onChange={e => upd(e.target.value)}
+            className={`${inputBase} ${isRight ? 'border-green-400 bg-green-50 dark:bg-green-500/10' : isWrng ? 'border-red-400 bg-red-50 dark:bg-red-500/10' : ''}`}
+            placeholder={t ? 'اكتب إجابتك...' : 'Type your answer...'} />
+          {submitted && (
+            <p className={`text-xs mt-1 ${isRight ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {isRight ? '✓' : `✗ ${correctAns}`}
+            </p>
+          )}
+        </div>
+      );
+    };
+
+    const renderContextMeaning = () => (
+      <div className="space-y-3">
+        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t ? 'اقرأ الفقرة' : 'Read the passage'}</p>
+        <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 text-sm text-gray-700 dark:text-gray-200 leading-relaxed border border-gray-200 dark:border-[var(--app-border)]">
+          {(q.passage||'').split(new RegExp(`(${q.targetWord})`, 'gi')).map((part, i) =>
+            part.toLowerCase() === (q.targetWord||'').toLowerCase()
+              ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-500/30 text-yellow-900 dark:text-yellow-200 px-0.5 rounded">{part}</mark>
+              : <span key={i}>{part}</span>
+          )}
+        </div>
+        {renderMC(q.question || `What does "${q.targetWord}" mean in this context?`, q.options, q.answer)}
+      </div>
+    );
+
+    const renderMultiSelect = () => {
+      const selected = ua || [];
+      return (
+        <div className="space-y-2">
+          <p className="text-sm text-gray-700 dark:text-gray-200 font-medium leading-relaxed">{q.question}</p>
+          <p className="text-xs text-[var(--app-accent1)]">{t ? 'اختر جميع الإجابات الصحيحة' : 'Select ALL correct answers'}</p>
+          <div className="grid gap-2 mt-2">
+            {(q.options||[]).map((opt, i) => {
+              const on       = selected.includes(opt);
+              const isCorr   = submitted && (q.answers||[]).includes(opt);
+              const isWrng   = submitted && on && !(q.answers||[]).includes(opt);
+              return (
+                <button key={i} disabled={submitted}
+                  className={optionBtn(on, isCorr, isWrng)}
+                  onClick={() => {
+                    const cur = ua || [];
+                    updateAnswer(q.id, on ? cur.filter(x => x !== opt) : [...cur, opt]);
+                  }}>
+                  <span className={`inline-flex w-4 h-4 rounded border mr-2 items-center justify-center text-xs
+                    ${on ? 'bg-[var(--app-accent1)] border-[var(--app-accent1)] text-white' : 'border-gray-300 dark:border-gray-600'}`}>
+                    {on && '✓'}
+                  </span>
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+          {submitted && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+              {correct ? '✓ Correct' : `✗ Correct: ${(q.answers||[]).join(', ')}`}
+              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const renderTFNG = () => (
+      <div className="space-y-3">
+        <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 text-sm leading-relaxed border border-gray-200 dark:border-[var(--app-border)] text-gray-700 dark:text-gray-200">{q.passage}</div>
+        <div className="space-y-3">
+          {(q.statements||[]).map((s, i) => {
+            const choice = ua?.[i] || '';
+            const labels = ['True','False','Not Given'];
+            const isCorr = submitted && choice.toLowerCase() === s.answer.toLowerCase();
+            return (
+              <div key={i} className="rounded-xl border border-gray-200 dark:border-[var(--app-border)] p-3 space-y-2">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{i+1}. {s.text}</p>
+                <div className="flex gap-2 flex-wrap">
+                  {labels.map(lb => {
+                    const active = choice === lb;
+                    const isC2   = submitted && lb === s.answer;
+                    const isW2   = submitted && active && lb !== s.answer;
+                    return (
+                      <button key={lb} disabled={submitted}
+                        onClick={() => updateAnswer(q.id, { ...(ua||{}), [i]: lb })}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all
+                          ${isC2 ? 'bg-green-100 dark:bg-green-500/20 border-green-400 text-green-700 dark:text-green-300'
+                          : isW2 ? 'bg-red-100 dark:bg-red-500/20 border-red-400 text-red-700 dark:text-red-300'
+                          : active ? 'bg-[var(--app-accent1)] border-[var(--app-accent1)] text-white'
+                          : 'bg-white dark:bg-[var(--app-card)] border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
+                        {lb}
+                      </button>
+                    );
+                  })}
+                </div>
+                {submitted && <p className={`text-xs ${isCorr ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{isCorr ? '✓' : `✗ ${s.answer}`}</p>}
+              </div>
+            );
+          })}
+        </div>
+        {submitted && q.explanation && <p className="text-xs text-gray-500 dark:text-gray-400 italic">{q.explanation}</p>}
+      </div>
+    );
+
+    const renderReorderParagraphs = () => {
+      const order    = ua || [];
+      const allLabels= (q.paragraphs||[]).map(p => p.label);
+      const remaining= allLabels.filter(l => !order.includes(l));
+      return (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">{t ? 'رتب الفقرات بالترتيب الصحيح' : 'Click paragraphs in the correct order'}</p>
+          {/* Arranged */}
+          <div className="space-y-2 min-h-[60px]">
+            {order.map((lbl2, pos) => {
+              const para = (q.paragraphs||[]).find(p => p.label === lbl2);
+              return (
+                <div key={lbl2} className="flex items-start gap-2 bg-[var(--app-accent1)]/10 border border-[var(--app-accent1)]/30 rounded-xl p-3 cursor-pointer"
+                  onClick={() => !submitted && updateAnswer(q.id, order.filter(x => x !== lbl2))}>
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--app-accent1)] text-white text-xs font-bold flex items-center justify-center">{pos+1}</span>
+                  <div><span className="font-bold text-xs text-[var(--app-accent1)] mr-2">{lbl2}.</span><span className="text-sm text-gray-700 dark:text-gray-200">{para?.text}</span></div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Pool */}
+          {!submitted && remaining.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-400">{t ? 'انقر لإضافة:' : 'Click to add:'}</p>
+              {remaining.map(lbl2 => {
+                const para = (q.paragraphs||[]).find(p => p.label === lbl2);
+                return (
+                  <div key={lbl2} className="flex items-start gap-2 bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5"
+                    onClick={() => updateAnswer(q.id, [...order, lbl2])}>
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-bold flex items-center justify-center">{lbl2}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-200">{para?.text}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {submitted && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+              {correct ? '✓ Correct order!' : `✗ Correct order: ${(q.correctOrder||[]).join(' → ')}`}
+              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const renderDragDrop = () => {
+      const arranged = dragArranged[q.id] || [];
+      const pool2    = dragPool[q.id]     || [];
+      const dropWord = (w) => {
+        setDragArranged(prev => ({ ...prev, [q.id]: [...(prev[q.id]||[]), w] }));
+        setDragPool(prev     => ({ ...prev, [q.id]: (prev[q.id]||[]).filter(x => x !== w) }));
+        updateAnswer(q.id, [...arranged, w].join(' '));
+      };
+      const removeWord = (idx2) => {
+        const arr  = dragArranged[q.id] || [];
+        const word = arr[idx2];
+        setDragArranged(prev => ({ ...prev, [q.id]: arr.filter((_, i) => i !== idx2) }));
+        setDragPool(prev     => ({ ...prev, [q.id]: [...(prev[q.id]||[]), word] }));
+        const newArr = arr.filter((_, i) => i !== idx2);
+        updateAnswer(q.id, newArr.join(' '));
+      };
+      return (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t ? 'رتب الكلمات لتكوين جملة صحيحة' : 'Arrange words to form a correct sentence'}</p>
+          {/* Drop zone */}
+          <div className="min-h-[48px] flex flex-wrap gap-2 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl border-2 border-dashed border-[var(--app-accent1)]/40 p-3">
+            {arranged.length === 0 && <span className="text-xs text-gray-400 self-center">{t ? 'انقر على الكلمات أدناه...' : 'Click words below to add...'}</span>}
+            {arranged.map((w, i) => (
+              <button key={i} disabled={submitted} onClick={() => !submitted && removeWord(i)}
+                className="px-3 py-1 rounded-lg bg-[var(--app-accent1)] text-white text-sm font-medium hover:bg-[var(--app-accent1)]/80 transition-all">
+                {w}
+              </button>
+            ))}
+          </div>
+          {/* Word pool */}
+          {!submitted && (
+            <div className="flex flex-wrap gap-2">
+              {pool2.map((w, i) => (
+                <button key={i} onClick={() => dropWord(w)}
+                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
+                  {w}
+                </button>
+              ))}
+            </div>
+          )}
+          {submitted && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+              {correct ? '✓ Correct!' : `✗ Correct answer: ${q.answer}`}
+              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const renderDropdownFillIn = () => {
+      const parts = (q.template || '').split(/\[(\d+)\]/);
+      return (
+        <div className="space-y-3">
+          <div className="text-sm leading-loose text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)]">
+            {parts.map((part, i) => {
+              if (/^\d+$/.test(part)) {
+                const idx2 = parseInt(part);
+                const slot = (q.slots||[])[idx2];
+                const val  = ua?.[idx2] || '';
+                const isC2 = submitted && val === slot?.answer;
+                const isW2 = submitted && val !== slot?.answer;
+                return (
+                  <select key={i} disabled={submitted} value={val}
+                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [idx2]: e.target.value })}
+                    className={`mx-1 px-2 py-0.5 rounded-lg border text-sm cursor-pointer focus:outline-none
+                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300'
+                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'
+                      : 'border-[var(--app-accent1)]/50 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
+                    <option value="">—</option>
+                    {(slot?.options||[]).map((o, j) => <option key={j} value={o}>{o}</option>)}
+                  </select>
+                );
+              }
+              return <span key={i}>{part}</span>;
+            })}
+          </div>
+          {submitted && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+              {correct ? '✓ All correct!' : `✗ Correct: ${(q.slots||[]).map(sl => sl.answer).join(', ')}`}
+              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const renderMCCloze = () => {
+      const parts = (q.passage||'').split(/\[(\d+)\]/);
+      return (
+        <div className="space-y-3">
+          <div className="text-sm leading-loose text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)]">
+            {parts.map((part, i) => {
+              if (/^\d+$/.test(part)) {
+                const idx2  = parseInt(part);
+                const blank = (q.blanks||[])[idx2];
+                const val   = ua?.[idx2] || '';
+                const isC2  = submitted && val === blank?.answer;
+                const isW2  = submitted && val !== blank?.answer;
+                return (
+                  <select key={i} disabled={submitted} value={val}
+                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [idx2]: e.target.value })}
+                    className={`mx-1 px-2 py-0.5 rounded-lg border text-sm cursor-pointer focus:outline-none
+                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300'
+                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'
+                      : 'border-[var(--app-accent1)]/50 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
+                    <option value="">—</option>
+                    {(blank?.options||[]).map((o, j) => <option key={j} value={o}>{o}</option>)}
+                  </select>
+                );
+              }
+              return <span key={i}>{part}</span>;
+            })}
+          </div>
+          {submitted && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+              {correct ? '✓ All correct!' : `✗ Correct: ${(q.blanks||[]).map(b => b.answer).join(', ')}`}
+              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const renderOpenCloze = () => {
+      const parts = (q.passage||'').split(/(_____\(\d+\))/);
+      let blankIdx = -1;
+      return (
+        <div className="space-y-3">
+          <div className="text-sm leading-loose text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)]">
+            {parts.map((part, i) => {
+              if (/^_____\(\d+\)$/.test(part)) {
+                blankIdx++;
+                const idx2    = blankIdx;
+                const ans     = (q.answers||[])[idx2] || '';
+                const val     = ua?.[idx2] || '';
+                const isC2    = submitted && val.trim().toLowerCase() === ans.toLowerCase();
+                const isW2    = submitted && !isC2;
+                return (
+                  <span key={i} className="inline-flex items-center mx-1">
+                    <input disabled={submitted} value={val} onChange={e => updateAnswer(q.id, { ...(ua||{}), [idx2]: e.target.value })}
+                      className={`w-24 px-2 py-0.5 rounded-lg border text-sm focus:outline-none text-center
+                        ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
+                        : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
+                        : 'border-[var(--app-accent1)]/50 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}
+                      placeholder={`(${idx2+1})`} />
+                    {submitted && isW2 && <span className="ml-1 text-xs text-green-600 dark:text-green-400">→{ans}</span>}
+                  </span>
+                );
+              }
+              return <span key={i}>{part}</span>;
+            })}
+          </div>
+          {submitted && q.explanation && <p className="text-xs text-gray-500 dark:text-gray-400 italic">{q.explanation}</p>}
+        </div>
+      );
+    };
+
+    const renderWordFormation = () => (
+      <div className="space-y-3">
+        <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+          {(q.sentence||'').split('_____').map((p2, i) => {
+            if (i === 0) return <span key={i}>{p2}</span>;
+            return <span key={i}><span className="inline-flex items-center gap-1">
+              <span className="border-b-2 border-[var(--app-accent1)] w-20 inline-block" />
+              <span className="text-xs text-[var(--app-accent1)] font-bold">({q.baseWord})</span>
+            </span>{p2}</span>;
+          })}
+        </p>
+        {renderOpenInput(t ? 'الصيغة الصحيحة:' : 'Correct form:', q.answer)}
+        {submitted && q.explanation && <p className="text-xs text-gray-500 dark:text-gray-400 italic">{q.explanation}</p>}
+      </div>
+    );
+
+    const renderKeyWordTransform = () => (
+      <div className="space-y-3">
+        <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)]">
+          <p className="text-xs text-gray-400 mb-1">{t ? 'أعد كتابة الجملة مستخدماً الكلمة المفتاحية:' : 'Rewrite using the key word:'}</p>
+          <p className="text-sm text-gray-700 dark:text-gray-200 font-medium">{q.original}</p>
+          <p className="mt-2 text-sm font-bold text-[var(--app-accent1)]">KEY: {q.keyword}</p>
+        </div>
+        {renderOpenInput(t ? 'الجملة المعاد كتابتها:' : 'Rewritten sentence:', q.answer)}
+        {submitted && q.explanation && <p className="text-xs text-gray-500 dark:text-gray-400 italic">{q.explanation}</p>}
+      </div>
+    );
+
+    const renderGappedText = () => {
+      const gaps = Object.keys(q.answers || {});
+      return (
+        <div className="space-y-4">
+          <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)] text-sm text-gray-700 dark:text-gray-200 leading-relaxed">
+            {(q.passage||'').split(/(\[GAP_[A-Z]\])/g).map((part, i) => {
+              const gapMatch = part.match(/\[GAP_([A-Z])\]/);
+              if (gapMatch) {
+                const gapId  = `GAP_${gapMatch[1]}`;
+                const val    = ua?.[gapId] || '';
+                const isC2   = submitted && val === (q.answers||{})[gapId];
+                const isW2   = submitted && !isC2;
+                return (
+                  <select key={i} disabled={submitted} value={val}
+                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [gapId]: e.target.value })}
+                    className={`mx-1 px-2 py-0.5 rounded-lg border text-xs cursor-pointer focus:outline-none
+                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
+                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
+                      : 'border-[var(--app-accent1)]/40 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
+                    <option value="">— {gapId} —</option>
+                    {(q.sentences||[]).map(s => <option key={s.id} value={s.id}>{s.id}</option>)}
+                  </select>
+                );
+              }
+              return <span key={i}>{part}</span>;
+            })}
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs text-gray-400 uppercase tracking-wider">{t ? 'الجمل المتاحة:' : 'Available sentences:'}</p>
+            {(q.sentences||[]).map(s => (
+              <div key={s.id} className="flex gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <span className="font-bold text-[var(--app-accent1)] shrink-0">{s.id}.</span><span>{s.text}</span>
+              </div>
+            ))}
+          </div>
+          {submitted && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+              {correct ? '✓ Correct!' : `✗ Correct: ${Object.entries(q.answers||{}).map(([g,s2]) => `${g}→${s2}`).join(', ')}`}
+              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const renderMatchingHeadings = () => (
+      <div className="space-y-4">
+        <div className="space-y-3">
+          {(q.paragraphs||[]).map(para => {
+            const val  = ua?.[para.id] || '';
+            const isC2 = submitted && val === (q.answers||{})[para.id];
+            const isW2 = submitted && !isC2;
+            return (
+              <div key={para.id} className="rounded-xl border border-gray-200 dark:border-[var(--app-border)] p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[var(--app-accent1)] shrink-0">{t ? 'فقرة' : 'Para'} {para.id}</span>
+                  <select disabled={submitted} value={val}
+                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [para.id]: e.target.value })}
+                    className={`flex-1 px-2 py-1 rounded-lg border text-xs cursor-pointer focus:outline-none
+                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
+                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
+                      : 'border-gray-200 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
+                    <option value="">{t ? '— اختر عنواناً —' : '— Choose heading —'}</option>
+                    {(q.headings||[]).map(h => <option key={h.id} value={h.id}>{h.id}. {h.text}</option>)}
+                  </select>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">{para.text}</p>
+              </div>
+            );
+          })}
+        </div>
+        {submitted && (
+          <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+            {correct ? '✓ All correct!' : `✗ Correct: ${Object.entries(q.answers||{}).map(([p2,h]) => `Para ${p2}→${h}`).join(', ')}`}
+            {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+          </div>
+        )}
+      </div>
+    );
+
+    const renderSummaryCompletion = () => {
+      const parts  = (q.summary||'').split(/(_____\(\d+\))/);
+      let bi = -1;
+      return (
+        <div className="space-y-4">
+          {q.passage && (
+            <div className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)] text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-4">{q.passage}</div>
+          )}
+          <div className="bg-white dark:bg-[var(--app-card)] rounded-xl p-4 border border-gray-200 dark:border-[var(--app-border)] text-sm leading-loose text-gray-700 dark:text-gray-200">
+            <p className="text-xs text-gray-400 mb-2">{t ? 'أكمل الملخص:' : 'Complete the summary:'}</p>
+            {parts.map((part, i) => {
+              if (/^_____\(\d+\)$/.test(part)) {
+                bi++;
+                const idx2  = bi;
+                const ans   = (q.answers||[])[idx2] || '';
+                const sel   = ua?.[idx2] || '';
+                const isC2  = submitted && sel === ans;
+                const isW2  = submitted && !isC2;
+                return (
+                  <select key={i} disabled={submitted} value={sel}
+                    onChange={e => updateAnswer(q.id, { ...(ua||{}), [idx2]: e.target.value })}
+                    className={`mx-1 px-2 py-0.5 rounded-lg border text-sm cursor-pointer focus:outline-none
+                      ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
+                      : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
+                      : 'border-[var(--app-accent1)]/40 bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
+                    <option value="">{t ? '— اختر —' : '— choose —'}</option>
+                    {(q.wordBank||[]).map((w, j) => <option key={j} value={w}>{w}</option>)}
+                  </select>
+                );
+              }
+              return <span key={i}>{part}</span>;
+            })}
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">{t ? 'بنك الكلمات:' : 'Word bank:'}</p>
+            <div className="flex flex-wrap gap-2">
+              {(q.wordBank||[]).map((w, i) => (
+                <span key={i} className="px-3 py-1 rounded-full bg-[var(--app-accent1)]/10 border border-[var(--app-accent1)]/20 text-sm text-[var(--app-accent1)] font-medium">{w}</span>
+              ))}
+            </div>
+          </div>
+          {submitted && (
+            <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+              {correct ? '✓ Correct!' : `✗ Correct: ${(q.answers||[]).join(', ')}`}
+              {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const renderMatchingInfo = () => (
+      <div className="space-y-4">
+        <div className="grid gap-3">
+          {(q.paragraphs||[]).map(para => (
+            <div key={para.id} className="bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl p-3 border border-gray-200 dark:border-[var(--app-border)]">
+              <span className="font-bold text-xs text-[var(--app-accent1)] block mb-1">{t ? 'فقرة' : 'Paragraph'} {para.id}</span>
+              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{para.text}</p>
+            </div>
+          ))}
+        </div>
+        <div className="space-y-3">
+          <p className="text-xs text-gray-400 uppercase tracking-wider">{t ? 'طابق كل عبارة مع الفقرة:' : 'Match each statement to a paragraph:'}</p>
+          {(q.statements||[]).map((s, i) => {
+            const val  = ua?.[i] || '';
+            const isC2 = submitted && val === s.answer;
+            const isW2 = submitted && !isC2;
+            return (
+              <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-200 dark:border-[var(--app-border)] p-3">
+                <p className="flex-1 text-sm text-gray-700 dark:text-gray-200">{s.text}</p>
+                <select disabled={submitted} value={val}
+                  onChange={e => updateAnswer(q.id, { ...(ua||{}), [i]: e.target.value })}
+                  className={`w-24 px-2 py-1 rounded-lg border text-sm cursor-pointer focus:outline-none
+                    ${isC2 ? 'border-green-400 bg-green-50 dark:bg-green-500/10 text-green-700'
+                    : isW2 ? 'border-red-400 bg-red-50 dark:bg-red-500/10 text-red-700'
+                    : 'border-gray-200 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-card)] text-gray-800 dark:text-[var(--app-text)]'}`}>
+                  <option value="">—</option>
+                  {(q.paragraphs||[]).map(p2 => <option key={p2.id} value={p2.id}>{t ? 'فقرة' : 'Para'} {p2.id}</option>)}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+        {submitted && (
+          <div className={`text-xs px-3 py-2 rounded-lg ${correct ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+            {correct ? '✓ All matched correctly!' : `✗ Correct: ${(q.statements||[]).map((s,i)=>`S${i+1}→${s.answer}`).join(', ')}`}
+            {q.explanation && <span className="block mt-1 text-gray-500 dark:text-gray-400">{q.explanation}</span>}
+          </div>
+        )}
+      </div>
+    );
+
+    // ── Dispatch to renderer ────────────────────────────────────────────────
+    let body;
+    switch (q.type) {
+      case 'fill-in-the-blank':       body = renderFillBlank(); break;
+      case 'context-meaning':         body = renderContextMeaning(); break;
+      case 'synonym':                 body = renderMC(`${t?'ما مرادف':'Find the synonym of'} "${q.word}":`, q.options, q.answer); break;
+      case 'definition':              body = renderMC(q.definition, q.options, q.answer); break;
+      case 'antonym':                 body = renderMC(`${t?'ما مضاد':'Find the antonym of'} "${q.word}":`, q.options, q.answer); break;
+      case 'idiom-meaning':           body = renderMC(`${t?'ما معنى':'What does the idiom'} "${q.idiom}" ${t?'':' mean?'}`, q.options, q.answer); break;
+      case 'idiom-completion':        body = renderMC(q.partial, q.options, q.answer); break;
+      case 'preposition':             body = renderMC(q.sentence?.replace('_____','_____'), q.options, q.answer); break;
+      case 'multiple-choice':         body = renderMC(q.question, q.options, q.answer); break;
+      case 'drag-and-drop':           body = renderDragDrop(); break;
+      case 'dropdown-fill-in':        body = renderDropdownFillIn(); break;
+      case 'multi-select':            body = renderMultiSelect(); break;
+      case 'true-false-not-given':    body = renderTFNG(); break;
+      case 're-order-paragraphs':     body = renderReorderParagraphs(); break;
+      case 'MC-cloze':                body = renderMCCloze(); break;
+      case 'open-cloze':              body = renderOpenCloze(); break;
+      case 'word-formation':          body = renderWordFormation(); break;
+      case 'key-word-transformation': body = renderKeyWordTransform(); break;
+      case 'gapped-text':             body = renderGappedText(); break;
+      case 'matching-headings':       body = renderMatchingHeadings(); break;
+      case 'summary-completion':      body = renderSummaryCompletion(); break;
+      case 'matching-information':    body = renderMatchingInfo(); break;
+      default:                        body = <p className="text-sm text-gray-500">Unsupported type: {q.type}</p>;
+    }
+
+    const cefrColor = { A1:'bg-green-500', A2:'bg-lime-500', B1:'bg-blue-500', B2:'bg-amber-500', C1:'bg-red-500' }[q.level] || 'bg-gray-400';
+    const skillColor = { grammar:'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-500/15', vocabulary:'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/15', reading:'text-teal-600 dark:text-teal-400 bg-teal-100 dark:bg-teal-500/15' }[q.skill] || 'text-gray-500 bg-gray-100 dark:bg-gray-700';
+
+    return (
+      <div key={q.id} className={`${panelCls} space-y-4 ${phase === 'results' ? (correct ? 'border-green-300 dark:border-green-500/30' : 'border-red-300 dark:border-red-500/30') : ''}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-bold text-gray-400">Q{idx+1}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${skillColor}`}>{q.skill}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-bold text-white ${cefrColor}`}>{q.level}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-[var(--app-surface)] text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-[var(--app-border)]">{typeLabel}</span>
+          </div>
+          {phase === 'results' && (
+            <span className={`text-sm font-bold ${correct ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {correct ? '✓' : '✗'}
+            </span>
+          )}
+        </div>
+        {/* Instruction */}
+        {q.instruction && <p className="text-xs text-gray-400 italic">{q.instruction}</p>}
+        {/* Body */}
+        {body}
+      </div>
+    );
+  };
+
+  // ── PANELS ────────────────────────────────────────────────────────────────
+  const FilterChip = ({ options, value, onChange, label }) => (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</label>
+      <div className="flex flex-wrap gap-2">
+        {options.map(opt => (
+          <button key={opt.v} onClick={() => onChange(opt.v)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all duration-150
+              ${value === opt.v
+                ? 'bg-[var(--app-accent1)] border-[var(--app-accent1)] text-white shadow-sm'
+                : 'bg-white dark:bg-[var(--app-card)] border-gray-200 dark:border-[var(--app-border)] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
+            {lbl(opt)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const { correct: sc, total: st } = phase === 'results' ? calculateScore() : { correct:0, total:0 };
+  const pct    = st > 0 ? Math.round((sc/st)*100) : 0;
+  const grade  = pct >= 90 ? 'A' : pct >= 75 ? 'B' : pct >= 60 ? 'C' : pct >= 40 ? 'D' : 'F';
+  const gradeColor = pct >= 75 ? 'text-green-600 dark:text-green-400' : pct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6 space-y-6" dir={t ? 'rtl' : 'ltr'}>
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <div className={`${panelCls} bg-gradient-to-r from-[var(--app-accent1)]/10 to-[var(--app-accent2)]/10`}>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--app-accent1)] flex items-center justify-center shrink-0 shadow-lg">
+            <ClipboardList className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t ? 'منشئ الاختبارات' : 'Test Generator'}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {t ? 'اختر المهارة والإطار وعدد الأسئلة — سيولّد الذكاء الاصطناعي جلسة تدريبية متكاملة.'
+                 : 'Pick a skill, framework and item count — AI assembles a full practice session with 22 question types.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── CONFIG PANEL ─────────────────────────────────────────────────── */}
+      <div className={`${panelCls} space-y-6`}>
+        <h2 className="font-bold text-gray-800 dark:text-white text-base flex items-center gap-2">
+          <Shuffle className="w-4 h-4 text-[var(--app-accent1)]" />
+          {t ? 'إعدادات الاختبار' : 'Session Settings'}
+        </h2>
+        <FilterChip options={SKILLS}     value={skill}     onChange={setSkill}     label={t ? 'المهارة الرئيسية' : 'Primary Skill'} />
+        <FilterChip options={FRAMEWORKS} value={framework} onChange={setFramework} label={t ? 'إطار الاختبار' : 'Test Framework'} />
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t ? 'نوع السؤال' : 'Question Type'}</label>
+          <CustomDropdown
+            value={qType}
+            onChange={setQType}
+            options={Q_TYPES.map(qt => ({ value: qt.v, label: lbl(qt) }))}
+            theme={theme}
+          />
+        </div>
+        <FilterChip options={LEVELS} value={level} onChange={setLevel} label={t ? 'مستوى CEFR' : 'CEFR Level'} />
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t ? 'عدد الأسئلة' : 'Items per session'}</label>
+          <div className="flex gap-2">
+            {COUNTS.map(c => (
+              <button key={c} onClick={() => setItemCount(c)}
+                className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all
+                  ${itemCount === c ? 'bg-[var(--app-accent1)] border-[var(--app-accent1)] text-white' : 'bg-white dark:bg-[var(--app-card)] border-gray-200 dark:border-[var(--app-border)] text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5'}`}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button onClick={handleGenerate} disabled={phase === 'loading'}
+          className="w-full py-3 rounded-2xl bg-[var(--app-accent1)] text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[var(--app-accent1)]/20 disabled:opacity-60">
+          {phase === 'loading'
+            ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t ? 'جاري التوليد...' : 'Generating...'}</>
+            : <><Sparkles className="w-4 h-4" />{t ? 'ابدأ الجلسة' : 'Start Practice Session'}</>}
+        </button>
+      </div>
+
+      {/* ── SESSION QUESTIONS ─────────────────────────────────────────────── */}
+      {(phase === 'session' || phase === 'results') && questions.length > 0 && (
+        <div className="space-y-4">
+          {/* progress bar */}
+          {phase === 'session' && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-2 bg-[var(--app-accent1)] rounded-full transition-all duration-500"
+                  style={{ width: `${(Object.keys(answers).length / questions.length) * 100}%` }} />
+              </div>
+              <span className="text-xs text-gray-500 shrink-0">{Object.keys(answers).length}/{questions.length}</span>
+            </div>
+          )}
+
+          {/* questions */}
+          {questions.map((q, idx) => renderQuestion(q, idx))}
+
+          {/* submit / new */}
+          {phase === 'session' && (
+            <button onClick={handleSubmit}
+              className="w-full py-3 rounded-2xl bg-green-600 dark:bg-green-500 text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg">
+              <CheckCircle2 className="w-4 h-4" />
+              {t ? 'تسليم الإجابات' : 'Submit Answers'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── RESULTS PANEL ────────────────────────────────────────────────── */}
+      {phase === 'results' && (
+        <div className={`${panelCls} text-center space-y-4`}>
+          <Trophy className="w-12 h-12 mx-auto text-yellow-500" />
+          <div>
+            <p className="text-4xl font-black text-gray-900 dark:text-white">{pct}<span className="text-2xl">%</span></p>
+            <p className={`text-2xl font-black mt-1 ${gradeColor}`}>{grade}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{sc} / {st} {t ? 'إجابة صحيحة' : 'correct'}</p>
+          </div>
+          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className={`h-3 rounded-full transition-all duration-700 ${pct >= 75 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+              style={{ width: `${pct}%` }} />
+          </div>
+          <button onClick={() => { setPhase('config'); setQuestions([]); setAnswers({}); }}
+            className="w-full py-2.5 rounded-2xl bg-[var(--app-accent1)] text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2">
+            <RotateCcw className="w-4 h-4" />
+            {t ? 'جلسة جديدة' : 'New Session'}
+          </button>
+        </div>
+      )}
+
+      {/* ── RECENT SESSIONS ──────────────────────────────────────────────── */}
+      <div className={`${panelCls} space-y-4`}>
+        <h2 className="font-bold text-gray-800 dark:text-white text-sm flex items-center gap-2">
+          <Clock className="w-4 h-4 text-gray-400" />
+          {t ? 'الجلسات الأخيرة' : 'Recent Sessions'}
+        </h2>
+        {sessions.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">{t ? 'لا توجد جلسات بعد. ابدأ ممارستك!' : 'No sessions yet. Start your first practice!'}</p>
+        ) : (
+          <div className="space-y-2">
+            {sessions.map(sess => (
+              <div key={sess.id} className="flex items-center justify-between gap-3 bg-gray-50 dark:bg-[var(--app-surface)] rounded-xl px-4 py-3 border border-gray-100 dark:border-[var(--app-border)]">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200 capitalize">{sess.skill}</span>
+                    <span className="text-xs text-gray-400">·</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{sess.framework}</span>
+                    <span className="text-xs text-gray-400">·</span>
+                    <span className="text-xs font-bold text-[var(--app-accent1)]">{sess.level}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">{sess.date} · {sess.count} {t ? 'سؤال' : 'questions'}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={`text-sm font-black ${Math.round((sess.correct/sess.total)*100) >= 75 ? 'text-green-600 dark:text-green-400' : Math.round((sess.correct/sess.total)*100) >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                    {Math.round((sess.correct/sess.total)*100)}%
+                  </p>
+                  <p className="text-xs text-gray-400">{sess.correct}/{sess.total}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
