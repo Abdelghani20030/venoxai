@@ -425,7 +425,7 @@ const getBackticks = () => String.fromCharCode(96, 96, 96);
 // --- AI API HELPER (proxied through our backend) ---
 // Non-streaming version used for things like image prompt generation.
 const fetchFromGemini = async (prompt, _apiKey, maxTokens = 512) => {
-  const url = `${import.meta.env.BASE_URL}api/chat`;
+  const url = `/api/chat`;
   try {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 60000);
@@ -451,7 +451,7 @@ const fetchFromGemini = async (prompt, _apiKey, maxTokens = 512) => {
 // onDelta(chunk) is called for each text chunk as it arrives.
 // Returns the full accumulated text when done.
 const streamFromAPI = async (prompt, onDelta, maxTokens = 512) => {
-  const url = `${import.meta.env.BASE_URL}api/chat/stream`;
+  const url = `/api/chat/stream`;
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 60000);
   try {
@@ -723,7 +723,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
 
   try {
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+    const url = `/api/edge-tts?${params}`;
     // Streaming playback — starts as soon as the first audio bytes arrive.
     const audio = new Audio(url);
     audio.preload = 'auto';
@@ -786,7 +786,7 @@ const kokoroTTSSpeak = async (text, gender, accent) => {
   // 2. Network synthesis
   try {
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/kokoro-tts?${params}`;
+    const url = `/api/kokoro-tts?${params}`;
 
     const audio = new Audio(url);
     _currentTTSAudio = audio;
@@ -834,7 +834,7 @@ const groqTTSSpeak = async (text, gender) => {
 
   try {
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
+    const url = `/api/groq-tts?${params}`;
     const audio = new Audio(url);
     _currentTTSAudio = audio;
     const wait = new Promise((resolve) => {
@@ -871,7 +871,7 @@ const geminiTTSSpeak = async (text, gender) => {
 
   try {
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
+    const url = `/api/gemini-tts?${params}`;
     const audio = new Audio(url);
     _currentTTSAudio = audio;
     const wait = new Promise((resolve) => {
@@ -954,7 +954,7 @@ const fetchTTSBlob = async (text, gender, accent) => {
   try {
     const voice = gender === 'female' ? 'alice' : 'adam';
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
+    const url = `/api/groq-tts?${params}`;
 
     const response = await fetch(url);
     if (!response.ok) throw new Error('Fetch failed');
@@ -966,7 +966,7 @@ const fetchTTSBlob = async (text, gender, accent) => {
     try {
       const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender];
       const params = new URLSearchParams({ text: normalized, voice });
-      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+      const url = `/api/edge-tts?${params}`;
       const response = await fetch(url);
       const buf = await response.arrayBuffer();
       return new Blob([buf], { type: 'audio/mpeg' });
@@ -3861,11 +3861,11 @@ Rules:
       const finalPrompt = `${visual}. Cinematic lighting, 8k resolution, highly detailed, professional photography, masterpiece, sharp focus, no text, no watermark.`;
       const seed = Math.floor(Math.random() * 1_000_000);
       // Use a free, no-key image service (no quota) so this works without a paid Imagen key.
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(finalPrompt)}&width=640&height=420&seed=${seed}`);
+      setCardImage(`/api/image?prompt=${encodeURIComponent(finalPrompt)}&width=640&height=420&seed=${seed}`);
     } catch (err) {
       console.error("Image generation error", err);
       const fallback = `Photorealistic image showing the meaning of the English word ${card.word} (${card.meaning || ''}), no text, no letters.`;
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(fallback)}&width=640&height=420`);
+      setCardImage(`/api/image?prompt=${encodeURIComponent(fallback)}&width=640&height=420`);
     } finally {
       setLoadingImage(false);
     }
@@ -4188,8 +4188,8 @@ Rules:
       if (!visual) visual = `A scene showing the phrasal verb "${card.word}"`;
       const visualClean = (visual + ' Photorealistic, natural lighting, no text.').replace(/[^\x00-\x7F]/g, "");
       const seed = Math.floor(Math.random() * 1_000_000);
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
-    } catch { setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Phrasal verb ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`); } finally { setLoadingImage(false); }
+      setCardImage(`/api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
+    } catch { setCardImage(`/api/image?prompt=${encodeURIComponent(`Phrasal verb ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`); } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
     <div className="flex flex-col sm:flex-row glass-panel p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
@@ -4464,9 +4464,9 @@ Rules:
       if (!visual) visual = `A scene showing the meaning of "${card.word}"`;
       const seed = Math.floor(Math.random() * 1_000_000);
       const visualClean = (visual + ' Photorealistic, natural lighting, no text.').replace(/[^\x00-\x7F]/g, "");
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
+      setCardImage(`/api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
     } catch {
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Illustration ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`);
+      setCardImage(`/api/image?prompt=${encodeURIComponent(`Illustration ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`);
     } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
@@ -4754,9 +4754,9 @@ Rules:
       if (!visual) visual = `A scene showing the meaning of "${card.word}"`;
       const seed = Math.floor(Math.random() * 1_000_000);
       const visualClean = (visual + ' Photorealistic, natural lighting, no text.').replace(/[^\x00-\x7F]/g, "");
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
+      setCardImage(`/api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
     } catch {
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Illustration ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`);
+      setCardImage(`/api/image?prompt=${encodeURIComponent(`Illustration ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`);
     } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
@@ -5120,7 +5120,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
   const fetchAudioEl = async (text, speed) => {
     try {
       const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
-      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+      const url = `/api/edge-tts?${params}`;
       const audio = new Audio(url);
       audio.playbackRate = speed;
       return { audio, url };
@@ -7728,11 +7728,11 @@ Rules:
       const finalPrompt = `${visual} Photorealistic, natural lighting, clean composition, ultra detailed, no text, no letters, no captions, no watermark.`.replace(/[^\x00-\x7F]/g, "");
       const seed = Math.floor(Math.random() * 1_000_000);
       // Use image.pollinations.ai/prompt/ with flux model for better quality and reliability.
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(finalPrompt)}&width=640&height=420&seed=${seed}`);
+      setCardImage(`/api/image?prompt=${encodeURIComponent(finalPrompt)}&width=640&height=420&seed=${seed}`);
     } catch (err) {
       console.error("Image generation error", err);
       const fallback = `Photorealistic image showing the meaning of the English word ${card.word}, no text, no letters.`;
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(fallback)}&width=640&height=420`);
+      setCardImage(`/api/image?prompt=${encodeURIComponent(fallback)}&width=640&height=420`);
     } finally {
       setLoadingImage(false);
     }
