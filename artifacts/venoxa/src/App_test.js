@@ -450,15 +450,28 @@ const ELEVENLABS_VOICE_OPTIONS = [
 let _lastTTSEngine = null;
 // Global accent preference — 'uk' or 'us'. Updated by the accent toggle.
 let _voiceAccent = 'uk';
+// Generation counter — incremented before each TTS chain.
+// Every engine checks this before calling audio.play();
+// if the value changed (= a newer request started), the stale engine
+// silently kills its own Audio element instead of blending.
+let _ttsGen = 0;
 
 // Multilingual Neural voices are Microsoft's newest, most natural-sounding
 // generation — they sound conversational and human, much closer to ElevenLabs
 // quality than the older Neural voices. "BrianMultilingual" is the warm,
 // confident American male voice the user wants.
 const EDGE_VOICES = {
-  uk: { male: 'charon', female: 'kore' },
-  us: { male: 'puck', female: 'aoede' },
+  uk: { male: 'en-GB-RyanNeural', female: 'en-GB-SoniaNeural' },
+  us: { male: 'en-US-BrianMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
 };
+
+/**
+ * withTimeout(promise, ms)
+ * Races a TTS promise against a deadline that resolves false.
+ * Prevents slow / unreachable backends from stalling the fallback chain.
+ */
+const withTimeout = (promise, ms) =>
+  Promise.race([promise, new Promise(resolve => setTimeout(() => resolve(false), ms))]);
 
 /**
  * edgeTTSSpeak(text, gender, voiceOverride, topLevelCacheKey?)
@@ -468,29 +481,52 @@ const EDGE_VOICES = {
  * Returns true on success, false on failure (so caller can fall back).
  */
 const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
+  const myGen = ++_ttsGen; // snapshot generation for this speak chain
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
 
-  // 1. Try Groq (Orpheus) first as requested - very fast and high quality
-  const okGroq = await groqTTSSpeak(text, genderKey);
+  // VERCEL FIX: Skip Groq/Kokoro/Gemini entirely.
+  // On Vercel these serverless functions either aren't deployed or cold-start
+  // too slowly (~1-3s each). The 700ms timeout races cause:
+  //   (a) ~2.1s total wasted delay before Edge TTS even starts
+  //   (b) Timed-out audio elements that finish loading AFTER the timeout and
+  //       start playing BEHIND Edge TTS — the "two voices blended" bug.
+  // Edge TTS is the primary and only engine on Vercel. Groq/Kokoro/Gemini
+  // can be re-enabled locally by uncommenting the blocks below.
+
+  /* LOCAL-ONLY ENGINES — uncomment to enable on localhost / self-hosted:
+  const _stopStaleAudio = () => {
+    if (_currentTTSAudio) { _currentTTSAudio.pause(); try { _currentTTSAudio.src = ''; } catch {} _currentTTSAudio = null; }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  };
+  const okGroq   = await withTimeout(groqTTSSpeak(text, genderKey, myGen), 700);
   if (okGroq) return true;
-
-  // 2. Try Kokoro second (Best local quality)
-  const okKokoro = await kokoroTTSSpeak(text, genderKey, accent);
+  _stopStaleAudio();
+  const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent, myGen), 700);
   if (okKokoro) return true;
-
-  // 3. Try Gemini third (Cloud quality - works instantly with your key!)
+  _stopStaleAudio();
   if (accent === 'us') {
-    const okGemini = await geminiTTSSpeak(text, genderKey);
+    const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey, myGen), 700);
     if (okGemini) return true;
+    _stopStaleAudio();
+  }
+  */
+
+  // Cancel any audio still playing from a previous stale attempt
+  if (_currentTTSAudio) {
+    _currentTTSAudio.pause();
+    try { _currentTTSAudio.src = ''; } catch { /* ignore */ }
+    _currentTTSAudio = null;
   }
 
   const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
   const normalized = normalizeTTSText(text);
   const ck = _audioCacheKey(normalized, 'edge:' + voice);
 
+  // IndexedDB cache hit → instant playback, no network
   const cached = await _getCachedAudio(ck);
   if (cached) {
+    if (_ttsGen !== myGen) return false;
     await _playCachedAudio(cached);
     _lastTTSEngine = 'edge';
     return true;
@@ -498,8 +534,11 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
 
   try {
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
-    // Streaming playback — starts as soon as the first audio bytes arrive.
+    // Always use an absolute path — import.meta.env.BASE_URL can be ''
+    // on Vercel, turning relative paths into broken URLs like 'api/edge-tts'
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+    const url = `${base}api/edge-tts?${params}`;
+
     const audio = new Audio(url);
     audio.preload = 'auto';
     _currentTTSAudio = audio;
@@ -509,7 +548,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
       audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
     });
 
-    // Background cache fill — does not block playback at all.
+    // Background cache fill — non-blocking, so playback starts immediately
     fetch(url)
       .then(r => (r.ok ? r.arrayBuffer() : null))
       .then(buf => {
@@ -519,12 +558,14 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
       })
       .catch(() => { });
 
+    if (_ttsGen !== myGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     await audio.play();
+    if (_ttsGen !== myGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     _lastTTSEngine = 'edge';
     await wait;
     return true;
   } catch (err) {
-    console.warn('[Venoxa] Gemini TTS (recreated Edge) failed:', err.message);
+    console.warn('[Venoxa] Edge TTS failed:', err.message);
     return false;
   }
 };
@@ -722,33 +763,51 @@ const fetchTTSBlob = async (text, gender, accent) => {
   const normalized = normalizeTTSText(text);
   const ck = _audioCacheKey(normalized, 'blob:' + (accent === 'us' ? 'us' : 'uk'));
 
-  // Try local cache first
+  // Try local cache first — instant, no network
   const cached = await _getCachedAudio(ck);
   if (cached) return new Blob([cached], { type: 'audio/mpeg' });
 
-  try {
-    const voice = gender === 'female' ? 'alice' : 'adam';
-    const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
+  // VERCEL FIX: Skip Groq (4s timeout blocks the auto-read queue on Vercel).
+  // Go straight to Edge TTS which is the only reliable engine on Vercel.
+  // Groq can be re-enabled locally by uncommenting the block below.
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Fetch failed');
-    const buf = await response.arrayBuffer();
-    _setCachedAudio(ck, buf);
-    return new Blob([buf], { type: 'audio/mpeg' });
-  } catch (err) {
-    // Fallback to Edge TTS (recreated as Gemini) if Groq fails
+  /* LOCAL-ONLY — uncomment to enable Groq on localhost:
+  try {
+    const groqVoice = gender === 'female' ? 'alice' : 'adam';
+    const groqParams = new URLSearchParams({ text: normalized, voice: groqVoice });
+    const groqUrl = '/api/groq-tts?' + groqParams;
+    const groqCtrl = new AbortController();
+    const groqTimer = setTimeout(() => groqCtrl.abort(), 4000);
     try {
-      const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender];
-      const params = new URLSearchParams({ text: normalized, voice });
-      const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
-      const response = await fetch(url);
+      const response = await fetch(groqUrl, { signal: groqCtrl.signal });
+      clearTimeout(groqTimer);
+      if (!response.ok) throw new Error('not ok');
       const buf = await response.arrayBuffer();
-      return new Blob([buf], { type: 'audio/wav' });
-    } catch {
-      return null;
-    }
-  }
+      _setCachedAudio(ck, buf);
+      return new Blob([buf], { type: 'audio/mpeg' });
+    } catch { clearTimeout(groqTimer); }
+  } catch { }
+  */
+
+  // ── Edge TTS (primary on Vercel, buffered full response) ──
+  try {
+    const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender === 'female' ? 'female' : 'male'];
+    const params = new URLSearchParams({ text: normalized, voice });
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+    const url = `${base}api/edge-tts?${params}`;
+    const edgeCtrl = new AbortController();
+    const edgeTimer = setTimeout(() => edgeCtrl.abort(), 15000);
+    try {
+      const response = await fetch(url, { signal: edgeCtrl.signal });
+      clearTimeout(edgeTimer);
+      if (!response.ok) throw new Error('edge not ok');
+      const buf = await response.arrayBuffer();
+      _setCachedAudio(ck, buf);
+      return new Blob([buf], { type: 'audio/mpeg' });
+    } catch { clearTimeout(edgeTimer); }
+  } catch { /* ignore */ }
+
+  return null;
 };
 
 /**
@@ -3554,11 +3613,12 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     setAudioState('idle');
   };
 
-  // ── Fetch audio via recreated Edge TTS (Gemini) and return Audio element ──
+  // ── Fetch audio via Edge TTS and return Audio element ──────────────
   const fetchAudioEl = async (text, speed) => {
     try {
-      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male });
-      const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
+      const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
+      const url = `${base}api/edge-tts?${params}`;
       const audio = new Audio(url);
       audio.playbackRate = speed;
       return { audio, url };

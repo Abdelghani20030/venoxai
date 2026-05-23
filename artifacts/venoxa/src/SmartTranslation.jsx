@@ -241,8 +241,8 @@ const MODES = [
 // Two accents only: US (American female) and UK (British male)
 // Uses the same Edge Neural voices as App.jsx’s edgeTTSSpeak()
 const ACCENT_OPTIONS = [
-  { code: 'en-US', label: 'US', edgeVoice: 'aoede' },
-  { code: 'en-GB', label: 'UK', edgeVoice: 'charon'            },
+  { code: 'en-US', label: 'US', edgeVoice: 'en-US-AvaMultilingualNeural' },
+  { code: 'en-GB', label: 'UK', edgeVoice: 'en-GB-RyanNeural'            },
 ];
 
 const HISTORY_KEY   = 'venoxa_translation_history';
@@ -357,15 +357,15 @@ function AccentSpeakButton({ text, isDark, label = 'Listen' }) {
 
     setSpeaking(true);
 
-    // ── Primary: Gemini TTS via proxy ──
+    // ── Primary: Edge Neural TTS via proxy ──
     // Checking content-type before playing prevents silent failure.
     try {
       const params = new URLSearchParams({ text: text.trim(), voice: selectedAccent.edgeVoice });
-      const url = `${BASE}api/gemini-tts?${params}`;
+      const url = `${BASE}api/edge-tts?${params}`;
       const probe = await fetch(url);
       if (probe.ok && (probe.headers.get('content-type') || '').startsWith('audio')) {
         const buf = await probe.arrayBuffer();
-        const blob = new Blob([buf], { type: 'audio/wav' });
+        const blob = new Blob([buf], { type: 'audio/mpeg' });
         const blobUrl = URL.createObjectURL(blob);
         const audio = new Audio(blobUrl);
         audioRef.current = audio;
