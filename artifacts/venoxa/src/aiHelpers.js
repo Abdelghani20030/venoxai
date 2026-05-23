@@ -10,9 +10,10 @@
  * ─────────────────────────────────────────────────────────────────────
  */
 
-const BASE = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL)
-  ? import.meta.env.BASE_URL
-  : '/';
+// On Vercel, BASE_URL may be '' or undefined. Always resolve to an absolute
+// path relative to the current origin so fetch('/api/...') works correctly.
+const _rawBase = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
+const BASE = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
 
 /**
  * streamFromAPI(prompt, onDelta, maxTokens?, timeoutMs?)
@@ -177,7 +178,19 @@ export const speakEdge = async (text, accent = 'en-US') => {
     _currentEdgeAudio = audio;
     audio.onended = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
     audio.onerror = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
+    // play() itself is safe — the backend now buffers the full MP3 before
+    // sending, so there is no mid-stream truncation on Vercel.
     await audio.play();
+    // Wait for playback to finish
+    await new Promise(resolve => {
+      if (!audio.paused) {
+        audio.addEventListener('ended',  resolve, { once: true });
+        audio.addEventListener('error',  resolve, { once: true });
+        audio.addEventListener('pause',  resolve, { once: true });
+      } else {
+        resolve();
+      }
+    });
   } catch {
     // Proxy unreachable — fail silently. Do NOT fall back to browser TTS.
     if (_currentEdgeAudio) { _currentEdgeAudio = null; }

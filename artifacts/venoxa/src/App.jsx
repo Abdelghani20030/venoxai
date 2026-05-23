@@ -666,6 +666,11 @@ const ELEVENLABS_VOICE_OPTIONS = [
 let _lastTTSEngine = null;
 // Global accent preference — 'uk' or 'us'. Updated by the accent toggle.
 let _voiceAccent = 'uk';
+// Generation counter — incremented before each TTS chain.
+// Every engine checks this before calling audio.play();
+// if the value changed (= a newer request started), the stale engine
+// silently kills its own Audio element instead of blending.
+let _ttsGen = 0;
 
 // Multilingual Neural voices are Microsoft's newest, most natural-sounding
 // generation — they sound conversational and human, much closer to ElevenLabs
@@ -692,6 +697,7 @@ const withTimeout = (promise, ms) =>
  * Returns true on success, false on failure (so caller can fall back).
  */
 const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
+  const myGen = ++_ttsGen; // snapshot generation for this speak chain
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
 
@@ -710,18 +716,18 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
 
   // 1. Try Groq (Orpheus) first — capped at 700 ms so a slow/down server
   //    never delays the chain. If it responds in time it's the best quality.
-  const okGroq = await withTimeout(groqTTSSpeak(text, genderKey), 700);
+  const okGroq   = await withTimeout(groqTTSSpeak(text, genderKey, myGen), 700);
   if (okGroq) return true;
   _stopStaleAudio(); // kill any partial Groq audio before trying next engine
 
   // 2. Try Kokoro second (best local quality) — same 700 ms cap.
-  const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent), 700);
+  const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent, myGen), 700);
   if (okKokoro) return true;
   _stopStaleAudio(); // kill any partial Kokoro audio before trying next engine
 
   // 3. Try Gemini third (Cloud quality) — same 700 ms cap.
   if (accent === 'us') {
-    const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 700);
+    const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey, myGen), 700);
     if (okGemini) return true;
     _stopStaleAudio(); // kill any partial Gemini audio before Edge TTS
   }
@@ -760,7 +766,9 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
       })
       .catch(() => { });
 
+    if (_ttsGen !== myGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     await audio.play();
+    if (_ttsGen !== myGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     _lastTTSEngine = 'edge';
     await wait;
     return true;
@@ -775,7 +783,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
  * Proxies to the backend /api/kokoro-tts.
  * Falls back to Edge TTS if the service is unreachable.
  */
-const kokoroTTSSpeak = async (text, gender, accent) => {
+const kokoroTTSSpeak = async (text, gender, accent, expectedGen = _ttsGen) => {
   // Map our accent/gender to Kokoro voice codes
   // US: af_heart (Female), am_fenrir (Male)
   // UK: bf_alice (Female), bm_george (Male)
@@ -818,7 +826,9 @@ const kokoroTTSSpeak = async (text, gender, accent) => {
       .then(buf => buf && _setCachedAudio(ck, buf))
       .catch(() => { });
 
+    if (_ttsGen !== expectedGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     await audio.play();
+    if (_ttsGen !== expectedGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     _lastTTSEngine = 'kokoro';
     await wait;
     return true;
@@ -833,7 +843,7 @@ const kokoroTTSSpeak = async (text, gender, accent) => {
  * Ultra-fast synthesis via Groq's Orpheus model.
  * Proxies to /api/groq-tts.
  */
-const groqTTSSpeak = async (text, gender) => {
+const groqTTSSpeak = async (text, gender, expectedGen = _ttsGen) => {
   const voice = gender === 'female' ? 'alice' : 'adam';
   const normalized = normalizeTTSText(text);
   // Short limit for Orpheus on Groq (200 chars)
@@ -857,7 +867,11 @@ const groqTTSSpeak = async (text, gender) => {
       audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
       audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
     });
+    // Guard: if a newer TTS request started while we were buffering, abandon.
+    if (_ttsGen !== expectedGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     await audio.play();
+    // Guard again: if replaced between buffering and play resolving, stop.
+    if (_ttsGen !== expectedGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => { });
     _lastTTSEngine = 'groq';
     await wait;
@@ -872,7 +886,7 @@ const groqTTSSpeak = async (text, gender) => {
  * High-quality synthesis via Google Gemini Multimodal.
  * Proxies to /api/gemini-tts. Works instantly with your Gemini API key.
  */
-const geminiTTSSpeak = async (text, gender) => {
+const geminiTTSSpeak = async (text, gender, expectedGen = _ttsGen) => {
   // Use gender-appropriate Gemini voices
   const voice = gender === 'female' ? 'aoede' : 'puck';
   const normalized = normalizeTTSText(text);
@@ -894,7 +908,9 @@ const geminiTTSSpeak = async (text, gender) => {
       audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
       audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
     });
+    if (_ttsGen !== expectedGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     await audio.play();
+    if (_ttsGen !== expectedGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
     fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => { });
     _lastTTSEngine = 'gemini';
     await wait;
@@ -967,29 +983,42 @@ const fetchTTSBlob = async (text, gender, accent) => {
   const cached = await _getCachedAudio(ck);
   if (cached) return new Blob([cached], { type: 'audio/mpeg' });
 
+  // ── Groq attempt with hard 4s timeout (Vercel cold-start safe) ──
   try {
     const voice = gender === 'female' ? 'alice' : 'adam';
     const params = new URLSearchParams({ text: normalized, voice });
     const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Fetch failed');
-    const buf = await response.arrayBuffer();
-    _setCachedAudio(ck, buf);
-    return new Blob([buf], { type: 'audio/mpeg' });
-  } catch (err) {
-    // Fallback to Edge TTS if Groq fails
+    const groqCtrl = new AbortController();
+    const groqTimer = setTimeout(() => groqCtrl.abort(), 4000);
     try {
-      const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender];
-      const params = new URLSearchParams({ text: normalized, voice });
-      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: groqCtrl.signal });
+      clearTimeout(groqTimer);
+      if (!response.ok) throw new Error('not ok');
       const buf = await response.arrayBuffer();
+      _setCachedAudio(ck, buf);
       return new Blob([buf], { type: 'audio/mpeg' });
-    } catch {
-      return null;
-    }
-  }
+    } catch { clearTimeout(groqTimer); /* fall through to Edge */ }
+  } catch { /* ignore */ }
+
+  // ── Edge TTS fallback (buffered, works on Vercel) ──
+  try {
+    const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender === 'female' ? 'female' : 'male'];
+    const params = new URLSearchParams({ text: normalized, voice });
+    const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+    const edgeCtrl = new AbortController();
+    const edgeTimer = setTimeout(() => edgeCtrl.abort(), 15000);
+    try {
+      const response = await fetch(url, { signal: edgeCtrl.signal });
+      clearTimeout(edgeTimer);
+      if (!response.ok) throw new Error('edge not ok');
+      const buf = await response.arrayBuffer();
+      _setCachedAudio(ck, buf);
+      return new Blob([buf], { type: 'audio/mpeg' });
+    } catch { clearTimeout(edgeTimer); }
+  } catch { /* ignore */ }
+
+  return null;
 };
 
 /**
