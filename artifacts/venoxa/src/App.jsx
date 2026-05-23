@@ -1578,22 +1578,123 @@ export default function App() {
           <div className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(253,230,138,0.06) 0%, rgba(245,245,250,0) 70%)' }} />
         </div>
       )}
+      {/* ── Liquid Glass SVG Filter ── */}
+      <svg style={{ display: 'none', position: 'absolute' }} aria-hidden="true">
+        <defs>
+          <filter
+            id="navbar-glass"
+            x="0%" y="0%"
+            width="100%" height="100%"
+            filterUnits="objectBoundingBox"
+          >
+            {/*
+              Low baseFrequency = large, smooth blobs (like a glass lens).
+              High frequency was causing the "pixel shift" look.
+              seed="14" gives a nice asymmetric warp for a pill shape.
+            */}
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.012 0.008"
+              numOctaves="1"
+              seed="14"
+              result="turbulence"
+            />
+            {/* Gamma on R sharpens the noise into distinct ridge lines
+                that look like glass edges. G/B kept flat. */}
+            <feComponentTransfer in="turbulence" result="mapped">
+              <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5" />
+              <feFuncG type="gamma" amplitude="0" exponent="1"  offset="0"   />
+              <feFuncB type="gamma" amplitude="0" exponent="1"  offset="0.5" />
+            </feComponentTransfer>
+            {/* Smooth the map so displacement transitions are silky */}
+            <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap" />
+            {/* Specular light — creates the bright glint along the top edge */}
+            <feSpecularLighting
+              in="softMap"
+              surfaceScale="5"
+              specularConstant="1"
+              specularExponent="100"
+              lightingColor="white"
+              result="specLight"
+            >
+              <fePointLight x="-200" y="-200" z="300" />
+            </feSpecularLighting>
+            <feComposite
+              in="specLight"
+              operator="arithmetic"
+              k1="0" k2="1" k3="1" k4="0"
+              result="litImage"
+            />
+            {/*
+              scale="40": strong enough to see the warp clearly
+              but not so high it tears the background apart.
+              The backdrop (not the nav content) gets displaced
+              because this filter sits on an empty div sibling.
+            */}
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="softMap"
+              scale="40"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        </defs>
+      </svg>
+
       {/* ── Top Navigation Bar with Liquid Glass ── */}
       <header
         className="topbar-glass fixed top-3 left-3 right-3 z-[60] h-[64px] rounded-[32px] border border-black/5 dark:border-white/5 shadow-md dark:shadow-[0_4px_16px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.15)]"
       >
-        {/* Background layer for the header's own blur, moved here to prevent backdrop-filter clipping for children */}
-        <div 
-          className="absolute inset-0 rounded-[32px] pointer-events-none"
-          style={{
+        {/*
+          Three layered divs inside overflow:hidden — none have children,
+          so the filter only distorts the captured backdrop, NEVER the nav text.
+
+          1. Distortion   — backdrop-filter + SVG displacement = glass warp
+          2. Tint         — bare rgba, almost invisible, just enough to unify
+          3. Specular rim — 1 px gradient line faking the bright glass bevel
+        */}
+        <div className="absolute inset-0 rounded-[32px] pointer-events-none overflow-hidden">
+
+          {/* 1 ── Distortion / refraction */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backdropFilter: 'blur(3px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(3px) saturate(180%)',
+            filter: 'url(#navbar-glass)',
+            overflow: 'hidden',
+          }} />
+
+          {/* 2 ── Near-transparent tint — just enough to prevent full see-through */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
             background: theme === 'dark'
-              ? 'rgba(10, 10, 10, 0.25)'
-              : 'rgba(255, 255, 255, 0.18)',
-            backdropFilter: 'blur(48px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(48px) saturate(200%)',
-          }}
-        />
-        {/* Bar content */}
+              ? 'rgba(12, 12, 18, 0.10)'   /* almost invisible in dark */
+              : 'rgba(255, 255, 255, 0.12)', /* whisper of white in light */
+          }} />
+
+          {/* 3 ── Top specular rim */}
+          <div style={{
+            position: 'absolute',
+            top: 0, left: '4%', right: '4%', height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.70) 25%, rgba(255,255,255,0.70) 75%, transparent)',
+            borderRadius: '999px',
+          }} />
+
+          {/* 4 ── Bottom shadow line */}
+          <div style={{
+            position: 'absolute',
+            bottom: 0, left: '8%', right: '8%', height: '1px',
+            background: theme === 'dark'
+              ? 'rgba(0,0,0,0.30)'
+              : 'rgba(0,0,0,0.05)',
+            borderRadius: '999px',
+          }} />
+        </div>
+
+        {/* Bar content — lives on z-[2], completely outside the filter stack */}
         <div className="relative z-[2] flex items-center h-full px-4 sm:px-6 gap-3">
 
           {/* LEFT slot — controls when EN, logo when AR */}

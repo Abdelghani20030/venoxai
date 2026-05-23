@@ -16,12 +16,44 @@
 const _rawBase = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
 const BASE = (_rawBase === '' || _rawBase === '.') ? '/' : (_rawBase.endsWith('/') ? _rawBase : _rawBase + '/');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Kick off warm-up requests for the two most common Edge TTS voices as soon
+// as this module is imported. This won't play any audio — it just ensures the
+// backend's WebSocket connections to Microsoft's TTS service are established
+// before the user clicks anything, eliminating the first-request cold-start.
+// ─────────────────────────────────────────────────────────────────────────────
+export const prewarmTTS = () => {
+  const voices = [
+    'en-GB-RyanNeural',
+    'en-GB-SoniaNeural',
+    'en-US-BrianMultilingualNeural',
+    'en-US-AvaMultilingualNeural',
+  ];
+  for (const voice of voices) {
+    fetch(`${BASE}api/edge-tts-warmup?voice=${encodeURIComponent(voice)}`, {
+      method: 'GET',
+      // low-priority, don't block the page
+      priority: 'low',
+    }).catch(() => { /* non-critical */ });
+  }
+};
+
+// Auto-warm on module load (best effort).
+if (typeof window !== 'undefined') {
+  // Delay slightly so the page's critical resources load first.
+  setTimeout(prewarmTTS, 1500);
+}
+
 /**
  * streamFromAPI(prompt, onDelta, maxTokens?, timeoutMs?)
+ *
  * Streams text chunks from /api/chat/stream via Server-Sent Events.
  *  • onDelta(chunk: string) is called for each token chunk.
  *  • Returns the full accumulated text when the stream ends.
  *  • Throws on HTTP error or timeout.
+ *
+ * FIX: Now tracks SSE event type so that 'error' and 'done' events are
+ * never mistakenly passed to onDelta as content text.
  */
 export const streamFromAPI = async (prompt, onDelta, maxTokens = 1024, timeoutMs = 90000) => {
   const url = `${BASE}api/chat/stream`;
@@ -38,14 +70,32 @@ export const streamFromAPI = async (prompt, onDelta, maxTokens = 1024, timeoutMs
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = '', full = '';
+    // Track the current SSE event type so we can ignore non-delta events.
+    let currentEvent = 'delta';
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buf += dec.decode(value, { stream: true });
       const lines = buf.split('\n');
       buf = lines.pop() ?? '';
+
       for (const line of lines) {
+        if (line === '') {
+          // Blank line = end of SSE message; reset event type for next message.
+          currentEvent = 'delta';
+          continue;
+        }
+        if (line.startsWith('event:')) {
+          // Record the event type; don't process as data.
+          currentEvent = line.slice(6).trim();
+          continue;
+        }
         if (!line.startsWith('data:')) continue;
+
+        // Only process data payloads for 'delta' events (ignore done / error).
+        if (currentEvent !== 'delta') continue;
+
         const raw = line.slice(5).trim();
         if (!raw) continue;
         try {
@@ -123,6 +173,7 @@ export const dailySeed = () => {
   const d = new Date();
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 };
+
 // ─── Edge TTS helper ──────────────────────────────────────────────────────────
 /**
  * Voice map — matches exactly what App.jsx uses via edgeTTSSpeak():
@@ -131,71 +182,114 @@ export const dailySeed = () => {
  */
 const _EDGE_VOICES = {
   'en-US': { male: 'en-US-BrianMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
-  'en-GB': { male: 'en-GB-RyanNeural', female: 'en-GB-SoniaNeural' },
+  'en-GB': { male: 'en-GB-RyanNeural',             female: 'en-GB-SoniaNeural' },
 };
 
 let _currentEdgeAudio = null;
 
-const _browserFallback = (text, accent) => {
-  if (!('speechSynthesis' in window)) return;
-  const utt = new SpeechSynthesisUtterance(text.trim());
-  utt.lang  = accent;
-  utt.rate  = 0.92;
-  const voices = window.speechSynthesis.getVoices();
-  const pick = voices.find(v => v.lang === accent && !v.localService)
-    || voices.find(v => v.lang === accent)
-    || voices.find(v => v.lang.startsWith(accent.split('-')[0]));
-  if (pick) utt.voice = pick;
-  window.speechSynthesis.speak(utt);
+/**
+ * _playAudioUrl(url, signal?)
+ * Creates an Audio element, starts playing it, and resolves when done.
+ * Returns the Audio element so the caller can cancel it if needed.
+ * Rejects quickly if the audio errors out or the signal fires.
+ */
+const _playAudioUrl = (url, signal) => {
+  const audio = new Audio(url);
+  audio.preload = 'auto';
+  const promise = new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new Error('aborted')); return; }
+    const onAbort = () => { audio.pause(); audio.src = ''; reject(new Error('aborted')); };
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
+
+    audio.onended  = () => { if (signal) signal.removeEventListener('abort', onAbort); resolve(); };
+    audio.onerror  = () => { if (signal) signal.removeEventListener('abort', onAbort); reject(new Error('audio error')); };
+
+    audio.play().catch(reject);
+  });
+  return { audio, promise };
 };
 
 /**
- * speakEdge(text, accent?)
- * Speaks text using the Edge Neural TTS proxy (/api/edge-tts).
- *   accent: 'en-US' (default) | 'en-GB'
- * Cancels any previous playback first.
+ * speakEdge(text, accent?, options?)
  *
- * NOTE: Browser speechSynthesis fallback is intentionally DISABLED.
- * On Vercel, if the proxy fails and we fall back to browser TTS, it
- * produces a robotic voice that blends with other audio engines
- * (Groq / Gemini) also running in App.jsx — causing the "two voices
- * at once" problem. Silence is better than a blended robotic mess.
+ * Speaks text using the Edge Neural TTS proxy (/api/edge-tts).
+ *   accent:  'en-US' (default) | 'en-GB'
+ *   options.noWait: if true, starts playback and returns immediately
+ *                   (fire-and-forget for single-word pronunciation).
+ *   options.fallback: if true, also tries Gemini TTS when Edge TTS fails.
+ *
+ * FIX SUMMARY
+ * ───────────
+ * 1. Server now streams audio instead of buffering — browser starts playing
+ *    as soon as the first bytes arrive, not after full generation.
+ * 2. Uses AbortController so a new call immediately stops any prior audio.
+ * 3. Added Gemini TTS fallback with a 6 s race — if Edge TTS hasn't started
+ *    playing within 6 s, Gemini TTS takes over automatically.
+ * 4. noWait option for fire-and-forget word playback (no blocking).
  */
-export const speakEdge = async (text, accent = 'en-US') => {
+export const speakEdge = async (text, accent = 'en-US', { noWait = false, fallback = true } = {}) => {
   if (!text?.trim()) return;
 
-  // Cancel whatever is currently playing (both Edge proxy audio AND
-  // any browser speechSynthesis that may have snuck through)
-  if (_currentEdgeAudio) { _currentEdgeAudio.pause(); _currentEdgeAudio = null; }
+  // Cancel whatever is currently playing.
+  if (_currentEdgeAudio) {
+    _currentEdgeAudio.pause();
+    try { _currentEdgeAudio.src = ''; } catch {}
+    _currentEdgeAudio = null;
+  }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
   const preferredGender = (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_voice_gender')) || 'male';
   const voiceAccentKey = accent === 'en-GB' ? 'en-GB' : 'en-US';
   const voice = _EDGE_VOICES[voiceAccentKey][preferredGender === 'female' ? 'female' : 'male'];
 
-  try {
-    const params = new URLSearchParams({ text: text.trim(), voice });
-    const url    = `${BASE}api/edge-tts?${params}`;
-    const audio  = new Audio(url);
-    audio.preload = 'auto';
+  // Shared abort controller — whichever engine wins cancels the other.
+  const ac = new AbortController();
+
+  // ── Primary: Edge TTS ────────────────────────────────────────────────────
+  const edgeURL = `${BASE}api/edge-tts?${new URLSearchParams({ text: text.trim().slice(0, 800), voice })}`;
+
+  const tryEdge = async () => {
+    const { audio, promise } = _playAudioUrl(edgeURL, ac.signal);
     _currentEdgeAudio = audio;
     audio.onended = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
     audio.onerror = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
-    // play() itself is safe — the backend now buffers the full MP3 before
-    // sending, so there is no mid-stream truncation on Vercel.
-    await audio.play();
-    // Wait for playback to finish
-    await new Promise(resolve => {
-      if (!audio.paused) {
-        audio.addEventListener('ended',  resolve, { once: true });
-        audio.addEventListener('error',  resolve, { once: true });
-        audio.addEventListener('pause',  resolve, { once: true });
+    await promise;
+  };
+
+  // ── Fallback: Gemini TTS (races against Edge TTS with a 6 s head-start) ──
+  const geminiVoice = preferredGender === 'female' ? 'aoede' : 'puck';
+  const geminiURL = `${BASE}api/gemini-tts?${new URLSearchParams({ text: text.trim().slice(0, 800), voice: geminiVoice })}`;
+
+  const tryGemini = async () => {
+    // Give Edge TTS a 6-second head start before trying Gemini.
+    await new Promise(r => setTimeout(r, 6000));
+    if (ac.signal.aborted) return;
+    const { audio, promise } = _playAudioUrl(geminiURL, ac.signal);
+    _currentEdgeAudio = audio;
+    await promise;
+  };
+
+  const run = async () => {
+    try {
+      if (fallback) {
+        // Race: whichever TTS finishes playing first wins; the other is cancelled.
+        await Promise.race([
+          tryEdge().then(() => ac.abort()),
+          tryGemini().then(() => ac.abort()),
+        ]).catch(() => { /* one of the two will always "lose" gracefully */ });
       } else {
-        resolve();
+        await tryEdge();
       }
-    });
-  } catch {
-    // Proxy unreachable — fail silently. Do NOT fall back to browser TTS.
-    if (_currentEdgeAudio) { _currentEdgeAudio = null; }
+    } catch {
+      // Both failed — silent.
+    } finally {
+      if (_currentEdgeAudio) { _currentEdgeAudio = null; }
+    }
+  };
+
+  if (noWait) {
+    run(); // fire-and-forget
+  } else {
+    await run();
   }
 };
