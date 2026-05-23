@@ -87,6 +87,9 @@ importers:
       express:
         specifier: ^5
         version: 5.2.1
+      msedge-tts:
+        specifier: ^2.0.5
+        version: 2.0.5
       openai:
         specifier: ^6.35.0
         version: 6.35.0(ws@8.20.0)(zod@4.3.6)
