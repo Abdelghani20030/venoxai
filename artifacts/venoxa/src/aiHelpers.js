@@ -130,8 +130,8 @@ export const dailySeed = () => {
  *   en-GB → en-GB-RyanNeural             (British male)
  */
 const _EDGE_VOICES = {
-  'en-US': 'en-US-AvaMultilingualNeural',
-  'en-GB': 'en-GB-RyanNeural',
+  'en-US': 'aoede',
+  'en-GB': 'charon',
 };
 
 let _currentEdgeAudio = null;
@@ -173,7 +173,7 @@ export const speakEdge = async (text, accent = 'en-US') => {
 
   try {
     const params = new URLSearchParams({ text: text.trim(), voice });
-    const url    = `${BASE}api/edge-tts?${params}`;
+    const url    = `${BASE}api/gemini-tts?${params}`;
     const audio  = new Audio(url);
     audio.preload = 'auto';
     _currentEdgeAudio = audio;

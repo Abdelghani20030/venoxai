@@ -672,13 +672,11 @@ let _voiceAccent = 'uk';
 // silently kills its own Audio element instead of blending.
 let _ttsGen = 0;
 
-// Multilingual Neural voices are Microsoft's newest, most natural-sounding
-// generation — they sound conversational and human, much closer to ElevenLabs
-// quality than the older Neural voices. "BrianMultilingual" is the warm,
-// confident American male voice the user wants.
+// Recreated voice config: Multilingual neural voices mapped to Google Gemini voices
+// to prevent WebSocket CORS issues and Vercel serverless gateway errors.
 const EDGE_VOICES = {
-  uk: { male: 'en-GB-RyanNeural', female: 'en-GB-SoniaNeural' },
-  us: { male: 'en-US-BrianMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
+  uk: { male: 'charon', female: 'kore' },
+  us: { male: 'puck', female: 'aoede' },
 };
 
 /**
@@ -751,9 +749,9 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   try {
     const params = new URLSearchParams({ text: normalized, voice });
     // Always use an absolute path — import.meta.env.BASE_URL can be ''
-    // on Vercel, turning relative paths into broken URLs like 'api/edge-tts'
+    // on Vercel, turning relative paths into broken URLs like 'api/gemini-tts'
     const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
-    const url = `${base}api/edge-tts?${params}`;
+    const url = `${base}api/gemini-tts?${params}`;
 
     const audio = new Audio(url);
     audio.preload = 'auto';
@@ -781,7 +779,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
     await wait;
     return true;
   } catch (err) {
-    console.warn('[Venoxa] Edge TTS failed:', err.message);
+    console.warn('[Venoxa] Gemini TTS (recreated Edge) failed:', err.message);
     return false;
   }
 };
@@ -1010,21 +1008,21 @@ const fetchTTSBlob = async (text, gender, accent) => {
   } catch { }
   */
 
-  // ── Edge TTS (primary on Vercel, buffered full response) ──
+  // ── Edge TTS (recreated as Gemini TTS, buffered full response) ──
   try {
     const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender === 'female' ? 'female' : 'male'];
     const params = new URLSearchParams({ text: normalized, voice });
     const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
-    const url = `${base}api/edge-tts?${params}`;
+    const url = `${base}api/gemini-tts?${params}`;
     const edgeCtrl = new AbortController();
     const edgeTimer = setTimeout(() => edgeCtrl.abort(), 15000);
     try {
       const response = await fetch(url, { signal: edgeCtrl.signal });
       clearTimeout(edgeTimer);
-      if (!response.ok) throw new Error('edge not ok');
+      if (!response.ok) throw new Error('gemini not ok');
       const buf = await response.arrayBuffer();
       _setCachedAudio(ck, buf);
-      return new Blob([buf], { type: 'audio/mpeg' });
+      return new Blob([buf], { type: 'audio/wav' });
     } catch { clearTimeout(edgeTimer); }
   } catch { /* ignore */ }
 
@@ -5427,12 +5425,12 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     setAudioState('idle');
   };
 
-  // ── Fetch audio via Edge TTS and return Audio element ──────────────
+  // ── Fetch audio via recreated Edge TTS (Gemini) and return Audio element ──
   const fetchAudioEl = async (text, speed) => {
     try {
       const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
-      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
-      const url = `${base}api/edge-tts?${params}`;
+      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male });
+      const url = `${base}api/gemini-tts?${params}`;
       const audio = new Audio(url);
       audio.playbackRate = speed;
       return { audio, url };

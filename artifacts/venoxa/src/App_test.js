@@ -456,8 +456,8 @@ let _voiceAccent = 'uk';
 // quality than the older Neural voices. "BrianMultilingual" is the warm,
 // confident American male voice the user wants.
 const EDGE_VOICES = {
-  uk: { male: 'en-GB-RyanNeural', female: 'en-GB-SoniaNeural' },
-  us: { male: 'en-US-BrianMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
+  uk: { male: 'charon', female: 'kore' },
+  us: { male: 'puck', female: 'aoede' },
 };
 
 /**
@@ -498,7 +498,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
 
   try {
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+    const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
     // Streaming playback — starts as soon as the first audio bytes arrive.
     const audio = new Audio(url);
     audio.preload = 'auto';
@@ -524,7 +524,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
     await wait;
     return true;
   } catch (err) {
-    console.warn('[Venoxa] Edge TTS failed:', err.message);
+    console.warn('[Venoxa] Gemini TTS (recreated Edge) failed:', err.message);
     return false;
   }
 };
@@ -737,14 +737,14 @@ const fetchTTSBlob = async (text, gender, accent) => {
     _setCachedAudio(ck, buf);
     return new Blob([buf], { type: 'audio/mpeg' });
   } catch (err) {
-    // Fallback to Edge TTS if Groq fails
+    // Fallback to Edge TTS (recreated as Gemini) if Groq fails
     try {
       const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender];
       const params = new URLSearchParams({ text: normalized, voice });
-      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+      const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
       const response = await fetch(url);
       const buf = await response.arrayBuffer();
-      return new Blob([buf], { type: 'audio/mpeg' });
+      return new Blob([buf], { type: 'audio/wav' });
     } catch {
       return null;
     }
@@ -3554,11 +3554,11 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     setAudioState('idle');
   };
 
-  // ── Fetch audio via Edge TTS and return Audio element ──────────────
+  // ── Fetch audio via recreated Edge TTS (Gemini) and return Audio element ──
   const fetchAudioEl = async (text, speed) => {
     try {
-      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
-      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male });
+      const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
       const audio = new Audio(url);
       audio.playbackRate = speed;
       return { audio, url };

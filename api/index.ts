@@ -305,55 +305,66 @@ app.get("/api/groq-tts", async (req, res) => {
 });
 
 // ── GET /api/edge-tts ─────────────────────────────────────────────────────────
-// Buffers all WebSocket chunks before sending so Vercel never truncates mid-stream.
+// Now recreated to use Gemini TTS instead of Edge voice to ensure full compatibility on Vercel.
 app.get('/api/edge-tts', async (req: Request, res: Response) => {
-  const text  = ((req.query.text  as string) ?? '').trim().slice(0, 1000);
-  const voice = (req.query.voice as string) ?? 'en-US-AvaMultilingualNeural';
+  const text  = typeof req.query.text === 'string' ? req.query.text.trim() : '';
+  const voice = typeof req.query.voice === 'string' ? req.query.voice.trim() : '';
 
   if (!text) {
     res.status(400).json({ error: 'text is required' });
     return;
   }
+  if (!geminiKey) {
+    res.status(503).json({ error: 'GEMINI_API_KEY not set' });
+    return;
+  }
+
+  // Voice mapping from Edge to Gemini
+  // en-US-AvaMultilingualNeural -> aoede (Female)
+  // en-GB-SoniaNeural -> kore (Female)
+  // en-US-BrianMultilingualNeural -> puck (Male)
+  // en-GB-RyanNeural -> charon (Male)
+  const voiceLower = voice.toLowerCase();
+  let geminiVoice = 'puck'; // Default
+  if (voiceLower.includes('female') || voiceLower.includes('ava') || voiceLower.includes('sonia')) {
+    geminiVoice = voiceLower.includes('sonia') ? 'kore' : 'aoede';
+  } else if (voiceLower.includes('male') || voiceLower.includes('brian') || voiceLower.includes('ryan')) {
+    geminiVoice = voiceLower.includes('ryan') ? 'charon' : 'puck';
+  } else {
+    // If client is already passing a Gemini voice (or anything else), try to match or map
+    geminiVoice = VOICE_MAP[voiceLower] ? voiceLower : 'puck';
+  }
+
+  const voiceName = VOICE_MAP[geminiVoice] ?? 'Puck';
 
   try {
-    const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
-
-    const tts = new MsEdgeTTS();
-    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-
-    const chunks: Buffer[] = [];
-
-    await new Promise<void>((resolve, reject) => {
-      const stream = tts.toStream(text);
-
-      stream.on('data',  (chunk: Buffer | Uint8Array) =>
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-      );
-
-      stream.on('close', resolve);
-      stream.on('end',   resolve);
-      stream.on('error', reject);
-
-      setTimeout(() => reject(new Error('TTS stream timeout after 20 s')), 20_000);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${geminiKey}`;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: `Read this text aloud naturally: ${text}` }] }],
+        generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } },
+      }),
     });
-
-    if (chunks.length === 0) {
-      throw new Error('msedge-tts returned empty audio');
+    if (!r.ok) {
+      const e = await r.text();
+      res.status(502).json({ error: `Gemini TTS ${r.status}: ${e.slice(0, 200)}` });
+      return;
     }
-
-    const buffer = Buffer.concat(chunks);
-
-    res.setHeader('Content-Type',   'audio/mpeg');
-    res.setHeader('Content-Length', String(buffer.length));
-    res.setHeader('Cache-Control',  'public, max-age=3600, s-maxage=3600');
-    res.status(200).end(buffer);
-
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[edge-tts]', msg);
-    if (!res.headersSent) {
-      res.status(502).json({ error: `Edge TTS failed: ${msg}` });
+    const data = await r.json();
+    const b64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data ?? '';
+    if (!b64) {
+      res.status(502).json({ error: "Gemini TTS returned no audio" });
+      return;
     }
+    const wav = pcmToWav(Buffer.from(b64, "base64"));
+    res.setHeader("Content-Type", "audio/wav");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.end(wav);
+  } catch (err) {
+    console.error("[edge-tts-gemini-fallback] error:", err);
+    res.status(502).json({ error: "Gemini TTS error via Edge TTS alias" });
   }
 });
 
