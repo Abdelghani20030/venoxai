@@ -130,8 +130,8 @@ export const dailySeed = () => {
  *   en-GB → en-GB-RyanNeural             (British male)
  */
 const _EDGE_VOICES = {
-  'en-US': 'en-US-AvaMultilingualNeural',
-  'en-GB': 'en-GB-RyanNeural',
+  'en-US': { male: 'en-US-BrianMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
+  'en-GB': { male: 'en-GB-RyanNeural', female: 'en-GB-SoniaNeural' },
 };
 
 let _currentEdgeAudio = null;
@@ -169,7 +169,9 @@ export const speakEdge = async (text, accent = 'en-US') => {
   if (_currentEdgeAudio) { _currentEdgeAudio.pause(); _currentEdgeAudio = null; }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
-  const voice = _EDGE_VOICES[accent] ?? _EDGE_VOICES['en-US'];
+  const preferredGender = (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_voice_gender')) || 'male';
+  const voiceAccentKey = accent === 'en-GB' ? 'en-GB' : 'en-US';
+  const voice = _EDGE_VOICES[voiceAccentKey][preferredGender === 'female' ? 'female' : 'male'];
 
   try {
     const params = new URLSearchParams({ text: text.trim(), voice });

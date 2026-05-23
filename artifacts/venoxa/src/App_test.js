@@ -448,8 +448,9 @@ const ELEVENLABS_VOICE_OPTIONS = [
 // Tracks which TTS engine produced the last successful utterance.
 // 'elevenlabs' | 'edge' | 'browser' | null
 let _lastTTSEngine = null;
-// Global accent preference — 'uk' or 'us'. Updated by the accent toggle.
-let _voiceAccent = 'uk';
+// Global accent and gender preferences. Initialized from localStorage.
+let _voiceAccent = (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_voice_accent')) || 'uk';
+let _voiceGender = (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_voice_gender')) || 'male';
 // Generation counter — incremented before each TTS chain.
 // Every engine checks this before calling audio.play();
 // if the value changed (= a newer request started), the stale engine
@@ -480,10 +481,10 @@ const withTimeout = (promise, ms) =>
  * cache on every future call — no network round-trip needed.
  * Returns true on success, false on failure (so caller can fall back).
  */
-const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
+const edgeTTSSpeak = async (text, gender = _voiceGender, voiceOverride, topLevelCacheKey) => {
   const myGen = ++_ttsGen; // snapshot generation for this speak chain
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
-  const genderKey = gender === 'female' ? 'female' : 'male';
+  const genderKey = (gender || _voiceGender) === 'female' ? 'female' : 'male';
 
   // VERCEL FIX: Skip Groq/Kokoro/Gemini entirely.
   // On Vercel these serverless functions either aren't deployed or cold-start
@@ -761,7 +762,8 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID, inte
  */
 const fetchTTSBlob = async (text, gender, accent) => {
   const normalized = normalizeTTSText(text);
-  const ck = _audioCacheKey(normalized, 'blob:' + (accent === 'us' ? 'us' : 'uk'));
+  const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender === 'female' ? 'female' : 'male'];
+  const ck = _audioCacheKey(normalized, 'blob:' + voice);
 
   // Try local cache first — instant, no network
   const cached = await _getCachedAudio(ck);
@@ -2609,10 +2611,11 @@ function Vocabulary({
   // Play a word's pronunciation — respects the accent code directly
   const playAudio = async (accentCode, wordToPlay = card?.word) => {
     if (!wordToPlay) return;
-    const voiceName = accentCode === 'en-US' ? EDGE_VOICES.us.male
-      : accentCode === 'en-GB' ? EDGE_VOICES.uk.male
+    const genderKey = _voiceGender === 'female' ? 'female' : 'male';
+    const voiceName = accentCode === 'en-US' ? EDGE_VOICES.us[genderKey]
+      : accentCode === 'en-GB' ? EDGE_VOICES.uk[genderKey]
         : undefined;
-    await edgeTTSSpeak(wordToPlay, 'male', voiceName);
+    await edgeTTSSpeak(wordToPlay, genderKey, voiceName);
   };
 
   const generateStory = async () => {
@@ -3009,7 +3012,7 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab, 
     if (mode === 'browse') setActiveWordIndex((safeIndex + 1) % filteredList.length);
   };
   const resetWordProgress = wordStr => { const d = { ...srsData }; delete d[wordStr]; setSrsData(d); localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(d)); };
-  const playAudio = async (w = card?.word) => { if (!w) return; await edgeTTSSpeak(w, 'male'); };
+  const playAudio = async (w = card?.word) => { if (!w) return; await edgeTTSSpeak(w, _voiceGender); };
   const generateStory = async () => {
     if (loadingAi || aiStory || !card) return;
     setLoadingAi(true);
@@ -3277,7 +3280,7 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab, the
     if (mode === 'browse') setActiveWordIndex((safeIndex + 1) % filteredList.length);
   };
   const resetWordProgress = wordStr => { const d = { ...srsData }; delete d[wordStr]; setSrsData(d); localStorage.setItem('venoxa_idioms_srs', JSON.stringify(d)); };
-  const playAudio = async (w = card?.word) => { if (!w) return; await edgeTTSSpeak(w, 'male'); };
+  const playAudio = async (w = card?.word) => { if (!w) return; await edgeTTSSpeak(w, _voiceGender); };
   const generateSentence = async () => {
     if (loadingAi || aiSentence || !card) return;
     setLoadingAi(true);
@@ -3554,8 +3557,11 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
   const [dictAudioState, setDictAudioState] = useState('idle');
   const dictAudioRef = useRef(null);
 
-  const [voiceAccent, setVoiceAccent] = useState('uk');
-  useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
+  const [voiceAccent, setVoiceAccent] = useState(() => (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_voice_accent')) || 'uk');
+  useEffect(() => {
+    _voiceAccent = voiceAccent;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('venoxa_voice_accent', voiceAccent);
+  }, [voiceAccent]);
 
   const LISTEN_TOPICS = [
     'الحياة اليومية والروتين', 'السفر والثقافة', 'التكنولوجيا والذكاء الاصطناعي',
@@ -3617,7 +3623,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
   const fetchAudioEl = async (text, speed) => {
     try {
       const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
-      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
+      const voiceGenderKey = _voiceGender === 'female' ? 'female' : 'male';
+      const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'][voiceGenderKey], rate: '+15%' });
       const url = `${base}api/edge-tts?${params}`;
       const audio = new Audio(url);
       audio.playbackRate = speed;
@@ -3676,7 +3683,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
       setAudioState('playing');
     } else {
       window.speechSynthesis?.cancel();
-      const ok = await edgeTTSSpeak(story, 'male');
+      const ok = await edgeTTSSpeak(story, _voiceGender);
       if (ok) {
         setAudioState('playing');
         if (_currentTTSAudio) {
@@ -3759,7 +3766,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
       setDictAudioState('playing');
     } else {
       window.speechSynthesis?.cancel();
-      const ok = await edgeTTSSpeak(text, 'male');
+      const ok = await edgeTTSSpeak(text, _voiceGender);
       if (ok) {
         setDictAudioState('playing');
         if (_currentTTSAudio) {
@@ -4362,12 +4369,12 @@ function Speaking({
   const [loadingScenario, setLoadingScenario] = useState(false);
   const [autoRead, setAutoRead] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
-  const [voiceGender, setVoiceGender] = useState('male');
+  const [voiceGender, setVoiceGender] = useState(() => (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_voice_gender')) || 'male');
   const [callReview, setCallReview] = useState(null);
   const callAudioRef = useRef(null);
   const [usingBrowserTTS, setUsingBrowserTTS] = useState(false);
   const [ttsEngine, setTtsEngine] = useState('elevenlabs'); // 'elevenlabs' | 'edge' | 'browser'
-  const [voiceAccent, setVoiceAccent] = useState('uk'); // 'uk' | 'us'
+  const [voiceAccent, setVoiceAccent] = useState(() => (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_voice_accent')) || 'uk'); // 'uk' | 'us'
   const chatEndRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -4470,7 +4477,14 @@ function Speaking({
   // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
   // Male: Adam (pNInz6obpgDQGcFmaJgB) — American | Female: Rachel (21m00Tcm4TlvDq8ikWAM) — American
   // Keep module-level accent var in sync with React state
-  useEffect(() => { _voiceAccent = voiceAccent; }, [voiceAccent]);
+  useEffect(() => {
+    _voiceAccent = voiceAccent;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('venoxa_voice_accent', voiceAccent);
+  }, [voiceAccent]);
+  useEffect(() => {
+    _voiceGender = voiceGender;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('venoxa_voice_gender', voiceGender);
+  }, [voiceGender]);
 
   // Pre-warm the Edge TTS WebSocket connection as soon as the component mounts
   // so the first speech request skips the ~300ms WebSocket handshake latency.
@@ -5300,10 +5314,11 @@ function Langeek({
   // Play a word's pronunciation — respects the accent code directly
   const playAudio = async (accentCode, wordToPlay = card?.word) => {
     if (!wordToPlay) return;
-    const voiceName = accentCode === 'en-US' ? EDGE_VOICES.us.male
-      : accentCode === 'en-GB' ? EDGE_VOICES.uk.male
+    const genderKey = _voiceGender === 'female' ? 'female' : 'male';
+    const voiceName = accentCode === 'en-US' ? EDGE_VOICES.us[genderKey]
+      : accentCode === 'en-GB' ? EDGE_VOICES.uk[genderKey]
         : undefined;
-    await edgeTTSSpeak(wordToPlay, 'male', voiceName);
+    await edgeTTSSpeak(wordToPlay, genderKey, voiceName);
   };
 
   const generateStory = async () => {

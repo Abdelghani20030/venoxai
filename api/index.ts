@@ -10,6 +10,32 @@ import express from "express";
 import cors from "cors";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
+
+// ── Connection pool ──────────────────────────────────────────────────────────
+const pool = new Map<string, Promise<MsEdgeTTS>>();
+
+function prewarm(voice: string): Promise<MsEdgeTTS> {
+  const p = (async () => {
+    const tts = new MsEdgeTTS();
+    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    return tts;
+  })();
+  pool.set(voice, p);
+  p.catch(() => pool.delete(voice));
+  return p;
+}
+
+async function acquireConnection(voice: string): Promise<MsEdgeTTS> {
+  const existing = pool.get(voice) ?? prewarm(voice);
+  prewarm(voice);
+  return existing;
+}
+
+// Pre-warm the two default voices
+prewarm("en-GB-RyanNeural");
+prewarm("en-US-AvaMultilingualNeural");
+
 
 const app = express();
 app.use(cors());
@@ -305,7 +331,6 @@ app.get("/api/groq-tts", async (req, res) => {
 });
 
 // ── GET /api/edge-tts ─────────────────────────────────────────────────────────
-// Now recreated to use Gemini TTS instead of Edge voice to ensure full compatibility on Vercel.
 app.get('/api/edge-tts', async (req: Request, res: Response) => {
   const text  = ((req.query.text  as string) ?? '').trim().slice(0, 1000);
   const voice = (req.query.voice as string) ?? 'en-US-AvaMultilingualNeural';
@@ -316,11 +341,7 @@ app.get('/api/edge-tts', async (req: Request, res: Response) => {
   }
 
   try {
-    const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
-
-    const tts = new MsEdgeTTS();
-    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-
+    const tts = await acquireConnection(voice);
     const chunks: Buffer[] = [];
 
     await new Promise<void>((resolve, reject) => {
@@ -361,7 +382,11 @@ app.post("/api/edge-tts",       (_req, res) => res.status(405).json({ error: "Us
 app.post("/api/edge-tts-timed", (_req, res) => res.status(503).json({ error: "Edge TTS timed unavailable in serverless mode." }));
 
 // ── Warmup endpoint ───────────────────────────────────────────────────────────
-app.get('/api/edge-tts-warmup', (_req: Request, res: Response) => {
+app.get('/api/edge-tts-warmup', (req: Request, res: Response) => {
+  const voice = typeof req.query?.voice === "string"
+    ? req.query.voice.trim()
+    : 'en-US-AvaMultilingualNeural';
+  prewarm(voice);
   res.status(204).end();
 });
 

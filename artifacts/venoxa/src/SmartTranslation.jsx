@@ -360,7 +360,14 @@ function AccentSpeakButton({ text, isDark, label = 'Listen' }) {
     // ── Primary: Edge Neural TTS via proxy ──
     // Checking content-type before playing prevents silent failure.
     try {
-      const params = new URLSearchParams({ text: text.trim(), voice: selectedAccent.edgeVoice });
+      const preferredGender = (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_voice_gender')) || 'male';
+      const edgeVoices = {
+        'en-US': { male: 'en-US-BrianMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
+        'en-GB': { male: 'en-GB-RyanNeural', female: 'en-GB-SoniaNeural' },
+      };
+      const voice = edgeVoices[accent]?.[preferredGender === 'female' ? 'female' : 'male'] || edgeVoices['en-US']['female'];
+
+      const params = new URLSearchParams({ text: text.trim(), voice });
       const url = `${BASE}api/edge-tts?${params}`;
       const probe = await fetch(url);
       if (probe.ok && (probe.headers.get('content-type') || '').startsWith('audio')) {
