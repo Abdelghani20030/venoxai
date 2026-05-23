@@ -357,19 +357,27 @@ function AccentSpeakButton({ text, isDark, label = 'Listen' }) {
 
     setSpeaking(true);
 
-    // ── Primary: Edge Neural TTS via proxy (same as App.jsx) ──
+    // ── Primary: Edge Neural TTS via proxy ──
+    // Probe the URL first — on Vercel /api/edge-tts returns 503 JSON (not audio).
+    // Checking content-type before playing prevents silent failure.
     try {
       const params = new URLSearchParams({ text: text.trim(), voice: selectedAccent.edgeVoice });
       const url = `${BASE}api/edge-tts?${params}`;
-      const audio = new Audio(url);
-      audio.preload = 'auto';
-      audioRef.current = audio;
-      audio.onended  = () => { audioRef.current = null; setSpeaking(false); };
-      audio.onerror  = () => { audioRef.current = null; setSpeaking(false); browserFallback(); };
-      await audio.play();
-      return; // success — setSpeaking(false) fires via onended
+      const probe = await fetch(url);
+      if (probe.ok && (probe.headers.get('content-type') || '').startsWith('audio')) {
+        const buf = await probe.arrayBuffer();
+        const blob = new Blob([buf], { type: 'audio/mpeg' });
+        const blobUrl = URL.createObjectURL(blob);
+        const audio = new Audio(blobUrl);
+        audioRef.current = audio;
+        audio.onended = () => { URL.revokeObjectURL(blobUrl); audioRef.current = null; setSpeaking(false); };
+        audio.onerror = () => { URL.revokeObjectURL(blobUrl); audioRef.current = null; setSpeaking(false); browserFallback(); };
+        await audio.play();
+        return; // success — setSpeaking(false) fires via onended
+      }
+      // Non-audio response (e.g. 503 on Vercel) — fall through to browser
     } catch {
-      // proxy unreachable → fall through to browser
+      // Network error — fall through to browser
     }
 
     browserFallback();

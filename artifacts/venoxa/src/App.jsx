@@ -704,11 +704,10 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent), 700);
   if (okKokoro) return true;
 
-  // 3. Try Gemini third (Cloud quality) — same 700 ms cap.
-  if (accent === 'us') {
-    const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 700);
-    if (okGemini) return true;
-  }
+  // 3. Try Gemini third (Cloud quality, works on Vercel) — same 700 ms cap.
+  //    Try for both US and UK accents since edge-tts is unavailable on Vercel.
+  const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 700);
+  if (okGemini) return true;
 
   const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
   const normalized = normalizeTTSText(text);
@@ -724,29 +723,23 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   try {
     const params = new URLSearchParams({ text: normalized, voice });
     const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
-    // Streaming playback — starts as soon as the first audio bytes arrive.
-    const audio = new Audio(url);
-    audio.preload = 'auto';
-    _currentTTSAudio = audio;
 
-    const wait = new Promise((resolve) => {
-      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-    });
+    // Probe the endpoint first — on Vercel it returns 503 JSON (not audio).
+    // If the Content-Type isn't audio, bail immediately so the browser
+    // speechSynthesis fallback fires instead of playing silence.
+    const probe = await fetch(url);
+    if (!probe.ok || !(probe.headers.get('content-type') || '').startsWith('audio')) {
+      console.warn('[Venoxa] Edge TTS unavailable (non-audio response), falling back.');
+      return false;
+    }
 
-    // Background cache fill — does not block playback at all.
-    fetch(url)
-      .then(r => (r.ok ? r.arrayBuffer() : null))
-      .then(buf => {
-        if (!buf) return;
-        _setCachedAudio(ck, buf);
-        if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
-      })
-      .catch(() => { });
+    // Clone the response into a blob so we can both play it AND cache it.
+    const buf = await probe.arrayBuffer();
+    _setCachedAudio(ck, buf);
+    if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
 
-    await audio.play();
+    await _playCachedAudio(buf);
     _lastTTSEngine = 'edge';
-    await wait;
     return true;
   } catch (err) {
     console.warn('[Venoxa] Edge TTS failed:', err.message);
@@ -5377,9 +5370,17 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     try {
       const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
       const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
-      const audio = new Audio(url);
+      // Probe first — on Vercel this returns 503 JSON, not audio.
+      const probe = await fetch(url);
+      if (!probe.ok || !(probe.headers.get('content-type') || '').startsWith('audio')) {
+        return null; // Signal caller to use browser speechSynthesis fallback
+      }
+      const buf = await probe.arrayBuffer();
+      const blob = new Blob([buf], { type: 'audio/mpeg' });
+      const blobUrl = URL.createObjectURL(blob);
+      const audio = new Audio(blobUrl);
       audio.playbackRate = speed;
-      return { audio, url };
+      return { audio, url: blobUrl };
     } catch {
       return null;
     }
