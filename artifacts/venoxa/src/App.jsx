@@ -695,18 +695,17 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
 
-  // 1. Try Groq (Orpheus) first — capped at 700 ms so a slow/down server
-  //    never delays the chain. If it responds in time it's the best quality.
-  const okGroq = await withTimeout(groqTTSSpeak(text, genderKey), 700);
+  // 1. Try Groq (Orpheus) — fast, capped at 2 s. Best quality for short text.
+  const okGroq = await withTimeout(groqTTSSpeak(text, genderKey), 2000);
   if (okGroq) return true;
 
-  // 2. Try Kokoro second (best local quality) — same 700 ms cap.
-  const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent), 700);
+  // 2. Try Kokoro (local quality) — 1 s cap (it's fast when available).
+  const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent), 1000);
   if (okKokoro) return true;
 
-  // 3. Try Gemini third (Cloud quality, works on Vercel) — same 700 ms cap.
-  //    Try for both US and UK accents since edge-tts is unavailable on Vercel.
-  const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 700);
+  // 3. Try Gemini TTS (cloud, works on Vercel) — give it 8 s since it has
+  //    network + inference latency. This is the best fallback on Vercel.
+  const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 8000);
   if (okGemini) return true;
 
   const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
@@ -776,28 +775,16 @@ const kokoroTTSSpeak = async (text, gender, accent) => {
     return true;
   }
 
-  // 2. Network synthesis
+  // 2. Network synthesis — fetch first so 503 errors return false cleanly
   try {
     const params = new URLSearchParams({ text: normalized, voice });
     const url = `${import.meta.env.BASE_URL}api/kokoro-tts?${params}`;
-
-    const audio = new Audio(url);
-    _currentTTSAudio = audio;
-
-    const wait = new Promise((resolve) => {
-      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-    });
-
-    // Fill cache in background
-    fetch(url)
-      .then(r => (r.ok ? r.arrayBuffer() : null))
-      .then(buf => buf && _setCachedAudio(ck, buf))
-      .catch(() => { });
-
-    await audio.play();
+    const r = await fetch(url);
+    if (!r.ok || !(r.headers.get('content-type') || '').startsWith('audio')) return false;
+    const buf = await r.arrayBuffer();
+    _setCachedAudio(ck, buf);
+    await _playCachedAudio(buf);
     _lastTTSEngine = 'kokoro';
-    await wait;
     return true;
   } catch (err) {
     console.warn('[Venoxa] Kokoro TTS failed:', err.message);
@@ -809,6 +796,7 @@ const kokoroTTSSpeak = async (text, gender, accent) => {
  * groqTTSSpeak(text, gender)
  * Ultra-fast synthesis via Groq's Orpheus model.
  * Proxies to /api/groq-tts.
+ * Uses fetch-first pattern so HTTP errors are detected before attempting playback.
  */
 const groqTTSSpeak = async (text, gender) => {
   const voice = gender === 'female' ? 'alice' : 'adam';
@@ -828,16 +816,13 @@ const groqTTSSpeak = async (text, gender) => {
   try {
     const params = new URLSearchParams({ text: normalized, voice });
     const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
-    const audio = new Audio(url);
-    _currentTTSAudio = audio;
-    const wait = new Promise((resolve) => {
-      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-    });
-    await audio.play();
-    fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => { });
+    // Fetch first — if server returns non-audio (e.g. 503), bail cleanly.
+    const r = await fetch(url);
+    if (!r.ok || !(r.headers.get('content-type') || '').startsWith('audio')) return false;
+    const buf = await r.arrayBuffer();
+    _setCachedAudio(ck, buf);
+    await _playCachedAudio(buf);
     _lastTTSEngine = 'groq';
-    await wait;
     return true;
   } catch {
     return false;
@@ -847,7 +832,8 @@ const groqTTSSpeak = async (text, gender) => {
 /**
  * geminiTTSSpeak(text, gender)
  * High-quality synthesis via Google Gemini Multimodal.
- * Proxies to /api/gemini-tts. Works instantly with your Gemini API key.
+ * Proxies to /api/gemini-tts. Works on Vercel with a GEMINI_API_KEY env var.
+ * Uses fetch-first pattern so HTTP errors (503 = key missing) return false cleanly.
  */
 const geminiTTSSpeak = async (text, gender) => {
   // Use gender-appropriate Gemini voices
@@ -865,16 +851,14 @@ const geminiTTSSpeak = async (text, gender) => {
   try {
     const params = new URLSearchParams({ text: normalized, voice });
     const url = `${import.meta.env.BASE_URL}api/gemini-tts?${params}`;
-    const audio = new Audio(url);
-    _currentTTSAudio = audio;
-    const wait = new Promise((resolve) => {
-      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-    });
-    await audio.play();
-    fetch(url).then(r => r.ok ? r.arrayBuffer() : null).then(buf => buf && _setCachedAudio(ck, buf)).catch(() => { });
+    // Fetch first — Gemini TTS can take a few seconds; we wait for the full response
+    // before playing so we know it succeeded before returning true.
+    const r = await fetch(url);
+    if (!r.ok || !(r.headers.get('content-type') || '').startsWith('audio')) return false;
+    const buf = await r.arrayBuffer();
+    _setCachedAudio(ck, buf);
+    await _playCachedAudio(buf);
     _lastTTSEngine = 'gemini';
-    await wait;
     return true;
   } catch {
     return false;
