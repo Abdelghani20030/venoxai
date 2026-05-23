@@ -701,43 +701,48 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
 
-  // Helper: stop any audio that started playing during a timed-out attempt.
-  // Without this, a slow Groq/Kokoro response arrives AFTER withTimeout fires
-  // and blends with the next engine that's already started — producing two
-  // voices at the same time on Vercel.
+  // VERCEL FIX: Skip Groq/Kokoro/Gemini entirely.
+  // On Vercel these serverless functions either aren't deployed or cold-start
+  // too slowly (~1-3s each). The 700ms timeout races cause:
+  //   (a) ~2.1s total wasted delay before Edge TTS even starts
+  //   (b) Timed-out audio elements that finish loading AFTER the timeout and
+  //       start playing BEHIND Edge TTS — the "two voices blended" bug.
+  // Edge TTS is the primary and only engine on Vercel. Groq/Kokoro/Gemini
+  // can be re-enabled locally by uncommenting the blocks below.
+
+  /* LOCAL-ONLY ENGINES — uncomment to enable on localhost / self-hosted:
   const _stopStaleAudio = () => {
-    if (_currentTTSAudio) {
-      _currentTTSAudio.pause();
-      try { _currentTTSAudio.src = ''; } catch { /* ignore */ }
-      _currentTTSAudio = null;
-    }
+    if (_currentTTSAudio) { _currentTTSAudio.pause(); try { _currentTTSAudio.src = ''; } catch {} _currentTTSAudio = null; }
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   };
-
-  // 1. Try Groq (Orpheus) first — capped at 700 ms so a slow/down server
-  //    never delays the chain. If it responds in time it's the best quality.
   const okGroq   = await withTimeout(groqTTSSpeak(text, genderKey, myGen), 700);
   if (okGroq) return true;
-  _stopStaleAudio(); // kill any partial Groq audio before trying next engine
-
-  // 2. Try Kokoro second (best local quality) — same 700 ms cap.
+  _stopStaleAudio();
   const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent, myGen), 700);
   if (okKokoro) return true;
-  _stopStaleAudio(); // kill any partial Kokoro audio before trying next engine
-
-  // 3. Try Gemini third (Cloud quality) — same 700 ms cap.
+  _stopStaleAudio();
   if (accent === 'us') {
     const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey, myGen), 700);
     if (okGemini) return true;
-    _stopStaleAudio(); // kill any partial Gemini audio before Edge TTS
+    _stopStaleAudio();
+  }
+  */
+
+  // Cancel any audio still playing from a previous stale attempt
+  if (_currentTTSAudio) {
+    _currentTTSAudio.pause();
+    try { _currentTTSAudio.src = ''; } catch { /* ignore */ }
+    _currentTTSAudio = null;
   }
 
   const voice = voiceOverride || EDGE_VOICES[accent][genderKey];
   const normalized = normalizeTTSText(text);
   const ck = _audioCacheKey(normalized, 'edge:' + voice);
 
+  // IndexedDB cache hit → instant playback, no network
   const cached = await _getCachedAudio(ck);
   if (cached) {
+    if (_ttsGen !== myGen) return false;
     await _playCachedAudio(cached);
     _lastTTSEngine = 'edge';
     return true;
@@ -745,8 +750,11 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
 
   try {
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
-    // Streaming playback — starts as soon as the first audio bytes arrive.
+    // Always use an absolute path — import.meta.env.BASE_URL can be ''
+    // on Vercel, turning relative paths into broken URLs like 'api/edge-tts'
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+    const url = `${base}api/edge-tts?${params}`;
+
     const audio = new Audio(url);
     audio.preload = 'auto';
     _currentTTSAudio = audio;
@@ -756,7 +764,7 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
       audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
     });
 
-    // Background cache fill — does not block playback at all.
+    // Background cache fill — non-blocking, so playback starts immediately
     fetch(url)
       .then(r => (r.ok ? r.arrayBuffer() : null))
       .then(buf => {
@@ -949,21 +957,18 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID, inte
   if (!isArabic) {
     const ok = await edgeTTSSpeak(normalizedText, gender);
     if (ok) return;
+    // VERCEL FIX: Do NOT fall back to browser speechSynthesis for English.
+    // On Vercel, if Edge TTS fails (network error, cold-start timeout) and we
+    // let speechSynthesis fire, the browser's robotic voice blends with any
+    // partial Edge TTS audio that's still loading — causing the "two voices"
+    // problem. Silence is better than a blended robotic mess.
+    return;
   }
 
-  // --- Browser speech synthesis (Arabic + Edge TTS failure fallback) ---
-  if ('speechSynthesis' in window) {
+  // --- Browser speech synthesis (Arabic ONLY) ---
+  if (isArabic && 'speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
-    if (isArabic) {
-      utterance.lang = 'ar-SA';
-    } else {
-      utterance.lang = _voiceAccent === 'us' ? 'en-US' : 'en-GB';
-      const voices = window.speechSynthesis.getVoices();
-      const pick = voices.find(v => v.lang === utterance.lang && !v.localService)
-        || voices.find(v => v.lang === utterance.lang)
-        || voices.find(v => v.lang.startsWith('en'));
-      if (pick) utterance.voice = pick;
-    }
+    utterance.lang = 'ar-SA';
     utterance.rate = 0.92;
     utterance.onstart = () => { _lastTTSEngine = 'browser'; };
     window.speechSynthesis.speak(utterance);
@@ -979,33 +984,38 @@ const fetchTTSBlob = async (text, gender, accent) => {
   const normalized = normalizeTTSText(text);
   const ck = _audioCacheKey(normalized, 'blob:' + (accent === 'us' ? 'us' : 'uk'));
 
-  // Try local cache first
+  // Try local cache first — instant, no network
   const cached = await _getCachedAudio(ck);
   if (cached) return new Blob([cached], { type: 'audio/mpeg' });
 
-  // ── Groq attempt with hard 4s timeout (Vercel cold-start safe) ──
-  try {
-    const voice = gender === 'female' ? 'alice' : 'adam';
-    const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/groq-tts?${params}`;
+  // VERCEL FIX: Skip Groq (4s timeout blocks the auto-read queue on Vercel).
+  // Go straight to Edge TTS which is the only reliable engine on Vercel.
+  // Groq can be re-enabled locally by uncommenting the block below.
 
+  /* LOCAL-ONLY — uncomment to enable Groq on localhost:
+  try {
+    const groqVoice = gender === 'female' ? 'alice' : 'adam';
+    const groqParams = new URLSearchParams({ text: normalized, voice: groqVoice });
+    const groqUrl = '/api/groq-tts?' + groqParams;
     const groqCtrl = new AbortController();
     const groqTimer = setTimeout(() => groqCtrl.abort(), 4000);
     try {
-      const response = await fetch(url, { signal: groqCtrl.signal });
+      const response = await fetch(groqUrl, { signal: groqCtrl.signal });
       clearTimeout(groqTimer);
       if (!response.ok) throw new Error('not ok');
       const buf = await response.arrayBuffer();
       _setCachedAudio(ck, buf);
       return new Blob([buf], { type: 'audio/mpeg' });
-    } catch { clearTimeout(groqTimer); /* fall through to Edge */ }
-  } catch { /* ignore */ }
+    } catch { clearTimeout(groqTimer); }
+  } catch { }
+  */
 
-  // ── Edge TTS fallback (buffered, works on Vercel) ──
+  // ── Edge TTS (primary on Vercel, buffered full response) ──
   try {
     const voice = EDGE_VOICES[accent === 'us' ? 'us' : 'uk'][gender === 'female' ? 'female' : 'male'];
     const params = new URLSearchParams({ text: normalized, voice });
-    const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+    const url = `${base}api/edge-tts?${params}`;
     const edgeCtrl = new AbortController();
     const edgeTimer = setTimeout(() => edgeCtrl.abort(), 15000);
     try {
@@ -5420,8 +5430,9 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
   // ── Fetch audio via Edge TTS and return Audio element ──────────────
   const fetchAudioEl = async (text, speed) => {
     try {
+      const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
       const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'].male, rate: '+15%' });
-      const url = `${import.meta.env.BASE_URL}api/edge-tts?${params}`;
+      const url = `${base}api/edge-tts?${params}`;
       const audio = new Audio(url);
       audio.playbackRate = speed;
       return { audio, url };
@@ -5478,6 +5489,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
       await audio.play();
       setAudioState('playing');
     } else {
+      // Edge TTS direct fallback (in case fetchAudioEl construction fails)
       window.speechSynthesis?.cancel();
       const ok = await edgeTTSSpeak(story, 'male');
       if (ok) {
@@ -5487,11 +5499,9 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
           _currentTTSAudio.onended = () => setAudioState('idle');
         }
       } else {
-        const u = new SpeechSynthesisUtterance(story);
-        u.rate = playbackSpeed;
-        u.onend = () => setAudioState('idle');
-        window.speechSynthesis?.speak(u);
-        setAudioState('playing');
+        // All engines failed — reset silently, do NOT use browser TTS
+        // (it would produce robotic voice that can't be stopped cleanly)
+        setAudioState('idle');
       }
     }
   };
@@ -5570,11 +5580,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
           _currentTTSAudio.onended = () => setDictAudioState('idle');
         }
       } else {
-        const u = new SpeechSynthesisUtterance(text);
-        u.rate = 0.85;
-        u.onend = () => setDictAudioState('idle');
-        window.speechSynthesis?.speak(u);
-        setDictAudioState('playing');
+        // All engines failed — reset silently, no browser TTS fallback
+        setDictAudioState('idle');
       }
     }
   };
@@ -6895,12 +6902,12 @@ function Speaking({
     );
   };
 
-  // Pre-warm the Edge TTS WebSocket connection as soon as the component mounts
-  // so the first speech request skips the ~300ms WebSocket handshake latency.
+  // Pre-warm the Edge TTS connection as soon as the component mounts
   useEffect(() => {
     const accent = _voiceAccent === 'us' ? 'us' : 'uk';
     const voice = EDGE_VOICES[accent][voiceGender === 'female' ? 'female' : 'male'];
-    fetch(`/api/edge-tts-warmup?voice=${encodeURIComponent(voice)}`).catch(() => { });
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+    fetch(`${base}api/edge-tts-warmup?voice=${encodeURIComponent(voice)}`).catch(() => { });
   }, []);
 
   const speakText = async (text, interrupt = true) => {

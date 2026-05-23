@@ -10,10 +10,11 @@
  * ─────────────────────────────────────────────────────────────────────
  */
 
-// On Vercel, BASE_URL may be '' or undefined. Always resolve to an absolute
-// path relative to the current origin so fetch('/api/...') works correctly.
+// VERCEL FIX: import.meta.env.BASE_URL can be '' or undefined on Vercel,
+// which turns '/api/edge-tts' into 'api/edge-tts' (missing leading slash).
+// Always normalise to a string that ends in '/' so path joins are safe.
 const _rawBase = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '/';
-const BASE = _rawBase.endsWith('/') ? _rawBase : _rawBase + '/';
+const BASE = (_rawBase === '' || _rawBase === '.') ? '/' : (_rawBase.endsWith('/') ? _rawBase : _rawBase + '/');
 
 /**
  * streamFromAPI(prompt, onDelta, maxTokens?, timeoutMs?)
