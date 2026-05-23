@@ -152,12 +152,18 @@ const _browserFallback = (text, accent) => {
  * Speaks text using the Edge Neural TTS proxy (/api/edge-tts).
  *   accent: 'en-US' (default) | 'en-GB'
  * Cancels any previous playback first.
- * Falls back to browser speechSynthesis if the proxy is unreachable.
+ *
+ * NOTE: Browser speechSynthesis fallback is intentionally DISABLED.
+ * On Vercel, if the proxy fails and we fall back to browser TTS, it
+ * produces a robotic voice that blends with other audio engines
+ * (Groq / Gemini) also running in App.jsx — causing the "two voices
+ * at once" problem. Silence is better than a blended robotic mess.
  */
 export const speakEdge = async (text, accent = 'en-US') => {
   if (!text?.trim()) return;
 
-  // Cancel whatever is currently playing
+  // Cancel whatever is currently playing (both Edge proxy audio AND
+  // any browser speechSynthesis that may have snuck through)
   if (_currentEdgeAudio) { _currentEdgeAudio.pause(); _currentEdgeAudio = null; }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
@@ -170,12 +176,10 @@ export const speakEdge = async (text, accent = 'en-US') => {
     audio.preload = 'auto';
     _currentEdgeAudio = audio;
     audio.onended = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
-    audio.onerror = () => {
-      if (_currentEdgeAudio === audio) _currentEdgeAudio = null;
-      _browserFallback(text, accent);
-    };
-    await audio.play();          // resolves once playback starts (streaming)
+    audio.onerror = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
+    await audio.play();
   } catch {
-    _browserFallback(text, accent);
+    // Proxy unreachable — fail silently. Do NOT fall back to browser TTS.
+    if (_currentEdgeAudio) { _currentEdgeAudio = null; }
   }
 };

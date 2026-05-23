@@ -695,19 +695,35 @@ const edgeTTSSpeak = async (text, gender, voiceOverride, topLevelCacheKey) => {
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = gender === 'female' ? 'female' : 'male';
 
+  // Helper: stop any audio that started playing during a timed-out attempt.
+  // Without this, a slow Groq/Kokoro response arrives AFTER withTimeout fires
+  // and blends with the next engine that's already started — producing two
+  // voices at the same time on Vercel.
+  const _stopStaleAudio = () => {
+    if (_currentTTSAudio) {
+      _currentTTSAudio.pause();
+      try { _currentTTSAudio.src = ''; } catch { /* ignore */ }
+      _currentTTSAudio = null;
+    }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  };
+
   // 1. Try Groq (Orpheus) first — capped at 700 ms so a slow/down server
   //    never delays the chain. If it responds in time it's the best quality.
   const okGroq = await withTimeout(groqTTSSpeak(text, genderKey), 700);
   if (okGroq) return true;
+  _stopStaleAudio(); // kill any partial Groq audio before trying next engine
 
   // 2. Try Kokoro second (best local quality) — same 700 ms cap.
   const okKokoro = await withTimeout(kokoroTTSSpeak(text, genderKey, accent), 700);
   if (okKokoro) return true;
+  _stopStaleAudio(); // kill any partial Kokoro audio before trying next engine
 
   // 3. Try Gemini third (Cloud quality) — same 700 ms cap.
   if (accent === 'us') {
     const okGemini = await withTimeout(geminiTTSSpeak(text, genderKey), 700);
     if (okGemini) return true;
+    _stopStaleAudio(); // kill any partial Gemini audio before Edge TTS
   }
 
   const voice = voiceOverride || EDGE_VOICES[accent][genderKey];

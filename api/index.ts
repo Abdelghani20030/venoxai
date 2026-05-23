@@ -305,12 +305,65 @@ app.get("/api/groq-tts", async (req, res) => {
 });
 
 // ── GET /api/edge-tts ─────────────────────────────────────────────────────────
-// msedge-tts uses persistent WebSockets that don't work in serverless.
-// Return 503 so the frontend falls back to browser speechSynthesis.
-app.get("/api/edge-tts",        (_req, res) => res.status(503).json({ error: "Edge TTS unavailable in serverless mode." }));
-app.post("/api/edge-tts",       (_req, res) => res.status(503).json({ error: "Edge TTS unavailable in serverless mode." }));
-app.get("/api/edge-tts-warmup", (_req, res) => res.json({ ok: false, reason: "serverless" }));
+// Buffers all WebSocket chunks before sending so Vercel never truncates mid-stream.
+app.get('/api/edge-tts', async (req: Request, res: Response) => {
+  const text  = ((req.query.text  as string) ?? '').trim().slice(0, 1000);
+  const voice = (req.query.voice as string) ?? 'en-US-AvaMultilingualNeural';
+
+  if (!text) {
+    res.status(400).json({ error: 'text is required' });
+    return;
+  }
+
+  try {
+    const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
+
+    const tts = new MsEdgeTTS();
+    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+
+    const chunks: Buffer[] = [];
+
+    await new Promise<void>((resolve, reject) => {
+      const stream = tts.toStream(text);
+
+      stream.on('data',  (chunk: Buffer | Uint8Array) =>
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      );
+
+      stream.on('close', resolve);
+      stream.on('end',   resolve);
+      stream.on('error', reject);
+
+      setTimeout(() => reject(new Error('TTS stream timeout after 20 s')), 20_000);
+    });
+
+    if (chunks.length === 0) {
+      throw new Error('msedge-tts returned empty audio');
+    }
+
+    const buffer = Buffer.concat(chunks);
+
+    res.setHeader('Content-Type',   'audio/mpeg');
+    res.setHeader('Content-Length', String(buffer.length));
+    res.setHeader('Cache-Control',  'public, max-age=3600, s-maxage=3600');
+    res.status(200).end(buffer);
+
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[edge-tts]', msg);
+    if (!res.headersSent) {
+      res.status(502).json({ error: `Edge TTS failed: ${msg}` });
+    }
+  }
+});
+
+app.post("/api/edge-tts",       (_req, res) => res.status(405).json({ error: "Use GET /api/edge-tts" }));
 app.post("/api/edge-tts-timed", (_req, res) => res.status(503).json({ error: "Edge TTS timed unavailable in serverless mode." }));
+
+// ── Warmup endpoint ───────────────────────────────────────────────────────────
+app.get('/api/edge-tts-warmup', (_req: Request, res: Response) => {
+  res.status(204).end();
+});
 
 // ── GET /api/voices / POST /api/tts/stream (ElevenLabs) ──────────────────────
 app.get("/api/voices", async (_req, res) => {
