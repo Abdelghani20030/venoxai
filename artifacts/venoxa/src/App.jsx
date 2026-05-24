@@ -393,9 +393,13 @@ function PremiumBackground({ theme = 'dark' }) {
       canvas.width  = W;
       canvas.height = H;
 
+      // Apply radial mask to the canvas itself so corners fade to nothing
+      const mask = 'radial-gradient(ellipse 72% 72% at 50% 50%, black 0%, black 28%, transparent 78%)';
+      canvas.style.maskImage = mask;
+      canvas.style.webkitMaskImage = mask;
+
       ctx.clearRect(0, 0, W, H);
 
-      // radial mask: full opacity at center, 0 at edges
       const maskR = Math.hypot(W, H) * 0.55;
       const cx = W / 2, cy = H / 2;
 
@@ -404,8 +408,8 @@ function PremiumBackground({ theme = 'dark' }) {
         const d = Math.hypot(x - cx, 0) / maskR;
         const alpha = Math.max(0, 1 - d * 1.4);
         const brightness = isDark
-          ? 0.05 + alpha * 0.04
-          : 0.08 + alpha * 0.10;
+          ? 0.10 + alpha * 0.08
+          : 0.15 + alpha * 0.14;
         ctx.strokeStyle = isDark
           ? `rgba(80,130,255,${brightness})`
           : `rgba(60,80,200,${brightness})`;
@@ -420,8 +424,8 @@ function PremiumBackground({ theme = 'dark' }) {
         const d = Math.hypot(0, y - cy) / maskR;
         const alpha = Math.max(0, 1 - d * 1.4);
         const brightness = isDark
-          ? 0.05 + alpha * 0.04
-          : 0.08 + alpha * 0.10;
+          ? 0.10 + alpha * 0.08
+          : 0.15 + alpha * 0.14;
         ctx.strokeStyle = isDark
           ? `rgba(80,130,255,${brightness})`
           : `rgba(60,80,200,${brightness})`;
@@ -431,12 +435,12 @@ function PremiumBackground({ theme = 'dark' }) {
         ctx.lineTo(W, y);
         ctx.stroke();
       }
-      // intersection nodes — tiny brighter dots
+      // intersection nodes
       for (let x = (W / 2) % GAP; x < W; x += GAP) {
         for (let y = (H / 2) % GAP; y < H; y += GAP) {
           const d = Math.hypot(x - cx, y - cy) / maskR;
           if (d > 0.8) continue;
-          const alpha = Math.max(0, (1 - d * 1.25)) * (isDark ? 0.18 : 0.30);
+          const alpha = Math.max(0, (1 - d * 1.25)) * (isDark ? 0.30 : 0.45);
           ctx.beginPath();
           ctx.arc(x, y, 1, 0, Math.PI * 2);
           ctx.fillStyle = isDark
@@ -2057,17 +2061,15 @@ export default function App() {
       {/* ── Main Content Area ── */}
       <main className="relative z-10 flex-1 h-full overflow-y-auto overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px]">
 
-        {/* Top fade — blurs + tints content dissolving below the navbar */}
+        {/* Top fade — content dissolves from the very top of the viewport through the topbar */}
         <div
           className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[55] print:hidden"
           style={{
-            maskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
-            backdropFilter: 'blur(30px)',
-            WebkitBackdropFilter: 'blur(14px)',
+            maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
             background: theme === 'dark'
-              ? 'linear-gradient(to bottom, rgba(10,10,14,0.55) 0%, rgba(10,10,14,0.2) 55%, rgba(10,10,14,0) 100%)'
-              : 'linear-gradient(to bottom, rgba(245,245,250,0.55) 0%, rgba(245,245,250,0.2) 55%, rgba(245,245,250,0) 100%)',
+              ? 'linear-gradient(to bottom, rgba(10,10,14,0.85) 0%, rgba(10,10,14,0.4) 55%, rgba(10,10,14,0) 100%)'
+              : 'linear-gradient(to bottom, rgba(245,245,250,0.92) 0%, rgba(245,245,250,0.5) 55%, rgba(245,245,250,0) 100%)',
           }}
         />
 
