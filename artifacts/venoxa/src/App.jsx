@@ -346,59 +346,175 @@ function SolidDatePicker({ value, onChange, min, label, lang }) {
 }
 
 // --- PARTICLES BACKGROUND ---
-function ParticlesBackground() {
-  const canvasRef = useRef(null);
-  const animRef = useRef(null);
+/* ─────────────────────────────────────────────────────────────
+   PremiumBackground
+   Full visionOS-inspired dark grid + glows + particles + noise
+   5 layer stack:
+     1. Base gradient
+     2. Grid overlay  (canvas — sharp center, faded edges)
+     3. Glow layers   (CSS radial-gradients)
+     4. Noise texture (canvas — subtle grain)
+     5. Particles     (canvas — ultra-low opacity floating dots)
+   + mouse-parallax on glow layers
+   + breathing animation on glows
+────────────────────────────────────────────────────────────── */
+function PremiumBackground({ theme = 'dark' }) {
+  const isDark = theme === 'dark';
+  const gridRef    = useRef(null);
+  const noiseRef   = useRef(null);
+  const partRef    = useRef(null);
+  const glowRef    = useRef(null);
+  const mouseRef   = useRef({ x: 0.5, y: 0.5 });
+  const animRef    = useRef(null);
+  const frameRef   = useRef(0);
 
+  /* ── mouse tracking for parallax ── */
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const onMove = (e) => {
+      mouseRef.current = {
+        x: e.clientX / window.innerWidth,
+        y: e.clientY / window.innerHeight,
+      };
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+
+  /* ── grid canvas ── */
+  useEffect(() => {
+    const canvas = gridRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    const GAP = 56; // grid spacing px
 
-    let W = window.innerWidth;
-    let H = window.innerHeight;
-    canvas.width = W;
+    const draw = () => {
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      canvas.width  = W;
+      canvas.height = H;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // radial mask: full opacity at center, 0 at edges
+      const maskR = Math.hypot(W, H) * 0.55;
+      const cx = W / 2, cy = H / 2;
+
+      // vertical lines
+      for (let x = (W / 2) % GAP; x < W; x += GAP) {
+        const d = Math.hypot(x - cx, 0) / maskR;
+        const alpha = Math.max(0, 1 - d * 1.4);
+        const brightness = isDark
+          ? 0.05 + alpha * 0.04
+          : 0.08 + alpha * 0.10;
+        ctx.strokeStyle = isDark
+          ? `rgba(80,130,255,${brightness})`
+          : `rgba(60,80,200,${brightness})`;
+        ctx.lineWidth   = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+      }
+      // horizontal lines
+      for (let y = (H / 2) % GAP; y < H; y += GAP) {
+        const d = Math.hypot(0, y - cy) / maskR;
+        const alpha = Math.max(0, 1 - d * 1.4);
+        const brightness = isDark
+          ? 0.05 + alpha * 0.04
+          : 0.08 + alpha * 0.10;
+        ctx.strokeStyle = isDark
+          ? `rgba(80,130,255,${brightness})`
+          : `rgba(60,80,200,${brightness})`;
+        ctx.lineWidth   = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+      }
+      // intersection nodes — tiny brighter dots
+      for (let x = (W / 2) % GAP; x < W; x += GAP) {
+        for (let y = (H / 2) % GAP; y < H; y += GAP) {
+          const d = Math.hypot(x - cx, y - cy) / maskR;
+          if (d > 0.8) continue;
+          const alpha = Math.max(0, (1 - d * 1.25)) * (isDark ? 0.18 : 0.30);
+          ctx.beginPath();
+          ctx.arc(x, y, 1, 0, Math.PI * 2);
+          ctx.fillStyle = isDark
+            ? `rgba(140,180,255,${alpha})`
+            : `rgba(80,100,220,${alpha})`;
+          ctx.fill();
+        }
+      }
+    };
+
+    draw();
+    window.addEventListener('resize', draw);
+    return () => window.removeEventListener('resize', draw);
+  }, [isDark]);
+
+  /* ── noise canvas (static grain drawn once) ── */
+  useEffect(() => {
+    const canvas = noiseRef.current;
+    if (!canvas) return;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    canvas.width  = W;
     canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(W, H);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255;
+      img.data[i]   = v;
+      img.data[i+1] = v;
+      img.data[i+2] = v;
+      img.data[i+3] = Math.random() < 0.5 ? 0 : Math.floor(Math.random() * 12);
+    }
+    ctx.putImageData(img, 0, 0);
+  }, []);
 
-    const COUNT = Math.floor((W * H) / 14000);
-    const particles = Array.from({ length: COUNT }, () => ({
+  /* ── particles canvas ── */
+  useEffect(() => {
+    const canvas = partRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W = window.innerWidth, H = window.innerHeight;
+    canvas.width = W; canvas.height = H;
+
+    const COUNT = Math.floor((W * H) / 22000);
+    const pts = Array.from({ length: COUNT }, () => ({
       x: Math.random() * W,
       y: Math.random() * H,
-      r: Math.random() * 1.2 + 0.3,
-      opacity: Math.random() * 0.55 + 0.1,
-      dx: (Math.random() - 0.5) * 0.18,
-      dy: (Math.random() - 0.5) * 0.18,
-      twinkleSpeed: Math.random() * 0.008 + 0.003,
-      twinklePhase: Math.random() * Math.PI * 2,
+      r: Math.random() * 0.9 + 0.2,
+      base: Math.random() * 0.07 + 0.02,
+      dx: (Math.random() - 0.5) * 0.12,
+      dy: (Math.random() - 0.5) * 0.12,
+      phase: Math.random() * Math.PI * 2,
+      speed: Math.random() * 0.006 + 0.002,
     }));
 
     let frame = 0;
-    const draw = () => {
+    const tick = () => {
       ctx.clearRect(0, 0, W, H);
       frame++;
-      for (const p of particles) {
-        p.x += p.dx;
-        p.y += p.dy;
-        if (p.x < -2) p.x = W + 2;
-        if (p.x > W + 2) p.x = -2;
-        if (p.y < -2) p.y = H + 2;
-        if (p.y > H + 2) p.y = -2;
-
-        const alpha = p.opacity + Math.sin(frame * p.twinkleSpeed + p.twinklePhase) * 0.12;
+      for (const p of pts) {
+        p.x += p.dx; p.y += p.dy;
+        if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+        if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+        const alpha = p.base + Math.sin(frame * p.speed + p.phase) * 0.03;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${Math.max(0, Math.min(1, alpha))})`;
+        ctx.fillStyle = isDark
+          ? `rgba(180,210,255,${Math.max(0, alpha)})`
+          : `rgba(80,100,220,${Math.max(0, alpha * 1.8)})`;
         ctx.fill();
       }
-      animRef.current = requestAnimationFrame(draw);
+      animRef.current = requestAnimationFrame(tick);
     };
-    draw();
+    tick();
 
     const onResize = () => {
-      W = window.innerWidth;
-      H = window.innerHeight;
-      canvas.width = W;
-      canvas.height = H;
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = W; canvas.height = H;
     };
     window.addEventListener('resize', onResize);
     return () => {
@@ -407,13 +523,96 @@ function ParticlesBackground() {
     };
   }, []);
 
+  /* ── parallax glow on mouse move ── */
+  useEffect(() => {
+    let raf;
+    const lerp = (a, b, t) => a + (b - a) * t;
+    let cx = 0.5, cy = 0.5;
+
+    const tick = () => {
+      cx = lerp(cx, mouseRef.current.x, 0.04);
+      cy = lerp(cy, mouseRef.current.y, 0.04);
+      if (glowRef.current) {
+        glowRef.current.style.transform =
+          `translate(${(cx - 0.5) * -28}px, ${(cy - 0.5) * -28}px)`;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full"
-      style={{ pointerEvents: 'none' }}
-    />
+    <>
+      {/* Layer 1 — base gradient */}
+      <div className="absolute inset-0" style={{
+        background: isDark
+          ? 'linear-gradient(160deg, #050816 0%, #080f1e 40%, #0b1020 100%)'
+          : 'linear-gradient(160deg, #f0f2ff 0%, #ece8ff 40%, #eef2ff 100%)',
+      }} />
+
+      {/* Layer 2 — grid */}
+      <canvas ref={gridRef} className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }} />
+
+      {/* Layer 3 — atmospheric glow blobs (parallax container) */}
+      <div ref={glowRef} className="absolute inset-0 will-change-transform" style={{ pointerEvents: 'none' }}>
+        {/* blue/indigo primary glow — center-top */}
+        <div className="absolute" style={{
+          top: '-10%', left: '30%', width: '65vw', height: '65vw',
+          background: isDark
+            ? 'radial-gradient(circle, rgba(56,100,255,0.13) 0%, transparent 68%)'
+            : 'radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 68%)',
+          filter: 'blur(80px)',
+          animation: 'breathe 9s ease-in-out infinite',
+        }} />
+        {/* purple glow — right */}
+        <div className="absolute" style={{
+          top: '10%', right: '-8%', width: '48vw', height: '48vw',
+          background: isDark
+            ? 'radial-gradient(circle, rgba(120,60,255,0.10) 0%, transparent 65%)'
+            : 'radial-gradient(circle, rgba(168,85,247,0.18) 0%, transparent 65%)',
+          filter: 'blur(100px)',
+          animation: 'breathe 12s ease-in-out infinite 2s',
+        }} />
+        {/* soft highlight — center */}
+        <div className="absolute" style={{
+          top: '15%', left: '35%', width: '34vw', height: '34vw',
+          background: isDark
+            ? 'radial-gradient(circle, rgba(200,220,255,0.05) 0%, transparent 60%)'
+            : 'radial-gradient(circle, rgba(255,255,255,0.60) 0%, transparent 60%)',
+          filter: 'blur(60px)',
+          animation: 'breathe 7s ease-in-out infinite 1s',
+        }} />
+        {/* teal accent — bottom-left */}
+        <div className="absolute" style={{
+          bottom: '-5%', left: '-5%', width: '40vw', height: '40vw',
+          background: isDark
+            ? 'radial-gradient(circle, rgba(20,160,200,0.07) 0%, transparent 65%)'
+            : 'radial-gradient(circle, rgba(20,160,200,0.14) 0%, transparent 65%)',
+          filter: 'blur(120px)',
+          animation: 'breathe 15s ease-in-out infinite 4s',
+        }} />
+        {/* vignette — screen edges */}
+        <div className="absolute inset-0" style={{
+          background: isDark
+            ? 'radial-gradient(ellipse 85% 80% at 50% 50%, transparent 40%, rgba(3,5,14,0.65) 100%)'
+            : 'radial-gradient(ellipse 85% 80% at 50% 50%, transparent 40%, rgba(220,220,240,0.50) 100%)',
+        }} />
+      </div>
+
+      {/* Layer 4 — noise grain */}
+      <canvas ref={noiseRef} className="absolute inset-0 w-full h-full"
+        style={{ pointerEvents: 'none', opacity: isDark ? 0.45 : 0.20, mixBlendMode: isDark ? 'screen' : 'multiply' }} />
+
+      {/* Layer 5 — floating particles */}
+      <canvas ref={partRef} className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }} />
+    </>
   );
+}
+
+/* Keep old name as alias so existing references still work */
+function ParticlesBackground() {
+  return null; // replaced by PremiumBackground
 }
 
 // --- API CONFIGURATION ---
@@ -1557,37 +1756,14 @@ export default function App() {
       dir={_resolveTranslation(lang, 'rtl', 'ltr')}
       style={{
         background: theme === 'dark'
-          ? '#0A0A0E'
-          : '#f5f5fa',
+          ? '#050816'
+          : '#eef0ff',
       }}
     >
       {/* ── Background ── */}
-      {theme === 'dark' ? (
-        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-          <div className="absolute inset-0" style={{ background: '#0A0A0E' }} />
-          {/* Grok-style moving dot particles */}
-          <ParticlesBackground />
-          {/* Subtle dark-gray radial glow — top center */}
-          <div className="absolute top-[-20%] left-[50%] -translate-x-1/2 w-[70vw] h-[70vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(32,32,44,0.25) 0%, rgba(15,15,20,0) 65%)' }} />
-          {/* Soft charcoal accent — bottom left */}
-          <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(22,22,34,0.15) 0%, rgba(10,10,14,0) 65%)' }} />
-          {/* Very faint cool-gray shimmer — right edge */}
-          <div className="absolute top-[30%] right-[-15%] w-[40vw] h-[40vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(18,18,30,0.1) 0%, rgba(6,6,8,0) 65%)' }} />
-        </div>
-      ) : (
-        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-          {/* Light mode base */}
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #f5f5fa 0%, #efeff5 50%, #e9e9f1 100%)' }} />
-          {/* Lavender glow — top center */}
-          <div className="absolute top-[-10%] left-[50%] -translate-x-1/2 w-[65vw] h-[65vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(167,139,250,0.12) 0%, rgba(245,245,250,0) 65%)' }} />
-          {/* Warm orange/peach glow — bottom left (mirrors accent1) */}
-          <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,87,34,0.08) 0%, rgba(239,239,245,0) 65%)' }} />
-          {/* Cool sky-blue shimmer — right edge */}
-          <div className="absolute top-[25%] right-[-15%] w-[42vw] h-[42vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(147,197,253,0.10) 0%, rgba(233,233,241,0) 65%)' }} />
-          {/* Extra soft warm center glow */}
-          <div className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[40vw] h-[40vw] rounded-full" style={{ background: 'radial-gradient(circle, rgba(253,230,138,0.06) 0%, rgba(245,245,250,0) 70%)' }} />
-        </div>
-      )}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <PremiumBackground theme={theme} />
+      </div>
       {/* ── Liquid Glass SVG Filter ── */}
       <svg style={{ display: 'none', position: 'absolute' }} aria-hidden="true">
         <defs>
@@ -1652,60 +1828,42 @@ export default function App() {
         </defs>
       </svg>
 
-      {/* ── Top Navigation Bar with Liquid Glass ── */}
-      <header
-        className="topbar-glass fixed top-3 left-3 right-3 z-[60] h-[64px] rounded-[32px] border border-black/5 dark:border-white/5 shadow-md dark:shadow-[0_4px_16px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.15)]"
-      >
-        {/*
-          Three layered divs inside overflow:hidden — none have children,
-          so the filter only distorts the captured backdrop, NEVER the nav text.
+      {/* ── SVG Liquid Glass Distortion Filter ── */}
+      <svg style={{ display: 'none', position: 'absolute' }} aria-hidden="true">
+        <defs>
+          <filter id="lg-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
+            <feTurbulence type="fractalNoise" baseFrequency="0.01 0.01" numOctaves="1" seed="5" result="turbulence" />
+            <feComponentTransfer in="turbulence" result="mapped">
+              <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5" />
+              <feFuncG type="gamma" amplitude="0" exponent="1"  offset="0"   />
+              <feFuncB type="gamma" amplitude="0" exponent="1"  offset="0.5" />
+            </feComponentTransfer>
+            <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap" />
+            <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1" specularExponent="100" lightingColor="white" result="specLight">
+              <fePointLight x="-200" y="-200" z="300" />
+            </feSpecularLighting>
+            <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage" />
+            <feDisplacementMap in="SourceGraphic" in2="softMap" scale="150" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
 
-          1. Distortion   — backdrop-filter + SVG displacement = glass warp
-          2. Tint         — bare rgba, almost invisible, just enough to unify
-          3. Specular rim — 1 px gradient line faking the bright glass bevel
-        */}
-        <div className="absolute inset-0 rounded-[32px] pointer-events-none overflow-hidden">
-
-          {/* 1 ── Distortion / refraction */}
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            backdropFilter: 'blur(3px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(3px) saturate(180%)',
-            filter: 'url(#navbar-glass)',
-            overflow: 'hidden',
-          }} />
-
-          {/* 2 ── Near-transparent tint — just enough to prevent full see-through */}
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: theme === 'dark'
-              ? 'rgba(12, 12, 18, 0.10)'   /* almost invisible in dark */
-              : 'rgba(255, 255, 255, 0.12)', /* whisper of white in light */
-          }} />
-
-          {/* 3 ── Top specular rim */}
-          <div style={{
-            position: 'absolute',
-            top: 0, left: '4%', right: '4%', height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.70) 25%, rgba(255,255,255,0.70) 75%, transparent)',
-            borderRadius: '999px',
-          }} />
-
-          {/* 4 ── Bottom shadow line */}
-          <div style={{
-            position: 'absolute',
-            bottom: 0, left: '8%', right: '8%', height: '1px',
-            background: theme === 'dark'
-              ? 'rgba(0,0,0,0.30)'
-              : 'rgba(0,0,0,0.05)',
-            borderRadius: '999px',
-          }} />
-        </div>
-
-        {/* Bar content — lives on z-[2], completely outside the filter stack */}
-        <div className="relative z-[2] flex items-center h-full px-4 sm:px-6 gap-3">
+      {/* ── Top Navigation Bar — Liquid Glass
+           wrapper → effect(z0) → tint(z1) → shine(z2) → content(z3)
+      ── */}
+      <header className="lg-nav-wrapper fixed top-3 left-3 right-3 z-[60] h-[64px] rounded-[32px]">
+        {/* z-0 distortion — empty so only backdrop is warped */}
+        <div className="lg-effect" />
+        {/* z-1 tint — dark: faint blue-white frost; light: white wash */}
+        <div className="lg-tint" style={{
+          background: theme === 'dark'
+            ? 'rgba(20, 40, 120, 0.18)'
+            : 'rgba(255, 255, 255, 0.28)',
+        }} />
+        {/* z-2 shine — inset highlights from reference */}
+        <div className="lg-shine" />
+        {/* z-3 content */}
+        <div className="lg-content flex items-center h-full px-4 sm:px-6 gap-3">
 
           {/* LEFT slot — controls when EN, logo when AR */}
           {lang === 'ar' ? (
@@ -1899,15 +2057,17 @@ export default function App() {
       {/* ── Main Content Area ── */}
       <main className="relative z-10 flex-1 h-full overflow-y-auto overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px]">
 
-        {/* Top fade — content dissolves from the very top of the viewport through the topbar */}
+        {/* Top fade — blurs + tints content dissolving below the navbar */}
         <div
           className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[55] print:hidden"
           style={{
-            maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
+            maskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
+            backdropFilter: 'blur(30px)',
+            WebkitBackdropFilter: 'blur(14px)',
             background: theme === 'dark'
-              ? 'linear-gradient(to bottom, rgba(10,10,14,0.85) 0%, rgba(10,10,14,0.4) 55%, rgba(10,10,14,0) 100%)'
-              : 'linear-gradient(to bottom, rgba(245,245,250,0.92) 0%, rgba(245,245,250,0.5) 55%, rgba(245,245,250,0) 100%)',
+              ? 'linear-gradient(to bottom, rgba(10,10,14,0.55) 0%, rgba(10,10,14,0.2) 55%, rgba(10,10,14,0) 100%)'
+              : 'linear-gradient(to bottom, rgba(245,245,250,0.55) 0%, rgba(245,245,250,0.2) 55%, rgba(245,245,250,0) 100%)',
           }}
         />
 
