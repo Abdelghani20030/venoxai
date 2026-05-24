@@ -1252,6 +1252,7 @@ const formatCountdown = (nextReview) => {
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [userLevel, setUserLevel] = useState(localStorage.getItem('userLevel') || 'B2');
   const [globalVocab, setGlobalVocab] = useState(() => {
@@ -1541,6 +1542,15 @@ export default function App() {
     },
   ];
 
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      const activeGroup = navItems.find(item => item.items && item.items.some(sub => sub.id === activeTab));
+      if (activeGroup) {
+        setExpandedGroups(prev => ({ ...prev, [activeGroup.id]: true }));
+      }
+    }
+  }, [isMobileMenuOpen, activeTab]);
+
   return (
     <div
       className="flex flex-col h-screen overflow-hidden transition-colors duration-500 font-sans relative"
@@ -1711,6 +1721,18 @@ export default function App() {
           ) : (
             /* EN: controls on left */
             <div className="flex items-center gap-1 shrink-0">
+              {/* Mobile menu toggle */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className={`md:hidden w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                  theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                    : 'text-gray-500 hover:text-black hover:bg-black/5'
+                }`}
+                title={_resolveTranslation(lang, 'القائمة', 'Menu')}
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
               {/* Theme toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -1749,7 +1771,7 @@ export default function App() {
           )}
 
           {/* Navigation Icons */}
-          <nav className="flex-1 flex items-center justify-center gap-0.5 px-2">
+          <nav className="hidden md:flex flex-1 items-center justify-center gap-0.5 px-2">
             {navItems.map(item => {
               const isGroup = !!item.items;
               const isActive = isGroup ? item.items.some(s => activeTab === s.id) : activeTab === item.id;
@@ -1818,6 +1840,18 @@ export default function App() {
           {lang === 'ar' ? (
             /* AR: controls on right */
             <div className="flex items-center gap-1 shrink-0">
+              {/* Mobile menu toggle */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className={`md:hidden w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                  theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                    : 'text-gray-500 hover:text-black hover:bg-black/5'
+                }`}
+                title={_resolveTranslation(lang, 'القائمة', 'Menu')}
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
               {/* Language toggle — UK flag */}
               <button
                 onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
@@ -1885,6 +1919,132 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* ── Mobile Navigation Drawer ── */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-[80] bg-black/60 dark:bg-black/80 backdrop-blur-sm transition-opacity duration-300 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      <div
+        className={`fixed top-0 bottom-0 z-[90] w-[280px] sm:w-[320px] transition-transform duration-300 ease-out md:hidden shadow-2xl flex flex-col border-gray-200/80 dark:border-white/10 ${
+          lang === 'ar'
+            ? 'right-0 border-l rounded-l-[32px]'
+            : 'left-0 border-r rounded-r-[32px]'
+        }`}
+        style={{
+          transform: isMobileMenuOpen
+            ? 'translateX(0)'
+            : (lang === 'ar' ? 'translateX(100%)' : 'translateX(-100%)'),
+          background: theme === 'dark'
+            ? 'rgba(15, 15, 19, 0.96)'
+            : 'rgba(255, 255, 255, 0.96)',
+          backdropFilter: 'blur(40px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+        }}
+      >
+        {/* Drawer Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-white/10">
+          <div className="flex items-center gap-2" dir="ltr">
+            <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-white dark:text-black" />
+            </div>
+            <span className="text-lg font-bold tracking-tight text-black dark:text-white">
+              <span className="text-[var(--app-accent1)]">ai.</span><span>فينوكسا</span>
+            </span>
+          </div>
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+              theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-black hover:bg-black/5'
+            }`}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Drawer Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
+          {navItems.map(item => {
+            const isGroup = !!item.items;
+            const isActive = isGroup ? item.items.some(s => activeTab === s.id) : activeTab === item.id;
+            const isExpanded = !!expandedGroups[item.id];
+
+            return (
+              <div key={item.id} className="space-y-1">
+                {isGroup ? (
+                  <div>
+                    <button
+                      onClick={() => setExpandedGroups(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                        isActive
+                          ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/5 text-black')
+                          : (theme === 'dark' ? 'text-white/70 hover:text-white hover:bg-white/5' : 'text-gray-600 hover:text-black hover:bg-black/5')
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className="w-5 h-5 shrink-0" />
+                        <span>{item.label}</span>
+                      </div>
+                      <ChevronDown className={`w-4 h-4 opacity-50 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isExpanded && (
+                      <div className={`mt-1 space-y-1 ${lang === 'ar' ? 'border-r-2 dark:border-white/10 border-gray-200/50 pr-4 pl-0' : 'border-l-2 dark:border-white/10 border-gray-200/50 pl-4 pr-0'}`}>
+                        {item.items.map(sub => {
+                          const isSubActive = activeTab === sub.id;
+                          return (
+                            <button
+                              key={sub.id}
+                              onClick={() => {
+                                setActiveTab(sub.id);
+                                setIsMobileMenuOpen(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                isSubActive
+                                  ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
+                                  : (theme === 'dark' ? 'text-white/60 hover:bg-white/5 hover:text-white' : 'text-gray-500 hover:bg-black/5 hover:text-black')
+                              }`}
+                            >
+                              <sub.icon className="w-4 h-4 shrink-0" />
+                              <span className="flex-1 text-start">{sub.label}</span>
+                              {sub.badge > 0 && (
+                                <span className="min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[8px] font-bold bg-[var(--app-accent1)] text-white">
+                                  {sub.badge}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                      isActive
+                        ? (theme === 'dark' ? 'bg-white/12 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
+                        : (theme === 'dark' ? 'text-white/70 hover:text-white hover:bg-white/8' : 'text-gray-600 hover:text-black hover:bg-black/5')
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5 shrink-0" />
+                    <span className="flex-1 text-start">{item.label}</span>
+                    {item.badge > 0 && (
+                      <span className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold bg-[var(--app-accent1)] text-white shrink-0">
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
