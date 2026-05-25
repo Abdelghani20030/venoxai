@@ -1,7 +1,126 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, User, Lock, Mail } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
+import ProfileDashboard from './ProfileDashboard';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SECRET KEY GATE — change this to whatever key you want
+// ─────────────────────────────────────────────────────────────────────────────
+const SECRET_KEY = 'VENOXA-2025';
+const KEY_STORAGE = 'venoxa_access_granted';
+
+function KeyGate({ onUnlock }) {
+  const [input, setInput] = useState('');
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  const handleSubmit = () => {
+    if (input.trim() === SECRET_KEY) {
+      localStorage.setItem(KEY_STORAGE, '1');
+      onUnlock();
+    } else {
+      setError(true);
+      setShake(true);
+      setTimeout(() => setShake(false), 600);
+      setTimeout(() => setError(false), 2000);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh', background: '#050816',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: 'sans-serif', padding: '24px',
+    }}>
+      <div style={{
+        width: '100%', maxWidth: '400px',
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '24px', padding: '40px 32px',
+        boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+        animation: shake ? 'kgShake 0.5s ease' : 'none',
+      }}>
+        <style>{`
+          @keyframes kgShake {
+            0%,100%{transform:translateX(0)}
+            20%{transform:translateX(-10px)}
+            40%{transform:translateX(10px)}
+            60%{transform:translateX(-8px)}
+            80%{transform:translateX(8px)}
+          }
+          @keyframes kgFadeIn {
+            from{opacity:0;transform:translateY(16px)}
+            to{opacity:1;transform:translateY(0)}
+          }
+        `}</style>
+
+        {/* Lock icon */}
+        <div style={{
+          width: '64px', height: '64px', borderRadius: '18px',
+          background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 24px', boxShadow: '0 8px 24px rgba(124,58,237,0.4)',
+        }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+
+        <h1 style={{ color: '#fff', fontSize: '22px', fontWeight: 800, textAlign: 'center', margin: '0 0 6px' }}>
+          Private Access
+        </h1>
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', textAlign: 'center', margin: '0 0 28px' }}>
+          Enter your secret key to continue
+        </p>
+
+        <input
+          type="password"
+          placeholder="Enter secret key…"
+          value={input}
+          onChange={e => { setInput(e.target.value); setError(false); }}
+          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          autoFocus
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            padding: '14px 16px', borderRadius: '14px',
+            background: 'rgba(255,255,255,0.06)',
+            border: `1.5px solid ${error ? '#ef4444' : 'rgba(255,255,255,0.1)'}`,
+            color: '#fff', fontSize: '15px', outline: 'none',
+            transition: 'border-color 0.2s',
+            marginBottom: '12px',
+            letterSpacing: '0.1em',
+          }}
+        />
+
+        {error && (
+          <p style={{ color: '#ef4444', fontSize: '12px', marginBottom: '12px', textAlign: 'center' }}>
+            Incorrect key. Try again.
+          </p>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          style={{
+            width: '100%', padding: '14px',
+            borderRadius: '14px', border: 'none', cursor: 'pointer',
+            background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+            color: '#fff', fontSize: '15px', fontWeight: 700,
+            boxShadow: '0 4px 16px rgba(124,58,237,0.4)',
+            transition: 'opacity 0.15s, transform 0.1s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          Unlock
+        </button>
+      </div>
+    </div>
+  );
+}
 import Pronunciation from './Pronunciation';
 import SmartTranslation from './SmartTranslation';
 import TimerTool from './TimerTool';
@@ -360,101 +479,9 @@ function SolidDatePicker({ value, onChange, min, label, lang }) {
 ────────────────────────────────────────────────────────────── */
 function PremiumBackground({ theme = 'dark' }) {
   const isDark = theme === 'dark';
-  const gridRef    = useRef(null);
   const noiseRef   = useRef(null);
   const partRef    = useRef(null);
-  const glowRef    = useRef(null);
-  const mouseRef   = useRef({ x: 0.5, y: 0.5 });
   const animRef    = useRef(null);
-  const frameRef   = useRef(0);
-
-  /* ── mouse tracking for parallax ── */
-  useEffect(() => {
-    const onMove = (e) => {
-      mouseRef.current = {
-        x: e.clientX / window.innerWidth,
-        y: e.clientY / window.innerHeight,
-      };
-    };
-    window.addEventListener('mousemove', onMove, { passive: true });
-    return () => window.removeEventListener('mousemove', onMove);
-  }, []);
-
-  /* ── grid canvas ── */
-  useEffect(() => {
-    const canvas = gridRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const GAP = 56; // grid spacing px
-
-    const draw = () => {
-      const W = window.innerWidth;
-      const H = window.innerHeight;
-      canvas.width  = W;
-      canvas.height = H;
-
-      // Apply radial mask to the canvas itself so corners fade to nothing
-      const mask = 'radial-gradient(ellipse 72% 72% at 50% 50%, black 0%, black 28%, transparent 78%)';
-      canvas.style.maskImage = mask;
-      canvas.style.webkitMaskImage = mask;
-
-      ctx.clearRect(0, 0, W, H);
-
-      const maskR = Math.hypot(W, H) * 0.55;
-      const cx = W / 2, cy = H / 2;
-
-      // vertical lines
-      for (let x = (W / 2) % GAP; x < W; x += GAP) {
-        const d = Math.hypot(x - cx, 0) / maskR;
-        const alpha = Math.max(0, 1 - d * 1.4);
-        const brightness = isDark
-          ? 0.10 + alpha * 0.08
-          : 0.15 + alpha * 0.14;
-        ctx.strokeStyle = isDark
-          ? `rgba(80,130,255,${brightness})`
-          : `rgba(60,80,200,${brightness})`;
-        ctx.lineWidth   = 1;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, H);
-        ctx.stroke();
-      }
-      // horizontal lines
-      for (let y = (H / 2) % GAP; y < H; y += GAP) {
-        const d = Math.hypot(0, y - cy) / maskR;
-        const alpha = Math.max(0, 1 - d * 1.4);
-        const brightness = isDark
-          ? 0.10 + alpha * 0.08
-          : 0.15 + alpha * 0.14;
-        ctx.strokeStyle = isDark
-          ? `rgba(80,130,255,${brightness})`
-          : `rgba(60,80,200,${brightness})`;
-        ctx.lineWidth   = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(W, y);
-        ctx.stroke();
-      }
-      // intersection nodes
-      for (let x = (W / 2) % GAP; x < W; x += GAP) {
-        for (let y = (H / 2) % GAP; y < H; y += GAP) {
-          const d = Math.hypot(x - cx, y - cy) / maskR;
-          if (d > 0.8) continue;
-          const alpha = Math.max(0, (1 - d * 1.25)) * (isDark ? 0.30 : 0.45);
-          ctx.beginPath();
-          ctx.arc(x, y, 1, 0, Math.PI * 2);
-          ctx.fillStyle = isDark
-            ? `rgba(140,180,255,${alpha})`
-            : `rgba(80,100,220,${alpha})`;
-          ctx.fill();
-        }
-      }
-    };
-
-    draw();
-    window.addEventListener('resize', draw);
-    return () => window.removeEventListener('resize', draw);
-  }, [isDark]);
 
   /* ── noise canvas (static grain drawn once) ── */
   useEffect(() => {
@@ -527,88 +554,18 @@ function PremiumBackground({ theme = 'dark' }) {
     };
   }, []);
 
-  /* ── parallax glow on mouse move ── */
-  useEffect(() => {
-    let raf;
-    const lerp = (a, b, t) => a + (b - a) * t;
-    let cx = 0.5, cy = 0.5;
-
-    const tick = () => {
-      cx = lerp(cx, mouseRef.current.x, 0.04);
-      cy = lerp(cy, mouseRef.current.y, 0.04);
-      if (glowRef.current) {
-        glowRef.current.style.transform =
-          `translate(${(cx - 0.5) * -28}px, ${(cy - 0.5) * -28}px)`;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    tick();
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
   return (
     <>
-      {/* Layer 1 — base gradient */}
+      {/* Layer 1 — base */}
       <div className="absolute inset-0" style={{
-        background: isDark
-          ? 'linear-gradient(160deg, #050816 0%, #080f1e 40%, #0b1020 100%)'
-          : 'linear-gradient(160deg, #f0f2ff 0%, #ece8ff 40%, #eef2ff 100%)',
+        background: isDark ? '#000000' : '#ffffff',
       }} />
 
-      {/* Layer 2 — grid */}
-      <canvas ref={gridRef} className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }} />
-
-      {/* Layer 3 — atmospheric glow blobs (parallax container) */}
-      <div ref={glowRef} className="absolute inset-0 will-change-transform" style={{ pointerEvents: 'none' }}>
-        {/* blue/indigo primary glow — center-top */}
-        <div className="absolute" style={{
-          top: '-10%', left: '30%', width: '65vw', height: '65vw',
-          background: isDark
-            ? 'radial-gradient(circle, rgba(56,100,255,0.13) 0%, transparent 68%)'
-            : 'radial-gradient(circle, rgba(99,102,241,0.22) 0%, transparent 68%)',
-          filter: 'blur(80px)',
-          animation: 'breathe 9s ease-in-out infinite',
-        }} />
-        {/* purple glow — right */}
-        <div className="absolute" style={{
-          top: '10%', right: '-8%', width: '48vw', height: '48vw',
-          background: isDark
-            ? 'radial-gradient(circle, rgba(120,60,255,0.10) 0%, transparent 65%)'
-            : 'radial-gradient(circle, rgba(168,85,247,0.18) 0%, transparent 65%)',
-          filter: 'blur(100px)',
-          animation: 'breathe 12s ease-in-out infinite 2s',
-        }} />
-        {/* soft highlight — center */}
-        <div className="absolute" style={{
-          top: '15%', left: '35%', width: '34vw', height: '34vw',
-          background: isDark
-            ? 'radial-gradient(circle, rgba(200,220,255,0.05) 0%, transparent 60%)'
-            : 'radial-gradient(circle, rgba(255,255,255,0.60) 0%, transparent 60%)',
-          filter: 'blur(60px)',
-          animation: 'breathe 7s ease-in-out infinite 1s',
-        }} />
-        {/* teal accent — bottom-left */}
-        <div className="absolute" style={{
-          bottom: '-5%', left: '-5%', width: '40vw', height: '40vw',
-          background: isDark
-            ? 'radial-gradient(circle, rgba(20,160,200,0.07) 0%, transparent 65%)'
-            : 'radial-gradient(circle, rgba(20,160,200,0.14) 0%, transparent 65%)',
-          filter: 'blur(120px)',
-          animation: 'breathe 15s ease-in-out infinite 4s',
-        }} />
-        {/* vignette — screen edges */}
-        <div className="absolute inset-0" style={{
-          background: isDark
-            ? 'radial-gradient(ellipse 85% 80% at 50% 50%, transparent 40%, rgba(3,5,14,0.65) 100%)'
-            : 'radial-gradient(ellipse 85% 80% at 50% 50%, transparent 40%, rgba(220,220,240,0.50) 100%)',
-        }} />
-      </div>
-
-      {/* Layer 4 — noise grain */}
+      {/* Layer 2 — noise grain */}
       <canvas ref={noiseRef} className="absolute inset-0 w-full h-full"
         style={{ pointerEvents: 'none', opacity: isDark ? 0.45 : 0.20, mixBlendMode: isDark ? 'screen' : 'multiply' }} />
 
-      {/* Layer 5 — floating particles */}
+      {/* Layer 4 — floating particles */}
       <canvas ref={partRef} className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }} />
     </>
   );
@@ -1452,7 +1409,7 @@ const formatCountdown = (nextReview) => {
 };
 
 // --- MAIN APPLICATION COMPONENT ---
-export default function App() {
+function AppInner() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -1470,6 +1427,138 @@ export default function App() {
   const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
   const [speakingHistory, setSpeakingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_speaking_history')) || []);
   const [writingHistory, setWritingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_writing_history')) || []);
+
+  const [token, setToken] = useState(() => localStorage.getItem('venoxa_token') || null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('venoxa_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [localAvatar, setLocalAvatar] = useState(
+    () => localStorage.getItem('venoxa_local_avatar') || ''
+  );
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState('login');
+
+  const login = async (email, password) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      setToken(data.token);
+      setUser(data.user);
+      localStorage.setItem('venoxa_token', data.token);
+      localStorage.setItem('venoxa_user', JSON.stringify(data.user));
+      await syncProgress(data.token, data.user);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const register = async (fields) => {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fields)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Registration failed');
+      setToken(data.token);
+      setUser(data.user);
+      localStorage.setItem('venoxa_token', data.token);
+      localStorage.setItem('venoxa_user', JSON.stringify(data.user));
+      await syncProgress(data.token, data.user);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const logout = () => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('venoxa_token');
+    localStorage.removeItem('venoxa_user');
+  };
+
+  const updateProfile = async (updates) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updates)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Update failed');
+      setUser(data);
+      localStorage.setItem('venoxa_user', JSON.stringify(data));
+      if (updates.level) {
+        setUserLevel(updates.level);
+        localStorage.setItem('userLevel', updates.level);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
+  };
+
+  const syncProgress = async (currentToken = token, currentUser = user, customCells = null) => {
+    if (!currentToken) return;
+    try {
+      const cells = customCells || JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {};
+      const localStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
+      const localLevel = localStorage.getItem('userLevel') || 'B2';
+      const usageTime = JSON.parse(localStorage.getItem('venoxa_usage_time')) || {};
+
+      const res = await fetch('/api/user/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentToken}`
+        },
+        body: JSON.stringify({
+          xp: Object.values(cells).filter(v => v === 'done').length * 15,
+          streak: localStreak.current,
+          level: localLevel,
+          completedCells: cells,
+          usageTime: usageTime,
+          calendarDays: Object.keys(cells).filter(k => k.length >= 10),
+        })
+      });
+      if (res.ok) {
+        const mergedUser = await res.json();
+        setUser(mergedUser);
+        localStorage.setItem('venoxa_user', JSON.stringify(mergedUser));
+        if (mergedUser.completedCells) {
+          localStorage.setItem('venoxa_completed_cells', JSON.stringify(mergedUser.completedCells));
+          setCompletedCells(mergedUser.completedCells);
+        }
+        if (mergedUser.level) {
+          localStorage.setItem('userLevel', mergedUser.level);
+          setUserLevel(mergedUser.level);
+        }
+      }
+    } catch (err) {
+      console.error("Sync failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      syncProgress(token, user);
+    }
+  }, [token]);
 
   const [planMeta, setPlanMeta] = useState(() => {
     try {
@@ -1514,6 +1603,22 @@ export default function App() {
       return raw ? JSON.parse(raw)?.currentWeek || 1 : 1;
     } catch { return 1; }
   });
+
+  const dailyGoalPct = useMemo(() => {
+    const weekPrefix = `${currentWeek}-`;
+    const todayDone = Object.entries(completedCells || {})
+      .filter(([key, val]) => key.startsWith(weekPrefix) && val === 'done')
+      .length;
+    return Math.min(100, Math.round((todayDone / 6) * 100)) || 0;
+  }, [completedCells, currentWeek]);
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'venoxa_local_avatar') setLocalAvatar(e.newValue || '');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   useEffect(() => localStorage.setItem('venoxa_global_vocab', JSON.stringify(globalVocab)), [globalVocab]);
   useEffect(() => localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(phrasalVocab)), [phrasalVocab]);
@@ -1605,6 +1710,9 @@ export default function App() {
           currentWeek={currentWeek}
           setCurrentWeek={setCurrentWeek}
           recordActivity={recordActivity}
+          token={token}
+          user={user}
+          syncProgress={syncProgress}
         />;
       case 'vocab':
         return <Vocabulary {...props} globalVocab={globalVocab} setGlobalVocab={setGlobalVocab} />;
@@ -1658,6 +1766,23 @@ export default function App() {
         return <WordOfTheDay lang={lang} theme={theme} />;
       case 'idiom-of-day':
         return <IdiomOfTheDay lang={lang} theme={theme} />;
+      case 'profile':
+        return <ProfileDashboard
+          {...props}
+          token={token}
+          user={user}
+          logout={logout}
+          updateProfile={updateProfile}
+          completedCells={completedCells}
+          streakData={streakData}
+          planMeta={planMeta}
+          currentWeek={currentWeek}
+          dailyGoalPct={dailyGoalPct}
+          onOpenAuth={() => {
+            setAuthModalMode('login');
+            setIsAuthModalOpen(true);
+          }}
+        />;
       default:
         return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} currentWeek={currentWeek} streakData={streakData} />;
     }
@@ -1698,6 +1823,7 @@ export default function App() {
 
   const navItems = [
     { id: 'dashboard', label: _resolveTranslation(lang, 'الرئيسية', 'Dashboard'), icon: Home },
+    { id: 'profile', label: _resolveTranslation(lang, 'الملف الشخصي', 'Profile'), icon: User },
     { id: 'plan', label: _resolveTranslation(lang, 'خطة المذاكرة', 'Study Plan'), icon: Calendar },
     {
       id: 'vocab_group',
@@ -1907,6 +2033,33 @@ export default function App() {
               >
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
+              {/* User / Auth Toggle */}
+              {user ? (
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border overflow-hidden shrink-0 ${
+                    activeTab === 'profile'
+                      ? 'border-[var(--app-accent1)] ring-2 ring-[var(--app-accent1)]/30'
+                      : (theme === 'dark' ? 'border-white/10 hover:border-white/20' : 'border-black/10 hover:border-black/20')
+                  }`}
+                  title={user.username || 'Profile'}
+                >
+                  {(localAvatar || user.avatar) ? (
+                    <img src={localAvatar || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-black text-gray-700 dark:text-white">
+                      {(user.username || 'U')[0].toUpperCase()}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+                  className="px-3 py-1 rounded-xl text-xs font-bold text-white bg-[var(--app-accent1)] hover:opacity-90 transition-all active:scale-95 shrink-0"
+                >
+                  {_resolveTranslation(lang, 'دخول', 'Login')}
+                </button>
+              )}
               {/* Language toggle — SA flag */}
               <button
                 onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
@@ -2042,6 +2195,33 @@ export default function App() {
               >
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
+              {/* User / Auth Toggle */}
+              {user ? (
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border overflow-hidden shrink-0 ${
+                    activeTab === 'profile'
+                      ? 'border-[var(--app-accent1)] ring-2 ring-[var(--app-accent1)]/30'
+                      : (theme === 'dark' ? 'border-white/10 hover:border-white/20' : 'border-black/10 hover:border-black/20')
+                  }`}
+                  title={user.username || 'Profile'}
+                >
+                  {(localAvatar || user.avatar) ? (
+                    <img src={localAvatar || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-black text-gray-700 dark:text-white">
+                      {(user.username || 'U')[0].toUpperCase()}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+                  className="px-3 py-1 rounded-xl text-xs font-bold text-white bg-[var(--app-accent1)] hover:opacity-90 transition-all active:scale-95 shrink-0"
+                >
+                  {_resolveTranslation(lang, 'دخول', 'Login')}
+                </button>
+              )}
             </div>
           ) : (
             /* EN: logo on right — icon first, then name to its left */
@@ -2217,6 +2397,172 @@ export default function App() {
             );
           })}
         </div>
+      </div>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        mode={authModalMode}
+        setMode={setAuthModalMode}
+        onLogin={login}
+        onRegister={register}
+        lang={lang}
+        theme={theme}
+      />
+    </div>
+  );
+}
+
+function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, lang, theme }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('Male');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    let res;
+    if (mode === 'login') {
+      res = await onLogin(email, password);
+    } else {
+      res = await onRegister({ email, password, username, dob, gender });
+    }
+    setLoading(false);
+    if (res.success) {
+      onClose();
+      setEmail('');
+      setPassword('');
+      setUsername('');
+      setDob('');
+    } else {
+      setError(res.error);
+    }
+  };
+
+  const t = {
+    title: mode === 'login' 
+      ? _resolveTranslation(lang, 'تسجيل الدخول', 'Sign In')
+      : _resolveTranslation(lang, 'إنشاء حساب جديد', 'Create Account'),
+    email: _resolveTranslation(lang, 'البريد الإلكتروني', 'Email Address'),
+    password: _resolveTranslation(lang, 'كلمة المرور', 'Password'),
+    username: _resolveTranslation(lang, 'اسم المستخدم', 'Username'),
+    dob: _resolveTranslation(lang, 'تاريخ الميلاد (اختياري)', 'Birth Date (Optional)'),
+    gender: _resolveTranslation(lang, 'الجنس (اختياري)', 'Gender (Optional)'),
+    submit: mode === 'login'
+      ? _resolveTranslation(lang, 'دخول', 'Sign In')
+      : _resolveTranslation(lang, 'تسجيل', 'Sign Up'),
+    switchText: mode === 'login'
+      ? _resolveTranslation(lang, 'ليس لديك حساب؟ سجل هنا', "Don't have an account? Sign up")
+      : _resolveTranslation(lang, 'لديك حساب بالفعل؟ سجل دخولك', 'Already have an account? Sign in'),
+    male: _resolveTranslation(lang, 'ذكر', 'Male'),
+    female: _resolveTranslation(lang, 'أنثى', 'Female'),
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <div className="w-full max-w-md home-glass-card border-white/10 p-6 relative overflow-hidden flex flex-col gap-4 text-start">
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <h3 className="text-xl font-extrabold text-black dark:text-white flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-purple-400" /> {t.title}
+        </h3>
+
+        {error && (
+          <div className="p-3 text-xs font-semibold text-rose-500 bg-rose-500/10 rounded-xl border border-rose-500/20">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.email}</label>
+            <input 
+              type="email" 
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.password}</label>
+            <input 
+              type="password" 
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold"
+            />
+          </div>
+
+          {mode === 'register' && (
+            <>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.username}</label>
+                <input 
+                  type="text" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold"
+                  placeholder="New Learner"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.dob}</label>
+                  <input 
+                    type="text" 
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold"
+                    placeholder="e.g. January 2003"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.gender}</label>
+                  <select 
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold"
+                    style={{ colorScheme: 'dark' }}
+                  >
+                    <option value="Male" style={{ background: '#0F0F13' }}>{t.male}</option>
+                    <option value="Female" style={{ background: '#0F0F13' }}>{t.female}</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 rounded-2xl font-bold text-white bg-[var(--app-accent1)] hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-[var(--app-accent1)]/20 mt-2 disabled:opacity-50"
+          >
+            {loading ? <Activity className="w-5 h-5 mx-auto animate-spin" /> : t.submit}
+          </button>
+        </form>
+
+        <button
+          onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+          className="text-xs font-bold text-gray-400 hover:text-white mt-2 transition-all self-center"
+        >
+          {t.switchText}
+        </button>
       </div>
     </div>
   );
@@ -3017,7 +3363,10 @@ function StudyPlan({
   currentWeek,
   setCurrentWeek,
   recordActivity,
-  theme
+  theme,
+  token,
+  user,
+  syncProgress
 }) {
   const stored = useMemo(() => loadStoredPlan(), []);
   const [targetLevel, setTargetLevel] = useState(stored?.targetLevel || 'C1');
@@ -9706,4 +10055,15 @@ Rules:
       <button onClick={() => handleRate('skip')} className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-white/10 py-2.5 md:py-3 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 flex flex-col items-center text-xs md:text-sm">{t.rateSkip} <span className="text-[10px] md:text-xs font-normal opacity-70 mt-1">-</span></button>
     </div>}
   </div>;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+//  Root wrapper — handles the key gate BEFORE any other hooks are called
+// ─────────────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [keyGranted, setKeyGranted] = useState(
+    () => localStorage.getItem(KEY_STORAGE) === '1'
+  );
+
+  if (!keyGranted) return <KeyGate onUnlock={() => setKeyGranted(true)} />;
+  return <AppInner />;
 }

@@ -9,6 +9,8 @@ import configRouter from "./config"; // Client config — /api/config
 import imageRouter from "./image"; // Image generation — /api/image
 import kokoroTtsRouter from "./kokoro-tts"; // Kokoro TTS — /api/kokoro-tts
 import groqTtsRouter from "./groq-tts"; // Groq TTS — /api/groq-tts
+import authRouter from "./auth";
+import userRouter from "./user";
 
 const router: IRouter = Router();
 
@@ -21,5 +23,7 @@ router.use(configRouter);
 router.use(imageRouter);
 router.use(kokoroTtsRouter);
 router.use(groqTtsRouter);
+router.use(authRouter);
+router.use(userRouter);
 
 export default router;
