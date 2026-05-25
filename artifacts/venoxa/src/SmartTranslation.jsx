@@ -307,7 +307,10 @@ function LangDropdown({ value, onChange, exclude, uiLang, theme, position = 'bot
       {open && (
         <div
           className="dropdown-menu absolute min-w-[175px] no-scrollbar"
-          style={{ [position === 'top' ? 'bottom' : 'top']: 'calc(100% + 8px)', left: 0 }}
+          style={{
+            [position === 'top' ? 'bottom' : 'top']: 'calc(100% + 8px)',
+            ...(uiLang === 'ar' ? { right: 0, left: 'auto' } : { left: 0, right: 'auto' })
+          }}
         >
           {opts.map(l => (
             <button
