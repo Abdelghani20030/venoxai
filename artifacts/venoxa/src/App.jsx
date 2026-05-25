@@ -2061,7 +2061,18 @@ export default function App() {
       {/* ── Main Content Area ── */}
       <main className="relative z-10 flex-1 h-full overflow-y-auto overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px]">
 
-        {/* Top fade — content dissolves from the very top of the viewport through the topbar */}
+        {/* ── Blur curtain z-[54] — blurs scrolling content under the navbar ── */}
+        <div
+          className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[54] print:hidden"
+          style={{
+            backdropFilter: 'blur(16px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+            maskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
+          }}
+        />
+
+        {/* Colour-fade z-[55] — dark/light gradient taper over the navbar area */}
         <div
           className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[55] print:hidden"
           style={{
@@ -2478,7 +2489,7 @@ function Dashboard({
 
   return <div className="space-y-6 lg:space-y-10 animate-fadeIn" onMouseMove={handleMouseMove}>
     {/* ── Minimal Hero ── */}
-    <div className="relative pt-2 pb-2 text-center group">
+    <div className="home-glass-hero relative px-6 sm:px-10 py-10 sm:py-14 text-center group overflow-hidden">
       {/* Mouse follow glow effect */}
       <div 
         className="pointer-events-none absolute -inset-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0"
@@ -2528,12 +2539,7 @@ function Dashboard({
     {/* ── Quote + Tip ── */}
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div 
-        className="card-shine relative group p-6 sm:p-8 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all duration-400 hover:-translate-y-1"
-        style={{
-          background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
-          backdropFilter: 'blur(48px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(48px) saturate(200%)',
-        }}
+        className="home-glass-card card-shine relative group p-6 sm:p-8 transition-all duration-400 hover:-translate-y-1"
       >
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 rounded-2xl bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]">
@@ -2565,12 +2571,7 @@ function Dashboard({
       </div>
       {/* ── Word of the Day mini-card ── */}
       <div
-        className="card-shine relative group p-6 sm:p-8 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all duration-400 hover:-translate-y-1 flex flex-col gap-4"
-        style={{
-          background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
-          backdropFilter: 'blur(48px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(48px) saturate(200%)',
-        }}
+        className="home-glass-card card-shine relative group p-6 sm:p-8 transition-all duration-400 hover:-translate-y-1 flex flex-col gap-4"
       >
         {/* Header */}
         <div className="flex items-center gap-3">
@@ -2668,12 +2669,7 @@ function Dashboard({
 
 function StreakWidget({ streak, lang, isDark, theme }) {
   return (
-    <div className="card-shine relative group p-5 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] flex items-center gap-4 transition-all duration-400 hover:-translate-y-1"
-      style={{
-        background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
-        backdropFilter: 'blur(48px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
-      }}>
+    <div className="home-glass-card card-shine relative group p-5 flex items-center gap-4 transition-all duration-400 hover:-translate-y-1">
       <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:scale-110 transition-transform">
         <Zap size={24} fill="currentColor" />
       </div>
@@ -2687,12 +2683,7 @@ function StreakWidget({ streak, lang, isDark, theme }) {
 
 function XPWidget({ xp, lang, isDark, theme }) {
   return (
-    <div className="card-shine relative group p-5 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] flex items-center gap-4 transition-all duration-400 hover:-translate-y-1"
-      style={{
-        background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
-        backdropFilter: 'blur(48px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
-      }}>
+    <div className="home-glass-card card-shine relative group p-5 flex items-center gap-4 transition-all duration-400 hover:-translate-y-1">
       <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform">
         <Award size={24} />
       </div>
@@ -2706,12 +2697,7 @@ function XPWidget({ xp, lang, isDark, theme }) {
 
 function ProgressWidget({ progress, lang, isDark, theme }) {
   return (
-    <div className="card-shine relative group p-5 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] flex flex-col justify-center transition-all duration-400 hover:-translate-y-1"
-      style={{
-        background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
-        backdropFilter: 'blur(48px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
-      }}>
+    <div className="home-glass-card card-shine relative group p-5 flex flex-col justify-center transition-all duration-400 hover:-translate-y-1">
       <div className="flex justify-between items-center mb-3">
         <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'التقدم الكلي', 'Overall Progress')}</div>
         <div className="text-xs font-black text-emerald-500">{progress}%</div>
@@ -2725,12 +2711,7 @@ function ProgressWidget({ progress, lang, isDark, theme }) {
 
 function GoalWidget({ pct, lang, isDark, theme }) {
   return (
-    <div className="card-shine relative group p-5 rounded-[32px] border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] flex items-center gap-4 transition-all duration-400 hover:-translate-y-1"
-      style={{
-        background: theme === 'dark' ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
-        backdropFilter: 'blur(48px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
-      }}>
+    <div className="home-glass-card card-shine relative group p-5 flex items-center gap-4 transition-all duration-400 hover:-translate-y-1">
       <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
         <CalendarCheck size={24} />
       </div>
@@ -2754,12 +2735,7 @@ function DashboardCard({ icon: Icon, title, desc, onClick, paletteIndex = 0, ind
   return (
     <div
       onClick={onClick}
-      className="card-shine group relative cursor-pointer rounded-[32px] p-6 sm:p-8 transition-all duration-500 flex flex-col border border-black/8 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)] hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_16px_48px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.2)] dark:hover:border-white/15"
-      style={{
-        background: isDark ? 'rgba(15, 15, 19, 0.75)' : 'rgba(255, 255, 255, 0.22)',
-        backdropFilter: 'blur(48px) saturate(200%)',
-        WebkitBackdropFilter: 'blur(48px) saturate(200%)',
-      }}
+      className="home-glass-card card-shine group relative cursor-pointer rounded-[32px] p-6 sm:p-8 transition-all duration-500 flex flex-col hover:-translate-y-1"
     >
       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-8 ${p.iconBg} transition-all duration-500 shadow-sm`}>
         <Icon className={`w-6 h-6 ${p.iconColor}`} />
