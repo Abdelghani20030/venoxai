@@ -65,6 +65,7 @@ export default function ProfileDashboard({
   theme,
   onOpenAuth,
   dailyGoalPct,
+  onAvatarChange,
 }) {
   const isDark = theme === 'dark';
 
@@ -353,6 +354,8 @@ export default function ProfileDashboard({
     if (avatarDraft) {
       localStorage.setItem(AVATAR_KEY, avatarDraft);
       setLocalAvatar(avatarDraft);
+      // Notify parent (App.jsx) so the nav icon updates in the same tab
+      if (onAvatarChange) onAvatarChange(avatarDraft);
     }
     // 2. Send only non-binary fields to the server
     const langsArr = editLangs.split(',').map(l => l.trim()).filter(Boolean);

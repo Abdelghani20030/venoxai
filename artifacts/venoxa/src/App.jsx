@@ -1438,6 +1438,12 @@ function AppInner() {
   const [localAvatar, setLocalAvatar] = useState(
     () => localStorage.getItem('venoxa_local_avatar') || ''
   );
+  // Also sync from user.avatar if no local override exists (e.g. after login)
+  useEffect(() => {
+    if (!localStorage.getItem('venoxa_local_avatar') && user?.avatar) {
+      setLocalAvatar(user.avatar);
+    }
+  }, [user?.avatar]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
 
@@ -1778,6 +1784,7 @@ function AppInner() {
           planMeta={planMeta}
           currentWeek={currentWeek}
           dailyGoalPct={dailyGoalPct}
+          onAvatarChange={(newAvatar) => setLocalAvatar(newAvatar)}
           onOpenAuth={() => {
             setAuthModalMode('login');
             setIsAuthModalOpen(true);
