@@ -1,16 +1,107 @@
 // @ts-nocheck
-/**
- * api/index.ts — Vercel Serverless Function
- *
- * Self-contained handler. Does NOT import the full Express app (which uses
- * pino-http worker threads that crash Vercel's bundler). All AI provider
- * logic lives here directly.
- */
 import express from "express";
 import cors from "cors";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
+import crypto from "node:crypto";
+import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { pgTable, serial, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { eq } from "drizzle-orm";
+
+// ── Database setup (inline for Vercel serverless) ────────────────────────────
+const dbUrl = (process.env.DATABASE_URL ?? "").trim();
+const JWT_SECRET = process.env.JWT_SECRET || "venoxa-default-fallback-secret-key-2026-secure-hashing";
+
+// Users table schema (mirrors lib/db/src/schema/users.ts)
+const usersTable = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  salt: text("salt").notNull(),
+  username: text("username").default("New Learner").notNull(),
+  avatar: text("avatar"),
+  dob: text("dob"),
+  gender: text("gender"),
+  languages: jsonb("languages").$type<string[]>().default(["English"]).notNull(),
+  plan: text("plan").default("basic plan").notNull(),
+  xp: integer("xp").default(0).notNull(),
+  streak: integer("streak").default(0).notNull(),
+  lastActive: timestamp("last_active"),
+  dailyGoalMins: integer("daily_goal_mins").default(15).notNull(),
+  level: text("level").default("A1").notNull(),
+  rank30Days: integer("rank_30_days").default(29336).notNull(),
+  streakRank: integer("streak_rank").default(601).notNull(),
+  completedCells: jsonb("completed_cells").$type<Record<string, string>>().default({}).notNull(),
+  usageTime: jsonb("usage_time").$type<Record<string, number>>().default({}).notNull(),
+  calendarDays: jsonb("calendar_days").$type<string[]>().default([]).notNull(),
+  achievements: jsonb("achievements").$type<string[]>().default([]).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Lazy DB pool — only created if DATABASE_URL is configured
+let _pool: pg.Pool | null = null;
+let _db: ReturnType<typeof drizzle> | null = null;
+function getDb() {
+  if (!dbUrl) return null;
+  if (!_pool) {
+    _pool = new pg.Pool({ connectionString: dbUrl });
+    _db = drizzle(_pool, { schema: { usersTable } });
+  }
+  return _db;
+}
+
+// ── Crypto helpers (inline for Vercel) ───────────────────────────────────────
+function base64url(str: string): string {
+  return Buffer.from(str).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+function base64urlDecode(str: string): string {
+  let b = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (b.length % 4) b += "=";
+  return Buffer.from(b, "base64").toString("utf8");
+}
+function signToken(payload: { userId: number }): string {
+  const header = { alg: "HS256", typ: "JWT" };
+  const encodedHeader = base64url(JSON.stringify(header));
+  const encodedPayload = base64url(JSON.stringify({ ...payload, exp: Date.now() + 30 * 24 * 60 * 60 * 1000 }));
+  const signatureInput = `${encodedHeader}.${encodedPayload}`;
+  const signature = crypto.createHmac("sha256", JWT_SECRET).update(signatureInput).digest("base64url");
+  return `${signatureInput}.${signature}`;
+}
+function verifyToken(token: string): { userId: number } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [encodedHeader, encodedPayload, signature] = parts;
+    const signatureInput = `${encodedHeader}.${encodedPayload}`;
+    const expectedSignature = crypto.createHmac("sha256", JWT_SECRET).update(signatureInput).digest("base64url");
+    if (signature !== expectedSignature) return null;
+    const payload = JSON.parse(base64urlDecode(encodedPayload));
+    if (payload.exp && Date.now() > payload.exp) return null;
+    return payload;
+  } catch { return null; }
+}
+function hashPassword(password: string) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return { hash, salt };
+}
+function verifyPassword(password: string, hash: string, salt: string): boolean {
+  try {
+    const checkHash = crypto.scryptSync(password, salt, 64).toString("hex");
+    return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(checkHash, "hex"));
+  } catch { return false; }
+}
+function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) { res.status(401).json({ error: "Access denied. No token provided." }); return; }
+  const token = authHeader.split(" ")[1];
+  const decoded = verifyToken(token);
+  if (!decoded) { res.status(401).json({ error: "Invalid or expired token." }); return; }
+  req.user = { id: decoded.userId };
+  next();
+}
 
 // ── Connection pool ──────────────────────────────────────────────────────────
 const pool = new Map<string, Promise<MsEdgeTTS>>();
@@ -474,6 +565,171 @@ app.post("/api/tts/stream", async (req, res) => {
 // ── GET /api/kokoro-tts ───────────────────────────────────────────────────────
 app.get("/api/kokoro-tts", (_req, res) => {
   res.status(503).json({ error: "Kokoro TTS is only available when running locally." });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── AUTH & USER routes (inlined for Vercel) ──────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+// POST /api/auth/register
+app.post("/api/auth/register", async (req, res) => {
+  const db = getDb();
+  if (!db) { res.status(503).json({ error: "Database not configured." }); return; }
+
+  const { email, password, username, dob, gender, languages } = req.body;
+  if (!email || !password) { res.status(400).json({ error: "Email and password are required." }); return; }
+
+  try {
+    const existing = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
+    if (existing.length > 0) { res.status(400).json({ error: "An account with this email already exists." }); return; }
+
+    const { hash, salt } = hashPassword(password);
+    const [newUser] = await db.insert(usersTable).values({
+      email: email.toLowerCase().trim(),
+      passwordHash: hash,
+      salt,
+      username: username || "New Learner",
+      dob: dob || null,
+      gender: gender || null,
+      languages: languages || ["English"],
+      xp: 0,
+      streak: 0,
+    }).returning();
+
+    const token = signToken({ userId: newUser.id });
+    const { passwordHash: _h, salt: _s, ...userProfile } = newUser;
+    res.status(201).json({ token, user: userProfile });
+  } catch (err) {
+    console.error("Registration failed:", err);
+    res.status(500).json({ error: "Registration failed. Please try again." });
+  }
+});
+
+// POST /api/auth/login
+app.post("/api/auth/login", async (req, res) => {
+  const db = getDb();
+  if (!db) { res.status(503).json({ error: "Database not configured." }); return; }
+
+  const { email, password } = req.body;
+  if (!email || !password) { res.status(400).json({ error: "Email and password are required." }); return; }
+
+  try {
+    const users = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim())).limit(1);
+    if (users.length === 0) { res.status(401).json({ error: "Invalid email or password." }); return; }
+
+    const user = users[0];
+    const isPasswordValid = verifyPassword(password, user.passwordHash, user.salt);
+    if (!isPasswordValid) { res.status(401).json({ error: "Invalid email or password." }); return; }
+
+    await db.update(usersTable).set({ lastActive: new Date() }).where(eq(usersTable.id, user.id));
+    const token = signToken({ userId: user.id });
+    const { passwordHash: _h, salt: _s, ...userProfile } = user;
+    res.json({ token, user: userProfile });
+  } catch (err) {
+    console.error("Login failed:", err);
+    res.status(500).json({ error: "Login failed. Please try again." });
+  }
+});
+
+// GET /api/user/profile
+app.get("/api/user/profile", authMiddleware, async (req, res) => {
+  const db = getDb();
+  if (!db) { res.status(503).json({ error: "Database not configured." }); return; }
+
+  try {
+    const users = await db.select().from(usersTable).where(eq(usersTable.id, (req as any).user.id)).limit(1);
+    if (users.length === 0) { res.status(404).json({ error: "User not found." }); return; }
+    const { passwordHash: _h, salt: _s, ...userProfile } = users[0];
+    res.json(userProfile);
+  } catch (err) {
+    console.error("Failed to fetch profile:", err);
+    res.status(500).json({ error: "Failed to fetch profile." });
+  }
+});
+
+// PUT /api/user/profile
+app.put("/api/user/profile", authMiddleware, async (req, res) => {
+  const db = getDb();
+  if (!db) { res.status(503).json({ error: "Database not configured." }); return; }
+  const userId = (req as any).user.id;
+  const { username, email, dob, gender, languages, dailyGoalMins, level, plan } = req.body;
+
+  try {
+    const updateData: any = {};
+    if (username !== undefined) updateData.username = username;
+    if (dob !== undefined) updateData.dob = dob;
+    if (gender !== undefined) updateData.gender = gender;
+    if (languages !== undefined) updateData.languages = languages;
+    if (dailyGoalMins !== undefined) updateData.dailyGoalMins = Number(dailyGoalMins);
+    if (level !== undefined) updateData.level = level;
+    if (plan !== undefined) updateData.plan = plan;
+    if (email !== undefined) {
+      const cleanEmail = email.toLowerCase().trim();
+      const existing = await db.select().from(usersTable).where(eq(usersTable.email, cleanEmail)).limit(1);
+      if (existing.length > 0 && existing[0].id !== userId) { res.status(400).json({ error: "Email is already taken by another account." }); return; }
+      updateData.email = cleanEmail;
+    }
+    const [updatedUser] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, userId)).returning();
+    const { passwordHash: _h, salt: _s, ...userProfile } = updatedUser;
+    res.json(userProfile);
+  } catch (err) {
+    console.error("Failed to update profile:", err);
+    res.status(500).json({ error: "Failed to update profile." });
+  }
+});
+
+// POST /api/user/sync
+app.post("/api/user/sync", authMiddleware, async (req, res) => {
+  const db = getDb();
+  if (!db) { res.status(503).json({ error: "Database not configured." }); return; }
+  const userId = (req as any).user.id;
+  const { xp, streak, level, completedCells, usageTime, calendarDays, achievements, avatar } = req.body;
+
+  try {
+    const users = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (users.length === 0) { res.status(404).json({ error: "User not found." }); return; }
+    const user = users[0];
+
+    const mergedXp = Math.max(user.xp, xp || 0);
+    const mergedStreak = Math.max(user.streak, streak || 0);
+    const mergedLevel = level || user.level;
+    const mergedCells = { ...user.completedCells, ...(completedCells || {}) };
+    const mergedUsage: Record<string, number> = { ...user.usageTime };
+    if (usageTime) {
+      for (const [day, mins] of Object.entries(usageTime)) {
+        mergedUsage[day] = Math.max(mergedUsage[day] || 0, mins as number);
+      }
+    }
+    const mergedCalendar = Array.from(new Set([...(user.calendarDays || []), ...(calendarDays || [])]));
+    const mergedAchievements = Array.from(new Set([...(user.achievements || []), ...(achievements || [])]));
+
+    const updateFields: any = {
+      xp: mergedXp, streak: mergedStreak, level: mergedLevel,
+      completedCells: mergedCells, usageTime: mergedUsage,
+      calendarDays: mergedCalendar, achievements: mergedAchievements,
+    };
+    if (avatar !== undefined) updateFields.avatar = avatar;
+
+    const [updatedUser] = await db.update(usersTable).set(updateFields).where(eq(usersTable.id, userId)).returning();
+    const { passwordHash: _h, salt: _s, ...userProfile } = updatedUser;
+    res.json(userProfile);
+  } catch (err) {
+    console.error("Sync failed:", err);
+    res.status(500).json({ error: "Failed to sync user progress." });
+  }
+});
+
+// DELETE /api/user/profile
+app.delete("/api/user/profile", authMiddleware, async (req, res) => {
+  const db = getDb();
+  if (!db) { res.status(503).json({ error: "Database not configured." }); return; }
+  try {
+    await db.delete(usersTable).where(eq(usersTable.id, (req as any).user.id));
+    res.json({ message: "Account deleted successfully." });
+  } catch (err) {
+    console.error("Failed to delete account:", err);
+    res.status(500).json({ error: "Failed to delete account." });
+  }
 });
 
 export default app;
