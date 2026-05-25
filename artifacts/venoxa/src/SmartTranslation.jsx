@@ -288,20 +288,36 @@ function LangDropdown({ value, onChange, exclude, uiLang, theme, position = 'bot
     <div ref={ref} className={`relative ${open ? 'z-[200]' : 'z-auto'}`}>
       <button
         onClick={() => setOpen(o => !o)}
+        dir={uiLang === 'ar' ? 'rtl' : 'ltr'}
         className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold transition-all liquid-glass ${
           isDark
             ? 'bg-white/7 text-white hover:bg-white/10'
             : 'bg-white/60 text-gray-700 hover:bg-white/80'
         }`}
       >
-        <span
-          className="inline-flex items-center justify-center shrink-0"
-          style={{ width: 22, height: 14 }}
-        >
-          <FlagNode lang={sel} />
-        </span>
-        <span className="truncate max-w-[90px]">{label}</span>
-        <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
+        {uiLang === 'ar' ? (
+          <>
+            <span className="truncate max-w-[90px]">{label}</span>
+            <span
+              className="inline-flex items-center justify-center shrink-0"
+              style={{ width: 22, height: 14 }}
+            >
+              <FlagNode lang={sel} />
+            </span>
+            <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
+          </>
+        ) : (
+          <>
+            <span
+              className="inline-flex items-center justify-center shrink-0"
+              style={{ width: 22, height: 14 }}
+            >
+              <FlagNode lang={sel} />
+            </span>
+            <span className="truncate max-w-[90px]">{label}</span>
+            <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
+          </>
+        )}
       </button>
 
       {open && (
@@ -316,18 +332,39 @@ function LangDropdown({ value, onChange, exclude, uiLang, theme, position = 'bot
             <button
               key={l.code}
               onClick={() => { onChange(l.code); setOpen(false); }}
+              dir={uiLang === 'ar' ? 'rtl' : 'ltr'}
               className={`dropdown-item ${value === l.code ? 'active' : ''}`}
-              style={{ justifyContent: 'flex-start', textAlign: 'left', gap: 12 }}
+              style={{
+                justifyContent: 'flex-start',
+                textAlign: uiLang === 'ar' ? 'right' : 'left',
+                gap: 12
+              }}
             >
-              <span
-                className="inline-flex items-center justify-center shrink-0"
-                style={{ width: 22, height: 14 }}
-              >
-                <FlagNode lang={l} />
-              </span>
-              <span className="flex-1 text-left truncate">
-                {uiLang === 'ar' ? l.labelAr : l.label}
-              </span>
+              {uiLang === 'ar' ? (
+                <>
+                  <span className="flex-1 text-right truncate">
+                    {l.labelAr}
+                  </span>
+                  <span
+                    className="inline-flex items-center justify-center shrink-0"
+                    style={{ width: 22, height: 14 }}
+                  >
+                    <FlagNode lang={l} />
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span
+                    className="inline-flex items-center justify-center shrink-0"
+                    style={{ width: 22, height: 14 }}
+                  >
+                    <FlagNode lang={l} />
+                  </span>
+                  <span className="flex-1 text-left truncate">
+                    {l.label}
+                  </span>
+                </>
+              )}
             </button>
           ))}
         </div>
