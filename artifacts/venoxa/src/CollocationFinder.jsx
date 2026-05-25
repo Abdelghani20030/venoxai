@@ -108,9 +108,7 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
       </div>
 
       {/* Search bar */}
-      <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl liquid-glass ${
-        isDark ? 'bg-white/5' : 'bg-white/60'
-      }`}>
+      <div className="glass-panel flex items-center gap-2 px-4 py-2 rounded-2xl">
         <input
           value={word}
           onChange={e => setWord(e.target.value)}
@@ -165,9 +163,7 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
       )}
 
       {data?.groups?.map((group, gi) => (
-        <div key={gi} className={`rounded-3xl overflow-hidden liquid-glass ${
-          isDark ? 'bg-white/3' : 'bg-white/40'
-        }`}>
+        <div key={gi} className="glass-panel rounded-3xl overflow-hidden">
           <div className={`px-5 py-3 text-xs font-extrabold uppercase tracking-widest ${
             isDark ? 'bg-white/5 text-[var(--app-accent2)]' : 'bg-black/4 text-[var(--app-accent2)]'
           }`} dir="ltr">

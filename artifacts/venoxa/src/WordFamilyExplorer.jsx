@@ -77,9 +77,7 @@ function FormChip({ form, label, isDark }) {
 
 function Section({ title, color, children, isDark }) {
   return (
-    <div className={`rounded-3xl overflow-hidden liquid-glass ${
-      isDark ? 'bg-white/3' : 'bg-white/40'
-    }`}>
+    <div className="glass-panel rounded-3xl overflow-hidden">
       <div className={`px-5 py-3 text-xs font-extrabold uppercase tracking-widest ${
         isDark ? 'bg-white/5' : 'bg-black/4'
       }`} style={{ color }}>
@@ -134,9 +132,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
       </div>
 
       {/* Search bar */}
-      <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl liquid-glass ${
-        isDark ? 'bg-white/5' : 'bg-white/60'
-      }`}>
+      <div className="glass-panel flex items-center gap-2 px-4 py-2 rounded-2xl">
         <input
           value={word}
           onChange={e => setWord(e.target.value)}
@@ -176,9 +172,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
       {data && (
         <>
           {/* Header card with base + IPA */}
-          <div className={`rounded-3xl px-6 py-5 flex items-center gap-4 liquid-glass ${
-            isDark ? 'bg-white/3' : 'bg-white/55'
-          }`}>
+          <div className="glass-panel rounded-3xl px-6 py-5 flex items-center gap-4">
             <span className={`text-3xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`} dir="ltr">{data.base}</span>
             {data.ipa && (
               <span className={`text-sm font-mono font-bold px-3 py-1 rounded-xl ${

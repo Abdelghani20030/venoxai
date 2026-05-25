@@ -93,9 +93,7 @@ export default function EtymologyExplorer({ lang: uiLang = 'ar', theme = 'dark' 
       </div>
 
       {/* Search bar */}
-      <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl liquid-glass ${
-        isDark ? 'bg-white/5' : 'bg-white/60'
-      }`}>
+      <div className="glass-panel flex items-center gap-2 px-4 py-2 rounded-2xl">
         <input
           value={word}
           onChange={e => setWord(e.target.value)}
@@ -135,9 +133,7 @@ export default function EtymologyExplorer({ lang: uiLang = 'ar', theme = 'dark' 
       {data && (
         <>
           {/* Header card */}
-          <div className={`rounded-3xl px-6 py-5 flex flex-col gap-3 liquid-glass ${
-            isDark ? 'bg-white/3' : 'bg-white/55'
-          }`}>
+          <div className="glass-panel rounded-3xl px-6 py-5 flex flex-col gap-3">
             <div className="flex items-center gap-3 flex-wrap">
               <span className={`text-3xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`} dir="ltr">{data.word}</span>
               {data.originLanguage && (
@@ -185,9 +181,7 @@ export default function EtymologyExplorer({ lang: uiLang = 'ar', theme = 'dark' 
 
           {/* Timeline */}
           {data.timeline?.length > 0 && (
-            <div className={`rounded-3xl overflow-hidden liquid-glass ${
-              isDark ? 'bg-white/3' : 'bg-white/40'
-            }`}>
+            <div className="glass-panel rounded-3xl overflow-hidden">
               <div className={`px-5 py-3 text-xs font-extrabold uppercase tracking-widest ${
                 isDark ? 'bg-white/5 text-gray-300' : 'bg-black/4 text-gray-600'
               }`}>
@@ -217,9 +211,7 @@ export default function EtymologyExplorer({ lang: uiLang = 'ar', theme = 'dark' 
 
           {/* Cognates */}
           {data.cognates?.length > 0 && (
-            <div className={`rounded-3xl overflow-hidden liquid-glass ${
-              isDark ? 'bg-white/3' : 'bg-white/40'
-            }`}>
+            <div className="glass-panel rounded-3xl overflow-hidden">
               <div className={`px-5 py-3 flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest ${
                 isDark ? 'bg-white/5 text-gray-300' : 'bg-black/4 text-gray-600'
               }`}>
