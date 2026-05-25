@@ -759,16 +759,14 @@ nav button:hover {
 
 /* ── Input focus: scale ring with pseudo-element ── */
 input, textarea, select {
-  transition: transform 0.18s ease, outline-offset 0.18s ease;
-  outline: 2px solid transparent;
-  outline-offset: 0px;
+  transition: transform 0.18s ease;
+  outline: none;
 }
 
 input:focus,
 textarea:focus,
 select:focus {
-  outline-color: var(--app-accent1);
-  outline-offset: 2px;
+  outline: none;
   transform: translateZ(0) scale(1.005);
 }
 
