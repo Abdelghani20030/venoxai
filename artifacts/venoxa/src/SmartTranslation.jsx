@@ -295,29 +295,14 @@ function LangDropdown({ value, onChange, exclude, uiLang, theme, position = 'bot
             : 'bg-white/60 text-gray-700 hover:bg-white/80'
         }`}
       >
-        {uiLang === 'ar' ? (
-          <>
-            <span className="truncate max-w-[90px]">{label}</span>
-            <span
-              className="inline-flex items-center justify-center shrink-0"
-              style={{ width: 22, height: 14 }}
-            >
-              <FlagNode lang={sel} />
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
-          </>
-        ) : (
-          <>
-            <span
-              className="inline-flex items-center justify-center shrink-0"
-              style={{ width: 22, height: 14 }}
-            >
-              <FlagNode lang={sel} />
-            </span>
-            <span className="truncate max-w-[90px]">{label}</span>
-            <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
-          </>
-        )}
+        <span className="truncate max-w-[90px]">{label}</span>
+        <span
+          className="inline-flex items-center justify-center shrink-0"
+          style={{ width: 22, height: 14 }}
+        >
+          <FlagNode lang={sel} />
+        </span>
+        <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0" />
       </button>
 
       {open && (
@@ -340,31 +325,15 @@ function LangDropdown({ value, onChange, exclude, uiLang, theme, position = 'bot
                 gap: 12
               }}
             >
-              {uiLang === 'ar' ? (
-                <>
-                  <span className="flex-1 text-right truncate">
-                    {l.labelAr}
-                  </span>
-                  <span
-                    className="inline-flex items-center justify-center shrink-0"
-                    style={{ width: 22, height: 14 }}
-                  >
-                    <FlagNode lang={l} />
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span
-                    className="inline-flex items-center justify-center shrink-0"
-                    style={{ width: 22, height: 14 }}
-                  >
-                    <FlagNode lang={l} />
-                  </span>
-                  <span className="flex-1 text-left truncate">
-                    {l.label}
-                  </span>
-                </>
-              )}
+              <span className={`flex-1 truncate ${uiLang === 'ar' ? 'text-right' : 'text-left'}`}>
+                {uiLang === 'ar' ? l.labelAr : l.label}
+              </span>
+              <span
+                className="inline-flex items-center justify-center shrink-0"
+                style={{ width: 22, height: 14 }}
+              >
+                <FlagNode lang={l} />
+              </span>
             </button>
           ))}
         </div>
