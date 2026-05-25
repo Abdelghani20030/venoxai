@@ -2014,8 +2014,8 @@ function AppInner() {
               </h1>
             </div>
           ) : (
-            /* EN: controls on left */
-            <div className="flex items-center gap-1 shrink-0">
+            /* EN: controls on left — always LTR order: Avatar → Theme → Flag */
+            <div className="flex items-center gap-1 shrink-0" dir="ltr">
               {/* Mobile menu toggle */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -2028,19 +2028,7 @@ function AppInner() {
               >
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
-              {/* Theme toggle */}
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                  theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                    : 'text-gray-500 hover:text-black hover:bg-black/5'
-                }`}
-                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              >
-                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              </button>
-              {/* User / Auth Toggle */}
+              {/* User / Auth Toggle — Avatar first */}
               {user ? (
                 <button
                   onClick={() => setActiveTab('profile')}
@@ -2067,6 +2055,18 @@ function AppInner() {
                   {_resolveTranslation(lang, 'دخول', 'Login')}
                 </button>
               )}
+              {/* Theme toggle */}
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                  theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                    : 'text-gray-500 hover:text-black hover:bg-black/5'
+                }`}
+                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
               {/* Language toggle — SA flag */}
               <button
                 onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
@@ -2160,8 +2160,8 @@ function AppInner() {
 
           {/* RIGHT slot — logo when EN, controls when AR */}
           {lang === 'ar' ? (
-            /* AR: controls on right */
-            <div className="flex items-center gap-1 shrink-0">
+            /* AR: controls on right — always LTR order: Avatar → Theme → Flag */
+            <div className="flex items-center gap-1 shrink-0" dir="ltr">
               {/* Mobile menu toggle */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -2174,35 +2174,7 @@ function AppInner() {
               >
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
-              {/* Language toggle — UK flag */}
-              <button
-                onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'
-                }`}
-                title="English"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" className="w-5 h-[13px] rounded-sm overflow-hidden">
-                  <rect width="60" height="30" fill="#012169"/>
-                  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
-                  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" strokeWidth="4"/>
-                  <path d="M30,0 V30 M0,15 H60" stroke="#fff" strokeWidth="10"/>
-                  <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" strokeWidth="6"/>
-                </svg>
-              </button>
-              {/* Theme toggle */}
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                  theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                    : 'text-gray-500 hover:text-black hover:bg-black/5'
-                }`}
-                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              >
-                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              </button>
-              {/* User / Auth Toggle */}
+              {/* User / Auth Toggle — Avatar first */}
               {user ? (
                 <button
                   onClick={() => setActiveTab('profile')}
@@ -2229,9 +2201,37 @@ function AppInner() {
                   {_resolveTranslation(lang, 'دخول', 'Login')}
                 </button>
               )}
+              {/* Theme toggle */}
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                  theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                    : 'text-gray-500 hover:text-black hover:bg-black/5'
+                }`}
+                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+              {/* Language toggle — UK flag */}
+              <button
+                onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                title="English"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" className="w-5 h-[13px] rounded-sm overflow-hidden">
+                  <rect width="60" height="30" fill="#012169"/>
+                  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
+                  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" strokeWidth="4"/>
+                  <path d="M30,0 V30 M0,15 H60" stroke="#fff" strokeWidth="10"/>
+                  <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" strokeWidth="6"/>
+                </svg>
+              </button>
             </div>
           ) : (
-            /* EN: logo on right — icon first, then name to its left */
+            /* EN: logo on right */
             <div className="flex items-center gap-2 shrink-0" dir="ltr">
               <h1 className="text-lg font-bold tracking-tight whitespace-nowrap hidden sm:block">
                 <span className="text-[var(--app-accent1)]">ai.</span><span>فينوكسا</span>
