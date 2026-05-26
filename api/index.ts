@@ -37,6 +37,15 @@ const usersTable = pgTable("users", {
   usageTime: jsonb("usage_time").$type<Record<string, number>>().default({}).notNull(),
   calendarDays: jsonb("calendar_days").$type<string[]>().default([]).notNull(),
   achievements: jsonb("achievements").$type<string[]>().default([]).notNull(),
+  globalVocab: jsonb("global_vocab").$type<any[]>().default([]).notNull(),
+  phrasalVocab: jsonb("phrasal_vocab").$type<any[]>().default([]).notNull(),
+  idiomsVocab: jsonb("idioms_vocab").$type<any[]>().default([]).notNull(),
+  idiomsProperVocab: jsonb("idioms_proper_vocab").$type<any[]>().default([]).notNull(),
+  langeekVocab: jsonb("langeek_vocab").$type<any[]>().default([]).notNull(),
+  srsData: jsonb("srs_data").$type<Record<string, any>>().default({}).notNull(),
+  langeekSrsData: jsonb("langeek_srs_data").$type<Record<string, any>>().default({}).notNull(),
+  speakingHistory: jsonb("speaking_history").$type<any[]>().default([]).notNull(),
+  writingHistory: jsonb("writing_history").$type<any[]>().default([]).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -678,12 +687,62 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
   }
 });
 
+// Helper to merge lists of items based on a unique identifier
+function mergeArraysById(localList: any[] | undefined, dbList: any[] | undefined, key = "id") {
+  const mergedMap = new Map<string, any>();
+  if (Array.isArray(dbList)) {
+    for (const item of dbList) {
+      if (item) {
+        const val = item[key];
+        if (val !== undefined && val !== null) {
+          mergedMap.set(String(val).toLowerCase(), item);
+        }
+      }
+    }
+  }
+  if (Array.isArray(localList)) {
+    for (const item of localList) {
+      if (item) {
+        const val = item[key];
+        if (val !== undefined && val !== null) {
+          mergedMap.set(String(val).toLowerCase(), item);
+        }
+      }
+    }
+  }
+  return Array.from(mergedMap.values());
+}
+
+// Helper to merge Spaced Repetition (SRS) objects mapping words to scheduling states
+function mergeSrsObjects(localSrs: Record<string, any> | undefined, dbSrs: Record<string, any> | undefined) {
+  const merged = { ...(dbSrs || {}) };
+  if (localSrs) {
+    for (const [word, localVal] of Object.entries(localSrs)) {
+      const dbVal = merged[word];
+      if (!dbVal) {
+        merged[word] = localVal;
+      } else {
+        const localNext = localVal && typeof localVal === "object" ? Number(localVal.nextReview || 0) : 0;
+        const dbNext = dbVal && typeof dbVal === "object" ? Number(dbVal.nextReview || 0) : 0;
+        if (localNext > dbNext) {
+          merged[word] = localVal;
+        }
+      }
+    }
+  }
+  return merged;
+}
+
 // POST /api/user/sync
 app.post("/api/user/sync", authMiddleware, async (req, res) => {
   const db = getDb();
   if (!db) { res.status(503).json({ error: "Database not configured." }); return; }
   const userId = (req as any).user.id;
-  const { xp, streak, level, completedCells, usageTime, calendarDays, achievements, avatar } = req.body;
+  const { 
+    xp, streak, level, completedCells, usageTime, calendarDays, achievements, avatar,
+    globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab,
+    speakingHistory, writingHistory, srsData, langeekSrsData
+  } = req.body;
 
   try {
     const users = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -703,10 +762,30 @@ app.post("/api/user/sync", authMiddleware, async (req, res) => {
     const mergedCalendar = Array.from(new Set([...(user.calendarDays || []), ...(calendarDays || [])]));
     const mergedAchievements = Array.from(new Set([...(user.achievements || []), ...(achievements || [])]));
 
+    // Synchronize vocab lists (by unique "word" key)
+    const mergedGlobalVocab = mergeArraysById(globalVocab, user.globalVocab, "word");
+    const mergedPhrasalVocab = mergeArraysById(phrasalVocab, user.phrasalVocab, "word");
+    const mergedIdiomsVocab = mergeArraysById(idiomsVocab, user.idiomsVocab, "word");
+    const mergedIdiomsProperVocab = mergeArraysById(idiomsProperVocab, user.idiomsProperVocab, "word");
+    const mergedLangeekVocab = mergeArraysById(langeekVocab, user.langeekVocab, "word");
+
+    // Synchronize practice histories (by unique "id" key)
+    const mergedSpeakingHistory = mergeArraysById(speakingHistory, user.speakingHistory, "id");
+    const mergedWritingHistory = mergeArraysById(writingHistory, user.writingHistory, "id");
+
+    // Synchronize Spaced Repetition (SRS) data
+    const mergedSrsData = mergeSrsObjects(srsData, user.srsData);
+    const mergedLangeekSrsData = mergeSrsObjects(langeekSrsData, user.langeekSrsData);
+
     const updateFields: any = {
       xp: mergedXp, streak: mergedStreak, level: mergedLevel,
       completedCells: mergedCells, usageTime: mergedUsage,
       calendarDays: mergedCalendar, achievements: mergedAchievements,
+      globalVocab: mergedGlobalVocab, phrasalVocab: mergedPhrasalVocab,
+      idiomsVocab: mergedIdiomsVocab, idiomsProperVocab: mergedIdiomsProperVocab,
+      langeekVocab: mergedLangeekVocab, speakingHistory: mergedSpeakingHistory,
+      writingHistory: mergedWritingHistory, srsData: mergedSrsData,
+      langeekSrsData: mergedLangeekSrsData
     };
     if (avatar !== undefined) updateFields.avatar = avatar;
 

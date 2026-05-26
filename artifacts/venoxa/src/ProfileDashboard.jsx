@@ -563,13 +563,13 @@ export default function ProfileDashboard({
             </div>
 
             {/* SVG line chart */}
-            <div className="relative w-full h-[110px] overflow-hidden rounded-xl">
+            <div className="relative w-full h-[120px]" style={{ overflow: 'visible' }}>
               {/* Grid lines */}
               <div className="absolute inset-x-0 top-3 border-t border-dashed border-white/5" />
               <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-white/5" />
               <div className="absolute inset-x-0 bottom-3 border-t border-dashed border-white/5" />
 
-              <svg viewBox="0 0 360 90" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+              <svg viewBox="0 -24 360 114" className="w-full h-full" style={{ overflow: 'visible' }} preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="usageFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
@@ -585,22 +585,25 @@ export default function ProfileDashboard({
                   <path d={linePath} fill="none" stroke="url(#usageLine)"
                     strokeWidth="2.5" strokeLinecap="round" />
                 )}
-                {points.map((pt, i) => (
-                  <g key={i} className="cursor-pointer group">
-                    <circle cx={pt.x} cy={pt.y} r="3.5"
-                      fill={isDark ? '#0f172a' : '#fff'}
-                      stroke="#8b5cf6" strokeWidth="2"
-                      className="group-hover:r-5 transition-all" />
-                    {/* Tooltip */}
-                    <rect x={pt.x - 18} y={pt.y - 22} width="36" height="14" rx="4"
-                      fill="#8b5cf6" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                    <text x={pt.x} y={pt.y - 12} fill="white" fontSize="8" fontWeight="bold"
-                      textAnchor="middle"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      {Math.round(chartData.values[i])}m
-                    </text>
-                  </g>
-                ))}
+                {points.map((pt, i) => {
+                  const tipY = Math.max(-20, pt.y - 24);
+                  return (
+                    <g key={i} className="cursor-pointer group">
+                      <circle cx={pt.x} cy={pt.y} r="3.5"
+                        fill={isDark ? '#0f172a' : '#fff'}
+                        stroke="#8b5cf6" strokeWidth="2"
+                        className="group-hover:r-5 transition-all" />
+                      {/* Tooltip */}
+                      <rect x={pt.x - 18} y={tipY} width="36" height="14" rx="4"
+                        fill="#8b5cf6" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                      <text x={pt.x} y={tipY + 10} fill="white" fontSize="8" fontWeight="bold"
+                        textAnchor="middle"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        {Math.round(chartData.values[i])}m
+                      </text>
+                    </g>
+                  );
+                })}
               </svg>
             </div>
 

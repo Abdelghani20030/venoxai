@@ -18,7 +18,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Lightbulb, Loader2, AlertCircle, Volume2, RefreshCw, Quote
+  Lightbulb, Loader2, AlertCircle, Volume2, RefreshCw, Quote, Plus, Check, BookOpen, ChevronDown, ChevronUp, Trash2
 } from 'lucide-react';
 import { fetchFromAPI, parseJSONLoose, dailySeed, speakEdge } from './aiHelpers';
 
@@ -67,13 +67,39 @@ export default function IdiomOfTheDay({ lang: uiLang = 'ar', theme = 'dark' }) {
   const isDark = theme === 'dark';
   const t = (en, ar) => uiLang === 'ar' ? ar : en;
 
-  const [data, setData]   = useState(null);
-  const [busy, setBusy]   = useState(false);
-  const [error, setError] = useState('');
+  const [data, setData]       = useState(null);
+  const [busy, setBusy]       = useState(false);
+  const [error, setError]     = useState('');
+  const [added, setAdded]     = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+  const [savedIdioms, setSavedIdioms] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_saved_idioms') || '[]'); } catch { return []; }
+  });
+
+  const handleSave = () => {
+    if (!data || added) return;
+    const entry = { ...data, savedAt: Date.now(), source: 'idiom-of-day' };
+    setSavedIdioms(prev => {
+      if (prev.find(s => s.idiom === data.idiom)) return prev;
+      const next = [entry, ...prev].slice(0, 200);
+      try { localStorage.setItem('venoxa_saved_idioms', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    setAdded(true);
+  };
+
+  const handleDelete = (idiomText) => {
+    setSavedIdioms(prev => {
+      const next = prev.filter(s => s.idiom !== idiomText);
+      try { localStorage.setItem('venoxa_saved_idioms', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const fetchIdiom = useCallback(async (force = false) => {
     setBusy(true);
     setError('');
+    setAdded(false);
 
     if (!force) {
       try {
@@ -285,6 +311,73 @@ export default function IdiomOfTheDay({ lang: uiLang = 'ar', theme = 'dark' }) {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Save Idiom button */}
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={handleSave}
+              disabled={added}
+              className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold transition-all shadow-sm ${
+                added
+                  ? 'bg-green-500/15 text-green-500'
+                  : 'bg-[var(--app-accent1)] text-white hover:opacity-90 active:scale-95'
+              }`}
+            >
+              {added
+                ? <><Check className="w-4 h-4" /> {t('Saved!', 'تم الحفظ!')}</>
+                : <><Plus className="w-4 h-4" /> {t('Save idiom', 'احفظ التعبير')}</>}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Saved Idioms Panel ── */}
+      {savedIdioms.length > 0 && (
+        <div className="rounded-3xl overflow-hidden" style={{ background: isDark ? '#0F0F16' : '#ffffff', border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)' }}>
+          <button
+            onClick={() => setShowSaved(v => !v)}
+            className={`w-full flex items-center justify-between px-5 py-4 text-sm font-bold transition-all ${
+              isDark ? 'text-gray-200 hover:bg-white/5' : 'text-gray-700 hover:bg-black/3'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-[var(--app-accent1)]" />
+              {t('Saved Idioms', 'تعابير محفوظة')}
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+                {savedIdioms.length}
+              </span>
+            </div>
+            {showSaved
+              ? <ChevronUp className="w-4 h-4 opacity-50" />
+              : <ChevronDown className="w-4 h-4 opacity-50" />}
+          </button>
+
+          {showSaved && (
+            <div className="flex flex-col divide-y divide-white/5 px-2 pb-2">
+              {savedIdioms.map((s, i) => (
+                <div key={i} className={`flex items-start justify-between gap-3 px-3 py-3 rounded-2xl transition-all ${
+                  isDark ? 'hover:bg-white/5' : 'hover:bg-black/3'
+                }`} dir="ltr">
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-bold text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{s.idiom}</p>
+                    <p className={`text-xs mt-0.5 opacity-60 truncate ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{s.meaning}</p>
+                    {s.meaningAr && (
+                      <p className="text-xs mt-0.5 text-[var(--app-accent1)]/70 truncate" dir="rtl">{s.meaningAr}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleDelete(s.idiom)}
+                    className={`shrink-0 p-1.5 rounded-xl transition-all ${
+                      isDark ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                    }`}
+                    title={t('Remove', 'حذف')}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

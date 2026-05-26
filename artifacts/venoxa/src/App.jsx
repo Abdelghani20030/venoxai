@@ -1527,6 +1527,19 @@ function AppInner() {
       const localLevel = localStorage.getItem('userLevel') || 'B2';
       const usageTime = JSON.parse(localStorage.getItem('venoxa_usage_time')) || {};
 
+      // Load local copies to sync
+      const gVocab = JSON.parse(localStorage.getItem('venoxa_global_vocab')) || [];
+      const pVocab = JSON.parse(localStorage.getItem('venoxa_phrasal_vocab')) || [];
+      const iVocab = JSON.parse(localStorage.getItem('venoxa_idioms_vocab')) || [];
+      const ipVocab = JSON.parse(localStorage.getItem('venoxa_idioms_proper_vocab')) || [];
+      const lVocab = JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || [];
+      
+      const sHistory = JSON.parse(localStorage.getItem('venoxa_speaking_history')) || [];
+      const wHistory = JSON.parse(localStorage.getItem('venoxa_writing_history')) || [];
+      
+      const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};
+      const lSrs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {};
+
       const res = await fetch('/api/user/sync', {
         method: 'POST',
         headers: {
@@ -1540,12 +1553,23 @@ function AppInner() {
           completedCells: cells,
           usageTime: usageTime,
           calendarDays: Object.keys(cells).filter(k => k.length >= 10),
+          
+          globalVocab: gVocab,
+          phrasalVocab: pVocab,
+          idiomsVocab: iVocab,
+          idiomsProperVocab: ipVocab,
+          langeekVocab: lVocab,
+          speakingHistory: sHistory,
+          writingHistory: wHistory,
+          srsData: srs,
+          langeekSrsData: lSrs
         })
       });
       if (res.ok) {
         const mergedUser = await res.json();
         setUser(mergedUser);
         localStorage.setItem('venoxa_user', JSON.stringify(mergedUser));
+        
         if (mergedUser.completedCells) {
           localStorage.setItem('venoxa_completed_cells', JSON.stringify(mergedUser.completedCells));
           setCompletedCells(mergedUser.completedCells);
@@ -1553,6 +1577,42 @@ function AppInner() {
         if (mergedUser.level) {
           localStorage.setItem('userLevel', mergedUser.level);
           setUserLevel(mergedUser.level);
+        }
+        
+        // Prevent infinite loops by only updating if merged server data actually differs
+        if (mergedUser.globalVocab && JSON.stringify(mergedUser.globalVocab) !== JSON.stringify(gVocab)) {
+          localStorage.setItem('venoxa_global_vocab', JSON.stringify(mergedUser.globalVocab));
+          setGlobalVocab(mergedUser.globalVocab);
+        }
+        if (mergedUser.phrasalVocab && JSON.stringify(mergedUser.phrasalVocab) !== JSON.stringify(pVocab)) {
+          localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(mergedUser.phrasalVocab));
+          setPhrasalVocab(mergedUser.phrasalVocab);
+        }
+        if (mergedUser.idiomsVocab && JSON.stringify(mergedUser.idiomsVocab) !== JSON.stringify(iVocab)) {
+          localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(mergedUser.idiomsVocab));
+          setIdiomsVocab(mergedUser.idiomsVocab);
+        }
+        if (mergedUser.idiomsProperVocab && JSON.stringify(mergedUser.idiomsProperVocab) !== JSON.stringify(ipVocab)) {
+          localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(mergedUser.idiomsProperVocab));
+          setIdiomsProperVocab(mergedUser.idiomsProperVocab);
+        }
+        if (mergedUser.langeekVocab && JSON.stringify(mergedUser.langeekVocab) !== JSON.stringify(lVocab)) {
+          localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(mergedUser.langeekVocab));
+          setLangeekVocab(mergedUser.langeekVocab);
+        }
+        if (mergedUser.speakingHistory && JSON.stringify(mergedUser.speakingHistory) !== JSON.stringify(sHistory)) {
+          localStorage.setItem('venoxa_speaking_history', JSON.stringify(mergedUser.speakingHistory));
+          setSpeakingHistory(mergedUser.speakingHistory);
+        }
+        if (mergedUser.writingHistory && JSON.stringify(mergedUser.writingHistory) !== JSON.stringify(wHistory)) {
+          localStorage.setItem('venoxa_writing_history', JSON.stringify(mergedUser.writingHistory));
+          setWritingHistory(mergedUser.writingHistory);
+        }
+        if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(srs)) {
+          localStorage.setItem('venoxa_srs_data', JSON.stringify(mergedUser.srsData));
+        }
+        if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(lSrs)) {
+          localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(mergedUser.langeekSrsData));
         }
       }
     } catch (err) {
@@ -1633,6 +1693,16 @@ function AppInner() {
   useEffect(() => localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(langeekVocab)), [langeekVocab]);
   useEffect(() => localStorage.setItem('venoxa_speaking_history', JSON.stringify(speakingHistory)), [speakingHistory]);
   useEffect(() => localStorage.setItem('venoxa_writing_history', JSON.stringify(writingHistory)), [writingHistory]);
+
+  // Debounced background sync to the cloud database when local lists are modified
+  useEffect(() => {
+    if (token) {
+      const timer = setTimeout(() => {
+        syncProgress(token, user);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);

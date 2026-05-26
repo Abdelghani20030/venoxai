@@ -22,7 +22,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  BookMarked, Sparkles, Loader2, AlertCircle, Volume2, RefreshCw, Plus, Check
+  BookMarked, Sparkles, Loader2, AlertCircle, Volume2, RefreshCw, Plus, Check,
+  BookOpen, ChevronDown, ChevronUp, Trash2
 } from 'lucide-react';
 import { fetchFromAPI, parseJSONLoose, dailySeed, speakEdge } from './aiHelpers';
 
@@ -64,6 +65,10 @@ export default function WordOfTheDay({ lang: uiLang = 'ar', theme = 'dark', onAd
   const [busy, setBusy]       = useState(false);
   const [error, setError]     = useState('');
   const [added, setAdded]     = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+  const [savedWords, setSavedWords] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_saved_words') || '[]'); } catch { return []; }
+  });
 
   // Load from cache (or fetch) on mount.
   const fetchWord = useCallback(async (force = false) => {
@@ -127,7 +132,19 @@ export default function WordOfTheDay({ lang: uiLang = 'ar', theme = 'dark', onAd
         localStorage.setItem('venoxa_saved_words', JSON.stringify(saved.slice(0, 200)));
       }
     } catch { /* ignore */ }
+    setSavedWords(prev => {
+      if (prev.find(s => s.word === data.word)) return prev;
+      return [{ ...data, savedAt: Date.now(), source: 'word-of-day' }, ...prev].slice(0, 200);
+    });
     setAdded(true);
+  };
+
+  const handleDelete = (wordText) => {
+    setSavedWords(prev => {
+      const next = prev.filter(s => s.word !== wordText);
+      try { localStorage.setItem('venoxa_saved_words', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   };
 
   return (
@@ -289,6 +306,65 @@ export default function WordOfTheDay({ lang: uiLang = 'ar', theme = 'dark', onAd
                 : <><Plus className="w-4 h-4" /> {t('Add to vocab', 'أضف للمفردات')}</>}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ── Saved Words Panel ── */}
+      {savedWords.length > 0 && (
+        <div className="rounded-3xl overflow-hidden" style={{ background: isDark ? '#0F0F16' : '#ffffff', border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)' }}>
+          <button
+            onClick={() => setShowSaved(v => !v)}
+            className={`w-full flex items-center justify-between px-5 py-4 text-sm font-bold transition-all ${
+              isDark ? 'text-gray-200 hover:bg-white/5' : 'text-gray-700 hover:bg-black/3'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-[var(--app-accent1)]" />
+              {t('Saved Words', 'الكلمات المحفوظة')}
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+                {savedWords.length}
+              </span>
+            </div>
+            {showSaved
+              ? <ChevronUp className="w-4 h-4 opacity-50" />
+              : <ChevronDown className="w-4 h-4 opacity-50" />}
+          </button>
+
+          {showSaved && (
+            <div className="flex flex-col divide-y divide-white/5 px-2 pb-2">
+              {savedWords.map((s, i) => (
+                <div key={i} className={`flex items-start justify-between gap-3 px-3 py-3 rounded-2xl transition-all ${
+                  isDark ? 'hover:bg-white/5' : 'hover:bg-black/3'
+                }`} dir="ltr">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{s.word}</p>
+                      {s.partOfSpeech && (
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
+                          {s.partOfSpeech}
+                        </span>
+                      )}
+                    </div>
+                    {s.definition && (
+                      <p className={`text-xs mt-0.5 opacity-60 line-clamp-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{s.definition}</p>
+                    )}
+                    {s.definitionAr && (
+                      <p className="text-xs mt-0.5 text-[var(--app-accent1)]/70 line-clamp-1" dir="rtl">{s.definitionAr}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleDelete(s.word)}
+                    className={`shrink-0 p-1.5 rounded-xl transition-all ${
+                      isDark ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                    }`}
+                    title={t('Remove', 'حذف')}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

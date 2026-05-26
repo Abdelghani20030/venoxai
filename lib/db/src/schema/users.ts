@@ -31,9 +31,24 @@ export const usersTable = pgTable("users", {
   calendarDays: jsonb("calendar_days").$type<string[]>().default([]).notNull(),
   achievements: jsonb("achievements").$type<string[]>().default([]).notNull(),
   
+  // Custom Vocabularies
+  globalVocab: jsonb("global_vocab").$type<any[]>().default([]).notNull(),
+  phrasalVocab: jsonb("phrasal_vocab").$type<any[]>().default([]).notNull(),
+  idiomsVocab: jsonb("idioms_vocab").$type<any[]>().default([]).notNull(),
+  idiomsProperVocab: jsonb("idioms_proper_vocab").$type<any[]>().default([]).notNull(),
+  langeekVocab: jsonb("langeek_vocab").$type<any[]>().default([]).notNull(),
+  
+  // Spaced Repetition (SRS) Data
+  srsData: jsonb("srs_data").$type<Record<string, any>>().default({}).notNull(),
+  langeekSrsData: jsonb("langeek_srs_data").$type<Record<string, any>>().default({}).notNull(),
+  
+  // Practice Histories
+  speakingHistory: jsonb("speaking_history").$type<any[]>().default([]).notNull(),
+  writingHistory: jsonb("writing_history").$type<any[]>().default([]).notNull(),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true }) as any;
 export type User = typeof usersTable.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertUser = any;

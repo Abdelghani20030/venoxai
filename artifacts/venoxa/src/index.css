@@ -11,14 +11,12 @@
   background: transparent !important;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.14),
-    0 8px 40px rgba(0, 0, 0, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.30) !important;
 }
 
 .dark .topbar-glass {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.07),
-    0 8px 40px rgba(0, 0, 0, 0.40),
     inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
@@ -80,7 +78,7 @@ body {
   backdrop-filter: blur(48px) saturate(200%);
   -webkit-backdrop-filter: blur(48px) saturate(200%);
   border: 1px solid rgba(0, 0, 0, 0.07);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -91,7 +89,7 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.07);
   border-radius: var(--card-radius);
   padding: 2rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -101,18 +99,18 @@ body {
   backdrop-filter: blur(48px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(48px) saturate(180%) !important;
   border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .premium-card:hover, .glass-panel:hover {
   border-color: rgba(0, 0, 0, 0.12);
   transform: translateY(-4px);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .dark .premium-card:hover, .dark .glass-panel:hover {
   border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.70), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
 }
 
 /* ── Card Styles ── */
@@ -341,7 +339,7 @@ p {
 
 /* Subtle card glow on hover in dark mode */
 .dark .card-hover:hover {
-  box-shadow: 0 0 0 1px rgba(79, 124, 255, 0.25), 0 4px 20px rgba(79, 124, 255, 0.08);
+  box-shadow: 0 0 0 1px rgba(79, 124, 255, 0.25);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -380,11 +378,11 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
   box-shadow: none !important;
 }
 
-/* Dark mode: allow subtle glow shadows */
+/* Dark mode: keep shadows off */
 .dark .shadow-sm,
 .dark .shadow-md,
 .dark .shadow-lg {
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4) !important;
+  box-shadow: none !important;
 }
 
 /* ══════════════════════════════════════════════
@@ -577,11 +575,11 @@ html:not(.dark) .border-gray-100 {
   /* Solid base so the panel is always visible even inside glass-panel parents */
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow: none;
   backdrop-filter: blur(48px) saturate(200%);
   -webkit-backdrop-filter: blur(48px) saturate(200%);
-  scrollbar-width: none;          /* Firefox */
-  -ms-overflow-style: none;       /* IE/Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .dropdown-menu::-webkit-scrollbar {
@@ -592,7 +590,7 @@ html:not(.dark) .border-gray-100 {
 .dark .dropdown-menu {
   background: rgba(33, 33, 42, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  box-shadow: none;
   backdrop-filter: blur(48px) saturate(180%);
   -webkit-backdrop-filter: blur(48px) saturate(180%);
 }
@@ -706,28 +704,10 @@ nav button:hover {
   transform: translateZ(0) translateY(-5px);
 }
 
-/* Use a pseudo-element shadow so box-shadow never repaints */
+/* Shadow pseudo-elements removed — no drop shadows */
 .card-shine::after,
 .premium-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
-  opacity: 0;
-  transition: opacity 0.30s ease;
-  pointer-events: none;
-  z-index: -1;
-}
-
-.dark .card-shine::after,
-.dark .premium-card::after {
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.60);
-}
-
-.card-shine:hover::after,
-.premium-card:hover::after {
-  opacity: 1;
+  content: none;
 }
 
 /* ── Page entrance: fade + rise, staggered ── */
@@ -803,18 +783,12 @@ html { scroll-behavior: smooth; }
   background: #ffffff !important;
   border: 1px solid rgba(0, 0, 0, 0.07) !important;
   border-radius: 28px !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 10px 30px -5px rgba(0, 0, 0, 0.06),
-    0 2px 8px rgba(0, 0, 0, 0.03) !important;
+  box-shadow: none !important;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 .home-glass-card:hover {
   border-color: rgba(0, 0, 0, 0.10) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 18px 50px -10px rgba(0, 0, 0, 0.10),
-    0 4px 12px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: none !important;
   transform: translateY(-5px) !important;
 }
 
@@ -822,33 +796,43 @@ html { scroll-behavior: smooth; }
   background: #ffffff !important;
   border: 1px solid rgba(0, 0, 0, 0.07) !important;
   border-radius: 32px !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 10px 30px -5px rgba(0, 0, 0, 0.06),
-    0 2px 8px rgba(0, 0, 0, 0.03) !important;
+  box-shadow: none !important;
 }
 
-/* Dark mode — premium dark purple glassmorphism */
 .dark .home-glass-card {
   background: #0F0F16 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow:
-    0 10px 30px -5px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
 }
 
 .dark .home-glass-card:hover {
   background: #181822 !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
-  box-shadow:
-    0 18px 50px -10px rgba(0, 0, 0, 0.75),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
 }
 
 .dark .home-glass-hero {
   background: #0F0F16 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow:
-    0 10px 30px -5px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+/* ══════════════════════════════════════════════
+   Global shadow kill-switch — no drop shadows anywhere
+   ══════════════════════════════════════════════ */
+* {
+  box-shadow: none !important;
+}
+
+/* Re-allow inset highlights (top-edge glints) and outline rings */
+.topbar-glass,
+.glass-panel,
+.dark .glass-panel,
+.premium-card,
+.dark .premium-card,
+.glass-panel:hover,
+.dark .glass-panel:hover,
+.premium-card:hover,
+.dark .premium-card:hover {
+  box-shadow: revert !important;
 }
