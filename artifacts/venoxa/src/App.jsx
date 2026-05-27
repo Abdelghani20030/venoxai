@@ -1448,6 +1448,7 @@ function AppInner() {
   const [authModalMode, setAuthModalMode] = useState('login');
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
   const syncStatusTimerRef = useRef(null);
+  const [srsRefreshTick, setSrsRefreshTick] = useState(0); // must be before login/syncProgress
 
   const login = async (email, password) => {
     try {
@@ -1664,7 +1665,6 @@ function AppInner() {
     };
   };
 
-  const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
     return () => clearInterval(int);
