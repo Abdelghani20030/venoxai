@@ -104,7 +104,7 @@ export default function ProfileDashboard({
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  AVATAR: stored ONLY in localStorage, never sent to the server
+  //  AVATAR: stored in localStorage + synced to server for cross-device access
   // ─────────────────────────────────────────────────────────────────────────
   const [localAvatar, setLocalAvatar] = useState(() => localStorage.getItem(AVATAR_KEY) || '');
 
@@ -346,18 +346,17 @@ export default function ProfileDashboard({
     reader.readAsDataURL(file);
   };
 
-  // FIX: avatar is stored ONLY in localStorage — never sent to the API
-  // This avoids the "<!DOCTYPE" JSON parse error caused by oversized payloads
+  // Avatar is stored in localStorage AND synced to the server for cross-device access
   const handleSave = async (e) => {
     e.preventDefault();
-    // 1. Save avatar locally (no server involved)
+    // 1. Save avatar locally for instant display
     if (avatarDraft) {
       localStorage.setItem(AVATAR_KEY, avatarDraft);
       setLocalAvatar(avatarDraft);
       // Notify parent (App.jsx) so the nav icon updates in the same tab
       if (onAvatarChange) onAvatarChange(avatarDraft);
     }
-    // 2. Send only non-binary fields to the server
+    // 2. Send all fields to the server (including avatar for cross-device sync)
     const langsArr = editLangs.split(',').map(l => l.trim()).filter(Boolean);
     await updateProfile({
       username:  editName,
@@ -365,7 +364,7 @@ export default function ProfileDashboard({
       dob:       editDob,
       gender:    editGender,
       languages: langsArr,
-      // avatar intentionally omitted — stored locally
+      avatar:    avatarDraft || undefined,
     });
     setIsEditing(false);
   };
@@ -816,7 +815,7 @@ export default function ProfileDashboard({
                   </button>
                 )}
                 <p className="text-[9px] text-gray-600 dark:text-gray-500 font-medium">
-                  {_resolveTranslation(lang, 'الصورة محفوظة محلياً فقط على هذا الجهاز.', 'Photo is stored locally on this device only.')}
+                  {_resolveTranslation(lang, 'الصورة تُحفظ و تُزامن على جميع الأجهزة.', 'Photo syncs across all your devices.')}
                 </p>
               </div>
 

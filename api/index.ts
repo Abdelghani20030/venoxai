@@ -46,6 +46,8 @@ const usersTable = pgTable("users", {
   langeekSrsData: jsonb("langeek_srs_data").$type<Record<string, any>>().default({}).notNull(),
   speakingHistory: jsonb("speaking_history").$type<any[]>().default([]).notNull(),
   writingHistory: jsonb("writing_history").$type<any[]>().default([]).notNull(),
+  planConfig: jsonb("plan_config").$type<Record<string, any>>().default({}).notNull(),
+  studiedWords: jsonb("studied_words").$type<string[]>().default([]).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -661,7 +663,7 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
   const db = getDb();
   if (!db) { res.status(503).json({ error: "Database not configured." }); return; }
   const userId = (req as any).user.id;
-  const { username, email, dob, gender, languages, dailyGoalMins, level, plan } = req.body;
+  const { username, email, dob, gender, languages, dailyGoalMins, level, plan, avatar } = req.body;
 
   try {
     const updateData: any = {};
@@ -672,6 +674,7 @@ app.put("/api/user/profile", authMiddleware, async (req, res) => {
     if (dailyGoalMins !== undefined) updateData.dailyGoalMins = Number(dailyGoalMins);
     if (level !== undefined) updateData.level = level;
     if (plan !== undefined) updateData.plan = plan;
+    if (avatar !== undefined) updateData.avatar = avatar;
     if (email !== undefined) {
       const cleanEmail = email.toLowerCase().trim();
       const existing = await db.select().from(usersTable).where(eq(usersTable.email, cleanEmail)).limit(1);
@@ -741,7 +744,8 @@ app.post("/api/user/sync", authMiddleware, async (req, res) => {
   const { 
     xp, streak, level, completedCells, usageTime, calendarDays, achievements, avatar,
     globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab,
-    speakingHistory, writingHistory, srsData, langeekSrsData
+    speakingHistory, writingHistory, srsData, langeekSrsData,
+    planConfig, studiedWords
   } = req.body;
 
   try {
@@ -777,6 +781,17 @@ app.post("/api/user/sync", authMiddleware, async (req, res) => {
     const mergedSrsData = mergeSrsObjects(srsData, user.srsData);
     const mergedLangeekSrsData = mergeSrsObjects(langeekSrsData, user.langeekSrsData);
 
+    // Merge plan config — local always wins (latest device is authoritative)
+    const mergedPlanConfig = planConfig && Object.keys(planConfig).length > 0
+      ? planConfig
+      : (user.planConfig && Object.keys(user.planConfig).length > 0 ? user.planConfig : {});
+
+    // Merge studied words — union of both sets
+    const mergedStudiedWords = Array.from(new Set([
+      ...(Array.isArray(user.studiedWords) ? user.studiedWords : []),
+      ...(Array.isArray(studiedWords) ? studiedWords : [])
+    ]));
+
     const updateFields: any = {
       xp: mergedXp, streak: mergedStreak, level: mergedLevel,
       completedCells: mergedCells, usageTime: mergedUsage,
@@ -785,7 +800,8 @@ app.post("/api/user/sync", authMiddleware, async (req, res) => {
       idiomsVocab: mergedIdiomsVocab, idiomsProperVocab: mergedIdiomsProperVocab,
       langeekVocab: mergedLangeekVocab, speakingHistory: mergedSpeakingHistory,
       writingHistory: mergedWritingHistory, srsData: mergedSrsData,
-      langeekSrsData: mergedLangeekSrsData
+      langeekSrsData: mergedLangeekSrsData,
+      planConfig: mergedPlanConfig, studiedWords: mergedStudiedWords
     };
     if (avatar !== undefined) updateFields.avatar = avatar;
 
@@ -808,6 +824,79 @@ app.delete("/api/user/profile", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Failed to delete account:", err);
     res.status(500).json({ error: "Failed to delete account." });
+  }
+});
+
+// POST /api/user/sync-beacon — lightweight endpoint for navigator.sendBeacon (unload sync)
+// sendBeacon can't set custom headers, so token is passed in the body
+app.post("/api/user/sync-beacon", async (req, res) => {
+  const db = getDb();
+  if (!db) { res.status(503).end(); return; }
+
+  const { token: beaconToken, ...syncData } = req.body;
+  if (!beaconToken) { res.status(401).end(); return; }
+  const decoded = verifyToken(beaconToken);
+  if (!decoded) { res.status(401).end(); return; }
+  const userId = decoded.userId;
+
+  try {
+    const users = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (users.length === 0) { res.status(404).end(); return; }
+    const user = users[0];
+
+    const {
+      xp, streak, level, completedCells, usageTime, calendarDays, achievements, avatar,
+      globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab,
+      speakingHistory, writingHistory, srsData, langeekSrsData,
+      planConfig, studiedWords
+    } = syncData;
+
+    const mergedXp = Math.max(user.xp, xp || 0);
+    const mergedStreak = Math.max(user.streak, streak || 0);
+    const mergedLevel = level || user.level;
+    const mergedCells = { ...user.completedCells, ...(completedCells || {}) };
+    const mergedUsage: Record<string, number> = { ...user.usageTime };
+    if (usageTime) {
+      for (const [day, mins] of Object.entries(usageTime)) {
+        mergedUsage[day] = Math.max(mergedUsage[day] || 0, mins as number);
+      }
+    }
+    const mergedCalendar = Array.from(new Set([...(user.calendarDays || []), ...(calendarDays || [])]));
+    const mergedAchievements = Array.from(new Set([...(user.achievements || []), ...(achievements || [])]));
+    const mergedGlobalVocab = mergeArraysById(globalVocab, user.globalVocab, "word");
+    const mergedPhrasalVocab = mergeArraysById(phrasalVocab, user.phrasalVocab, "word");
+    const mergedIdiomsVocab = mergeArraysById(idiomsVocab, user.idiomsVocab, "word");
+    const mergedIdiomsProperVocab = mergeArraysById(idiomsProperVocab, user.idiomsProperVocab, "word");
+    const mergedLangeekVocab = mergeArraysById(langeekVocab, user.langeekVocab, "word");
+    const mergedSpeakingHistory = mergeArraysById(speakingHistory, user.speakingHistory, "id");
+    const mergedWritingHistory = mergeArraysById(writingHistory, user.writingHistory, "id");
+    const mergedSrsData = mergeSrsObjects(srsData, user.srsData);
+    const mergedLangeekSrsData = mergeSrsObjects(langeekSrsData, user.langeekSrsData);
+    const mergedPlanConfig = planConfig && Object.keys(planConfig).length > 0
+      ? planConfig : (user.planConfig && Object.keys(user.planConfig).length > 0 ? user.planConfig : {});
+    const mergedStudiedWords = Array.from(new Set([
+      ...(Array.isArray(user.studiedWords) ? user.studiedWords : []),
+      ...(Array.isArray(studiedWords) ? studiedWords : [])
+    ]));
+
+    const updateFields: any = {
+      xp: mergedXp, streak: mergedStreak, level: mergedLevel,
+      completedCells: mergedCells, usageTime: mergedUsage,
+      calendarDays: mergedCalendar, achievements: mergedAchievements,
+      globalVocab: mergedGlobalVocab, phrasalVocab: mergedPhrasalVocab,
+      idiomsVocab: mergedIdiomsVocab, idiomsProperVocab: mergedIdiomsProperVocab,
+      langeekVocab: mergedLangeekVocab, speakingHistory: mergedSpeakingHistory,
+      writingHistory: mergedWritingHistory, srsData: mergedSrsData,
+      langeekSrsData: mergedLangeekSrsData,
+      planConfig: mergedPlanConfig, studiedWords: mergedStudiedWords
+    };
+    if (avatar !== undefined) updateFields.avatar = avatar;
+
+    await db.update(usersTable).set(updateFields).where(eq(usersTable.id, userId));
+    res.status(204).end();
+  } catch (err) {
+    console.error("Beacon sync failed:", err);
+    res.status(500).end();
   }
 });
 

@@ -1446,6 +1446,8 @@ function AppInner() {
   }, [user?.avatar]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
+  const syncStatusTimerRef = useRef(null);
 
   const login = async (email, password) => {
     try {
@@ -1519,26 +1521,59 @@ function AppInner() {
     }
   };
 
+  // ── Gather all syncable localStorage data into a single object ──
+  const _gatherSyncPayload = (customCells = null) => {
+    const cells = customCells || JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {};
+    const localStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
+    const localLevel = localStorage.getItem('userLevel') || 'B2';
+    const usageTime = JSON.parse(localStorage.getItem('venoxa_usage_time')) || JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
+    const localAv = localStorage.getItem('venoxa_local_avatar') || '';
+    const gVocab = JSON.parse(localStorage.getItem('venoxa_global_vocab')) || [];
+    const pVocab = JSON.parse(localStorage.getItem('venoxa_phrasal_vocab')) || [];
+    const iVocab = JSON.parse(localStorage.getItem('venoxa_idioms_vocab')) || [];
+    const ipVocab = JSON.parse(localStorage.getItem('venoxa_idioms_proper_vocab')) || [];
+    const lVocab = JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || [];
+    const sHistory = JSON.parse(localStorage.getItem('venoxa_speaking_history')) || [];
+    const wHistory = JSON.parse(localStorage.getItem('venoxa_writing_history')) || [];
+    const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};
+    const lSrs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {};
+    // Study plan config & studied words
+    let planCfg = {};
+    try { planCfg = JSON.parse(localStorage.getItem('venoxa-plan-v3')) || {}; } catch {}
+    let studied = [];
+    try { studied = JSON.parse(localStorage.getItem('studiedWords')) || []; } catch {}
+
+    return {
+      xp: Object.values(cells).filter(v => v === 'done').length * 15,
+      streak: localStreak.current,
+      level: localLevel,
+      completedCells: cells,
+      usageTime,
+      calendarDays: Object.keys(cells).filter(k => k.length >= 10),
+      avatar: localAv || undefined,
+      achievements: [],
+      globalVocab: gVocab,
+      phrasalVocab: pVocab,
+      idiomsVocab: iVocab,
+      idiomsProperVocab: ipVocab,
+      langeekVocab: lVocab,
+      speakingHistory: sHistory,
+      writingHistory: wHistory,
+      srsData: srs,
+      langeekSrsData: lSrs,
+      planConfig: planCfg,
+      studiedWords: studied,
+      // keep references for diff-checking later
+      _local: { gVocab, pVocab, iVocab, ipVocab, lVocab, sHistory, wHistory, srs, lSrs, localAv }
+    };
+  };
+
   const syncProgress = async (currentToken = token, currentUser = user, customCells = null) => {
     if (!currentToken) return;
+    setSyncStatus('syncing');
     try {
-      const cells = customCells || JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {};
-      const localStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
-      const localLevel = localStorage.getItem('userLevel') || 'B2';
-      const usageTime = JSON.parse(localStorage.getItem('venoxa_usage_time')) || {};
-
-      // Load local copies to sync
-      const gVocab = JSON.parse(localStorage.getItem('venoxa_global_vocab')) || [];
-      const pVocab = JSON.parse(localStorage.getItem('venoxa_phrasal_vocab')) || [];
-      const iVocab = JSON.parse(localStorage.getItem('venoxa_idioms_vocab')) || [];
-      const ipVocab = JSON.parse(localStorage.getItem('venoxa_idioms_proper_vocab')) || [];
-      const lVocab = JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || [];
-      
-      const sHistory = JSON.parse(localStorage.getItem('venoxa_speaking_history')) || [];
-      const wHistory = JSON.parse(localStorage.getItem('venoxa_writing_history')) || [];
-      
-      const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};
-      const lSrs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {};
+      const payload = _gatherSyncPayload(customCells);
+      const { _local, ...syncBody } = payload;
 
       const res = await fetch('/api/user/sync', {
         method: 'POST',
@@ -1546,25 +1581,20 @@ function AppInner() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${currentToken}`
         },
-        body: JSON.stringify({
-          xp: Object.values(cells).filter(v => v === 'done').length * 15,
-          streak: localStreak.current,
-          level: localLevel,
-          completedCells: cells,
-          usageTime: usageTime,
-          calendarDays: Object.keys(cells).filter(k => k.length >= 10),
-          
-          globalVocab: gVocab,
-          phrasalVocab: pVocab,
-          idiomsVocab: iVocab,
-          idiomsProperVocab: ipVocab,
-          langeekVocab: lVocab,
-          speakingHistory: sHistory,
-          writingHistory: wHistory,
-          srsData: srs,
-          langeekSrsData: lSrs
-        })
+        body: JSON.stringify(syncBody)
       });
+
+      // ── Handle token expiry — auto-logout ──
+      if (res.status === 401) {
+        console.warn('Token expired — logging out');
+        setToken(null);
+        setUser(null);
+        localStorage.removeItem('venoxa_token');
+        localStorage.removeItem('venoxa_user');
+        setSyncStatus('error');
+        return;
+      }
+
       if (res.ok) {
         const mergedUser = await res.json();
         setUser(mergedUser);
@@ -1578,52 +1608,138 @@ function AppInner() {
           localStorage.setItem('userLevel', mergedUser.level);
           setUserLevel(mergedUser.level);
         }
+
+        // ── Restore avatar from server (critical for cross-device sync) ──
+        if (mergedUser.avatar && !_local.localAv) {
+          localStorage.setItem('venoxa_local_avatar', mergedUser.avatar);
+          setLocalAvatar(mergedUser.avatar);
+        }
+
+        // ── Restore streak data from server ──
+        if (mergedUser.streak !== undefined) {
+          const currentStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
+          if (mergedUser.streak > currentStreak.current) {
+            const newStreakData = { current: mergedUser.streak, lastDate: currentStreak.lastDate || new Date().toISOString().slice(0, 10) };
+            localStorage.setItem('venoxa_streak', JSON.stringify(newStreakData));
+            setStreakData(newStreakData);
+          }
+        }
+
+        // ── Restore usage time from server ──
+        if (mergedUser.usageTime && Object.keys(mergedUser.usageTime).length > 0) {
+          const localUsage = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
+          const merged = { ...localUsage };
+          for (const [day, secs] of Object.entries(mergedUser.usageTime)) {
+            merged[day] = Math.max(merged[day] || 0, secs);
+          }
+          localStorage.setItem('venoxa_daily_usage_secs', JSON.stringify(merged));
+          localStorage.setItem('venoxa_usage_time', JSON.stringify(merged));
+        }
         
         // Prevent infinite loops by only updating if merged server data actually differs
-        if (mergedUser.globalVocab && JSON.stringify(mergedUser.globalVocab) !== JSON.stringify(gVocab)) {
+        if (mergedUser.globalVocab && JSON.stringify(mergedUser.globalVocab) !== JSON.stringify(_local.gVocab)) {
           localStorage.setItem('venoxa_global_vocab', JSON.stringify(mergedUser.globalVocab));
           setGlobalVocab(mergedUser.globalVocab);
         }
-        if (mergedUser.phrasalVocab && JSON.stringify(mergedUser.phrasalVocab) !== JSON.stringify(pVocab)) {
+        if (mergedUser.phrasalVocab && JSON.stringify(mergedUser.phrasalVocab) !== JSON.stringify(_local.pVocab)) {
           localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(mergedUser.phrasalVocab));
           setPhrasalVocab(mergedUser.phrasalVocab);
         }
-        if (mergedUser.idiomsVocab && JSON.stringify(mergedUser.idiomsVocab) !== JSON.stringify(iVocab)) {
+        if (mergedUser.idiomsVocab && JSON.stringify(mergedUser.idiomsVocab) !== JSON.stringify(_local.iVocab)) {
           localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(mergedUser.idiomsVocab));
           setIdiomsVocab(mergedUser.idiomsVocab);
         }
-        if (mergedUser.idiomsProperVocab && JSON.stringify(mergedUser.idiomsProperVocab) !== JSON.stringify(ipVocab)) {
+        if (mergedUser.idiomsProperVocab && JSON.stringify(mergedUser.idiomsProperVocab) !== JSON.stringify(_local.ipVocab)) {
           localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(mergedUser.idiomsProperVocab));
           setIdiomsProperVocab(mergedUser.idiomsProperVocab);
         }
-        if (mergedUser.langeekVocab && JSON.stringify(mergedUser.langeekVocab) !== JSON.stringify(lVocab)) {
+        if (mergedUser.langeekVocab && JSON.stringify(mergedUser.langeekVocab) !== JSON.stringify(_local.lVocab)) {
           localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(mergedUser.langeekVocab));
           setLangeekVocab(mergedUser.langeekVocab);
         }
-        if (mergedUser.speakingHistory && JSON.stringify(mergedUser.speakingHistory) !== JSON.stringify(sHistory)) {
+        if (mergedUser.speakingHistory && JSON.stringify(mergedUser.speakingHistory) !== JSON.stringify(_local.sHistory)) {
           localStorage.setItem('venoxa_speaking_history', JSON.stringify(mergedUser.speakingHistory));
           setSpeakingHistory(mergedUser.speakingHistory);
         }
-        if (mergedUser.writingHistory && JSON.stringify(mergedUser.writingHistory) !== JSON.stringify(wHistory)) {
+        if (mergedUser.writingHistory && JSON.stringify(mergedUser.writingHistory) !== JSON.stringify(_local.wHistory)) {
           localStorage.setItem('venoxa_writing_history', JSON.stringify(mergedUser.writingHistory));
           setWritingHistory(mergedUser.writingHistory);
         }
-        if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(srs)) {
+        if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(_local.srs)) {
           localStorage.setItem('venoxa_srs_data', JSON.stringify(mergedUser.srsData));
         }
-        if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(lSrs)) {
+        if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(_local.lSrs)) {
           localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(mergedUser.langeekSrsData));
         }
+
+        // ── Restore study plan config from server ──
+        if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
+          const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
+          if (JSON.stringify(mergedUser.planConfig) !== JSON.stringify(localPlan)) {
+            localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
+            // Update plan-related state if available
+            if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
+            if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
+          }
+        }
+
+        // ── Restore studied words from server ──
+        if (Array.isArray(mergedUser.studiedWords) && mergedUser.studiedWords.length > 0) {
+          localStorage.setItem('studiedWords', JSON.stringify(mergedUser.studiedWords));
+        }
+
+        // Show synced status briefly
+        setSyncStatus('synced');
+        if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
+        syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 3000);
       }
     } catch (err) {
       console.error("Sync failed:", err);
+      setSyncStatus('error');
+      if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
+      syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 5000);
     }
   };
 
+  // ── Sync on mount (existing token from localStorage) and on token change ──
   useEffect(() => {
     if (token) {
       syncProgress(token, user);
     }
+  }, [token]);
+
+  // ── Sync when tab becomes visible again (critical for multi-device) ──
+  useEffect(() => {
+    if (!token) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncProgress(token, user);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [token]);
+
+  // ── Periodic background sync every 5 minutes ──
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(() => syncProgress(token, user), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  // ── Flush data to server on tab close via sendBeacon ──
+  useEffect(() => {
+    if (!token) return;
+    const handleUnload = () => {
+      try {
+        const payload = _gatherSyncPayload();
+        const { _local, ...syncBody } = payload;
+        const beacon = JSON.stringify({ token, ...syncBody });
+        navigator.sendBeacon('/api/user/sync-beacon', new Blob([beacon], { type: 'application/json' }));
+      } catch {}
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
   }, [token]);
 
   const [planMeta, setPlanMeta] = useState(() => {
@@ -1694,7 +1810,7 @@ function AppInner() {
   useEffect(() => localStorage.setItem('venoxa_speaking_history', JSON.stringify(speakingHistory)), [speakingHistory]);
   useEffect(() => localStorage.setItem('venoxa_writing_history', JSON.stringify(writingHistory)), [writingHistory]);
 
-  // Debounced background sync to the cloud database when local lists are modified
+  // Debounced background sync to the cloud database when local data is modified
   useEffect(() => {
     if (token) {
       const timer = setTimeout(() => {
@@ -1702,7 +1818,7 @@ function AppInner() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory]);
+  }, [globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory, completedCells, streakData]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
@@ -2100,23 +2216,53 @@ function AppInner() {
               </button>
               {/* User / Auth Toggle — Avatar first */}
               {user ? (
-                <button
-                  onClick={() => setActiveTab('profile')}
-                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border overflow-hidden shrink-0 ${
-                    activeTab === 'profile'
-                      ? 'border-[var(--app-accent1)] ring-2 ring-[var(--app-accent1)]/30'
-                      : (theme === 'dark' ? 'border-white/10 hover:border-white/20' : 'border-black/10 hover:border-black/20')
-                  }`}
-                  title={user.username || 'Profile'}
-                >
-                  {(localAvatar || user.avatar) ? (
-                    <img src={localAvatar || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-black text-gray-700 dark:text-white">
-                      {(user.username || 'U')[0].toUpperCase()}
+                <>
+                  {/* Cloud sync status indicator */}
+                  {token && syncStatus !== 'idle' && (
+                    <span
+                      className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all duration-300 ${
+                        syncStatus === 'syncing' ? 'animate-pulse' : ''
+                      }`}
+                      title={syncStatus === 'syncing' ? 'Syncing...' : syncStatus === 'synced' ? 'Synced ✓' : syncStatus === 'error' ? 'Sync failed' : ''}
+                    >
+                      {syncStatus === 'syncing' && (
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke={theme === 'dark' ? '#a78bfa' : '#7c3aed'} strokeWidth="2">
+                          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round"/>
+                        </svg>
+                      )}
+                      {syncStatus === 'synced' && (
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5">
+                          <path d="M3 12l2-2 4 4 2-2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M13 16l2-2 4 4 2-2" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
+                          <path d="M20 6a9.96 9.96 0 00-8-4C6.48 2 2 6.48 2 12s4.48 10 10 10a9.96 9.96 0 008-4" strokeLinecap="round" opacity="0.3"/>
+                        </svg>
+                      )}
+                      {syncStatus === 'error' && (
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5">
+                          <circle cx="12" cy="12" r="10" opacity="0.3"/>
+                          <path d="M12 8v4M12 16h.01" strokeLinecap="round"/>
+                        </svg>
+                      )}
                     </span>
                   )}
-                </button>
+                  <button
+                    onClick={() => setActiveTab('profile')}
+                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border overflow-hidden shrink-0 ${
+                      activeTab === 'profile'
+                        ? 'border-[var(--app-accent1)] ring-2 ring-[var(--app-accent1)]/30'
+                        : (theme === 'dark' ? 'border-white/10 hover:border-white/20' : 'border-black/10 hover:border-black/20')
+                    }`}
+                    title={user.username || 'Profile'}
+                  >
+                    {(localAvatar || user.avatar) ? (
+                      <img src={localAvatar || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-black text-gray-700 dark:text-white">
+                        {(user.username || 'U')[0].toUpperCase()}
+                      </span>
+                    )}
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}

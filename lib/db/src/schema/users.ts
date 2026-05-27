@@ -46,6 +46,10 @@ export const usersTable = pgTable("users", {
   speakingHistory: jsonb("speaking_history").$type<any[]>().default([]).notNull(),
   writingHistory: jsonb("writing_history").$type<any[]>().default([]).notNull(),
   
+  // Study Plan Config & Studied Words
+  planConfig: jsonb("plan_config").$type<Record<string, any>>().default({}).notNull(),
+  studiedWords: jsonb("studied_words").$type<string[]>().default([]).notNull(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
