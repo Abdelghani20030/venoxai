@@ -638,7 +638,7 @@ app.post("/api/auth/login", async (req, res) => {
     res.json({ token, user: userProfile });
   } catch (err) {
     console.error("Login failed:", err);
-    res.status(500).json({ error: "Login failed. Please try again." });
+    res.status(500).json({ error: "Login failed. Please try again.", debug: String(err?.message || err).slice(0, 300) });
   }
 });
 
