@@ -1448,7 +1448,6 @@ function AppInner() {
   const [authModalMode, setAuthModalMode] = useState('login');
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
   const syncStatusTimerRef = useRef(null);
-  const [srsRefreshTick, setSrsRefreshTick] = useState(0); // must be before login/syncProgress
 
   const login = async (email, password) => {
     try {
@@ -1459,84 +1458,10 @@ function AppInner() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
-
-      // 1. Persist token and user profile from server immediately
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem('venoxa_token', data.token);
       localStorage.setItem('venoxa_user', JSON.stringify(data.user));
-
-      // 2. Seed localStorage with server's saved data IF server has more progress
-      //    (so the upcoming syncProgress merge doesn't overwrite DB data with local defaults)
-      const su = data.user;
-      if (su.completedCells && Object.keys(su.completedCells).length > 0) {
-        const localCells = JSON.parse(localStorage.getItem('venoxa_completed_cells') || '{}');
-        const merged = { ...su.completedCells, ...localCells }; // local wins for conflicts
-        localStorage.setItem('venoxa_completed_cells', JSON.stringify(merged));
-        setCompletedCells(merged);
-      }
-      if (su.streak) {
-        const localStreak = JSON.parse(localStorage.getItem('venoxa_streak') || '{"current":0}');
-        if (su.streak > localStreak.current) {
-          const newStreak = { current: su.streak, lastDate: localStreak.lastDate || new Date().toISOString().slice(0, 10) };
-          localStorage.setItem('venoxa_streak', JSON.stringify(newStreak));
-          setStreakData(newStreak);
-        }
-      }
-      if (su.level) {
-        localStorage.setItem('userLevel', su.level);
-        setUserLevel(su.level);
-      }
-      if (su.avatar && !localStorage.getItem('venoxa_local_avatar')) {
-        localStorage.setItem('venoxa_local_avatar', su.avatar);
-        setLocalAvatar(su.avatar);
-      }
-
-      // Seed vocab from server if local is empty (brand new device / incognito)
-      const seedIfEmpty = (lsKey, serverArr, setter) => {
-        if (!Array.isArray(serverArr) || serverArr.length === 0) return;
-        const local = JSON.parse(localStorage.getItem(lsKey) || '[]');
-        if (local.length === 0) {
-          localStorage.setItem(lsKey, JSON.stringify(serverArr));
-          setter(serverArr);
-        }
-      };
-      seedIfEmpty('venoxa_global_vocab',          su.globalVocab,          setGlobalVocab);
-      seedIfEmpty('venoxa_phrasal_vocab',          su.phrasalVocab,         setPhrasalVocab);
-      seedIfEmpty('venoxa_idioms_vocab',           su.idiomsVocab,          setIdiomsVocab);
-      seedIfEmpty('venoxa_idioms_proper_vocab',    su.idiomsProperVocab,    setIdiomsProperVocab);
-      seedIfEmpty('venoxa_langeek_vocab',          su.langeekVocab,         setLangeekVocab);
-      seedIfEmpty('venoxa_speaking_history',       su.speakingHistory,      setSpeakingHistory);
-      seedIfEmpty('venoxa_writing_history',        su.writingHistory,       setWritingHistory);
-
-      if (su.srsData && Object.keys(su.srsData).length > 0) {
-        const localSrs = JSON.parse(localStorage.getItem('venoxa_srs_data') || '{}');
-        if (Object.keys(localSrs).length === 0) {
-          localStorage.setItem('venoxa_srs_data', JSON.stringify(su.srsData));
-        }
-      }
-      if (su.langeekSrsData && Object.keys(su.langeekSrsData).length > 0) {
-        const localLSrs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data') || '{}');
-        if (Object.keys(localLSrs).length === 0) {
-          localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(su.langeekSrsData));
-        }
-      }
-      if (su.planConfig && Object.keys(su.planConfig).length > 0) {
-        const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
-        if (Object.keys(localPlan).length === 0) {
-          localStorage.setItem('venoxa-plan-v3', JSON.stringify(su.planConfig));
-          if (su.planConfig.planMeta) setPlanMeta(su.planConfig.planMeta);
-          if (su.planConfig.currentWeek) setCurrentWeek(su.planConfig.currentWeek);
-        }
-      }
-      if (Array.isArray(su.studiedWords) && su.studiedWords.length > 0) {
-        const localStudied = JSON.parse(localStorage.getItem('studiedWords') || '[]');
-        if (localStudied.length === 0) {
-          localStorage.setItem('studiedWords', JSON.stringify(su.studiedWords));
-        }
-      }
-
-      // 3. Now run the bidirectional sync (local → DB merge) with up-to-date state
       await syncProgress(data.token, data.user);
       return { success: true };
     } catch (err) {
@@ -1596,66 +1521,44 @@ function AppInner() {
     }
   };
 
-  // ── Gather all syncable data into a single object ──
-  // IMPORTANT: Reads from React state (passed as args) for the most up-to-date
-  // in-memory values, with localStorage as a fallback for fields not in state.
-  const _gatherSyncPayload = (customCells = null, stateSnapshot = {}) => {
+  // ── Gather all syncable localStorage data into a single object ──
+  const _gatherSyncPayload = (customCells = null) => {
     const cells = customCells || JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {};
     const localStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
     const localLevel = localStorage.getItem('userLevel') || 'B2';
-
-    // Merge both usage time keys — the profile dashboard writes to venoxa_daily_usage_secs
-    // while some paths write to venoxa_usage_time. Union both so no seconds are lost.
-    let usageTime = {};
-    try { usageTime = { ...usageTime, ...(JSON.parse(localStorage.getItem('venoxa_usage_time')) || {}) }; } catch {}
-    try { usageTime = { ...usageTime, ...(JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {}) }; } catch {}
-    // Take max per day in case of divergence
-    const rawA = JSON.parse(localStorage.getItem('venoxa_usage_time') || '{}');
-    const rawB = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs') || '{}');
-    const allDays = new Set([...Object.keys(rawA), ...Object.keys(rawB)]);
-    allDays.forEach(d => { usageTime[d] = Math.max(rawA[d] || 0, rawB[d] || 0); });
-
+    const usageTime = JSON.parse(localStorage.getItem('venoxa_usage_time')) || JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
     const localAv = localStorage.getItem('venoxa_local_avatar') || '';
-
-    // Prefer React state (most current) over localStorage for vocab & history
-    const gVocab   = stateSnapshot.globalVocab      ?? JSON.parse(localStorage.getItem('venoxa_global_vocab') || '[]');
-    const pVocab   = stateSnapshot.phrasalVocab      ?? JSON.parse(localStorage.getItem('venoxa_phrasal_vocab') || '[]');
-    const iVocab   = stateSnapshot.idiomsVocab       ?? JSON.parse(localStorage.getItem('venoxa_idioms_vocab') || '[]');
-    const ipVocab  = stateSnapshot.idiomsProperVocab ?? JSON.parse(localStorage.getItem('venoxa_idioms_proper_vocab') || '[]');
-    const lVocab   = stateSnapshot.langeekVocab      ?? JSON.parse(localStorage.getItem('venoxa_langeek_vocab') || '[]');
-    const sHistory = stateSnapshot.speakingHistory   ?? JSON.parse(localStorage.getItem('venoxa_speaking_history') || '[]');
-    const wHistory = stateSnapshot.writingHistory    ?? JSON.parse(localStorage.getItem('venoxa_writing_history') || '[]');
-
-    const srs  = JSON.parse(localStorage.getItem('venoxa_srs_data') || '{}');
-    const lSrs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data') || '{}');
-
+    const gVocab = JSON.parse(localStorage.getItem('venoxa_global_vocab')) || [];
+    const pVocab = JSON.parse(localStorage.getItem('venoxa_phrasal_vocab')) || [];
+    const iVocab = JSON.parse(localStorage.getItem('venoxa_idioms_vocab')) || [];
+    const ipVocab = JSON.parse(localStorage.getItem('venoxa_idioms_proper_vocab')) || [];
+    const lVocab = JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || [];
+    const sHistory = JSON.parse(localStorage.getItem('venoxa_speaking_history')) || [];
+    const wHistory = JSON.parse(localStorage.getItem('venoxa_writing_history')) || [];
+    const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};
+    const lSrs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {};
+    // Study plan config & studied words
     let planCfg = {};
     try { planCfg = JSON.parse(localStorage.getItem('venoxa-plan-v3')) || {}; } catch {}
     let studied = [];
     try { studied = JSON.parse(localStorage.getItem('studiedWords')) || []; } catch {}
 
-    // xp = server-held value OR derived from completedCells (server merge takes the max anyway)
-    const derivedXp = Object.values(cells).filter(v => v === 'done').length * 15;
-
-    // calendarDays = actual date strings (YYYY-MM-DD format), NOT cell keys
-    const calendarDays = Object.keys(usageTime).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
-
     return {
-      xp: derivedXp,
+      xp: Object.values(cells).filter(v => v === 'done').length * 15,
       streak: localStreak.current,
       level: localLevel,
       completedCells: cells,
       usageTime,
-      calendarDays,
+      calendarDays: Object.keys(cells).filter(k => k.length >= 10),
       avatar: localAv || undefined,
       achievements: [],
-      globalVocab: Array.isArray(gVocab) ? gVocab : [],
-      phrasalVocab: Array.isArray(pVocab) ? pVocab : [],
-      idiomsVocab: Array.isArray(iVocab) ? iVocab : [],
-      idiomsProperVocab: Array.isArray(ipVocab) ? ipVocab : [],
-      langeekVocab: Array.isArray(lVocab) ? lVocab : [],
-      speakingHistory: Array.isArray(sHistory) ? sHistory : [],
-      writingHistory: Array.isArray(wHistory) ? wHistory : [],
+      globalVocab: gVocab,
+      phrasalVocab: pVocab,
+      idiomsVocab: iVocab,
+      idiomsProperVocab: ipVocab,
+      langeekVocab: lVocab,
+      speakingHistory: sHistory,
+      writingHistory: wHistory,
       srsData: srs,
       langeekSrsData: lSrs,
       planConfig: planCfg,
@@ -1665,21 +1568,11 @@ function AppInner() {
     };
   };
 
-  useEffect(() => {
-    const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
-    return () => clearInterval(int);
-  }, []);
-
   const syncProgress = async (currentToken = token, currentUser = user, customCells = null) => {
     if (!currentToken) return;
     setSyncStatus('syncing');
     try {
-      // Pass current React state so vocab/history reflect in-memory values, not stale localStorage
-      const stateSnapshot = {
-        globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab,
-        langeekVocab, speakingHistory, writingHistory,
-      };
-      const payload = _gatherSyncPayload(customCells, stateSnapshot);
+      const payload = _gatherSyncPayload(customCells);
       const { _local, ...syncBody } = payload;
 
       const res = await fetch('/api/user/sync', {
@@ -1732,19 +1625,13 @@ function AppInner() {
           }
         }
 
-        // ── Restore usage time from server (merge both local keys) ──
+        // ── Restore usage time from server ──
         if (mergedUser.usageTime && Object.keys(mergedUser.usageTime).length > 0) {
-          const localUsageA = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs') || '{}');
-          const localUsageB = JSON.parse(localStorage.getItem('venoxa_usage_time') || '{}');
-          const merged = {};
-          const allKeys = new Set([
-            ...Object.keys(localUsageA),
-            ...Object.keys(localUsageB),
-            ...Object.keys(mergedUser.usageTime),
-          ]);
-          allKeys.forEach(d => {
-            merged[d] = Math.max(localUsageA[d] || 0, localUsageB[d] || 0, mergedUser.usageTime[d] || 0);
-          });
+          const localUsage = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
+          const merged = { ...localUsage };
+          for (const [day, secs] of Object.entries(mergedUser.usageTime)) {
+            merged[day] = Math.max(merged[day] || 0, secs);
+          }
           localStorage.setItem('venoxa_daily_usage_secs', JSON.stringify(merged));
           localStorage.setItem('venoxa_usage_time', JSON.stringify(merged));
         }
@@ -1778,14 +1665,11 @@ function AppInner() {
           localStorage.setItem('venoxa_writing_history', JSON.stringify(mergedUser.writingHistory));
           setWritingHistory(mergedUser.writingHistory);
         }
-        // ── srsData: apply to localStorage AND trigger SRS state refresh ──
         if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(_local.srs)) {
           localStorage.setItem('venoxa_srs_data', JSON.stringify(mergedUser.srsData));
-          setSrsRefreshTick(t => t + 1); // force re-render of due counts
         }
         if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(_local.lSrs)) {
           localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(mergedUser.langeekSrsData));
-          setSrsRefreshTick(t => t + 1);
         }
 
         // ── Restore study plan config from server ──
@@ -1848,11 +1732,7 @@ function AppInner() {
     if (!token) return;
     const handleUnload = () => {
       try {
-        const stateSnapshot = {
-          globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab,
-          langeekVocab, speakingHistory, writingHistory,
-        };
-        const payload = _gatherSyncPayload(null, stateSnapshot);
+        const payload = _gatherSyncPayload();
         const { _local, ...syncBody } = payload;
         const beacon = JSON.stringify({ token, ...syncBody });
         navigator.sendBeacon('/api/user/sync-beacon', new Blob([beacon], { type: 'application/json' }));
@@ -1860,7 +1740,7 @@ function AppInner() {
     };
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
-  }, [token, globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory, completedCells, streakData]);
+  }, [token]);
 
   const [planMeta, setPlanMeta] = useState(() => {
     try {
@@ -1934,12 +1814,16 @@ function AppInner() {
   useEffect(() => {
     if (token) {
       const timer = setTimeout(() => {
-        // Pass state snapshot inline so syncProgress uses current React state
-        syncProgress(token, user, null);
+        syncProgress(token, user);
       }, 2500);
       return () => clearTimeout(timer);
     }
   }, [globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory, completedCells, streakData]);
+  const [srsRefreshTick, setSrsRefreshTick] = useState(0);
+  useEffect(() => {
+    const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
+    return () => clearInterval(int);
+  }, []);
   const vocabDueCount = useMemo(() => {
     try {
       const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};

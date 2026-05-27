@@ -632,14 +632,9 @@ app.post("/api/auth/login", async (req, res) => {
     const isPasswordValid = verifyPassword(password, user.passwordHash, user.salt);
     if (!isPasswordValid) { res.status(401).json({ error: "Invalid email or password." }); return; }
 
-    // Update lastActive and return the freshly-fetched row so all saved data is included
-    const [updatedUser] = await db.update(usersTable)
-      .set({ lastActive: new Date() })
-      .where(eq(usersTable.id, user.id))
-      .returning();
-
+    await db.update(usersTable).set({ lastActive: new Date() }).where(eq(usersTable.id, user.id));
     const token = signToken({ userId: user.id });
-    const { passwordHash: _h, salt: _s, ...userProfile } = updatedUser;
+    const { passwordHash: _h, salt: _s, ...userProfile } = user;
     res.json({ token, user: userProfile });
   } catch (err) {
     console.error("Login failed:", err);
