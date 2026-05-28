@@ -234,14 +234,37 @@ export async function syncProgress(uid, localPayload) {
 
   mergedProfile.updatedAt = serverTimestamp();
 
-  // 4. Write all in parallel
-  await Promise.all([
+  // 4. Write all in parallel with detailed error logging
+  console.log('[Firebase] Starting sync for uid:', uid);
+  console.log('[Firebase] Payload sizes:', {
+    profile:  JSON.stringify(mergedProfile).length,
+    vocab:    JSON.stringify(mergedVocab).length,
+    progress: JSON.stringify(mergedProgress).length,
+    history:  JSON.stringify(mergedHistory).length,
+    srs:      JSON.stringify(mergedSrs).length,
+  });
+
+  const writes = await Promise.allSettled([
     setDoc(userRef(uid),            mergedProfile,  { merge: true }),
     setDoc(dataRef(uid, 'vocab'),    mergedVocab,    { merge: true }),
     setDoc(dataRef(uid, 'progress'), mergedProgress, { merge: true }),
     setDoc(dataRef(uid, 'history'),  mergedHistory,  { merge: true }),
     setDoc(dataRef(uid, 'srs'),      mergedSrs,      { merge: true }),
   ]);
+
+  writes.forEach((r, i) => {
+    const names = ['profile', 'vocab', 'progress', 'history', 'srs'];
+    if (r.status === 'rejected') {
+      console.error(`[Firebase] WRITE FAILED for ${names[i]}:`, r.reason);
+    } else {
+      console.log(`[Firebase] Write OK: ${names[i]}`);
+    }
+  });
+
+  const failed = writes.filter(r => r.status === 'rejected');
+  if (failed.length > 0) throw failed[0].reason;
+
+  console.log('[Firebase] Sync complete ✓');
 
   // 5. Return flat merged object (same shape App.jsx expects)
   return {
