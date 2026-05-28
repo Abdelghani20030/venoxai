@@ -3,6 +3,16 @@ import ReactDOM from 'react-dom';
 import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, User, Lock, Mail } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import ProfileDashboard from './ProfileDashboard';
+import {
+  login        as fbLogin,
+  register     as fbRegister,
+  logout       as fbLogout,
+  updateProfile as fbUpdateProfile,
+  deleteAccount as fbDeleteAccount,
+  syncProgress  as fbSyncProgress,
+  onAuthChange,
+  auth,
+} from './firebase.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SECRET KEY GATE — change this to whatever key you want
@@ -1449,20 +1459,34 @@ function AppInner() {
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
   const syncStatusTimerRef = useRef(null);
 
+  // ── Firebase auth state listener ──
+  useEffect(() => {
+    const unsubscribe = onAuthChange((firebaseUser) => {
+      if (firebaseUser) {
+        const uid = firebaseUser.uid;
+        setToken(uid);
+        localStorage.setItem('venoxa_token', uid);
+      } else {
+        setToken(null);
+        setUser(null);
+        localStorage.removeItem('venoxa_token');
+        localStorage.removeItem('venoxa_user');
+      }
+    });
+    return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const login = async (email, password) => {
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
-      setToken(data.token);
-      setUser(data.user);
-      localStorage.setItem('venoxa_token', data.token);
-      localStorage.setItem('venoxa_user', JSON.stringify(data.user));
-      await syncProgress(data.token, data.user);
+      const result = await fbLogin(email, password);
+      if (!result.success) return result;
+      const { token: uid, user: userData } = result;
+      setToken(uid);
+      setUser(userData);
+      localStorage.setItem('venoxa_token', uid);
+      localStorage.setItem('venoxa_user', JSON.stringify(userData));
+      await syncProgress(uid, userData);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -1471,25 +1495,22 @@ function AppInner() {
 
   const register = async (fields) => {
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fields)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Registration failed');
-      setToken(data.token);
-      setUser(data.user);
-      localStorage.setItem('venoxa_token', data.token);
-      localStorage.setItem('venoxa_user', JSON.stringify(data.user));
-      await syncProgress(data.token, data.user);
+      const result = await fbRegister(fields);
+      if (!result.success) return result;
+      const { token: uid, user: userData } = result;
+      setToken(uid);
+      setUser(userData);
+      localStorage.setItem('venoxa_token', uid);
+      localStorage.setItem('venoxa_user', JSON.stringify(userData));
+      await syncProgress(uid, userData);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await fbLogout();
     setToken(null);
     setUser(null);
     localStorage.removeItem('venoxa_token');
@@ -1499,18 +1520,9 @@ function AppInner() {
   const updateProfile = async (updates) => {
     if (!token) return;
     try {
-      const res = await fetch('/api/user/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(updates)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Update failed');
-      setUser(data);
-      localStorage.setItem('venoxa_user', JSON.stringify(data));
+      const updated = await fbUpdateProfile(token, updates);
+      setUser(updated);
+      localStorage.setItem('venoxa_user', JSON.stringify(updated));
       if (updates.level) {
         setUserLevel(updates.level);
         localStorage.setItem('userLevel', updates.level);
@@ -1575,126 +1587,104 @@ function AppInner() {
       const payload = _gatherSyncPayload(customCells);
       const { _local, ...syncBody } = payload;
 
-      const res = await fetch('/api/user/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentToken}`
-        },
-        body: JSON.stringify(syncBody)
-      });
+      const merged = await fbSyncProgress(currentToken, syncBody);
+      if (!merged) throw new Error('No data returned from Firebase');
 
-      // ── Handle token expiry — auto-logout ──
-      if (res.status === 401) {
-        console.warn('Token expired — logging out');
-        setToken(null);
-        setUser(null);
-        localStorage.removeItem('venoxa_token');
-        localStorage.removeItem('venoxa_user');
-        setSyncStatus('error');
-        return;
+      const mergedUser = {
+        uid:      currentToken,
+        email:    auth.currentUser?.email || currentUser?.email || '',
+        username: merged.username  || currentUser?.username || '',
+        avatar:   merged.avatar    || '',
+        level:    merged.level     || 'B2',
+        streak:   merged.streak    || 0,
+        xp:       merged.xp        || 0,
+        ...merged,
+      };
+
+      setUser(mergedUser);
+      localStorage.setItem('venoxa_user', JSON.stringify(mergedUser));
+
+      if (mergedUser.completedCells) {
+        localStorage.setItem('venoxa_completed_cells', JSON.stringify(mergedUser.completedCells));
+        setCompletedCells(mergedUser.completedCells);
+      }
+      if (mergedUser.level) {
+        localStorage.setItem('userLevel', mergedUser.level);
+        setUserLevel(mergedUser.level);
+      }
+      if (mergedUser.avatar && !_local.localAv) {
+        localStorage.setItem('venoxa_local_avatar', mergedUser.avatar);
+        setLocalAvatar(mergedUser.avatar);
+      }
+      if (mergedUser.streak !== undefined) {
+        const currentStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
+        if (mergedUser.streak > currentStreak.current) {
+          const newStreakData = { current: mergedUser.streak, lastDate: currentStreak.lastDate || new Date().toISOString().slice(0, 10) };
+          localStorage.setItem('venoxa_streak', JSON.stringify(newStreakData));
+          setStreakData(newStreakData);
+        }
+      }
+      if (mergedUser.usageTime && Object.keys(mergedUser.usageTime).length > 0) {
+        const localUsage = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
+        const mergedUsage = { ...localUsage };
+        for (const [day, secs] of Object.entries(mergedUser.usageTime)) {
+          mergedUsage[day] = Math.max(mergedUsage[day] || 0, secs);
+        }
+        localStorage.setItem('venoxa_daily_usage_secs', JSON.stringify(mergedUsage));
+        localStorage.setItem('venoxa_usage_time', JSON.stringify(mergedUsage));
+      }
+      if (mergedUser.globalVocab && JSON.stringify(mergedUser.globalVocab) !== JSON.stringify(_local.gVocab)) {
+        localStorage.setItem('venoxa_global_vocab', JSON.stringify(mergedUser.globalVocab));
+        setGlobalVocab(mergedUser.globalVocab);
+      }
+      if (mergedUser.phrasalVocab && JSON.stringify(mergedUser.phrasalVocab) !== JSON.stringify(_local.pVocab)) {
+        localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(mergedUser.phrasalVocab));
+        setPhrasalVocab(mergedUser.phrasalVocab);
+      }
+      if (mergedUser.idiomsVocab && JSON.stringify(mergedUser.idiomsVocab) !== JSON.stringify(_local.iVocab)) {
+        localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(mergedUser.idiomsVocab));
+        setIdiomsVocab(mergedUser.idiomsVocab);
+      }
+      if (mergedUser.idiomsProperVocab && JSON.stringify(mergedUser.idiomsProperVocab) !== JSON.stringify(_local.ipVocab)) {
+        localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(mergedUser.idiomsProperVocab));
+        setIdiomsProperVocab(mergedUser.idiomsProperVocab);
+      }
+      if (mergedUser.langeekVocab && JSON.stringify(mergedUser.langeekVocab) !== JSON.stringify(_local.lVocab)) {
+        localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(mergedUser.langeekVocab));
+        setLangeekVocab(mergedUser.langeekVocab);
+      }
+      if (mergedUser.speakingHistory && JSON.stringify(mergedUser.speakingHistory) !== JSON.stringify(_local.sHistory)) {
+        localStorage.setItem('venoxa_speaking_history', JSON.stringify(mergedUser.speakingHistory));
+        setSpeakingHistory(mergedUser.speakingHistory);
+      }
+      if (mergedUser.writingHistory && JSON.stringify(mergedUser.writingHistory) !== JSON.stringify(_local.wHistory)) {
+        localStorage.setItem('venoxa_writing_history', JSON.stringify(mergedUser.writingHistory));
+        setWritingHistory(mergedUser.writingHistory);
+      }
+      if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(_local.srs)) {
+        localStorage.setItem('venoxa_srs_data', JSON.stringify(mergedUser.srsData));
+      }
+      if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(_local.lSrs)) {
+        localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(mergedUser.langeekSrsData));
+      }
+      if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
+        const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
+        if (JSON.stringify(mergedUser.planConfig) !== JSON.stringify(localPlan)) {
+          localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
+          if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
+          if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
+        }
+      }
+      if (Array.isArray(mergedUser.studiedWords) && mergedUser.studiedWords.length > 0) {
+        localStorage.setItem('studiedWords', JSON.stringify(mergedUser.studiedWords));
       }
 
-      if (res.ok) {
-        const mergedUser = await res.json();
-        setUser(mergedUser);
-        localStorage.setItem('venoxa_user', JSON.stringify(mergedUser));
-        
-        if (mergedUser.completedCells) {
-          localStorage.setItem('venoxa_completed_cells', JSON.stringify(mergedUser.completedCells));
-          setCompletedCells(mergedUser.completedCells);
-        }
-        if (mergedUser.level) {
-          localStorage.setItem('userLevel', mergedUser.level);
-          setUserLevel(mergedUser.level);
-        }
+      setSyncStatus('synced');
+      if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
+      syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 3000);
 
-        // ── Restore avatar from server (critical for cross-device sync) ──
-        if (mergedUser.avatar && !_local.localAv) {
-          localStorage.setItem('venoxa_local_avatar', mergedUser.avatar);
-          setLocalAvatar(mergedUser.avatar);
-        }
-
-        // ── Restore streak data from server ──
-        if (mergedUser.streak !== undefined) {
-          const currentStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
-          if (mergedUser.streak > currentStreak.current) {
-            const newStreakData = { current: mergedUser.streak, lastDate: currentStreak.lastDate || new Date().toISOString().slice(0, 10) };
-            localStorage.setItem('venoxa_streak', JSON.stringify(newStreakData));
-            setStreakData(newStreakData);
-          }
-        }
-
-        // ── Restore usage time from server ──
-        if (mergedUser.usageTime && Object.keys(mergedUser.usageTime).length > 0) {
-          const localUsage = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
-          const merged = { ...localUsage };
-          for (const [day, secs] of Object.entries(mergedUser.usageTime)) {
-            merged[day] = Math.max(merged[day] || 0, secs);
-          }
-          localStorage.setItem('venoxa_daily_usage_secs', JSON.stringify(merged));
-          localStorage.setItem('venoxa_usage_time', JSON.stringify(merged));
-        }
-        
-        // Prevent infinite loops by only updating if merged server data actually differs
-        if (mergedUser.globalVocab && JSON.stringify(mergedUser.globalVocab) !== JSON.stringify(_local.gVocab)) {
-          localStorage.setItem('venoxa_global_vocab', JSON.stringify(mergedUser.globalVocab));
-          setGlobalVocab(mergedUser.globalVocab);
-        }
-        if (mergedUser.phrasalVocab && JSON.stringify(mergedUser.phrasalVocab) !== JSON.stringify(_local.pVocab)) {
-          localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(mergedUser.phrasalVocab));
-          setPhrasalVocab(mergedUser.phrasalVocab);
-        }
-        if (mergedUser.idiomsVocab && JSON.stringify(mergedUser.idiomsVocab) !== JSON.stringify(_local.iVocab)) {
-          localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(mergedUser.idiomsVocab));
-          setIdiomsVocab(mergedUser.idiomsVocab);
-        }
-        if (mergedUser.idiomsProperVocab && JSON.stringify(mergedUser.idiomsProperVocab) !== JSON.stringify(_local.ipVocab)) {
-          localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(mergedUser.idiomsProperVocab));
-          setIdiomsProperVocab(mergedUser.idiomsProperVocab);
-        }
-        if (mergedUser.langeekVocab && JSON.stringify(mergedUser.langeekVocab) !== JSON.stringify(_local.lVocab)) {
-          localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(mergedUser.langeekVocab));
-          setLangeekVocab(mergedUser.langeekVocab);
-        }
-        if (mergedUser.speakingHistory && JSON.stringify(mergedUser.speakingHistory) !== JSON.stringify(_local.sHistory)) {
-          localStorage.setItem('venoxa_speaking_history', JSON.stringify(mergedUser.speakingHistory));
-          setSpeakingHistory(mergedUser.speakingHistory);
-        }
-        if (mergedUser.writingHistory && JSON.stringify(mergedUser.writingHistory) !== JSON.stringify(_local.wHistory)) {
-          localStorage.setItem('venoxa_writing_history', JSON.stringify(mergedUser.writingHistory));
-          setWritingHistory(mergedUser.writingHistory);
-        }
-        if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(_local.srs)) {
-          localStorage.setItem('venoxa_srs_data', JSON.stringify(mergedUser.srsData));
-        }
-        if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(_local.lSrs)) {
-          localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(mergedUser.langeekSrsData));
-        }
-
-        // ── Restore study plan config from server ──
-        if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
-          const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
-          if (JSON.stringify(mergedUser.planConfig) !== JSON.stringify(localPlan)) {
-            localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
-            // Update plan-related state if available
-            if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
-            if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
-          }
-        }
-
-        // ── Restore studied words from server ──
-        if (Array.isArray(mergedUser.studiedWords) && mergedUser.studiedWords.length > 0) {
-          localStorage.setItem('studiedWords', JSON.stringify(mergedUser.studiedWords));
-        }
-
-        // Show synced status briefly
-        setSyncStatus('synced');
-        if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
-        syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 3000);
-      }
     } catch (err) {
-      console.error("Sync failed:", err);
+      console.error('Firebase sync failed:', err);
       setSyncStatus('error');
       if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 5000);
@@ -1727,15 +1717,16 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [token]);
 
-  // ── Flush data to server on tab close via sendBeacon ──
+  // ── Firebase handles pending writes automatically on tab close ──
+  // (sendBeacon to custom API replaced — Firestore SDK queues writes internally)
   useEffect(() => {
     if (!token) return;
     const handleUnload = () => {
+      // Trigger a best-effort sync; Firebase SDK will flush before page unloads
       try {
         const payload = _gatherSyncPayload();
         const { _local, ...syncBody } = payload;
-        const beacon = JSON.stringify({ token, ...syncBody });
-        navigator.sendBeacon('/api/user/sync-beacon', new Blob([beacon], { type: 'application/json' }));
+        fbSyncProgress(token, syncBody).catch(() => {});
       } catch {}
     };
     window.addEventListener('beforeunload', handleUnload);

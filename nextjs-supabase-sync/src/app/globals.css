@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #F7F9FC;
+  --foreground: #0A0A0A;
+  --card: #FFFFFF;
+  --card-foreground: #0A0A0A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0A0A0A;
+  --primary: #0E4AA4;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EBF0F7;
+  --secondary-foreground: #0E4AA4;
+  --muted: #64748B;
+  --muted-foreground: #94A3B8;
+  --accent: #78E3D9;
+  --accent-foreground: #48725E;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E6E6E6;
+  --input: #E6E6E6;
+  --ring: #0E4AA4;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #0B1020;
+  --foreground: #F8FAFC;
+  --card: #121A2F;
+  --card-foreground: #F8FAFC;
+  --popover: #121A2F;
+  --popover-foreground: #F8FAFC;
+  --primary: #4F7CFF;
+  --primary-foreground: #0B1020;
+  --secondary: #17223B;
+  --secondary-foreground: #8B5CF6;
+  --muted: #7A8BA8;
+  --muted-foreground: #B6C2D9;
+  --accent: #8B5CF6;
+  --accent-foreground: #F8FAFC;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #263452;
+  --input: #263452;
+  --ring: #4F7CFF;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Animations for sync interactions */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(79, 124, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(79, 124, 255, 0.6);
+  }
+}
+
+.sync-active {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
