@@ -4,6 +4,7 @@ import {
   ChevronLeft, ChevronRight, Zap, Globe, Upload, Camera, X
 } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
+import { deleteAccount as fbDeleteAccount } from './firebase.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  localStorage helpers
@@ -329,11 +330,11 @@ export default function ProfileDashboard({
 
   const startEdit = () => {
     if (!user) return;
-    setEditName(user.username || '');
-    setEditEmail(user.email || '');
-    setEditDob(user.dob || '');
-    setEditGender(user.gender || 'Male');
-    setEditLangs(user.languages ? user.languages.join(', ') : '');
+    setEditName(user?.username || '');
+    setEditEmail(user?.email || '');
+    setEditDob(user?.dob || '');
+    setEditGender(user?.gender || 'Male');
+    setEditLangs(user?.languages ? user.languages.join(', ') : '');
     setAvatarDraft(localAvatar || user?.avatar || '');
     setIsEditing(true);
   };
@@ -372,13 +373,13 @@ export default function ProfileDashboard({
   const handleDeleteAccount = async () => {
     if (!confirm(t.deleteConfirm)) return;
     try {
-      const res = await fetch('/api/user/profile', {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) { localStorage.removeItem(AVATAR_KEY); logout(); }
-      else alert('Failed to delete account.');
-    } catch { alert('An error occurred.'); }
+      await fbDeleteAccount(user?.uid);
+      localStorage.removeItem(AVATAR_KEY);
+      logout();
+    } catch (err) {
+      console.error('Delete account error:', err);
+      alert('An error occurred while deleting your account.');
+    }
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -438,30 +439,30 @@ export default function ProfileDashboard({
             <span className="px-3 py-0.5 text-[10px] font-black uppercase tracking-wider bg-white/10 text-gray-300 rounded-md border border-white/15 mb-3">
               {t.basicPlan}
             </span>
-            <h3 className="text-xl font-extrabold text-black dark:text-white mb-0.5">{user.username}</h3>
+            <h3 className="text-xl font-extrabold text-black dark:text-white mb-0.5">{user?.username || ''}</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-6 flex items-center gap-1.5 font-medium">
-              <Mail size={12} /> {user.email}
+              <Mail size={12} /> {user?.email || ''}
             </p>
 
             <div className="w-full space-y-3.5 border-t border-black/5 dark:border-white/8 pt-5 text-sm font-semibold text-gray-600 dark:text-[#B0B0C5]">
-              {user.dob && (
+              {user?.dob && (
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-2"><CalendarIcon size={14} className="opacity-60" />{t.dobLabel}</span>
                   <span className="text-black dark:text-white font-bold">{user.dob}</span>
                 </div>
               )}
-              {user.gender && (
+              {user?.gender && (
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-2"><User size={14} className="opacity-60" />{t.genderLabel}</span>
                   <span className="text-black dark:text-white font-bold">
-                    {user.gender === 'Male' ? t.male : user.gender === 'Female' ? t.female : t.other}
+                    {user?.gender === 'Male' ? t.male : user?.gender === 'Female' ? t.female : t.other}
                   </span>
                 </div>
               )}
               <div className="flex justify-between items-center gap-2 flex-wrap">
                 <span className="flex items-center gap-2 shrink-0"><Globe size={14} className="opacity-60" />{t.languagesLabel}</span>
                 <div className="flex gap-1 flex-wrap justify-end">
-                  {(user.languages || []).map(l => (
+                  {(user?.languages || []).map(l => (
                     <span key={l} className="px-2 py-0.5 text-[11px] rounded bg-purple-500/15 text-purple-400 font-bold">{l}</span>
                   ))}
                 </div>
