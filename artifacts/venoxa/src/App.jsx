@@ -4,15 +4,17 @@ import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardLis
 import { _resolveTranslation } from './translations.js';
 import ProfileDashboard from './ProfileDashboard';
 import {
-  login        as fbLogin,
-  register     as fbRegister,
-  logout       as fbLogout,
+  login         as fbLogin,
+  register      as fbRegister,
+  logout        as fbLogout,
   updateProfile as fbUpdateProfile,
   deleteAccount as fbDeleteAccount,
   syncProgress  as fbSyncProgress,
   onAuthChange,
   auth,
   insforge,
+  verifyEmail   as fbVerifyEmail,
+  resendVerification as fbResendVerification,
 } from './insforge.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1510,6 +1512,31 @@ function AppInner() {
     }
   };
 
+  const verifyEmailCode = async (email, code) => {
+    try {
+      const result = await fbVerifyEmail(email, code);
+      if (!result.success) return result;
+      const { token: uid, user: userData } = result;
+      setToken(uid);
+      setUser(userData);
+      localStorage.setItem('venoxa_token', uid);
+      localStorage.setItem('venoxa_user', JSON.stringify(userData));
+      await syncProgress(uid, userData);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const resendEmailVerification = async (email) => {
+    try {
+      const result = await fbResendVerification(email);
+      return result;
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
   const logout = async () => {
     await fbLogout();
     setToken(null);
@@ -2637,6 +2664,8 @@ function AppInner() {
         setMode={setAuthModalMode}
         onLogin={login}
         onRegister={register}
+        onVerify={verifyEmailCode}
+        onResend={resendEmailVerification}
         lang={lang}
         theme={theme}
       />
@@ -2644,12 +2673,13 @@ function AppInner() {
   );
 }
 
-function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, lang, theme }) {
+function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVerify, onResend, lang, theme }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [dob, setDob] = useState('');
   const [gender, setGender] = useState('Male');
+  const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -2662,8 +2692,10 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, lang, 
     let res;
     if (mode === 'login') {
       res = await onLogin(email, password);
-    } else {
+    } else if (mode === 'register') {
       res = await onRegister({ email, password, username, dob, gender });
+    } else if (mode === 'verify') {
+      res = await onVerify(email, otp);
     }
     setLoading(false);
     if (res.success) {
@@ -2672,6 +2704,22 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, lang, 
       setPassword('');
       setUsername('');
       setDob('');
+      setOtp('');
+    } else {
+      setError(res.error);
+      if (res.error && res.error.toLowerCase().includes('verification required')) {
+        setMode('verify');
+      }
+    }
+  };
+
+  const handleResend = async () => {
+    setError('');
+    setLoading(true);
+    const res = await onResend(email);
+    setLoading(false);
+    if (res.success) {
+      setError(_resolveTranslation(lang, 'تم إرسال كود التحقق الجديد!', 'New verification code sent!'));
     } else {
       setError(res.error);
     }
@@ -2680,18 +2728,26 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, lang, 
   const t = {
     title: mode === 'login' 
       ? _resolveTranslation(lang, 'تسجيل الدخول', 'Sign In')
-      : _resolveTranslation(lang, 'إنشاء حساب جديد', 'Create Account'),
+      : mode === 'register'
+        ? _resolveTranslation(lang, 'إنشاء حساب جديد', 'Create Account')
+        : _resolveTranslation(lang, 'تأكيد الحساب', 'Verify Account'),
     email: _resolveTranslation(lang, 'البريد الإلكتروني', 'Email Address'),
     password: _resolveTranslation(lang, 'كلمة المرور', 'Password'),
     username: _resolveTranslation(lang, 'اسم المستخدم', 'Username'),
     dob: _resolveTranslation(lang, 'تاريخ الميلاد (اختياري)', 'Birth Date (Optional)'),
     gender: _resolveTranslation(lang, 'الجنس (اختياري)', 'Gender (Optional)'),
+    otp: _resolveTranslation(lang, 'رمز التحقق (OTP)', 'Verification Code (OTP)'),
     submit: mode === 'login'
       ? _resolveTranslation(lang, 'دخول', 'Sign In')
-      : _resolveTranslation(lang, 'تسجيل', 'Sign Up'),
+      : mode === 'register'
+        ? _resolveTranslation(lang, 'تسجيل', 'Sign Up')
+        : _resolveTranslation(lang, 'تأكيد', 'Verify'),
     switchText: mode === 'login'
       ? _resolveTranslation(lang, 'ليس لديك حساب؟ سجل هنا', "Don't have an account? Sign up")
-      : _resolveTranslation(lang, 'لديك حساب بالفعل؟ سجل دخولك', 'Already have an account? Sign in'),
+      : mode === 'register'
+        ? _resolveTranslation(lang, 'لديك حساب بالفعل؟ سجل دخولك', 'Already have an account? Sign in')
+        : _resolveTranslation(lang, 'العودة لتسجيل الدخول', 'Back to Sign In'),
+    resendText: _resolveTranslation(lang, 'إعادة إرسال الرمز', 'Resend Code'),
     male: _resolveTranslation(lang, 'ذكر', 'Male'),
     female: _resolveTranslation(lang, 'أنثى', 'Female'),
   };
@@ -2722,22 +2778,50 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, lang, 
             <input 
               type="email" 
               required
+              disabled={mode === 'verify'}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold"
+              className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold disabled:opacity-60"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.password}</label>
-            <input 
-              type="password" 
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold"
-            />
-          </div>
+          {mode !== 'verify' && (
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.password}</label>
+              <input 
+                type="password" 
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold"
+              />
+            </div>
+          )}
+
+          {mode === 'verify' && (
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.otp}</label>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={loading}
+                  className="text-[10px] font-bold text-purple-400 hover:text-purple-300 transition-all focus:outline-none"
+                >
+                  {t.resendText}
+                </button>
+              </div>
+              <input 
+                type="text" 
+                required
+                maxLength={6}
+                placeholder="123456"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold text-center tracking-widest"
+              />
+            </div>
+          )}
 
           {mode === 'register' && (
             <>
@@ -2790,7 +2874,13 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, lang, 
         </form>
 
         <button
-          onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+          onClick={() => {
+            if (mode === 'verify') {
+              setMode('login');
+            } else {
+              setMode(mode === 'login' ? 'register' : 'login');
+            }
+          }}
           className="text-xs font-bold text-gray-400 hover:text-white mt-2 transition-all self-center"
         >
           {t.switchText}

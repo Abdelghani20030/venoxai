@@ -259,6 +259,38 @@ export async function logout() {
   }
 }
 
+export async function verifyEmail(email, otp) {
+  try {
+    const { data, error } = await insforge.auth.verifyEmail({
+      email,
+      otp,
+    });
+
+    if (error) return { success: false, error: _friendlyError(error.message) };
+
+    const uid = data.user.id;
+    _cachedUser = { uid, email: data.user.email };
+
+    const docs = await _readAllDocs(uid);
+    const user = _buildUserObj(uid, data.user.email, docs);
+    return { success: true, token: uid, user };
+  } catch (err) {
+    return { success: false, error: _friendlyError(err.message) };
+  }
+}
+
+export async function resendVerification(email) {
+  try {
+    const { error } = await insforge.auth.resendVerificationEmail({
+      email,
+    });
+    if (error) return { success: false, error: _friendlyError(error.message) };
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: _friendlyError(err.message) };
+  }
+}
+
 export function onAuthChange(callback) {
   authListeners.add(callback);
 
