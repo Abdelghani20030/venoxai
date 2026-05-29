@@ -19,7 +19,7 @@
     "cors": "^2",
     "drizzle-orm": "^0.45.2",
     "express": "^5",
-    "firebase": "^12.13.0",
+    "@insforge/sdk": "^1.0.0",
     "msedge-tts": "^2.0.5",
     "openai": "^6.35.0",
     "pg": "^8.20.0",

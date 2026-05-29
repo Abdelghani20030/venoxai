@@ -83,7 +83,6 @@ overrides:
   esbuild: "0.27.3"
 
 allowBuilds:
-  '@firebase/util': true
   '@google/genai': true
   esbuild: true
   msedge-tts: true

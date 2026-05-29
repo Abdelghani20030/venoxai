@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, Zap, Globe, Upload, Camera, X
 } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
-import { deleteAccount as fbDeleteAccount } from './firebase.js';
+import { deleteAccount as fbDeleteAccount } from './insforge.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  localStorage helpers

@@ -12,7 +12,8 @@ import {
   syncProgress  as fbSyncProgress,
   onAuthChange,
   auth,
-} from './firebase.js';
+  insforge,
+} from './insforge.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SECRET KEY GATE — change this to whatever key you want
@@ -1459,11 +1460,11 @@ function AppInner() {
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
   const syncStatusTimerRef = useRef(null);
 
-  // ── Firebase auth state listener ──
+  // ── InsForge auth state listener ──
   useEffect(() => {
-    const unsubscribe = onAuthChange((firebaseUser) => {
-      if (firebaseUser) {
-        const uid = firebaseUser.uid;
+    const unsubscribe = onAuthChange((insforgeUser) => {
+      if (insforgeUser) {
+        const uid = insforgeUser.uid;
         setToken(uid);
         localStorage.setItem('venoxa_token', uid);
       } else {
@@ -1549,6 +1550,10 @@ function AppInner() {
     const wHistory = JSON.parse(localStorage.getItem('venoxa_writing_history')) || [];
     const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};
     const lSrs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {};
+    // Additional SRS stores (previously local-only, now synced via InsForge)
+    const pSrs = JSON.parse(localStorage.getItem('venoxa_phrasal_srs')) || {};
+    const iSrs = JSON.parse(localStorage.getItem('venoxa_idioms_srs')) || {};
+    const ipSrs = JSON.parse(localStorage.getItem('venoxa_idioms_proper_srs')) || {};
     // Study plan config & studied words
     let planCfg = {};
     try { planCfg = JSON.parse(localStorage.getItem('venoxa-plan-v3')) || {}; } catch {}
@@ -1573,10 +1578,13 @@ function AppInner() {
       writingHistory: wHistory,
       srsData: srs,
       langeekSrsData: lSrs,
+      phrasalSrs: pSrs,
+      idiomsSrs: iSrs,
+      idiomsProperSrs: ipSrs,
       planConfig: planCfg,
       studiedWords: studied,
       // keep references for diff-checking later
-      _local: { gVocab, pVocab, iVocab, ipVocab, lVocab, sHistory, wHistory, srs, lSrs, localAv }
+      _local: { gVocab, pVocab, iVocab, ipVocab, lVocab, sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv }
     };
   };
 
@@ -1588,11 +1596,11 @@ function AppInner() {
       const { _local, ...syncBody } = payload;
 
       const merged = await fbSyncProgress(currentToken, syncBody);
-      if (!merged) throw new Error('No data returned from Firebase');
+      if (!merged) throw new Error('No data returned from InsForge');
 
       const mergedUser = {
         uid:      currentToken,
-        email:    auth.currentUser?.email || currentUser?.email || '',
+        email:    auth.currentUser?.email || insforge.auth.getCurrentUser?.()?.email || currentUser?.email || '',
         username: merged.username  || currentUser?.username || '',
         avatar:   merged.avatar    || '',
         level:    merged.level     || 'B2',
@@ -1667,6 +1675,16 @@ function AppInner() {
       if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(_local.lSrs)) {
         localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(mergedUser.langeekSrsData));
       }
+      // Sync the 3 additional SRS stores (new — previously local-only)
+      if (mergedUser.phrasalSrs && JSON.stringify(mergedUser.phrasalSrs) !== JSON.stringify(_local.pSrs)) {
+        localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(mergedUser.phrasalSrs));
+      }
+      if (mergedUser.idiomsSrs && JSON.stringify(mergedUser.idiomsSrs) !== JSON.stringify(_local.iSrs)) {
+        localStorage.setItem('venoxa_idioms_srs', JSON.stringify(mergedUser.idiomsSrs));
+      }
+      if (mergedUser.idiomsProperSrs && JSON.stringify(mergedUser.idiomsProperSrs) !== JSON.stringify(_local.ipSrs)) {
+        localStorage.setItem('venoxa_idioms_proper_srs', JSON.stringify(mergedUser.idiomsProperSrs));
+      }
       if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
         const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
         if (JSON.stringify(mergedUser.planConfig) !== JSON.stringify(localPlan)) {
@@ -1684,7 +1702,7 @@ function AppInner() {
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 3000);
 
     } catch (err) {
-      console.error('Firebase sync failed:', err);
+      console.error('InsForge sync failed:', err);
       setSyncStatus('error');
       if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 5000);
@@ -1717,12 +1735,12 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [token]);
 
-  // ── Firebase handles pending writes automatically on tab close ──
-  // (sendBeacon to custom API replaced — Firestore SDK queues writes internally)
+  // ── Best-effort sync on tab close ──
+  // (InsForge SDK does not auto-flush like Firestore, so we fire-and-forget)
   useEffect(() => {
     if (!token) return;
     const handleUnload = () => {
-      // Trigger a best-effort sync; Firebase SDK will flush before page unloads
+      // Trigger a best-effort sync; InsForge SDK sends writes as HTTP calls
       try {
         const payload = _gatherSyncPayload();
         const { _local, ...syncBody } = payload;
