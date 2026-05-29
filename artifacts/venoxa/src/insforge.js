@@ -97,6 +97,13 @@ async function _readAllDocs(uid) {
     ]);
 
   // Each response: { data: [row] | null, error }
+  // Log any read errors — RLS blocks show up here as permission errors
+  if (profileRes.error)  console.error('[InsForge] Read error (users):', profileRes.error);
+  if (vocabRes.error)    console.error('[InsForge] Read error (user_vocab):', vocabRes.error);
+  if (progressRes.error) console.error('[InsForge] Read error (user_progress):', progressRes.error);
+  if (historyRes.error)  console.error('[InsForge] Read error (user_history):', historyRes.error);
+  if (srsRes.error)      console.error('[InsForge] Read error (user_srs):', srsRes.error);
+
   const profile  = profileRes.data?.[0]  || {};
   const vocab    = vocabRes.data?.[0]    || {};
   const progress = progressRes.data?.[0] || {};
@@ -232,12 +239,20 @@ export async function register(fields) {
     if (profileErr) console.error('[InsForge] Profile insert error:', profileErr);
 
     // Insert empty sub-table rows
-    await Promise.allSettled([
+    const subResults = await Promise.allSettled([
       insforge.database.from('user_vocab').insert([{ user_id: uid }]),
       insforge.database.from('user_progress').insert([{ user_id: uid }]),
       insforge.database.from('user_history').insert([{ user_id: uid }]),
       insforge.database.from('user_srs').insert([{ user_id: uid }]),
     ]);
+    const subNames = ['user_vocab', 'user_progress', 'user_history', 'user_srs'];
+    subResults.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        console.error(`[InsForge] Sub-table insert failed (${subNames[i]}):`, r.reason);
+      } else if (r.value?.error) {
+        console.error(`[InsForge] Sub-table insert error (${subNames[i]}):`, r.value.error);
+      }
+    });
 
     const user = _buildUserObj(uid, email, {
       profile: { username, email, dob, gender, languages, avatar: '', level: 'B2', streak: 0, xp: 0, achievements: [] },
@@ -301,9 +316,14 @@ export function onAuthChange(callback) {
   } else {
     // 2. Otherwise check if there's an existing session on the server/cookie
     insforge.auth.getCurrentUser().then(({ data }) => {
-      const updatedUser = insforge.tokenManager?.getUser();
-      if (!updatedUser) {
-        callback(null);
+      if (data?.user) {
+        // Session is valid — notify all listeners with the real user
+        notifyAuthChange(data.user);
+      } else {
+        const updatedUser = insforge.tokenManager?.getUser();
+        if (!updatedUser) {
+          callback(null);
+        }
       }
     }).catch(() => {
       callback(null);
@@ -526,7 +546,10 @@ export async function syncProgress(uid, localPayload) {
     const firstErr = failed[0].status === 'rejected'
       ? failed[0].reason
       : failed[0].value?.error;
-    throw firstErr;
+    // Always throw a proper Error so err.message is available in App.jsx catch
+    throw firstErr instanceof Error
+      ? firstErr
+      : new Error(firstErr?.message || firstErr?.details || JSON.stringify(firstErr));
   }
 
   console.log('[InsForge] Sync complete ✓');

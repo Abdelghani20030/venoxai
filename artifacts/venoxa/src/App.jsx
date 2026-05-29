@@ -1469,6 +1469,8 @@ function AppInner() {
         const uid = insforgeUser.uid;
         setToken(uid);
         localStorage.setItem('venoxa_token', uid);
+        // Fetch & sync user data from DB whenever auth is (re-)established
+        syncProgress(uid, user);
       } else {
         setToken(null);
         setUser(null);
