@@ -1643,7 +1643,20 @@ function AppInner() {
       };
 
       setUser(mergedUser);
-      localStorage.setItem('venoxa_user', JSON.stringify(mergedUser));
+      // Only store lightweight profile in localStorage to avoid quota errors
+      const { globalVocab: _gv, phrasalVocab: _pv, idiomsVocab: _iv,
+              idiomsProperVocab: _ipv, langeekVocab: _lv,
+              speakingHistory: _sh, writingHistory: _wh,
+              srsData: _srs, langeekSrsData: _lsrs,
+              phrasalSrs: _psrs, idiomsSrs: _isrs, idiomsProperSrs: _ipsrs,
+              completedCells: _cc, usageTime: _ut, calendarDays: _cd,
+              planConfig: _pc, studiedWords: _sw,
+              ...lightProfile } = mergedUser;
+      try {
+        localStorage.setItem('venoxa_user', JSON.stringify(lightProfile));
+      } catch (e) {
+        console.warn('localStorage quota: could not save profile', e);
+      }
 
       if (mergedUser.completedCells) {
         localStorage.setItem('venoxa_completed_cells', JSON.stringify(mergedUser.completedCells));
