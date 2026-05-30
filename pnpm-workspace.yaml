@@ -84,6 +84,7 @@ overrides:
 
 allowBuilds:
   '@google/genai': true
+  bcrypt: false
   esbuild: true
   msedge-tts: true
   protobufjs: true
