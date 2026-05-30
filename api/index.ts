@@ -44,6 +44,9 @@ const usersTable = pgTable("users", {
   langeekVocab: jsonb("langeek_vocab").$type<any[]>().default([]).notNull(),
   srsData: jsonb("srs_data").$type<Record<string, any>>().default({}).notNull(),
   langeekSrsData: jsonb("langeek_srs_data").$type<Record<string, any>>().default({}).notNull(),
+  phrasalSrs: jsonb("phrasal_srs").$type<Record<string, any>>().default({}).notNull(),
+  idiomsSrs: jsonb("idioms_srs").$type<Record<string, any>>().default({}).notNull(),
+  idiomsProperSrs: jsonb("idioms_proper_srs").$type<Record<string, any>>().default({}).notNull(),
   speakingHistory: jsonb("speaking_history").$type<any[]>().default([]).notNull(),
   writingHistory: jsonb("writing_history").$type<any[]>().default([]).notNull(),
   planConfig: jsonb("plan_config").$type<Record<string, any>>().default({}).notNull(),
@@ -745,6 +748,7 @@ app.post("/api/user/sync", authMiddleware, async (req, res) => {
     xp, streak, level, completedCells, usageTime, calendarDays, achievements, avatar,
     globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab,
     speakingHistory, writingHistory, srsData, langeekSrsData,
+    phrasalSrs, idiomsSrs, idiomsProperSrs,
     planConfig, studiedWords
   } = req.body;
 
@@ -780,6 +784,9 @@ app.post("/api/user/sync", authMiddleware, async (req, res) => {
     // Synchronize Spaced Repetition (SRS) data
     const mergedSrsData = mergeSrsObjects(srsData, user.srsData);
     const mergedLangeekSrsData = mergeSrsObjects(langeekSrsData, user.langeekSrsData);
+    const mergedPhrasalSrs = mergeSrsObjects(phrasalSrs, (user as any).phrasalSrs);
+    const mergedIdiomsSrs = mergeSrsObjects(idiomsSrs, (user as any).idiomsSrs);
+    const mergedIdiomsProperSrs = mergeSrsObjects(idiomsProperSrs, (user as any).idiomsProperSrs);
 
     // Merge plan config — local always wins (latest device is authoritative)
     const mergedPlanConfig = planConfig && Object.keys(planConfig).length > 0
@@ -801,6 +808,8 @@ app.post("/api/user/sync", authMiddleware, async (req, res) => {
       langeekVocab: mergedLangeekVocab, speakingHistory: mergedSpeakingHistory,
       writingHistory: mergedWritingHistory, srsData: mergedSrsData,
       langeekSrsData: mergedLangeekSrsData,
+      phrasalSrs: mergedPhrasalSrs, idiomsSrs: mergedIdiomsSrs,
+      idiomsProperSrs: mergedIdiomsProperSrs,
       planConfig: mergedPlanConfig, studiedWords: mergedStudiedWords
     };
     if (avatar !== undefined) updateFields.avatar = avatar;
@@ -848,6 +857,7 @@ app.post("/api/user/sync-beacon", async (req, res) => {
       xp, streak, level, completedCells, usageTime, calendarDays, achievements, avatar,
       globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab,
       speakingHistory, writingHistory, srsData, langeekSrsData,
+      phrasalSrs, idiomsSrs, idiomsProperSrs,
       planConfig, studiedWords
     } = syncData;
 
@@ -872,6 +882,9 @@ app.post("/api/user/sync-beacon", async (req, res) => {
     const mergedWritingHistory = mergeArraysById(writingHistory, user.writingHistory, "id");
     const mergedSrsData = mergeSrsObjects(srsData, user.srsData);
     const mergedLangeekSrsData = mergeSrsObjects(langeekSrsData, user.langeekSrsData);
+    const mergedPhrasalSrs = mergeSrsObjects(phrasalSrs, (user as any).phrasalSrs);
+    const mergedIdiomsSrs = mergeSrsObjects(idiomsSrs, (user as any).idiomsSrs);
+    const mergedIdiomsProperSrs = mergeSrsObjects(idiomsProperSrs, (user as any).idiomsProperSrs);
     const mergedPlanConfig = planConfig && Object.keys(planConfig).length > 0
       ? planConfig : (user.planConfig && Object.keys(user.planConfig).length > 0 ? user.planConfig : {});
     const mergedStudiedWords = Array.from(new Set([
@@ -888,6 +901,8 @@ app.post("/api/user/sync-beacon", async (req, res) => {
       langeekVocab: mergedLangeekVocab, speakingHistory: mergedSpeakingHistory,
       writingHistory: mergedWritingHistory, srsData: mergedSrsData,
       langeekSrsData: mergedLangeekSrsData,
+      phrasalSrs: mergedPhrasalSrs, idiomsSrs: mergedIdiomsSrs,
+      idiomsProperSrs: mergedIdiomsProperSrs,
       planConfig: mergedPlanConfig, studiedWords: mergedStudiedWords
     };
     if (avatar !== undefined) updateFields.avatar = avatar;

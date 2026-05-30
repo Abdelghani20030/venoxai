@@ -41,6 +41,9 @@ export const usersTable = pgTable("users", {
   // Spaced Repetition (SRS) Data
   srsData: jsonb("srs_data").$type<Record<string, any>>().default({}).notNull(),
   langeekSrsData: jsonb("langeek_srs_data").$type<Record<string, any>>().default({}).notNull(),
+  phrasalSrs: jsonb("phrasal_srs").$type<Record<string, any>>().default({}).notNull(),
+  idiomsSrs: jsonb("idioms_srs").$type<Record<string, any>>().default({}).notNull(),
+  idiomsProperSrs: jsonb("idioms_proper_srs").$type<Record<string, any>>().default({}).notNull(),
   
   // Practice Histories
   speakingHistory: jsonb("speaking_history").$type<any[]>().default([]).notNull(),

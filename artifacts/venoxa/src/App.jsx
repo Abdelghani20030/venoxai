@@ -10,6 +10,7 @@ import {
   updateProfile as fbUpdateProfile,
   deleteAccount as fbDeleteAccount,
   syncProgress  as fbSyncProgress,
+  syncBeacon,
   onAuthChange,
   auth,
   insforge,
@@ -1462,15 +1463,18 @@ function AppInner() {
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
   const syncStatusTimerRef = useRef(null);
 
-  // ── InsForge auth state listener ──
+  // ── Auth state listener (validates stored JWT on page load) ──
   useEffect(() => {
-    const unsubscribe = onAuthChange((insforgeUser) => {
-      if (insforgeUser) {
-        const uid = insforgeUser.uid;
-        setToken(uid);
-        localStorage.setItem('venoxa_token', uid);
-        // Fetch & sync user data from DB whenever auth is (re-)established
-        syncProgress(uid, user);
+    const unsubscribe = onAuthChange((validatedUser) => {
+      if (validatedUser) {
+        // Token is already stored in localStorage by login/register
+        // Just update React state with the validated user
+        const storedToken = localStorage.getItem('venoxa_token');
+        if (storedToken) {
+          setToken(storedToken);
+          // Sync on re-establishment of auth
+          syncProgress(storedToken, user);
+        }
       } else {
         setToken(null);
         setUser(null);
@@ -1486,12 +1490,12 @@ function AppInner() {
     try {
       const result = await fbLogin(email, password);
       if (!result.success) return result;
-      const { token: uid, user: userData } = result;
-      setToken(uid);
+      const { token: jwt, user: userData } = result;
+      setToken(jwt);
       setUser(userData);
-      localStorage.setItem('venoxa_token', uid);
+      localStorage.setItem('venoxa_token', jwt);
       localStorage.setItem('venoxa_user', JSON.stringify(userData));
-      await syncProgress(uid, userData);
+      await syncProgress(jwt, userData);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -1502,12 +1506,12 @@ function AppInner() {
     try {
       const result = await fbRegister(fields);
       if (!result.success) return result;
-      const { token: uid, user: userData } = result;
-      setToken(uid);
+      const { token: jwt, user: userData } = result;
+      setToken(jwt);
       setUser(userData);
-      localStorage.setItem('venoxa_token', uid);
+      localStorage.setItem('venoxa_token', jwt);
       localStorage.setItem('venoxa_user', JSON.stringify(userData));
-      await syncProgress(uid, userData);
+      await syncProgress(jwt, userData);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -1518,12 +1522,12 @@ function AppInner() {
     try {
       const result = await fbVerifyEmail(email, code);
       if (!result.success) return result;
-      const { token: uid, user: userData } = result;
-      setToken(uid);
+      const { token: jwt, user: userData } = result;
+      setToken(jwt);
       setUser(userData);
-      localStorage.setItem('venoxa_token', uid);
+      localStorage.setItem('venoxa_token', jwt);
       localStorage.setItem('venoxa_user', JSON.stringify(userData));
-      await syncProgress(uid, userData);
+      await syncProgress(jwt, userData);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -1629,7 +1633,7 @@ function AppInner() {
 
       const mergedUser = {
         uid:      currentToken,
-        email:    auth.currentUser?.email || insforge.auth.getCurrentUser?.()?.email || currentUser?.email || '',
+        email:    auth.currentUser?.email || currentUser?.email || '',
         username: merged.username  || currentUser?.username || '',
         avatar:   merged.avatar    || '',
         level:    merged.level     || 'B2',
@@ -1764,16 +1768,14 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [token]);
 
-  // ── Best-effort sync on tab close ──
-  // (InsForge SDK does not auto-flush like Firestore, so we fire-and-forget)
+  // ── Best-effort sync on tab close (uses sendBeacon for reliability) ──
   useEffect(() => {
     if (!token) return;
     const handleUnload = () => {
-      // Trigger a best-effort sync; InsForge SDK sends writes as HTTP calls
       try {
         const payload = _gatherSyncPayload();
         const { _local, ...syncBody } = payload;
-        fbSyncProgress(token, syncBody).catch(() => {});
+        syncBeacon(syncBody);
       } catch {}
     };
     window.addEventListener('beforeunload', handleUnload);
