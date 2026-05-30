@@ -53,6 +53,7 @@ catalog:
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
   drizzle-orm: ^0.45.2
+  firebase: ^11.9.0
   framer-motion: ^12.23.24
   lucide-react: ^0.545.0
   # Must be this exact version because expo requires it
@@ -83,6 +84,7 @@ overrides:
   esbuild: "0.27.3"
 
 allowBuilds:
+  '@firebase/util': true
   '@google/genai': true
   bcrypt: false
   esbuild: true

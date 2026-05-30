@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, Zap, Globe, Upload, Camera, X
 } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
-import { deleteAccount as fbDeleteAccount } from './insforge.js';
+import { deleteAccount as fbDeleteAccount } from './insforge.jsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  localStorage helpers
@@ -431,7 +431,7 @@ export default function ProfileDashboard({
                   onError={e => { e.target.style.display='none'; }} />
               ) : (
                 <div className="w-full h-full bg-purple-500/10 flex items-center justify-center text-purple-400 font-bold text-3xl">
-                  {user.username?.[0]?.toUpperCase() || 'U'}
+                  {user.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
                 </div>
               )}
             </div>

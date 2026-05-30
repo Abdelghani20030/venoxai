@@ -75,6 +75,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "firebase": "catalog:",
     "liquid-glass-react": "^1.1.1"
   }
 }

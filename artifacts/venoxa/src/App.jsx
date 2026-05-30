@@ -16,7 +16,10 @@ import {
   insforge,
   verifyEmail   as fbVerifyEmail,
   resendVerification as fbResendVerification,
-} from './insforge.js';
+  sendPasswordReset as fbSendPasswordReset,
+  uploadVocabCSV,
+  loadAllVocabFromStorage,
+} from './insforge.jsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SECRET KEY GATE — change this to whatever key you want
@@ -1465,15 +1468,27 @@ function AppInner() {
 
   // ── Auth state listener (validates stored JWT on page load) ──
   useEffect(() => {
-    const unsubscribe = onAuthChange((validatedUser) => {
+    const unsubscribe = onAuthChange(async (validatedUser) => {
       if (validatedUser) {
-        // Token is already stored in localStorage by login/register
-        // Just update React state with the validated user
-        const storedToken = localStorage.getItem('venoxa_token');
+        // Update user state immediately with validated user data from Firestore
+        setUser(validatedUser);
+        localStorage.setItem('venoxa_user', JSON.stringify(validatedUser));
+
+        const storedToken = localStorage.getItem('venoxa_token') || await auth.currentUser?.getIdToken();
         if (storedToken) {
           setToken(storedToken);
-          // Sync on re-establishment of auth
-          syncProgress(storedToken, user);
+          localStorage.setItem('venoxa_token', storedToken);
+          // Sync on re-establishment of auth using the freshly validated user data
+          syncProgress(storedToken, validatedUser);
+
+          // ── Load vocab CSVs from Firebase Storage ──
+          loadAllVocabFromStorage().then(vocabs => {
+            if (vocabs.globalVocab?.length)  { setGlobalVocab(vocabs.globalVocab);   localStorage.setItem('venoxa_global_vocab',       JSON.stringify(vocabs.globalVocab));  }
+            if (vocabs.phrasalVocab?.length) { setPhrasalVocab(vocabs.phrasalVocab); localStorage.setItem('venoxa_phrasal_vocab',      JSON.stringify(vocabs.phrasalVocab)); }
+            if (vocabs.idiomsVocab?.length)  { setIdiomsVocab(vocabs.idiomsVocab);   localStorage.setItem('venoxa_idioms_vocab',        JSON.stringify(vocabs.idiomsVocab));  }
+            if (vocabs.slangVocab?.length)   { setIdiomsVocab(vocabs.slangVocab);    localStorage.setItem('venoxa_idioms_vocab',        JSON.stringify(vocabs.slangVocab));   }
+            if (vocabs.langeekVocab?.length) { setLangeekVocab(vocabs.langeekVocab); localStorage.setItem('venoxa_langeek_vocab',       JSON.stringify(vocabs.langeekVocab)); }
+          }).catch(err => console.warn('loadAllVocabFromStorage failed:', err));
         }
       } else {
         setToken(null);
@@ -1537,6 +1552,15 @@ function AppInner() {
   const resendEmailVerification = async (email) => {
     try {
       const result = await fbResendVerification(email);
+      return result;
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const sendPasswordReset = async (email) => {
+    try {
+      const result = await fbSendPasswordReset(email);
       return result;
     } catch (err) {
       return { success: false, error: err.message };
@@ -2683,6 +2707,7 @@ function AppInner() {
         onRegister={register}
         onVerify={verifyEmailCode}
         onResend={resendEmailVerification}
+        onResetPassword={sendPasswordReset}
         lang={lang}
         theme={theme}
       />
@@ -2690,7 +2715,7 @@ function AppInner() {
   );
 }
 
-function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVerify, onResend, lang, theme }) {
+function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVerify, onResend, onResetPassword, lang, theme }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -2698,13 +2723,20 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
   const [gender, setGender] = useState('Male');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setError('');
+    setSuccess('');
+  }, [mode]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
     let res;
     if (mode === 'login') {
@@ -2713,16 +2745,24 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
       res = await onRegister({ email, password, username, dob, gender });
     } else if (mode === 'verify') {
       res = await onVerify(email, otp);
+    } else if (mode === 'forgot_password') {
+      res = await onResetPassword(email);
+      if (res.success) {
+        setSuccess(_resolveTranslation(lang, 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني!', 'Password reset link sent to your email!'));
+        setEmail('');
+      }
     }
     setLoading(false);
-    if (res.success) {
-      onClose();
-      setEmail('');
-      setPassword('');
-      setUsername('');
-      setDob('');
-      setOtp('');
-    } else {
+    if (res && res.success) {
+      if (mode !== 'forgot_password') {
+        onClose();
+        setEmail('');
+        setPassword('');
+        setUsername('');
+        setDob('');
+        setOtp('');
+      }
+    } else if (res) {
       setError(res.error);
       if (res.error && res.error.toLowerCase().includes('verification required')) {
         setMode('verify');
@@ -2747,7 +2787,9 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
       ? _resolveTranslation(lang, 'تسجيل الدخول', 'Sign In')
       : mode === 'register'
         ? _resolveTranslation(lang, 'إنشاء حساب جديد', 'Create Account')
-        : _resolveTranslation(lang, 'تأكيد الحساب', 'Verify Account'),
+        : mode === 'forgot_password'
+          ? _resolveTranslation(lang, 'إعادة تعيين كلمة المرور', 'Reset Password')
+          : _resolveTranslation(lang, 'تأكيد الحساب', 'Verify Account'),
     email: _resolveTranslation(lang, 'البريد الإلكتروني', 'Email Address'),
     password: _resolveTranslation(lang, 'كلمة المرور', 'Password'),
     username: _resolveTranslation(lang, 'اسم المستخدم', 'Username'),
@@ -2758,7 +2800,9 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
       ? _resolveTranslation(lang, 'دخول', 'Sign In')
       : mode === 'register'
         ? _resolveTranslation(lang, 'تسجيل', 'Sign Up')
-        : _resolveTranslation(lang, 'تأكيد', 'Verify'),
+        : mode === 'forgot_password'
+          ? _resolveTranslation(lang, 'إرسال رابط إعادة التعيين', 'Send Reset Link')
+          : _resolveTranslation(lang, 'تأكيد', 'Verify'),
     switchText: mode === 'login'
       ? _resolveTranslation(lang, 'ليس لديك حساب؟ سجل هنا', "Don't have an account? Sign up")
       : mode === 'register'
@@ -2789,6 +2833,12 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
           </div>
         )}
 
+        {success && (
+          <div className="p-3 text-xs font-semibold text-emerald-500 bg-emerald-500/10 rounded-xl border border-emerald-500/20 animate-fadeIn">
+            {success}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.email}</label>
@@ -2802,9 +2852,20 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
             />
           </div>
 
-          {mode !== 'verify' && (
+          {mode !== 'verify' && mode !== 'forgot_password' && (
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.password}</label>
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">{t.password}</label>
+                {mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => setMode('forgot_password')}
+                    className="text-[10px] font-bold text-purple-400 hover:text-purple-300 transition-all focus:outline-none"
+                  >
+                    {_resolveTranslation(lang, 'نسيت كلمة المرور؟', 'Forgot Password?')}
+                  </button>
+                )}
+              </div>
               <input 
                 type="password" 
                 required
@@ -2892,7 +2953,7 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
 
         <button
           onClick={() => {
-            if (mode === 'verify') {
+            if (mode === 'verify' || mode === 'forgot_password') {
               setMode('login');
             } else {
               setMode(mode === 'login' ? 'register' : 'login');
@@ -5151,6 +5212,8 @@ function Vocabulary({
         setVocabMode('browse');
         setUploadMessage(`تم رفع ${parsedData.length} كلمة بنجاح! ✅`);
         setTimeout(() => setUploadMessage(''), 3000);
+        // ── Save to Firebase Storage for cross-device sync ──
+        uploadVocabCSV('global', text).catch(console.warn);
       } else {
         setUploadMessage('لم يتم العثور على كلمات، تأكد من صيغة الملف ❌');
       }
@@ -5518,7 +5581,8 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab, 
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
-      const lines = e.target.result.split('\n');
+      const rawText = e.target.result;
+      const lines = rawText.split('\n');
       const parsedData = [];
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
@@ -5531,6 +5595,8 @@ function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab, 
         setSearchQuery(''); setMode('browse');
         setUploadMessage(`✅ ${parsedData.length} phrasal verbs uploaded!`);
         setTimeout(() => setUploadMessage(''), 3000);
+        // ── Save to Firebase Storage for cross-device sync ──
+        uploadVocabCSV('phrasal', rawText).catch(console.warn);
       } else { setUploadMessage('❌ No data found. Check CSV format.'); }
     };
     reader.readAsText(file);
@@ -5798,6 +5864,8 @@ function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab, the
         setSearchQuery(''); setTopicFilter('All'); setMode('browse');
         setUploadMessage(`✅ ${parsedData.length} slang uploaded!`);
         setTimeout(() => setUploadMessage(''), 3000);
+        // ── Save to Firebase Storage for cross-device sync ──
+        uploadVocabCSV('slang', rawText).catch(console.warn);
       } else { setUploadMessage('❌ No data found. Check CSV format.'); }
     };
     reader.readAsText(file);
@@ -6088,6 +6156,8 @@ function IdiomsProper({ AI_KEY, userLevel, lang, idiomsProperVocab, setIdiomsPro
         setSearchQuery(''); setTopicFilter('All'); setMode('browse');
         setUploadMessage(`✅ ${parsedData.length} idioms uploaded!`);
         setTimeout(() => setUploadMessage(''), 3000);
+        // ── Save to Firebase Storage for cross-device sync ──
+        uploadVocabCSV('idioms', rawText).catch(console.warn);
       } else { setUploadMessage('❌ No data found. Check CSV format.'); }
     };
     reader.readAsText(file);
@@ -10063,6 +10133,8 @@ function Langeek({
         setVocabMode('browse');
         setUploadMessage(`تم رفع ${parsedData.length} كلمة بنجاح! ✅`);
         setTimeout(() => setUploadMessage(''), 3000);
+        // ── Save to Firebase Storage for cross-device sync ──
+        uploadVocabCSV('langeek', text).catch(console.warn);
       } else {
         setUploadMessage('لم يتم العثور على كلمات، تأكد من صيغة الملف ❌');
       }
