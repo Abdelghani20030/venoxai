@@ -63,7 +63,12 @@ const REGISTER_COLOR = {
 };
 const regStyle = (r = '') => REGISTER_COLOR[r.toLowerCase()] || REGISTER_COLOR.neutral;
 
-export default function IdiomOfTheDay({ lang: uiLang = 'ar', theme = 'dark' }) {
+export default function IdiomOfTheDay({
+  lang: uiLang = 'ar',
+  theme = 'dark',
+  savedIdioms: propSavedIdioms,
+  setSavedIdioms: propSetSavedIdioms,
+}) {
   const isDark = theme === 'dark';
   const t = (en, ar) => uiLang === 'ar' ? ar : en;
 
@@ -72,9 +77,11 @@ export default function IdiomOfTheDay({ lang: uiLang = 'ar', theme = 'dark' }) {
   const [error, setError]     = useState('');
   const [added, setAdded]     = useState(false);
   const [showSaved, setShowSaved] = useState(false);
-  const [savedIdioms, setSavedIdioms] = useState(() => {
+  const [localSavedIdioms, setLocalSavedIdioms] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_saved_idioms') || '[]'); } catch { return []; }
   });
+  const savedIdioms = propSavedIdioms !== undefined ? propSavedIdioms : localSavedIdioms;
+  const setSavedIdioms = propSetSavedIdioms !== undefined ? propSetSavedIdioms : setLocalSavedIdioms;
 
   const handleSave = () => {
     if (!data || added) return;

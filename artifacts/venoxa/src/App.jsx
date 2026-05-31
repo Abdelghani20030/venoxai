@@ -1444,6 +1444,18 @@ function AppInner() {
   const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
   const [speakingHistory, setSpeakingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_speaking_history')) || []);
   const [writingHistory, setWritingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_writing_history')) || []);
+  const [translationHistory, setTranslationHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_translation_history')) || []; } catch { return []; }
+  });
+  const [translationFavorites, setTranslationFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_translation_favorites')) || []; } catch { return []; }
+  });
+  const [savedWords, setSavedWords] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_saved_words')) || []; } catch { return []; }
+  });
+  const [savedIdioms, setSavedIdioms] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_saved_idioms')) || []; } catch { return []; }
+  });
 
   const [token, setToken] = useState(() => localStorage.getItem('venoxa_token') || null);
   const [user, setUser] = useState(() => {
@@ -1485,7 +1497,7 @@ function AppInner() {
           loadAllVocabFromStorage().then(vocabs => {
             if (vocabs.globalVocab?.length)  { setGlobalVocab(vocabs.globalVocab);   localStorage.setItem('venoxa_global_vocab',       JSON.stringify(vocabs.globalVocab));  }
             if (vocabs.phrasalVocab?.length) { setPhrasalVocab(vocabs.phrasalVocab); localStorage.setItem('venoxa_phrasal_vocab',      JSON.stringify(vocabs.phrasalVocab)); }
-            if (vocabs.idiomsVocab?.length)  { setIdiomsVocab(vocabs.idiomsVocab);   localStorage.setItem('venoxa_idioms_vocab',        JSON.stringify(vocabs.idiomsVocab));  }
+            if (vocabs.idiomsVocab?.length)  { setIdiomsProperVocab(vocabs.idiomsVocab); localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(vocabs.idiomsVocab)); }
             if (vocabs.slangVocab?.length)   { setIdiomsVocab(vocabs.slangVocab);    localStorage.setItem('venoxa_idioms_vocab',        JSON.stringify(vocabs.slangVocab));   }
             if (vocabs.langeekVocab?.length) { setLangeekVocab(vocabs.langeekVocab); localStorage.setItem('venoxa_langeek_vocab',       JSON.stringify(vocabs.langeekVocab)); }
           }).catch(err => console.warn('loadAllVocabFromStorage failed:', err));
@@ -1617,6 +1629,11 @@ function AppInner() {
     let studied = [];
     try { studied = JSON.parse(localStorage.getItem('studiedWords')) || []; } catch {}
 
+    const tHistory = translationHistory;
+    const tFavorites = translationFavorites;
+    const sWords = savedWords;
+    const sIdioms = savedIdioms;
+
     return {
       xp: Object.values(cells).filter(v => v === 'done').length * 15,
       streak: localStreak.current,
@@ -1640,8 +1657,12 @@ function AppInner() {
       idiomsProperSrs: ipSrs,
       planConfig: planCfg,
       studiedWords: studied,
+      translationHistory: tHistory,
+      translationFavorites: tFavorites,
+      savedWords: sWords,
+      savedIdioms: sIdioms,
       // keep references for diff-checking later
-      _local: { gVocab, pVocab, iVocab, ipVocab, lVocab, sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv }
+      _local: { gVocab, pVocab, iVocab, ipVocab, lVocab, sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv, translationHistory: tHistory, translationFavorites: tFavorites, savedWords: sWords, savedIdioms: sIdioms }
     };
   };
 
@@ -1675,6 +1696,8 @@ function AppInner() {
               phrasalSrs: _psrs, idiomsSrs: _isrs, idiomsProperSrs: _ipsrs,
               completedCells: _cc, usageTime: _ut, calendarDays: _cd,
               planConfig: _pc, studiedWords: _sw,
+              translationHistory: _th, translationFavorites: _tf,
+              savedWords: _swo, savedIdioms: _sid,
               ...lightProfile } = mergedUser;
       try {
         localStorage.setItem('venoxa_user', JSON.stringify(lightProfile));
@@ -1765,6 +1788,22 @@ function AppInner() {
       }
       if (Array.isArray(mergedUser.studiedWords) && mergedUser.studiedWords.length > 0) {
         localStorage.setItem('studiedWords', JSON.stringify(mergedUser.studiedWords));
+      }
+      if (mergedUser.translationHistory && JSON.stringify(mergedUser.translationHistory) !== JSON.stringify(_local.translationHistory)) {
+        localStorage.setItem('venoxa_translation_history', JSON.stringify(mergedUser.translationHistory));
+        setTranslationHistory(mergedUser.translationHistory);
+      }
+      if (mergedUser.translationFavorites && JSON.stringify(mergedUser.translationFavorites) !== JSON.stringify(_local.translationFavorites)) {
+        localStorage.setItem('venoxa_translation_favorites', JSON.stringify(mergedUser.translationFavorites));
+        setTranslationFavorites(mergedUser.translationFavorites);
+      }
+      if (mergedUser.savedWords && JSON.stringify(mergedUser.savedWords) !== JSON.stringify(_local.savedWords)) {
+        localStorage.setItem('venoxa_saved_words', JSON.stringify(mergedUser.savedWords));
+        setSavedWords(mergedUser.savedWords);
+      }
+      if (mergedUser.savedIdioms && JSON.stringify(mergedUser.savedIdioms) !== JSON.stringify(_local.savedIdioms)) {
+        localStorage.setItem('venoxa_saved_idioms', JSON.stringify(mergedUser.savedIdioms));
+        setSavedIdioms(mergedUser.savedIdioms);
       }
 
       setSyncStatus('synced');
@@ -1886,6 +1925,10 @@ function AppInner() {
   useEffect(() => localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(langeekVocab)), [langeekVocab]);
   useEffect(() => localStorage.setItem('venoxa_speaking_history', JSON.stringify(speakingHistory)), [speakingHistory]);
   useEffect(() => localStorage.setItem('venoxa_writing_history', JSON.stringify(writingHistory)), [writingHistory]);
+  useEffect(() => localStorage.setItem('venoxa_translation_history', JSON.stringify(translationHistory)), [translationHistory]);
+  useEffect(() => localStorage.setItem('venoxa_translation_favorites', JSON.stringify(translationFavorites)), [translationFavorites]);
+  useEffect(() => localStorage.setItem('venoxa_saved_words', JSON.stringify(savedWords)), [savedWords]);
+  useEffect(() => localStorage.setItem('venoxa_saved_idioms', JSON.stringify(savedIdioms)), [savedIdioms]);
 
   // Debounced background sync to the cloud database when local data is modified
   useEffect(() => {
@@ -1895,7 +1938,7 @@ function AppInner() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory, completedCells, streakData]);
+  }, [globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
@@ -2012,11 +2055,20 @@ function AppInner() {
           try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
         }} />;
       case 'smart-translation':
-        return <SmartTranslation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={async (text, gender, accentKey) => {
-          const saved = _voiceAccent;
-          if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
-          try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
-        }} />;
+        return <SmartTranslation
+          lang={lang}
+          theme={theme}
+          AI_KEY={GEMINI_API_KEY}
+          translationHistory={translationHistory}
+          setTranslationHistory={setTranslationHistory}
+          translationFavorites={translationFavorites}
+          setTranslationFavorites={setTranslationFavorites}
+          speakFn={async (text, gender, accentKey) => {
+            const saved = _voiceAccent;
+            if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
+            try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
+          }}
+        />;
       case 'timer':
         return <TimerTool lang={lang} theme={theme} timerState={timerState} setTimerState={setTimerState} />;
       case 'tone-rewriter':
@@ -2032,9 +2084,9 @@ function AppInner() {
       case 'etymology':
         return <EtymologyExplorer lang={lang} theme={theme} />;
       case 'word-of-day':
-        return <WordOfTheDay lang={lang} theme={theme} />;
+        return <WordOfTheDay lang={lang} theme={theme} savedWords={savedWords} setSavedWords={setSavedWords} />;
       case 'idiom-of-day':
-        return <IdiomOfTheDay lang={lang} theme={theme} />;
+        return <IdiomOfTheDay lang={lang} theme={theme} savedIdioms={savedIdioms} setSavedIdioms={setSavedIdioms} />;
       case 'profile':
         return <ProfileDashboard
           {...props}

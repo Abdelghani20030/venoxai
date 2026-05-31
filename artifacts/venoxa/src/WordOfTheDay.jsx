@@ -57,7 +57,13 @@ const todayKey = () => {
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 };
 
-export default function WordOfTheDay({ lang: uiLang = 'ar', theme = 'dark', onAddToVocab }) {
+export default function WordOfTheDay({
+  lang: uiLang = 'ar',
+  theme = 'dark',
+  onAddToVocab,
+  savedWords: propSavedWords,
+  setSavedWords: propSetSavedWords,
+}) {
   const isDark = theme === 'dark';
   const t = (en, ar) => uiLang === 'ar' ? ar : en;
 
@@ -66,9 +72,11 @@ export default function WordOfTheDay({ lang: uiLang = 'ar', theme = 'dark', onAd
   const [error, setError]     = useState('');
   const [added, setAdded]     = useState(false);
   const [showSaved, setShowSaved] = useState(false);
-  const [savedWords, setSavedWords] = useState(() => {
+  const [localSavedWords, setLocalSavedWords] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_saved_words') || '[]'); } catch { return []; }
   });
+  const savedWords = propSavedWords !== undefined ? propSavedWords : localSavedWords;
+  const setSavedWords = propSetSavedWords !== undefined ? propSetSavedWords : setLocalSavedWords;
 
   // Load from cache (or fetch) on mount.
   const fetchWord = useCallback(async (force = false) => {

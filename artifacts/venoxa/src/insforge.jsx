@@ -35,48 +35,69 @@ export const insforge = { auth, db };
 function docToUser(uid, email, data = {}) {
   return {
     uid,
-    email:              email || '',
-    username:           data.username           || 'New Learner',
-    avatar:             data.avatar             || '',
-    dob:                data.dob                || '',
-    gender:             data.gender             || '',
-    languages:          data.languages          || ['English'],
-    plan:               data.plan               || 'basic plan',
-    xp:                 data.xp                 || 0,
-    streak:             data.streak             || 0,
-    level:              data.level              || 'B2',
-    dailyGoalMins:      data.dailyGoalMins      || 15,
-    rank30Days:         data.rank30Days         || 29336,
-    streakRank:         data.streakRank         || 601,
-    completedCells:     data.completedCells     || {},
-    usageTime:          data.usageTime          || {},
-    calendarDays:       data.calendarDays       || [],
-    achievements:       data.achievements       || [],
-    globalVocab:        data.globalVocab        || [],
-    phrasalVocab:       data.phrasalVocab       || [],
-    idiomsVocab:        data.idiomsVocab        || [],
-    idiomsProperVocab:  data.idiomsProperVocab  || [],
-    langeekVocab:       data.langeekVocab       || [],
-    srsData:            data.srsData            || {},
-    langeekSrsData:     data.langeekSrsData     || {},
-    phrasalSrs:         data.phrasalSrs         || {},
-    idiomsSrs:          data.idiomsSrs          || {},
-    idiomsProperSrs:    data.idiomsProperSrs    || {},
-    speakingHistory:    data.speakingHistory    || [],
-    writingHistory:     data.writingHistory     || [],
-    planConfig:         data.planConfig         || {},
-    studiedWords:       data.studiedWords       || [],
+    email:                email || '',
+    username:             data.username             || 'New Learner',
+    avatar:               data.avatar               || '',
+    dob:                  data.dob                  || '',
+    gender:               data.gender               || '',
+    languages:            data.languages            || ['English'],
+    plan:                 data.plan                 || 'basic plan',
+    xp:                   data.xp                   || 0,
+    streak:               data.streak               || 0,
+    level:                data.level                || 'B2',
+    dailyGoalMins:        data.dailyGoalMins        || 15,
+    rank30Days:           data.rank30Days           || 29336,
+    streakRank:           data.streakRank           || 601,
+    completedCells:       data.completedCells       || {},
+    usageTime:            data.usageTime            || {},
+    calendarDays:         data.calendarDays         || [],
+    achievements:         data.achievements         || [],
+    globalVocab:          data.globalVocab          || [],
+    phrasalVocab:         data.phrasalVocab         || [],
+    idiomsVocab:          data.idiomsVocab          || [],
+    idiomsProperVocab:    data.idiomsProperVocab    || [],
+    langeekVocab:         data.langeekVocab         || [],
+    srsData:              data.srsData              || {},
+    langeekSrsData:       data.langeekSrsData       || {},
+    phrasalSrs:           data.phrasalSrs           || {},
+    idiomsSrs:            data.idiomsSrs            || {},
+    idiomsProperSrs:      data.idiomsProperSrs      || {},
+    speakingHistory:      data.speakingHistory      || [],
+    writingHistory:       data.writingHistory       || [],
+    planConfig:           data.planConfig           || {},
+    studiedWords:         data.studiedWords         || [],
+    translationHistory:   data.translationHistory   || [],
+    translationFavorites: data.translationFavorites || [],
+    savedWords:           data.savedWords           || [],
+    savedIdioms:          data.savedIdioms          || [],
   };
 }
 
 function mergeArraysById(localList = [], remoteList = [], key = 'id') {
   const map = new Map();
-  for (const item of (remoteList || [])) {
-    if (item?.[key] != null) map.set(String(item[key]).toLowerCase(), item);
-  }
-  for (const item of (localList || [])) {
-    if (item?.[key] != null) map.set(String(item[key]).toLowerCase(), item);
-  }
+  const getActualKey = (item) => {
+    if (!item) return null;
+    if (item[key] != null) return key;
+    if (item.id != null) return 'id';
+    if (item.word != null) return 'word';
+    if (item.idiom != null) return 'idiom';
+    if (item.date != null) return 'date';
+    return null;
+  };
+
+  const addItems = (list) => {
+    for (const item of (list || [])) {
+      const k = getActualKey(item);
+      if (k !== null) {
+        map.set(String(item[k]).toLowerCase(), item);
+      } else {
+        map.set(JSON.stringify(item), item);
+      }
+    }
+  };
+
+  addItems(remoteList);
+  addItems(localList);
   return Array.from(map.values());
 }
 
@@ -192,6 +213,7 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
       'globalVocab', 'phrasalVocab', 'idiomsVocab',
       'idiomsProperVocab', 'langeekVocab', 'achievements',
       'calendarDays', 'speakingHistory', 'writingHistory', 'studiedWords',
+      'translationHistory', 'translationFavorites', 'savedWords', 'savedIdioms',
     ];
     const srsFields = [
       'srsData', 'langeekSrsData', 'phrasalSrs', 'idiomsSrs', 'idiomsProperSrs',

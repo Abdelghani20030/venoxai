@@ -1006,7 +1006,16 @@ Rules:
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function SmartTranslation({ lang: uiLang = 'ar', theme = 'dark', AI_KEY, speakFn }) {
+export default function SmartTranslation({
+  lang: uiLang = 'ar',
+  theme = 'dark',
+  AI_KEY,
+  speakFn,
+  translationHistory: propHistory,
+  setTranslationHistory: propSetHistory,
+  translationFavorites: propFavorites,
+  setTranslationFavorites: propSetFavorites,
+}) {
   const isDark = theme === 'dark';
 
   // ── Translation state
@@ -1028,14 +1037,18 @@ export default function SmartTranslation({ lang: uiLang = 'ar', theme = 'dark', 
   const [activeTab, setActiveTab] = useState('translate');
 
   // ── History
-  const [history, setHistory] = useState(() => {
+  const [localHistory, setLocalHistory] = useState(() => {
     try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; }
   });
+  const history = propHistory !== undefined ? propHistory : localHistory;
+  const setHistory = propSetHistory !== undefined ? propSetHistory : setLocalHistory;
 
   // ── Favorites
-  const [favorites, setFavorites] = useState(() => {
+  const [localFavorites, setLocalFavorites] = useState(() => {
     try { return JSON.parse(localStorage.getItem(FAVORITES_KEY)) || []; } catch { return []; }
   });
+  const favorites = propFavorites !== undefined ? propFavorites : localFavorites;
+  const setFavorites = propSetFavorites !== undefined ? propSetFavorites : setLocalFavorites;
 
   const isFavorited = useCallback((sourceText, targetLang) =>
     favorites.some(f => f.sourceText === sourceText && f.targetLang === targetLang),
