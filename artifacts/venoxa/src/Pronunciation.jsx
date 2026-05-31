@@ -240,7 +240,7 @@ const PHONOLOGICAL_DATA = [
 ];
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
-export default function Pronunciation({ lang, theme, speakFn }) {
+export default function Pronunciation({ lang, theme, speakFn, bookmarks: propBookmarks, setBookmarks: propSetBookmarks, completed: propCompleted, setCompleted: propSetCompleted }) {
   const isDark = theme === 'dark';
   const isRTL = lang === 'ar';
 
@@ -256,18 +256,33 @@ export default function Pronunciation({ lang, theme, speakFn }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [accent, setAccent] = useState('us');
   const [voiceGender, setVoiceGender] = useState('female'); // 'male' | 'female'
-  const [bookmarks, setBookmarks] = useState(() => {
+  const [localBookmarks, setLocalBookmarks] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_pron_bookmarks')) || []; } catch { return []; }
   });
-  const [completed, setCompleted] = useState(() => {
+  const [localCompleted, setLocalCompleted] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_pron_completed')) || []; } catch { return []; }
   });
+
+  const bookmarks = propBookmarks !== undefined ? propBookmarks : localBookmarks;
+  const setBookmarks = propSetBookmarks !== undefined ? propSetBookmarks : setLocalBookmarks;
+  const completed = propCompleted !== undefined ? propCompleted : localCompleted;
+  const setCompleted = propSetCompleted !== undefined ? propSetCompleted : setLocalCompleted;
+
   const [filter, setFilter] = useState('all'); // all | bookmarked | completed
   const [search, setSearch] = useState('');
   const [speaking, setSpeaking] = useState(null);
 
-  useEffect(() => localStorage.setItem('venoxa_pron_bookmarks', JSON.stringify(bookmarks)), [bookmarks]);
-  useEffect(() => localStorage.setItem('venoxa_pron_completed', JSON.stringify(completed)), [completed]);
+  useEffect(() => {
+    if (propBookmarks === undefined) {
+      localStorage.setItem('venoxa_pron_bookmarks', JSON.stringify(bookmarks));
+    }
+  }, [bookmarks, propBookmarks]);
+
+  useEffect(() => {
+    if (propCompleted === undefined) {
+      localStorage.setItem('venoxa_pron_completed', JSON.stringify(completed));
+    }
+  }, [completed, propCompleted]);
 
   const toggleBookmark = (id) => setBookmarks(p => p.includes(id) ? p.filter(b => b !== id) : [...p, id]);
   const toggleCompleted = (id) => setCompleted(p => p.includes(id) ? p.filter(c => c !== id) : [...p, id]);

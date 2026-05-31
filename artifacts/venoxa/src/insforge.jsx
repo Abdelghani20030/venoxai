@@ -78,6 +78,9 @@ function docToUser(uid, email, data = {}) {
     collocationHistory:          data.collocationHistory          || [],
     etymologyFavorites:          data.etymologyFavorites          || [],
     etymologyHistory:            data.etymologyHistory            || [],
+    pronBookmarks:               data.pronBookmarks               || [],
+    pronCompleted:               data.pronCompleted               || [],
+    testSessions:                data.testSessions                || [],
   };
 }
 
@@ -226,6 +229,7 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
       'wordFamilyFavorites', 'wordFamilyHistory',
       'collocationFavorites', 'collocationHistory',
       'etymologyFavorites', 'etymologyHistory',
+      'pronBookmarks', 'pronCompleted', 'testSessions',
     ];
     const srsFields = [
       'srsData', 'langeekSrsData', 'phrasalSrs', 'idiomsSrs', 'idiomsProperSrs',
@@ -285,6 +289,8 @@ export function subscribeToProgress(uid, callback) {
   return onSnapshot(ref, (snap) => {
     if (snap.exists()) {
       callback(docToUser(uid, snap.data().email || '', snap.data()));
+    } else {
+      callback(docToUser(uid, auth.currentUser?.email || '', {}));
     }
   }, (err) => {
     console.warn('subscribeToProgress error:', err);

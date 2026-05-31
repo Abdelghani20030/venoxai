@@ -1503,6 +1503,16 @@ function AppInner() {
   const [etymologyHistory, setEtymologyHistory] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_etymology_history')) || []; } catch { return []; }
   });
+  const [pronBookmarks, setPronBookmarks] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_pron_bookmarks')) || []; } catch { return []; }
+  });
+  const [pronCompleted, setPronCompleted] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_pron_completed')) || []; } catch { return []; }
+  });
+  const [testSessions, setTestSessions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa-test-sessions')) || []; } catch { return []; }
+  });
+  const [isCloudProgressLoaded, setIsCloudProgressLoaded] = useState(false);
 
   const [token, setToken] = useState(() => localStorage.getItem('venoxa_token') || null);
   const [user, setUser] = useState(() => {
@@ -1539,8 +1549,6 @@ function AppInner() {
         if (storedToken) {
           setToken(storedToken);
           localStorage.setItem('venoxa_token', storedToken);
-          // Sync on re-establishment of auth using the freshly validated user data
-          syncProgress(storedToken, validatedUser);
 
           // ── Load vocab CSVs from Firebase Storage ──
           loadAllVocabFromStorage().then(vocabs => {
@@ -1555,6 +1563,7 @@ function AppInner() {
           if (unsubscribeProgress) unsubscribeProgress();
           unsubscribeProgress = subscribeToProgress(auth.currentUser?.uid, (mergedUser) => {
             applyMergedUserData(mergedUser);
+            setIsCloudProgressLoaded(true);
           });
         }
       } else {
@@ -1564,6 +1573,7 @@ function AppInner() {
         }
         setToken(null);
         setUser(null);
+        setIsCloudProgressLoaded(false);
         localStorage.removeItem('venoxa_token');
         localStorage.removeItem('venoxa_user');
 
@@ -1593,7 +1603,8 @@ function AppInner() {
       setUser(userData);
       localStorage.setItem('venoxa_token', jwt);
       localStorage.setItem('venoxa_user', JSON.stringify(userData));
-      await syncProgress(jwt, userData);
+      setIsCloudProgressLoaded(true);
+      await syncProgress(jwt, userData, null, true);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -1609,7 +1620,8 @@ function AppInner() {
       setUser(userData);
       localStorage.setItem('venoxa_token', jwt);
       localStorage.setItem('venoxa_user', JSON.stringify(userData));
-      await syncProgress(jwt, userData);
+      setIsCloudProgressLoaded(true);
+      await syncProgress(jwt, userData, null, true);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -1625,7 +1637,8 @@ function AppInner() {
       setUser(userData);
       localStorage.setItem('venoxa_token', jwt);
       localStorage.setItem('venoxa_user', JSON.stringify(userData));
-      await syncProgress(jwt, userData);
+      setIsCloudProgressLoaded(true);
+      await syncProgress(jwt, userData, null, true);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -1738,12 +1751,16 @@ function AppInner() {
       collocationHistory,
       etymologyFavorites,
       etymologyHistory,
+      pronBookmarks,
+      pronCompleted,
+      testSessions,
       // keep references for diff-checking later
       _local: { 
         sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv, 
         translationHistory: tHistory, translationFavorites: tFavorites, savedWords: sWords, savedIdioms: sIdioms,
         toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory,
-        wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory
+        wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory,
+        pronBookmarks, pronCompleted, testSessions
       }
     };
   };
@@ -1875,10 +1892,26 @@ function AppInner() {
       localStorage.setItem('venoxa_etymology_history', JSON.stringify(mergedUser.etymologyHistory));
       setEtymologyHistory(mergedUser.etymologyHistory);
     }
+    if (mergedUser.pronBookmarks && JSON.stringify(mergedUser.pronBookmarks) !== JSON.stringify(_local.pronBookmarks)) {
+      localStorage.setItem('venoxa_pron_bookmarks', JSON.stringify(mergedUser.pronBookmarks));
+      setPronBookmarks(mergedUser.pronBookmarks);
+    }
+    if (mergedUser.pronCompleted && JSON.stringify(mergedUser.pronCompleted) !== JSON.stringify(_local.pronCompleted)) {
+      localStorage.setItem('venoxa_pron_completed', JSON.stringify(mergedUser.pronCompleted));
+      setPronCompleted(mergedUser.pronCompleted);
+    }
+    if (mergedUser.testSessions && JSON.stringify(mergedUser.testSessions) !== JSON.stringify(_local.testSessions)) {
+      localStorage.setItem('venoxa-test-sessions', JSON.stringify(mergedUser.testSessions));
+      setTestSessions(mergedUser.testSessions);
+    }
   };
 
-  const syncProgress = async (currentToken = token, currentUser = user, customCells = null) => {
+  const syncProgress = async (currentToken = token, currentUser = user, customCells = null, force = false) => {
     if (!currentToken) return;
+    if (!isCloudProgressLoaded && !force) {
+      console.log('syncProgress blocked: cloud progress not loaded yet');
+      return;
+    }
     setSyncStatus('syncing');
     try {
       const payload = _gatherSyncPayload(customCells);
@@ -1912,6 +1945,7 @@ function AppInner() {
               wordFamilyFavorites: _wff, wordFamilyHistory: _wfh,
               collocationFavorites: _cf, collocationHistory: _ch,
               etymologyFavorites: _ef, etymologyHistory: _eth,
+              pronBookmarks: _pb, pronCompleted: _pcmp, testSessions: _ts,
               ...lightProfile } = mergedUser;
       try {
         localStorage.setItem('venoxa_user', JSON.stringify(lightProfile));
@@ -2039,6 +2073,18 @@ function AppInner() {
       if (mergedUser.etymologyHistory && JSON.stringify(mergedUser.etymologyHistory) !== JSON.stringify(_local.etymologyHistory)) {
         localStorage.setItem('venoxa_etymology_history', JSON.stringify(mergedUser.etymologyHistory));
         setEtymologyHistory(mergedUser.etymologyHistory);
+      }
+      if (mergedUser.pronBookmarks && JSON.stringify(mergedUser.pronBookmarks) !== JSON.stringify(_local.pronBookmarks)) {
+        localStorage.setItem('venoxa_pron_bookmarks', JSON.stringify(mergedUser.pronBookmarks));
+        setPronBookmarks(mergedUser.pronBookmarks);
+      }
+      if (mergedUser.pronCompleted && JSON.stringify(mergedUser.pronCompleted) !== JSON.stringify(_local.pronCompleted)) {
+        localStorage.setItem('venoxa_pron_completed', JSON.stringify(mergedUser.pronCompleted));
+        setPronCompleted(mergedUser.pronCompleted);
+      }
+      if (mergedUser.testSessions && JSON.stringify(mergedUser.testSessions) !== JSON.stringify(_local.testSessions)) {
+        localStorage.setItem('venoxa-test-sessions', JSON.stringify(mergedUser.testSessions));
+        setTestSessions(mergedUser.testSessions);
       }
 
       setSyncStatus('synced');
@@ -2180,6 +2226,9 @@ function AppInner() {
   useEffect(() => localStorage.setItem('venoxa_collocations_history', JSON.stringify(collocationHistory)), [collocationHistory]);
   useEffect(() => localStorage.setItem('venoxa_etymology_favorites', JSON.stringify(etymologyFavorites)), [etymologyFavorites]);
   useEffect(() => localStorage.setItem('venoxa_etymology_history', JSON.stringify(etymologyHistory)), [etymologyHistory]);
+  useEffect(() => localStorage.setItem('venoxa_pron_bookmarks', JSON.stringify(pronBookmarks)), [pronBookmarks]);
+  useEffect(() => localStorage.setItem('venoxa_pron_completed', JSON.stringify(pronCompleted)), [pronCompleted]);
+  useEffect(() => localStorage.setItem('venoxa-test-sessions', JSON.stringify(testSessions)), [testSessions]);
 
   useEffect(() => {
     latestLocalRef.current = {
@@ -2190,7 +2239,8 @@ function AppInner() {
       sentenceDiagrammerFavorites, sentenceDiagrammerHistory,
       wordFamilyFavorites, wordFamilyHistory,
       collocationFavorites, collocationHistory,
-      etymologyFavorites, etymologyHistory
+      etymologyFavorites, etymologyHistory,
+      pronBookmarks, pronCompleted, testSessions
     };
   }, [
     srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData,
@@ -2200,7 +2250,8 @@ function AppInner() {
     sentenceDiagrammerFavorites, sentenceDiagrammerHistory,
     wordFamilyFavorites, wordFamilyHistory,
     collocationFavorites, collocationHistory,
-    etymologyFavorites, etymologyHistory
+    etymologyFavorites, etymologyHistory,
+    pronBookmarks, pronCompleted, testSessions
   ]);
 
   // Debounced background sync to the cloud database when local data is modified
@@ -2211,7 +2262,7 @@ function AppInner() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory]);
+  }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory, pronBookmarks, pronCompleted, testSessions]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
@@ -2302,7 +2353,7 @@ function AppInner() {
       case 'idioms-proper':
         return <IdiomsProper {...props} idiomsProperVocab={idiomsProperVocab} setIdiomsProperVocab={setIdiomsProperVocab} idiomsProperSrs={idiomsProperSrs} setIdiomsProperSrs={setIdiomsProperSrs} />;
       case 'test-gen':
-        return <TestGenerator {...props} />;
+        return <TestGenerator {...props} sessions={testSessions} setSessions={setTestSessions} />;
       case 'grammar':
         return <Grammar {...props} />;
       case 'writing':
@@ -2320,7 +2371,7 @@ function AppInner() {
           const saved = _voiceAccent;
           if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
           try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
-        }} />;
+        }} bookmarks={pronBookmarks} setBookmarks={setPronBookmarks} completed={pronCompleted} setCompleted={setPronCompleted} />;
       case 'smart-translation':
         return <SmartTranslation
           lang={lang}
@@ -9353,7 +9404,7 @@ function Speaking({
 // ─────────────────────────────────────────────────────────────────────────────
 // TEST GENERATOR  — all 22 ozdic question types
 // ─────────────────────────────────────────────────────────────────────────────
-function TestGenerator({ AI_KEY, userLevel, lang, theme }) {
+function TestGenerator({ AI_KEY, userLevel, lang, theme, sessions: propSessions, setSessions: propSetSessions }) {
   const isDark = theme === 'dark';
   const t = lang === 'ar';
 
@@ -9368,9 +9419,11 @@ function TestGenerator({ AI_KEY, userLevel, lang, theme }) {
   const [phase,     setPhase]     = useState('config');   // config | loading | session | results
   const [questions, setQuestions] = useState([]);
   const [answers,   setAnswers]   = useState({});
-  const [sessions,  setSessions]  = useState(() => {
+  const [localSessions, setLocalSessions] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa-test-sessions') || '[]'); } catch { return []; }
   });
+  const sessions = propSessions !== undefined ? propSessions : localSessions;
+  const setSessions = propSetSessions !== undefined ? propSetSessions : setLocalSessions;
 
   // drag-and-drop internal state per question id
   const [dragArranged, setDragArranged] = useState({});  // id -> [words arranged so far]
@@ -9584,7 +9637,9 @@ Make questions natural, educational, and appropriate for ${lvlTxt} learners. Ret
     };
     const updated = [sess, ...sessions].slice(0, 10);
     setSessions(updated);
-    localStorage.setItem('venoxa-test-sessions', JSON.stringify(updated));
+    if (propSessions === undefined) {
+      localStorage.setItem('venoxa-test-sessions', JSON.stringify(updated));
+    }
   };
 
   // ── shared style helpers ──────────────────────────────────────────────────
