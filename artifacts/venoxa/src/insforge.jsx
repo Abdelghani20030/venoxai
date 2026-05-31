@@ -68,8 +68,18 @@ function docToUser(uid, email, data = {}) {
     studiedWords:         data.studiedWords         || [],
     translationHistory:   data.translationHistory   || [],
     translationFavorites: data.translationFavorites || [],
-    savedWords:           data.savedWords           || [],
-    savedIdioms:          data.savedIdioms          || [],
+    savedWords:                  data.savedWords                  || [],
+    savedIdioms:                 data.savedIdioms                 || [],
+    toneRewriterFavorites:       data.toneRewriterFavorites       || [],
+    toneRewriterHistory:         data.toneRewriterHistory         || [],
+    sentenceDiagrammerFavorites: data.sentenceDiagrammerFavorites || [],
+    sentenceDiagrammerHistory:   data.sentenceDiagrammerHistory   || [],
+    wordFamilyFavorites:         data.wordFamilyFavorites         || [],
+    wordFamilyHistory:           data.wordFamilyHistory           || [],
+    collocationFavorites:        data.collocationFavorites        || [],
+    collocationHistory:          data.collocationHistory          || [],
+    etymologyFavorites:          data.etymologyFavorites          || [],
+    etymologyHistory:            data.etymologyHistory            || [],
   };
 }
 
@@ -214,6 +224,11 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
       'idiomsProperVocab', 'langeekVocab', 'achievements',
       'calendarDays', 'speakingHistory', 'writingHistory', 'studiedWords',
       'translationHistory', 'translationFavorites', 'savedWords', 'savedIdioms',
+      'toneRewriterFavorites', 'toneRewriterHistory',
+      'sentenceDiagrammerFavorites', 'sentenceDiagrammerHistory',
+      'wordFamilyFavorites', 'wordFamilyHistory',
+      'collocationFavorites', 'collocationHistory',
+      'etymologyFavorites', 'etymologyHistory',
     ];
     const srsFields = [
       'srsData', 'langeekSrsData', 'phrasalSrs', 'idiomsSrs', 'idiomsProperSrs',

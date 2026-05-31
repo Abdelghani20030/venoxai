@@ -1457,6 +1457,37 @@ function AppInner() {
     try { return JSON.parse(localStorage.getItem('venoxa_saved_idioms')) || []; } catch { return []; }
   });
 
+  const [toneRewriterFavorites, setToneRewriterFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_tone_rewriter_favorites')) || []; } catch { return []; }
+  });
+  const [toneRewriterHistory, setToneRewriterHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_tone_rewriter_history')) || []; } catch { return []; }
+  });
+  const [sentenceDiagrammerFavorites, setSentenceDiagrammerFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_sentence_diagrammer_favorites')) || []; } catch { return []; }
+  });
+  const [sentenceDiagrammerHistory, setSentenceDiagrammerHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_sentence_diagrammer_history')) || []; } catch { return []; }
+  });
+  const [wordFamilyFavorites, setWordFamilyFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_word_family_favorites')) || []; } catch { return []; }
+  });
+  const [wordFamilyHistory, setWordFamilyHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_word_family_history')) || []; } catch { return []; }
+  });
+  const [collocationFavorites, setCollocationFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_collocations_favorites')) || []; } catch { return []; }
+  });
+  const [collocationHistory, setCollocationHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_collocations_history')) || []; } catch { return []; }
+  });
+  const [etymologyFavorites, setEtymologyFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_etymology_favorites')) || []; } catch { return []; }
+  });
+  const [etymologyHistory, setEtymologyHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_etymology_history')) || []; } catch { return []; }
+  });
+
   const [token, setToken] = useState(() => localStorage.getItem('venoxa_token') || null);
   const [user, setUser] = useState(() => {
     try {
@@ -1661,8 +1692,23 @@ function AppInner() {
       translationFavorites: tFavorites,
       savedWords: sWords,
       savedIdioms: sIdioms,
+      toneRewriterFavorites,
+      toneRewriterHistory,
+      sentenceDiagrammerFavorites,
+      sentenceDiagrammerHistory,
+      wordFamilyFavorites,
+      wordFamilyHistory,
+      collocationFavorites,
+      collocationHistory,
+      etymologyFavorites,
+      etymologyHistory,
       // keep references for diff-checking later
-      _local: { gVocab, pVocab, iVocab, ipVocab, lVocab, sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv, translationHistory: tHistory, translationFavorites: tFavorites, savedWords: sWords, savedIdioms: sIdioms }
+      _local: { 
+        gVocab, pVocab, iVocab, ipVocab, lVocab, sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv, 
+        translationHistory: tHistory, translationFavorites: tFavorites, savedWords: sWords, savedIdioms: sIdioms,
+        toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory,
+        wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory
+      }
     };
   };
 
@@ -1698,6 +1744,11 @@ function AppInner() {
               planConfig: _pc, studiedWords: _sw,
               translationHistory: _th, translationFavorites: _tf,
               savedWords: _swo, savedIdioms: _sid,
+              toneRewriterFavorites: _trf, toneRewriterHistory: _trh,
+              sentenceDiagrammerFavorites: _sdf, sentenceDiagrammerHistory: _sdh,
+              wordFamilyFavorites: _wff, wordFamilyHistory: _wfh,
+              collocationFavorites: _cf, collocationHistory: _ch,
+              etymologyFavorites: _ef, etymologyHistory: _eth,
               ...lightProfile } = mergedUser;
       try {
         localStorage.setItem('venoxa_user', JSON.stringify(lightProfile));
@@ -1804,6 +1855,46 @@ function AppInner() {
       if (mergedUser.savedIdioms && JSON.stringify(mergedUser.savedIdioms) !== JSON.stringify(_local.savedIdioms)) {
         localStorage.setItem('venoxa_saved_idioms', JSON.stringify(mergedUser.savedIdioms));
         setSavedIdioms(mergedUser.savedIdioms);
+      }
+      if (mergedUser.toneRewriterFavorites && JSON.stringify(mergedUser.toneRewriterFavorites) !== JSON.stringify(_local.toneRewriterFavorites)) {
+        localStorage.setItem('venoxa_tone_rewriter_favorites', JSON.stringify(mergedUser.toneRewriterFavorites));
+        setToneRewriterFavorites(mergedUser.toneRewriterFavorites);
+      }
+      if (mergedUser.toneRewriterHistory && JSON.stringify(mergedUser.toneRewriterHistory) !== JSON.stringify(_local.toneRewriterHistory)) {
+        localStorage.setItem('venoxa_tone_rewriter_history', JSON.stringify(mergedUser.toneRewriterHistory));
+        setToneRewriterHistory(mergedUser.toneRewriterHistory);
+      }
+      if (mergedUser.sentenceDiagrammerFavorites && JSON.stringify(mergedUser.sentenceDiagrammerFavorites) !== JSON.stringify(_local.sentenceDiagrammerFavorites)) {
+        localStorage.setItem('venoxa_sentence_diagrammer_favorites', JSON.stringify(mergedUser.sentenceDiagrammerFavorites));
+        setSentenceDiagrammerFavorites(mergedUser.sentenceDiagrammerFavorites);
+      }
+      if (mergedUser.sentenceDiagrammerHistory && JSON.stringify(mergedUser.sentenceDiagrammerHistory) !== JSON.stringify(_local.sentenceDiagrammerHistory)) {
+        localStorage.setItem('venoxa_sentence_diagrammer_history', JSON.stringify(mergedUser.sentenceDiagrammerHistory));
+        setSentenceDiagrammerHistory(mergedUser.sentenceDiagrammerHistory);
+      }
+      if (mergedUser.wordFamilyFavorites && JSON.stringify(mergedUser.wordFamilyFavorites) !== JSON.stringify(_local.wordFamilyFavorites)) {
+        localStorage.setItem('venoxa_word_family_favorites', JSON.stringify(mergedUser.wordFamilyFavorites));
+        setWordFamilyFavorites(mergedUser.wordFamilyFavorites);
+      }
+      if (mergedUser.wordFamilyHistory && JSON.stringify(mergedUser.wordFamilyHistory) !== JSON.stringify(_local.wordFamilyHistory)) {
+        localStorage.setItem('venoxa_word_family_history', JSON.stringify(mergedUser.wordFamilyHistory));
+        setWordFamilyHistory(mergedUser.wordFamilyHistory);
+      }
+      if (mergedUser.collocationFavorites && JSON.stringify(mergedUser.collocationFavorites) !== JSON.stringify(_local.collocationFavorites)) {
+        localStorage.setItem('venoxa_collocations_favorites', JSON.stringify(mergedUser.collocationFavorites));
+        setCollocationFavorites(mergedUser.collocationFavorites);
+      }
+      if (mergedUser.collocationHistory && JSON.stringify(mergedUser.collocationHistory) !== JSON.stringify(_local.collocationHistory)) {
+        localStorage.setItem('venoxa_collocations_history', JSON.stringify(mergedUser.collocationHistory));
+        setCollocationHistory(mergedUser.collocationHistory);
+      }
+      if (mergedUser.etymologyFavorites && JSON.stringify(mergedUser.etymologyFavorites) !== JSON.stringify(_local.etymologyFavorites)) {
+        localStorage.setItem('venoxa_etymology_favorites', JSON.stringify(mergedUser.etymologyFavorites));
+        setEtymologyFavorites(mergedUser.etymologyFavorites);
+      }
+      if (mergedUser.etymologyHistory && JSON.stringify(mergedUser.etymologyHistory) !== JSON.stringify(_local.etymologyHistory)) {
+        localStorage.setItem('venoxa_etymology_history', JSON.stringify(mergedUser.etymologyHistory));
+        setEtymologyHistory(mergedUser.etymologyHistory);
       }
 
       setSyncStatus('synced');
@@ -1930,6 +2021,17 @@ function AppInner() {
   useEffect(() => localStorage.setItem('venoxa_saved_words', JSON.stringify(savedWords)), [savedWords]);
   useEffect(() => localStorage.setItem('venoxa_saved_idioms', JSON.stringify(savedIdioms)), [savedIdioms]);
 
+  useEffect(() => localStorage.setItem('venoxa_tone_rewriter_favorites', JSON.stringify(toneRewriterFavorites)), [toneRewriterFavorites]);
+  useEffect(() => localStorage.setItem('venoxa_tone_rewriter_history', JSON.stringify(toneRewriterHistory)), [toneRewriterHistory]);
+  useEffect(() => localStorage.setItem('venoxa_sentence_diagrammer_favorites', JSON.stringify(sentenceDiagrammerFavorites)), [sentenceDiagrammerFavorites]);
+  useEffect(() => localStorage.setItem('venoxa_sentence_diagrammer_history', JSON.stringify(sentenceDiagrammerHistory)), [sentenceDiagrammerHistory]);
+  useEffect(() => localStorage.setItem('venoxa_word_family_favorites', JSON.stringify(wordFamilyFavorites)), [wordFamilyFavorites]);
+  useEffect(() => localStorage.setItem('venoxa_word_family_history', JSON.stringify(wordFamilyHistory)), [wordFamilyHistory]);
+  useEffect(() => localStorage.setItem('venoxa_collocations_favorites', JSON.stringify(collocationFavorites)), [collocationFavorites]);
+  useEffect(() => localStorage.setItem('venoxa_collocations_history', JSON.stringify(collocationHistory)), [collocationHistory]);
+  useEffect(() => localStorage.setItem('venoxa_etymology_favorites', JSON.stringify(etymologyFavorites)), [etymologyFavorites]);
+  useEffect(() => localStorage.setItem('venoxa_etymology_history', JSON.stringify(etymologyHistory)), [etymologyHistory]);
+
   // Debounced background sync to the cloud database when local data is modified
   useEffect(() => {
     if (token) {
@@ -1938,7 +2040,7 @@ function AppInner() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms]);
+  }, [globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
@@ -2072,17 +2174,52 @@ function AppInner() {
       case 'timer':
         return <TimerTool lang={lang} theme={theme} timerState={timerState} setTimerState={setTimerState} />;
       case 'tone-rewriter':
-        return <ToneRewriter lang={lang} theme={theme} />;
+        return <ToneRewriter 
+          lang={lang} 
+          theme={theme} 
+          favorites={toneRewriterFavorites}
+          setFavorites={setToneRewriterFavorites}
+          history={toneRewriterHistory}
+          setHistory={setToneRewriterHistory}
+        />;
       case 'sentence-diagrammer':
-        return <SentenceDiagrammer lang={lang} theme={theme} />;
+        return <SentenceDiagrammer 
+          lang={lang} 
+          theme={theme} 
+          favorites={sentenceDiagrammerFavorites}
+          setFavorites={setSentenceDiagrammerFavorites}
+          history={sentenceDiagrammerHistory}
+          setHistory={setSentenceDiagrammerHistory}
+        />;
       case 'minimal-pairs':
         return <MinimalPairs lang={lang} theme={theme} />;
       case 'word-family':
-        return <WordFamilyExplorer lang={lang} theme={theme} />;
+        return <WordFamilyExplorer 
+          lang={lang} 
+          theme={theme} 
+          favorites={wordFamilyFavorites}
+          setFavorites={setWordFamilyFavorites}
+          history={wordFamilyHistory}
+          setHistory={setWordFamilyHistory}
+        />;
       case 'collocations':
-        return <CollocationFinder lang={lang} theme={theme} />;
+        return <CollocationFinder 
+          lang={lang} 
+          theme={theme} 
+          favorites={collocationFavorites}
+          setFavorites={setCollocationFavorites}
+          history={collocationHistory}
+          setHistory={setCollocationHistory}
+        />;
       case 'etymology':
-        return <EtymologyExplorer lang={lang} theme={theme} />;
+        return <EtymologyExplorer 
+          lang={lang} 
+          theme={theme} 
+          favorites={etymologyFavorites}
+          setFavorites={setEtymologyFavorites}
+          history={etymologyHistory}
+          setHistory={setEtymologyHistory}
+        />;
       case 'word-of-day':
         return <WordOfTheDay lang={lang} theme={theme} savedWords={savedWords} setSavedWords={setSavedWords} />;
       case 'idiom-of-day':

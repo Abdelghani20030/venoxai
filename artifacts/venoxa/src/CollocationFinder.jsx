@@ -15,7 +15,7 @@
 
 import React, { useState, useCallback } from 'react';
 import {
-  Link2, Sparkles, Loader2, AlertCircle, Volume2, Database, Cpu
+  Link2, Sparkles, Loader2, AlertCircle, Volume2, Database, Cpu, Heart, Clock, RotateCcw, Trash2, ChevronUp, ChevronDown
 } from 'lucide-react';
 import { fetchFromAPI, parseJSONLoose, speakEdge } from './aiHelpers';
 
@@ -40,7 +40,7 @@ Rules: 4-6 groups, 5-10 short collocations per group, one example sentence per g
 Output ONLY valid JSON. No markdown. No code fences.`;
 
 
-export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' }) {
+export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark', favorites = [], setFavorites, history = [], setHistory }) {
   const isDark = theme === 'dark';
   const t = (en, ar) => uiLang === 'ar' ? ar : en;
 
@@ -50,6 +50,32 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
   const [error, setError] = useState('');
 
   const [source, setSource] = useState(null); // 'ozdic' | 'ai' | null
+
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [panelTab, setPanelTab] = useState('favorites');
+
+  const toggleFavorite = () => {
+    if (!data || busy) return;
+    setFavorites(prev => {
+      const trimmed = word.trim().toLowerCase();
+      const exists = prev.some(x => x.word.toLowerCase() === trimmed);
+      let next;
+      if (exists) {
+        next = prev.filter(x => x.word.toLowerCase() !== trimmed);
+      } else {
+        next = [{
+          id: Date.now().toString(),
+          word: data.word || word.trim(),
+          data,
+          source: source,
+          timestamp: Date.now()
+        }, ...prev];
+      }
+      return next;
+    });
+  };
+
+  const isFavorited = data && favorites.some(x => x.word.toLowerCase() === (data.word || word).trim().toLowerCase());
 
   const find = useCallback(async () => {
     if (!word.trim() || busy) return;
@@ -68,8 +94,20 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
       if (res.ok) {
         const json = await res.json();
         if (json.found && json.groups?.length) {
-          setData({ word: json.word, groups: json.groups, source: 'ozdic' });
+          const fetchedData = { word: json.word, groups: json.groups, source: 'ozdic' };
+          setData(fetchedData);
           setSource('ozdic');
+          setHistory(prev => {
+            const trimmed = json.word.trim().toLowerCase();
+            const next = [{
+              id: Date.now().toString(),
+              word: json.word,
+              data: fetchedData,
+              source: 'ozdic',
+              timestamp: Date.now()
+            }, ...prev.filter(x => x.word.toLowerCase() !== trimmed)].slice(0, 50);
+            return next;
+          });
           setBusy(false);
           return;
         }
@@ -82,11 +120,23 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
     if (!parsed?.groups?.length) {
       setError(t('Lookup failed. Please try again.', 'فشل البحث. حاول مرة أخرى.'));
     } else {
-      setData({ ...parsed, source: 'ai' });
+      const fetchedData = { ...parsed, source: 'ai' };
+      setData(fetchedData);
       setSource('ai');
+      setHistory(prev => {
+        const trimmed = (parsed.word || w).trim().toLowerCase();
+        const next = [{
+          id: Date.now().toString(),
+          word: parsed.word || word.trim(),
+          data: fetchedData,
+          source: 'ai',
+          timestamp: Date.now()
+        }, ...prev.filter(x => x.word.toLowerCase() !== trimmed)].slice(0, 50);
+        return next;
+      });
     }
     setBusy(false);
-  }, [word, busy, t]);
+  }, [word, busy, t, source]);
 
   return (
     <div className="flex flex-col gap-5 max-w-5xl mx-auto w-full pb-8 animate-fadeIn"
@@ -145,20 +195,33 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
         </div>
       )}
 
-      {/* Source badge */}
+      {/* Source badge and Save button */}
       {data && source && (
-        <div className="flex items-center gap-2">
-          {source === 'ozdic' ? (
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-widest bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
-              <Database className="w-3 h-3" />
-              Oxford Collocations · BNC
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-widest bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
-              <Cpu className="w-3 h-3" />
-              AI generated
-            </span>
-          )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {source === 'ozdic' ? (
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-widest bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
+                <Database className="w-3 h-3" />
+                Oxford Collocations · BNC
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-widest bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+                <Cpu className="w-3 h-3" />
+                AI generated
+              </span>
+            )}
+          </div>
+          <button
+            onClick={toggleFavorite}
+            title={isFavorited ? t('Remove from favorites', 'إزالة من المفضلة') : t('Save to favorites', 'حفظ في المفضلة')}
+            className={`p-2 rounded-xl transition-all ${
+              isFavorited
+                ? 'text-red-500 hover:bg-red-500/10'
+                : isDark ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10' : 'text-gray-400 hover:text-red-500 hover:bg-red-500/8'
+            }`}
+          >
+            <Heart className="w-5 h-5" fill={isFavorited ? 'currentColor' : 'none'} />
+          </button>
         </div>
       )}
 
@@ -210,6 +273,128 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark' 
           </div>
         </div>
       ))}
+      {/* ── Saved & History Panel ── */}
+      <div className="rounded-3xl overflow-hidden mt-2" style={{ background: isDark ? '#0F0F16' : '#ffffff', border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)' }}>
+        <button
+          onClick={() => setShowHistoryPanel(v => !v)}
+          className={`w-full flex items-center justify-between px-5 py-4 text-sm font-bold transition-all ${
+            isDark ? 'text-gray-200 hover:bg-white/5' : 'text-gray-700 hover:bg-black/3'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-[var(--app-accent1)]" />
+            {t('History & Saved Collocations', 'السجل والمتلازمات المحفوظة')}
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+              {favorites.length + history.length}
+            </span>
+          </div>
+          {showHistoryPanel
+            ? <ChevronUp className="w-4 h-4 opacity-50" />
+            : <ChevronDown className="w-4 h-4 opacity-50" />}
+        </button>
+
+        {showHistoryPanel && (
+          <div className="p-4 pt-0 flex flex-col gap-4">
+            {/* Tabs selector */}
+            <div className="flex border-b border-white/5 pb-2 gap-4">
+              <button
+                onClick={() => setPanelTab('favorites')}
+                className={`text-xs font-bold pb-1 border-b-2 transition-all ${
+                  panelTab === 'favorites'
+                    ? 'border-[var(--app-accent1)] text-white'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                {t('Saved', 'المحفوظات')} ({favorites.length})
+              </button>
+              <button
+                onClick={() => setPanelTab('history')}
+                className={`text-xs font-bold pb-1 border-b-2 transition-all ${
+                  panelTab === 'history'
+                    ? 'border-[var(--app-accent1)] text-white'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                {t('Recent', 'الأخيرة')} ({history.length})
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (panelTab === 'favorites') {
+                    setFavorites([]);
+                  } else {
+                    setHistory([]);
+                  }
+                }}
+                className="ml-auto text-xs font-bold text-red-400 hover:text-red-300 transition-all"
+              >
+                {t('Clear all', 'مسح الكل')}
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+              {(panelTab === 'favorites' ? favorites : history).length === 0 ? (
+                <p className="text-xs text-gray-500 py-4 text-center">{t('No items found.', 'لا توجد عناصر.')}</p>
+              ) : (
+                (panelTab === 'favorites' ? favorites : history).map((item) => (
+                  <div key={item.id} className={`flex items-start justify-between gap-3 p-3 rounded-2xl transition-all ${
+                    isDark ? 'bg-white/3 hover:bg-white/5' : 'bg-black/2 hover:bg-black/4'
+                  }`} dir="ltr">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
+                          {item.source === 'ozdic' ? 'Oxford/BNC' : 'AI'}
+                        </span>
+                        <span className="text-[10px] text-gray-500 font-medium">
+                          {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-gray-900'} truncate`}>
+                        {item.word}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => {
+                          setWord(item.word);
+                          setData(item.data);
+                          setSource(item.source);
+                          setError('');
+                        }}
+                        title={t('Load', 'تحميل')}
+                        className={`p-1.5 rounded-xl transition-all ${isDark ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-black/5 text-gray-500 hover:text-gray-800'}`}
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (panelTab === 'favorites') {
+                            setFavorites(prev => {
+                              const next = prev.filter(x => x.id !== item.id);
+                              return next;
+                            });
+                          } else {
+                            setHistory(prev => {
+                              const next = prev.filter(x => x.id !== item.id);
+                              return next;
+                            });
+                          }
+                        }}
+                        title={t('Delete', 'حذف')}
+                        className={`p-1.5 rounded-xl transition-all ${isDark ? 'hover:bg-white/10 text-gray-500 hover:text-red-400' : 'hover:bg-black/5 text-gray-400 hover:text-red-500'}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

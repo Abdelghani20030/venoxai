@@ -11,7 +11,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import {
-  Sliders, Sparkles, Loader2, Copy, Check, X, ArrowDown
+  Sliders, Sparkles, Loader2, Copy, Check, X, ArrowDown, Heart, Trash2, Clock, RotateCcw, ChevronUp, ChevronDown
 } from 'lucide-react';
 import { streamFromAPI } from './aiHelpers';
 
@@ -45,7 +45,7 @@ function CopyBtn({ text, isDark }) {
   );
 }
 
-export default function ToneRewriter({ lang: uiLang = 'ar', theme = 'dark' }) {
+export default function ToneRewriter({ lang: uiLang = 'ar', theme = 'dark', favorites = [], setFavorites, history = [], setHistory }) {
   const isDark = theme === 'dark';
   const t = (en, ar) => uiLang === 'ar' ? ar : en;
 
@@ -55,6 +55,32 @@ export default function ToneRewriter({ lang: uiLang = 'ar', theme = 'dark' }) {
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState('');
   const abortRef = useRef(null);
+
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [panelTab, setPanelTab] = useState('favorites');
+
+  const toggleFavorite = () => {
+    if (!output || busy) return;
+    setFavorites(prev => {
+      const trimmed = input.trim();
+      const exists = prev.some(x => x.input === trimmed && x.tone === tone);
+      let next;
+      if (exists) {
+        next = prev.filter(x => !(x.input === trimmed && x.tone === tone));
+      } else {
+        next = [{
+          id: Date.now().toString(),
+          input: trimmed,
+          output,
+          tone,
+          timestamp: Date.now()
+        }, ...prev];
+      }
+      return next;
+    });
+  };
+
+  const isFavorited = favorites.some(x => x.input === input.trim() && x.tone === tone);
 
   const rewrite = useCallback(async () => {
     if (!input.trim() || busy) return;
@@ -82,9 +108,23 @@ ${input}
 """`;
 
     try {
-      await streamFromAPI(prompt, (delta) => {
+      const finalOutput = await streamFromAPI(prompt, (delta) => {
         setOutput(prev => prev + delta);
       }, 1500);
+
+      if (finalOutput) {
+        setHistory(prev => {
+          const trimmed = input.trim();
+          const next = [{
+            id: Date.now().toString(),
+            input: trimmed,
+            output: finalOutput,
+            tone,
+            timestamp: Date.now()
+          }, ...prev.filter(x => !(x.input === trimmed && x.tone === tone))].slice(0, 50);
+          return next;
+        });
+      }
     } catch (err) {
       if (err.name !== 'AbortError') {
         setError(t('Rewrite failed. Please try again.', 'فشل في إعادة الصياغة. حاول مرة أخرى.'));
@@ -201,7 +241,22 @@ ${input}
                 : TONES.find(x => x.id === tone)?.label}
             </span>
           </span>
-          <CopyBtn text={output} isDark={isDark} />
+          <div className="flex items-center gap-1">
+            {output && !busy && (
+              <button
+                onClick={toggleFavorite}
+                title={isFavorited ? t('Remove from favorites', 'إزالة من المفضلة') : t('Save to favorites', 'حفظ في المفضلة')}
+                className={`p-2 rounded-xl transition-all ${
+                  isFavorited
+                    ? 'text-red-500 hover:bg-red-500/10'
+                    : isDark ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10' : 'text-gray-400 hover:text-red-500 hover:bg-red-500/8'
+                }`}
+              >
+                <Heart className="w-4 h-4" fill={isFavorited ? 'currentColor' : 'none'} />
+              </button>
+            )}
+            <CopyBtn text={output} isDark={isDark} />
+          </div>
         </div>
         <div className="flex-1 p-5 overflow-y-auto">
           {error ? (
@@ -222,6 +277,135 @@ ${input}
           )}
         </div>
       </div>
+
+      {/* ── Saved & History Panel ── */}
+      <div className="rounded-3xl overflow-hidden mt-2" style={{ background: isDark ? '#0F0F16' : '#ffffff', border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)' }}>
+        <button
+          onClick={() => setShowHistoryPanel(v => !v)}
+          className={`w-full flex items-center justify-between px-5 py-4 text-sm font-bold transition-all ${
+            isDark ? 'text-gray-200 hover:bg-white/5' : 'text-gray-700 hover:bg-black/3'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-[var(--app-accent1)]" />
+            {t('History & Saved', 'السجل والمحفوظات')}
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+              {favorites.length + history.length}
+            </span>
+          </div>
+          {showHistoryPanel
+            ? <ChevronUp className="w-4 h-4 opacity-50" />
+            : <ChevronDown className="w-4 h-4 opacity-50" />}
+        </button>
+
+        {showHistoryPanel && (
+          <div className="p-4 pt-0 flex flex-col gap-4">
+            {/* Tabs selector */}
+            <div className="flex border-b border-white/5 pb-2 gap-4">
+              <button
+                onClick={() => setPanelTab('favorites')}
+                className={`text-xs font-bold pb-1 border-b-2 transition-all ${
+                  panelTab === 'favorites'
+                    ? 'border-[var(--app-accent1)] text-white'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                {t('Saved', 'المحفوظات')} ({favorites.length})
+              </button>
+              <button
+                onClick={() => setPanelTab('history')}
+                className={`text-xs font-bold pb-1 border-b-2 transition-all ${
+                  panelTab === 'history'
+                    ? 'border-[var(--app-accent1)] text-white'
+                    : 'border-transparent text-gray-400 hover:text-white'
+                }`}
+              >
+                {t('Recent', 'الأخيرة')} ({history.length})
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (panelTab === 'favorites') {
+                    setFavorites([]);
+                  } else {
+                    setHistory([]);
+                  }
+                }}
+                className="ml-auto text-xs font-bold text-red-400 hover:text-red-300 transition-all"
+              >
+                {t('Clear all', 'مسح الكل')}
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+              {(panelTab === 'favorites' ? favorites : history).length === 0 ? (
+                <p className="text-xs text-gray-500 py-4 text-center">{t('No items found.', 'لا توجد عناصر.')}</p>
+              ) : (
+                (panelTab === 'favorites' ? favorites : history).map((item) => {
+                  const itemToneObj = TONES.find(x => x.id === item.tone) || TONES[0];
+                  return (
+                    <div key={item.id} className={`flex items-start justify-between gap-3 p-3 rounded-2xl transition-all ${
+                      isDark ? 'bg-white/3 hover:bg-white/5' : 'bg-black/2 hover:bg-black/4'
+                    }`} dir="ltr">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+                            {uiLang === 'ar' ? itemToneObj.labelAr : itemToneObj.label}
+                          </span>
+                          <span className="text-[10px] text-gray-500 font-medium">
+                            {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className={`text-xs font-semibold truncate ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {item.input}
+                        </p>
+                        <p className={`text-xs mt-1 text-[var(--app-accent1)] font-medium line-clamp-2`}>
+                          {item.output}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setInput(item.input);
+                            setOutput(item.output);
+                            setTone(item.tone);
+                            setError('');
+                          }}
+                          title={t('Load', 'تحميل')}
+                          className={`p-1.5 rounded-xl transition-all ${isDark ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-black/5 text-gray-500 hover:text-gray-800'}`}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (panelTab === 'favorites') {
+                              setFavorites(prev => {
+                                const next = prev.filter(x => x.id !== item.id);
+                                return next;
+                              });
+                            } else {
+                               setHistory(prev => {
+                                 const next = prev.filter(x => x.id !== item.id);
+                                 return next;
+                               });
+                             }
+                           }}
+                           title={t('Delete', 'حذف')}
+                           className={`p-1.5 rounded-xl transition-all ${isDark ? 'hover:bg-white/10 text-gray-500 hover:text-red-400' : 'hover:bg-black/5 text-gray-400 hover:text-red-500'}`}
+                         >
+                           <Trash2 className="w-3.5 h-3.5" />
+                         </button>
+                       </div>
+                     </div>
+                   );
+                 })
+               )}
+             </div>
+           </div>
+         )}
+       </div>
     </div>
   );
 }
