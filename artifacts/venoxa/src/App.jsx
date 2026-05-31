@@ -204,7 +204,7 @@ const USFlag = ({ style = {}, className = "" }) => {
 };
 
 // ── Compact dropdown for the call-mode overlay ───────────────────────────────
-function CallMiniDropdown({ value, onChange, options, prefix = '' }) {
+function CallMiniDropdown({ value, onChange, options, prefix = '', isDark = true }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -217,7 +217,11 @@ function CallMiniDropdown({ value, onChange, options, prefix = '' }) {
     <div className={`relative ${open ? 'z-[9999]' : 'z-auto'}`} ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-black/25 backdrop-blur-md border border-white/12 text-white text-[11px] font-bold rounded-2xl hover:border-white/25 hover:bg-black/35 transition-all"
+        className={`flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-md border text-[11px] font-bold rounded-2xl transition-all ${
+          isDark
+            ? 'bg-black/25 border-white/12 text-white hover:border-white/25 hover:bg-black/35'
+            : 'bg-white/90 border-black/10 text-gray-700 hover:border-black/20 hover:bg-white'
+        }`}
       >
         {prefix && <span className="opacity-60">{prefix}</span>}
         <span>{selected?.label ?? value}</span>
@@ -226,13 +230,15 @@ function CallMiniDropdown({ value, onChange, options, prefix = '' }) {
       {open && (
         <div
           className="dropdown-menu absolute top-full mt-2 left-1/2 -translate-x-1/2 min-w-[140px]"
-          style={{ background: 'rgba(33,33,42,0.97)', border: '1px solid rgba(255,255,255,0.10)' }}
+          style={isDark
+            ? { background: 'rgba(33,33,42,0.97)', border: '1px solid rgba(255,255,255,0.10)' }
+            : { background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(0,0,0,0.08)' }}
         >
           {options.map(opt => (
             <button
               key={opt.value}
               onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={`dropdown-item justify-center text-center ${value === opt.value ? 'active' : ''}`}
+              className={`dropdown-item justify-center text-center ${value === opt.value ? 'active' : isDark ? 'text-white' : 'text-gray-800'}`}
             >
               {opt.label}
             </button>
@@ -8025,7 +8031,7 @@ function Writing({
                     </div>
                     <div className="flex items-center gap-3 px-4 py-3">
                       <span className="line-through text-red-500 dark:text-red-400 font-bold text-sm">{err.word}</span>
-                      <span className="text-gray-300 text-sm">to</span>
+                      <span className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>to</span>
                       <span className="text-green-600 dark:text-green-400 font-bold text-sm">{err.correction}</span>
                     </div>
                     <div className="px-4 pb-3 text-xs text-gray-500 dark:text-gray-400 leading-relaxed border-b" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : '#f3f4f6' }}>{err.explanation}</div>
@@ -9107,30 +9113,30 @@ function Speaking({
       <div className="absolute top-2 left-6 right-6 z-20 flex justify-between items-center flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           {/* LIVE + Timer pill */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md border ${isDark ? 'bg-black/20 border-white/10' : 'bg-white/90 border-black/10'}`}>
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-[10px] font-bold tracking-widest text-white/90 uppercase">Live</span>
-            <span className="text-xs font-bold text-white/70 tabular-nums">{formatCallDuration(callDuration)}</span>
+            <span className={`text-[10px] font-bold tracking-widest uppercase ${isDark ? 'text-white/90' : 'text-gray-700'}`}>Live</span>
+            <span className={`text-xs font-bold tabular-nums ${isDark ? 'text-white/70' : 'text-gray-500'}`}>{formatCallDuration(callDuration)}</span>
           </div>
 
           {/* Accent + Gender pill */}
-          <div className="flex items-center gap-0.5 bg-black/20 backdrop-blur-md border border-white/10 p-1 rounded-2xl">
+          <div className={`flex items-center gap-0.5 backdrop-blur-md border p-1 rounded-2xl ${isDark ? 'bg-black/20 border-white/10' : 'bg-white/90 border-black/10'}`}>
             <button onClick={() => setVoiceAccent(voiceAccent === 'uk' ? 'us' : 'uk')}
-              className="px-3 py-1 text-[10px] font-bold text-white/80 hover:text-white transition-colors uppercase">
+              className={`px-3 py-1 text-[10px] font-bold transition-colors uppercase ${isDark ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
               {voiceAccent === 'uk' ? t.uk : t.us}
             </button>
-            <div className="w-px h-3 bg-white/10" />
+            <div className={`w-px h-3 ${isDark ? 'bg-white/10' : 'bg-black/10'}`} />
             <button onClick={() => setVoiceGender(voiceGender === 'male' ? 'female' : 'male')}
-              className="px-3 py-1 text-[10px] font-bold text-white/80 hover:text-white transition-colors uppercase">
+              className={`px-3 py-1 text-[10px] font-bold transition-colors uppercase ${isDark ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
               {voiceGender === 'male' ? t.male : t.female}
             </button>
           </div>
 
           {/* Formality toggle */}
-          <div className="flex items-center gap-0.5 bg-black/20 backdrop-blur-md border border-white/10 p-1 rounded-2xl">
+          <div className={`flex items-center gap-0.5 backdrop-blur-md border p-1 rounded-2xl ${isDark ? 'bg-black/20 border-white/10' : 'bg-white/90 border-black/10'}`}>
             {['informal','formal'].map(m => (
               <button key={m} onClick={() => setFormality(m)}
-                className={`px-3 py-1 rounded-xl text-[10px] font-bold transition-all ${formality === m ? 'bg-white/18 text-white' : 'text-white/40 hover:text-white/70'}`}>
+                className={`px-3 py-1 rounded-xl text-[10px] font-bold transition-all ${formality === m ? isDark ? 'bg-white/18 text-white' : 'bg-gray-100 text-gray-900' : isDark ? 'text-white/40 hover:text-white/70' : 'text-gray-400 hover:text-gray-700'}`}>
                 {m === 'informal' ? t.informal : t.formal}
               </button>
             ))}
@@ -9144,6 +9150,7 @@ function Speaking({
             value={chatLevel}
             onChange={setChatLevel}
             options={['A1','A2','B1','B2','C1','C2'].map(l => ({ value: l, label: l }))}
+            isDark={isDark}
           />
 
           {/* Topic dropdown */}
@@ -9154,6 +9161,7 @@ function Speaking({
               value: tp,
               label: lang === 'ar' ? tp.split('(')[0].trim() : (tp.match(/\(([^)]+)\)/)?.[1] || tp)
             }))}
+            isDark={isDark}
           />
 
           {/* Scenario button */}
@@ -9331,7 +9339,7 @@ function Speaking({
                 <div className="w-px h-3 bg-gray-200 dark:bg-[var(--app-card)]" />
                 <button
                   onClick={() => setAutoRead(!autoRead)}
-                  className={`px-3 h-full flex items-center text-sm font-bold transition-colors ${autoRead ? 'text-[var(--app-accent2)]' : 'text-gray-300'}`}
+                  className={`px-3 h-full flex items-center text-sm font-bold transition-colors ${autoRead ? 'text-[var(--app-accent2)]' : theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}
                   title={t.autoPlay}
                 >
                   <Volume2 size={16} />
@@ -9685,7 +9693,7 @@ function Speaking({
                 </div>
                 {/* Right controls */}
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-gray-300 dark:text-gray-600 font-medium flex items-center gap-1">
+                  <span className="text-[10px] text-gray-500 dark:text-gray-500 font-medium flex items-center gap-1">
                     {PERSONALITIES.find(p => p.id === personality)?.icon}{' '}
                     {PERSONALITIES.find(p => p.id === personality)?.label}
                     {PERSONALITIES.find(p => p.id === personality)?.mature && <span className="text-rose-400 text-[9px]">18+</span>}
@@ -9695,7 +9703,7 @@ function Speaking({
                   <button
                     onClick={() => handleSend()}
                     disabled={loading || !input.trim()}
-                    className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${loading || !input.trim() ? 'text-gray-300 dark:text-gray-600' : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-90'}`}>
+                    className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${loading || !input.trim() ? 'text-gray-300 dark:text-gray-500' : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-90'}`}>
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
