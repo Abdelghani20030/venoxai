@@ -25,6 +25,7 @@ import {
   getMetadata,
 } from 'firebase/storage';
 import { app, storage } from './firebase-config.js';
+import { loadBundledVocab } from './vocabData.js';
 
 export const auth = getAuth(app);
 const db = getFirestore(app);
@@ -418,11 +419,14 @@ function _parseCSVLine(line, sep = ',') {
 }
 
 /**
- * Called on login. Downloads all stored CSVs from Firebase Storage,
- * parses them, and returns an object to hydrate the vocab state.
- * Any section that hasn't been uploaded yet will return an empty array.
+ * Called on startup or login. Loads core default CSVs from the public folder,
+ * checks Firebase Storage for custom user uploads, and merges them.
  */
 export async function loadAllVocabFromStorage() {
+  // ── 1. Load default bundled data ──
+  const bundled = await loadBundledVocab();
+
+  // ── 2. Load user-specific overrides from Firebase Storage ──
   const sections = ['global', 'phrasal', 'slang', 'idioms', 'langeek'];
   const parsers = {
     global:  _parseGlobalCSV,
@@ -436,11 +440,29 @@ export async function loadAllVocabFromStorage() {
     sections.map(s => downloadVocabCSV(s))
   );
 
+  const uploaded = {
+    globalVocab:  results[0].value ? parsers.global(results[0].value)  : null,
+    phrasalVocab: results[1].value ? parsers.phrasal(results[1].value) : null,
+    slangVocab:   results[2].value ? parsers.slang(results[2].value)   : null,
+    idiomsVocab:  results[3].value ? parsers.idioms(results[3].value)  : null,
+    langeekVocab: results[4].value ? parsers.langeek(results[4].value) : null,
+  };
+
+  // ── 3. Merge helper: user overrides bundled by `word` key ──
+  function mergeByWord(base = [], override) {
+    if (!override || override.length === 0) return base;
+    const map = new Map(base.map(w => [w.word?.toLowerCase(), w]));
+    for (const w of override) {
+      if (w.word) map.set(w.word.toLowerCase(), w);
+    }
+    return Array.from(map.values());
+  }
+
   return {
-    globalVocab:       results[0].value ? parsers.global(results[0].value)  : null,
-    phrasalVocab:      results[1].value ? parsers.phrasal(results[1].value) : null,
-    slangVocab:        results[2].value ? parsers.slang(results[2].value)   : null,
-    idiomsVocab:       results[3].value ? parsers.idioms(results[3].value)  : null,
-    langeekVocab:      results[4].value ? parsers.langeek(results[4].value) : null,
+    globalVocab:  mergeByWord(bundled.globalVocab,  uploaded.globalVocab),
+    phrasalVocab: mergeByWord(bundled.phrasalVocab, uploaded.phrasalVocab),
+    slangVocab:   mergeByWord(bundled.slangVocab,   uploaded.slangVocab),
+    idiomsVocab:  mergeByWord(bundled.idiomsVocab,  uploaded.idiomsVocab),
+    langeekVocab: mergeByWord(bundled.langeekVocab, uploaded.langeekVocab),
   };
 }

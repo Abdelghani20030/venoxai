@@ -1538,6 +1538,15 @@ function AppInner() {
         setUser(null);
         localStorage.removeItem('venoxa_token');
         localStorage.removeItem('venoxa_user');
+
+        // ── Load default bundled vocabulary for guest / logged-out user ──
+        loadAllVocabFromStorage().then(vocabs => {
+          if (vocabs.globalVocab?.length)  { setGlobalVocab(vocabs.globalVocab);   localStorage.setItem('venoxa_global_vocab',       JSON.stringify(vocabs.globalVocab));  }
+          if (vocabs.phrasalVocab?.length) { setPhrasalVocab(vocabs.phrasalVocab); localStorage.setItem('venoxa_phrasal_vocab',      JSON.stringify(vocabs.phrasalVocab)); }
+          if (vocabs.idiomsVocab?.length)  { setIdiomsProperVocab(vocabs.idiomsVocab); localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(vocabs.idiomsVocab)); }
+          if (vocabs.slangVocab?.length)   { setIdiomsVocab(vocabs.slangVocab);    localStorage.setItem('venoxa_idioms_vocab',        JSON.stringify(vocabs.slangVocab));   }
+          if (vocabs.langeekVocab?.length) { setLangeekVocab(vocabs.langeekVocab); localStorage.setItem('venoxa_langeek_vocab',       JSON.stringify(vocabs.langeekVocab)); }
+        }).catch(err => console.warn('Guest loadAllVocabFromStorage failed:', err));
       }
     });
     return () => unsubscribe();
