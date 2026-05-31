@@ -1442,6 +1442,21 @@ function AppInner() {
   const [idiomsVocab, setIdiomsVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_vocab')) || []);
   const [idiomsProperVocab, setIdiomsProperVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_proper_vocab')) || []);
   const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
+  const [srsData, setSrsData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_srs_data')) || {}; } catch { return {}; }
+  });
+  const [phrasalSrs, setPhrasalSrs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_phrasal_srs')) || {}; } catch { return {}; }
+  });
+  const [idiomsSrs, setIdiomsSrs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_idioms_srs')) || {}; } catch { return {}; }
+  });
+  const [idiomsProperSrs, setIdiomsProperSrs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_idioms_proper_srs')) || {}; } catch { return {}; }
+  });
+  const [langeekSrsData, setLangeekSrsData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {}; } catch { return {}; }
+  });
   const [speakingHistory, setSpeakingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_speaking_history')) || []);
   const [writingHistory, setWritingHistory] = useState(() => JSON.parse(localStorage.getItem('venoxa_writing_history')) || []);
   const [translationHistory, setTranslationHistory] = useState(() => {
@@ -1657,12 +1672,12 @@ function AppInner() {
     const lVocab = JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || [];
     const sHistory = JSON.parse(localStorage.getItem('venoxa_speaking_history')) || [];
     const wHistory = JSON.parse(localStorage.getItem('venoxa_writing_history')) || [];
-    const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};
-    const lSrs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {};
+    const srs = srsData;
+    const lSrs = langeekSrsData;
     // Additional SRS stores (previously local-only, now synced via InsForge)
-    const pSrs = JSON.parse(localStorage.getItem('venoxa_phrasal_srs')) || {};
-    const iSrs = JSON.parse(localStorage.getItem('venoxa_idioms_srs')) || {};
-    const ipSrs = JSON.parse(localStorage.getItem('venoxa_idioms_proper_srs')) || {};
+    const pSrs = phrasalSrs;
+    const iSrs = idiomsSrs;
+    const ipSrs = idiomsProperSrs;
     // Study plan config & studied words
     let planCfg = {};
     try { planCfg = JSON.parse(localStorage.getItem('venoxa-plan-v3')) || {}; } catch {}
@@ -1798,20 +1813,20 @@ function AppInner() {
         setWritingHistory(mergedUser.writingHistory);
       }
       if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(_local.srs)) {
-        localStorage.setItem('venoxa_srs_data', JSON.stringify(mergedUser.srsData));
+        setSrsData(mergedUser.srsData);
       }
       if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(_local.lSrs)) {
-        localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(mergedUser.langeekSrsData));
+        setLangeekSrsData(mergedUser.langeekSrsData);
       }
       // Sync the 3 additional SRS stores (new — previously local-only)
       if (mergedUser.phrasalSrs && JSON.stringify(mergedUser.phrasalSrs) !== JSON.stringify(_local.pSrs)) {
-        localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(mergedUser.phrasalSrs));
+        setPhrasalSrs(mergedUser.phrasalSrs);
       }
       if (mergedUser.idiomsSrs && JSON.stringify(mergedUser.idiomsSrs) !== JSON.stringify(_local.iSrs)) {
-        localStorage.setItem('venoxa_idioms_srs', JSON.stringify(mergedUser.idiomsSrs));
+        setIdiomsSrs(mergedUser.idiomsSrs);
       }
       if (mergedUser.idiomsProperSrs && JSON.stringify(mergedUser.idiomsProperSrs) !== JSON.stringify(_local.ipSrs)) {
-        localStorage.setItem('venoxa_idioms_proper_srs', JSON.stringify(mergedUser.idiomsProperSrs));
+        setIdiomsProperSrs(mergedUser.idiomsProperSrs);
       }
       if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
         const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
@@ -1998,6 +2013,11 @@ function AppInner() {
   useEffect(() => localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(idiomsVocab)), [idiomsVocab]);
   useEffect(() => localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(idiomsProperVocab)), [idiomsProperVocab]);
   useEffect(() => localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(langeekVocab)), [langeekVocab]);
+  useEffect(() => localStorage.setItem('venoxa_srs_data', JSON.stringify(srsData)), [srsData]);
+  useEffect(() => localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(phrasalSrs)), [phrasalSrs]);
+  useEffect(() => localStorage.setItem('venoxa_idioms_srs', JSON.stringify(idiomsSrs)), [idiomsSrs]);
+  useEffect(() => localStorage.setItem('venoxa_idioms_proper_srs', JSON.stringify(idiomsProperSrs)), [idiomsProperSrs]);
+  useEffect(() => localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(langeekSrsData)), [langeekSrsData]);
   useEffect(() => localStorage.setItem('venoxa_speaking_history', JSON.stringify(speakingHistory)), [speakingHistory]);
   useEffect(() => localStorage.setItem('venoxa_writing_history', JSON.stringify(writingHistory)), [writingHistory]);
   useEffect(() => localStorage.setItem('venoxa_translation_history', JSON.stringify(translationHistory)), [translationHistory]);
@@ -2024,26 +2044,20 @@ function AppInner() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory]);
+  }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
     return () => clearInterval(int);
   }, []);
   const vocabDueCount = useMemo(() => {
-    try {
-      const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};
-      const now = Date.now();
-      return globalVocab.filter(w => { const d = srs[w.word]; return d && d.nextReview <= now; }).length;
-    } catch { return 0; }
-  }, [globalVocab, srsRefreshTick]);
+    const now = Date.now();
+    return globalVocab.filter(w => { const d = srsData[w.word]; return d && d.nextReview <= now; }).length;
+  }, [globalVocab, srsData, srsRefreshTick]);
   const langeekDueCount = useMemo(() => {
-    try {
-      const srs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {};
-      const now = Date.now();
-      return langeekVocab.filter(w => { const d = srs[w.word]; return d && d.nextReview <= now; }).length;
-    } catch { return 0; }
-  }, [langeekVocab, srsRefreshTick]);
+    const now = Date.now();
+    return langeekVocab.filter(w => { const d = langeekSrsData[w.word]; return d && d.nextReview <= now; }).length;
+  }, [langeekVocab, langeekSrsData, srsRefreshTick]);
   const [theme, setTheme] = useState(localStorage.getItem('venoxa_theme') || 'light');
   const [lang, setLang] = useState(localStorage.getItem('venoxa_lang') || 'ar');
   useEffect(() => {
@@ -2113,13 +2127,13 @@ function AppInner() {
           syncProgress={syncProgress}
         />;
       case 'vocab':
-        return <Vocabulary {...props} globalVocab={globalVocab} setGlobalVocab={setGlobalVocab} />;
+        return <Vocabulary {...props} globalVocab={globalVocab} setGlobalVocab={setGlobalVocab} srsData={srsData} setSrsData={setSrsData} />;
       case 'phrasal':
-        return <PhrasalVerbs {...props} phrasalVocab={phrasalVocab} setPhrasalVocab={setPhrasalVocab} />;
+        return <PhrasalVerbs {...props} phrasalVocab={phrasalVocab} setPhrasalVocab={setPhrasalVocab} phrasalSrs={phrasalSrs} setPhrasalSrs={setPhrasalSrs} />;
       case 'idioms':
-        return <IdiomsSlang {...props} idiomsVocab={idiomsVocab} setIdiomsVocab={setIdiomsVocab} />;
+        return <IdiomsSlang {...props} idiomsVocab={idiomsVocab} setIdiomsVocab={setIdiomsVocab} idiomsSrs={idiomsSrs} setIdiomsSrs={setIdiomsSrs} />;
       case 'idioms-proper':
-        return <IdiomsProper {...props} idiomsProperVocab={idiomsProperVocab} setIdiomsProperVocab={setIdiomsProperVocab} />;
+        return <IdiomsProper {...props} idiomsProperVocab={idiomsProperVocab} setIdiomsProperVocab={setIdiomsProperVocab} idiomsProperSrs={idiomsProperSrs} setIdiomsProperSrs={setIdiomsProperSrs} />;
       case 'test-gen':
         return <TestGenerator {...props} />;
       case 'grammar':
@@ -2133,7 +2147,7 @@ function AppInner() {
       case 'reading':
         return <ListeningReading type="reading" {...props} />;
       case 'langeek':
-        return <Langeek {...props} langeekVocab={langeekVocab} setLangeekVocab={setLangeekVocab} />;
+        return <Langeek {...props} langeekVocab={langeekVocab} setLangeekVocab={setLangeekVocab} langeekSrsData={langeekSrsData} setLangeekSrsData={setLangeekSrsData} />;
       case 'pronunciation':
         return <Pronunciation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={async (text, gender, accentKey) => {
           const saved = _voiceAccent;
@@ -5260,9 +5274,10 @@ function Vocabulary({
   lang,
   globalVocab,
   setGlobalVocab,
-  theme
+  theme,
+  srsData,
+  setSrsData
 }) {
-  const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_srs_data')) || {});
   const [vocabMode, setVocabMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
   const [tick, setTick] = useState(0);
@@ -5695,8 +5710,16 @@ Rules:
     )}
   </div>;
 }
-function PhrasalVerbs({ AI_KEY, userLevel, lang, phrasalVocab, setPhrasalVocab, theme }) {
-  const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_phrasal_srs')) || {});
+function PhrasalVerbs({
+  AI_KEY,
+  userLevel,
+  lang,
+  phrasalVocab,
+  setPhrasalVocab,
+  theme,
+  phrasalSrs: srsData,
+  setPhrasalSrs: setSrsData
+}) {
   const [mode, setMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
   const [tick, setTick] = useState(0);
@@ -5927,8 +5950,16 @@ Rules:
   </div>;
 }
 
-function IdiomsSlang({ AI_KEY, userLevel, lang, idiomsVocab, setIdiomsVocab, theme }) {
-  const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_srs')) || {});
+function IdiomsSlang({
+  AI_KEY,
+  userLevel,
+  lang,
+  idiomsVocab,
+  setIdiomsVocab,
+  theme,
+  idiomsSrs: srsData,
+  setIdiomsSrs: setSrsData
+}) {
   const [mode, setMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
   const [tick, setTick] = useState(0);
@@ -6221,8 +6252,16 @@ Rules:
   </div>;
 }
 
-function IdiomsProper({ AI_KEY, userLevel, lang, idiomsProperVocab, setIdiomsProperVocab, theme }) {
-  const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_proper_srs')) || {});
+function IdiomsProper({
+  AI_KEY,
+  userLevel,
+  lang,
+  idiomsProperVocab,
+  setIdiomsProperVocab,
+  theme,
+  idiomsProperSrs: srsData,
+  setIdiomsProperSrs: setSrsData
+}) {
   const [mode, setMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
   const [tick, setTick] = useState(0);
@@ -10178,9 +10217,10 @@ function Langeek({
   lang,
   langeekVocab,
   setLangeekVocab,
-  theme
+  theme,
+  langeekSrsData: srsData,
+  setLangeekSrsData: setSrsData
 }) {
-  const [srsData, setSrsData] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {});
   const [vocabMode, setVocabMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
   const [tick, setTick] = useState(0);
