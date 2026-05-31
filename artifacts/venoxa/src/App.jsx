@@ -1527,6 +1527,12 @@ function AppInner() {
   const [speakingFavorites, setSpeakingFavorites] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_speaking_favorites')) || []; } catch { return []; }
   });
+  const [wordOfDayHistory, setWordOfDayHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_word_of_day_history')) || []; } catch { return []; }
+  });
+  const [idiomOfDayHistory, setIdiomOfDayHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_idiom_of_day_history')) || []; } catch { return []; }
+  });
   const [isCloudProgressLoaded, setIsCloudProgressLoaded] = useState(false);
 
   const [token, setToken] = useState(() => localStorage.getItem('venoxa_token') || null);
@@ -1773,6 +1779,8 @@ function AppInner() {
       readingHistory,
       readingFavorites,
       speakingFavorites,
+      wordOfDayHistory,
+      idiomOfDayHistory,
       // keep references for diff-checking later
       _local: { 
         sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv, 
@@ -1780,7 +1788,8 @@ function AppInner() {
         toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory,
         wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory,
         pronBookmarks, pronCompleted, testSessions,
-        listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites
+        listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites,
+        wordOfDayHistory, idiomOfDayHistory
       }
     };
   };
@@ -1943,6 +1952,14 @@ function AppInner() {
     if (mergedUser.speakingFavorites && JSON.stringify(mergedUser.speakingFavorites) !== JSON.stringify(_local.speakingFavorites)) {
       localStorage.setItem('venoxa_speaking_favorites', JSON.stringify(mergedUser.speakingFavorites));
       setSpeakingFavorites(mergedUser.speakingFavorites);
+    }
+    if (mergedUser.wordOfDayHistory && JSON.stringify(mergedUser.wordOfDayHistory) !== JSON.stringify(_local.wordOfDayHistory)) {
+      localStorage.setItem('venoxa_word_of_day_history', JSON.stringify(mergedUser.wordOfDayHistory));
+      setWordOfDayHistory(mergedUser.wordOfDayHistory);
+    }
+    if (mergedUser.idiomOfDayHistory && JSON.stringify(mergedUser.idiomOfDayHistory) !== JSON.stringify(_local.idiomOfDayHistory)) {
+      localStorage.setItem('venoxa_idiom_of_day_history', JSON.stringify(mergedUser.idiomOfDayHistory));
+      setIdiomOfDayHistory(mergedUser.idiomOfDayHistory);
     }
   };
 
@@ -2274,6 +2291,8 @@ function AppInner() {
   useEffect(() => localStorage.setItem('venoxa_reading_history', JSON.stringify(readingHistory)), [readingHistory]);
   useEffect(() => localStorage.setItem('venoxa_reading_favorites', JSON.stringify(readingFavorites)), [readingFavorites]);
   useEffect(() => localStorage.setItem('venoxa_speaking_favorites', JSON.stringify(speakingFavorites)), [speakingFavorites]);
+  useEffect(() => localStorage.setItem('venoxa_word_of_day_history', JSON.stringify(wordOfDayHistory)), [wordOfDayHistory]);
+  useEffect(() => localStorage.setItem('venoxa_idiom_of_day_history', JSON.stringify(idiomOfDayHistory)), [idiomOfDayHistory]);
 
   useEffect(() => {
     latestLocalRef.current = {
@@ -2286,7 +2305,8 @@ function AppInner() {
       collocationFavorites, collocationHistory,
       etymologyFavorites, etymologyHistory,
       pronBookmarks, pronCompleted, testSessions,
-      listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites
+      listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites,
+      wordOfDayHistory, idiomOfDayHistory
     };
   }, [
     srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData,
@@ -2298,7 +2318,8 @@ function AppInner() {
     collocationFavorites, collocationHistory,
     etymologyFavorites, etymologyHistory,
     pronBookmarks, pronCompleted, testSessions,
-    listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites
+    listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites,
+    wordOfDayHistory, idiomOfDayHistory
   ]);
 
   // Debounced background sync to the cloud database when local data is modified
@@ -2309,7 +2330,7 @@ function AppInner() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory, pronBookmarks, pronCompleted, testSessions, listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites]);
+  }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory, pronBookmarks, pronCompleted, testSessions, listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites, wordOfDayHistory, idiomOfDayHistory]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
@@ -2484,9 +2505,9 @@ function AppInner() {
           setHistory={setEtymologyHistory}
         />;
       case 'word-of-day':
-        return <WordOfTheDay lang={lang} theme={theme} savedWords={savedWords} setSavedWords={setSavedWords} />;
+        return <WordOfTheDay lang={lang} theme={theme} savedWords={savedWords} setSavedWords={setSavedWords} history={wordOfDayHistory} setHistory={setWordOfDayHistory} />;
       case 'idiom-of-day':
-        return <IdiomOfTheDay lang={lang} theme={theme} savedIdioms={savedIdioms} setSavedIdioms={setSavedIdioms} />;
+        return <IdiomOfTheDay lang={lang} theme={theme} savedIdioms={savedIdioms} setSavedIdioms={setSavedIdioms} history={idiomOfDayHistory} setHistory={setIdiomOfDayHistory} />;
       case 'profile':
         return <ProfileDashboard
           {...props}

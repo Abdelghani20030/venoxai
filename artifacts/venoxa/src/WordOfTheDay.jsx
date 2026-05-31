@@ -31,7 +31,11 @@ const CACHE_KEY = 'venoxa_word_of_day';
 
 const PROMPT = (seed, avoidList) => `You are a vocabulary curator for an Arabic-speaking learner of English aiming at C1 level.
 
-Pick ONE genuinely advanced English word (B2-C2) suitable for active vocabulary acquisition. Use this seed for variety: ${seed}.${avoidList?.length ? `\nDO NOT pick any of these words: ${avoidList.join(', ')}.` : ''}
+Pick ONE genuinely advanced English word (B2-C2) suitable for active vocabulary acquisition. Use this seed for variety: ${seed}.
+To ensure extreme variety, creativity, and a completely fresh experience:
+- Choose highly unique and diverse words across different starting letters, categories, themes, and meanings.
+- Do NOT choose overused, cliché textbook words like 'ephemeral', 'loquacious', 'ubiquitous', 'serendipity', 'superfluous', or 'obfuscate'.
+${avoidList?.length ? `\nCRITICAL RULE: You MUST NOT pick any of the following previously shown words under any circumstances: ${avoidList.join(', ')}.` : ''}
 
 Return a SINGLE JSON object (no markdown, no preamble) with this schema:
 
@@ -63,6 +67,8 @@ export default function WordOfTheDay({
   onAddToVocab,
   savedWords: propSavedWords,
   setSavedWords: propSetSavedWords,
+  history: propHistory,
+  setHistory: propSetHistory,
 }) {
   const isDark = theme === 'dark';
   const t = (en, ar) => uiLang === 'ar' ? ar : en;
@@ -77,6 +83,12 @@ export default function WordOfTheDay({
   });
   const savedWords = propSavedWords !== undefined ? propSavedWords : localSavedWords;
   const setSavedWords = propSetSavedWords !== undefined ? propSetSavedWords : setLocalSavedWords;
+
+  const [localHistory, setLocalHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`${CACHE_KEY}_history`) || '[]'); } catch { return []; }
+  });
+  const history = propHistory !== undefined ? propHistory : localHistory;
+  const setHistory = propSetHistory !== undefined ? propSetHistory : setLocalHistory;
 
   // Load from cache (or fetch) on mount.
   const fetchWord = useCallback(async (force = false) => {
@@ -96,12 +108,8 @@ export default function WordOfTheDay({
       } catch { /* corrupt cache — ignore */ }
     }
 
-    // Build avoid list from recent history so we don't repeat in the same week.
-    let avoid = [];
-    try {
-      const hist = JSON.parse(localStorage.getItem(`${CACHE_KEY}_history`) || '[]');
-      avoid = hist.slice(0, 7).map(x => x.word).filter(Boolean);
-    } catch { /* ignore */ }
+    // Build avoid list from complete history so we NEVER repeat.
+    const avoid = history.map(x => x.word).filter(Boolean);
 
     const seed = force ? Date.now() : dailySeed();
     const raw = await fetchFromAPI(PROMPT(seed, avoid), 1500);
@@ -117,14 +125,16 @@ export default function WordOfTheDay({
     setData(parsed);
     setBusy(false);
 
-    // Persist for the rest of the day.
+    // Persist for the rest of the day and append to history.
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ date: todayKey(), data: parsed }));
-      const hist = JSON.parse(localStorage.getItem(`${CACHE_KEY}_history`) || '[]');
-      const next = [parsed, ...hist.filter(x => x.word !== parsed.word)].slice(0, 30);
-      localStorage.setItem(`${CACHE_KEY}_history`, JSON.stringify(next));
+      setHistory(prev => {
+        const next = [parsed, ...prev.filter(x => x.word !== parsed.word)].slice(0, 150);
+        try { localStorage.setItem(`${CACHE_KEY}_history`, JSON.stringify(next)); } catch { }
+        return next;
+      });
     } catch { /* localStorage may be full or disabled — ignore */ }
-  }, [t]);
+  }, [t, history, setHistory]);
 
   useEffect(() => { fetchWord(false); }, [fetchWord]);
 

@@ -24,7 +24,11 @@ import { fetchFromAPI, parseJSONLoose, dailySeed, speakEdge } from './aiHelpers'
 
 const CACHE_KEY = 'venoxa_idiom_of_day';
 
-const PROMPT = (seed, avoidList) => `You are an expert in English idiomatic expressions. Pick ONE genuinely useful English idiom suitable for a B2-C1 Arabic-speaking learner. Use this seed for variety: ${seed}.${avoidList?.length ? `\nDO NOT pick any of these idioms: ${avoidList.join(', ')}.` : ''}
+const PROMPT = (seed, avoidList) => `You are an expert in English idiomatic expressions. Pick ONE genuinely useful English idiom suitable for a B2-C1 Arabic-speaking learner. Use this seed for variety: ${seed}.
+To ensure extreme variety, creativity, and a completely fresh experience:
+- Choose highly unique and diverse idioms across different themes and categories.
+- Avoid overused standard textbook idioms like 'kick the bucket', 'bite the bullet', 'break a leg', 'spill the beans', or 'piece of cake'.
+${avoidList?.length ? `\nCRITICAL RULE: You MUST NOT pick any of the following previously shown idioms under any circumstances: ${avoidList.join(', ')}.` : ''}
 
 Return a SINGLE JSON object (no markdown, no preamble) with this schema:
 
@@ -68,6 +72,8 @@ export default function IdiomOfTheDay({
   theme = 'dark',
   savedIdioms: propSavedIdioms,
   setSavedIdioms: propSetSavedIdioms,
+  history: propHistory,
+  setHistory: propSetHistory,
 }) {
   const isDark = theme === 'dark';
   const t = (en, ar) => uiLang === 'ar' ? ar : en;
@@ -82,6 +88,12 @@ export default function IdiomOfTheDay({
   });
   const savedIdioms = propSavedIdioms !== undefined ? propSavedIdioms : localSavedIdioms;
   const setSavedIdioms = propSetSavedIdioms !== undefined ? propSetSavedIdioms : setLocalSavedIdioms;
+
+  const [localHistory, setLocalHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`${CACHE_KEY}_history`) || '[]'); } catch { return []; }
+  });
+  const history = propHistory !== undefined ? propHistory : localHistory;
+  const setHistory = propSetHistory !== undefined ? propSetHistory : setLocalHistory;
 
   const handleSave = () => {
     if (!data || added) return;
@@ -119,11 +131,8 @@ export default function IdiomOfTheDay({
       } catch { /* ignore */ }
     }
 
-    let avoid = [];
-    try {
-      const hist = JSON.parse(localStorage.getItem(`${CACHE_KEY}_history`) || '[]');
-      avoid = hist.slice(0, 7).map(x => x.idiom).filter(Boolean);
-    } catch { /* ignore */ }
+    // Build avoid list from complete history so we NEVER repeat.
+    const avoid = history.map(x => x.idiom).filter(Boolean);
 
     const seed = force ? Date.now() : dailySeed();
     const raw = await fetchFromAPI(PROMPT(seed, avoid), 1800);
@@ -141,11 +150,13 @@ export default function IdiomOfTheDay({
 
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ date: todayKey(), data: parsed }));
-      const hist = JSON.parse(localStorage.getItem(`${CACHE_KEY}_history`) || '[]');
-      const next = [parsed, ...hist.filter(x => x.idiom !== parsed.idiom)].slice(0, 30);
-      localStorage.setItem(`${CACHE_KEY}_history`, JSON.stringify(next));
+      setHistory(prev => {
+        const next = [parsed, ...prev.filter(x => x.idiom !== parsed.idiom)].slice(0, 150);
+        try { localStorage.setItem(`${CACHE_KEY}_history`, JSON.stringify(next)); } catch { }
+        return next;
+      });
     } catch { /* ignore */ }
-  }, [t]);
+  }, [t, history, setHistory]);
 
   useEffect(() => { fetchIdiom(false); }, [fetchIdiom]);
 

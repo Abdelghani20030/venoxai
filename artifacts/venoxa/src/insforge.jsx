@@ -86,6 +86,8 @@ function docToUser(uid, email, data = {}) {
     readingHistory:              data.readingHistory              || [],
     readingFavorites:            data.readingFavorites            || [],
     speakingFavorites:           data.speakingFavorites           || [],
+    wordOfDayHistory:            data.wordOfDayHistory            || [],
+    idiomOfDayHistory:           data.idiomOfDayHistory           || [],
   };
 }
 
@@ -236,7 +238,7 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
       'etymologyFavorites', 'etymologyHistory',
       'pronBookmarks', 'pronCompleted', 'testSessions',
       'listeningHistory', 'listeningFavorites', 'readingHistory', 'readingFavorites',
-      'speakingFavorites',
+      'speakingFavorites', 'wordOfDayHistory', 'idiomOfDayHistory',
     ];
     const srsFields = [
       'srsData', 'langeekSrsData', 'phrasalSrs', 'idiomsSrs', 'idiomsProperSrs',
