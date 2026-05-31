@@ -8579,6 +8579,20 @@ function Speaking({
   const isRecordingRef = useRef(isRecording);
   const autoReadRef = useRef(autoRead);
 
+  const [callSilenceThreshold, setCallSilenceThreshold] = useState(() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('venoxa_call_silence_threshold');
+      if (saved) return parseFloat(saved);
+    }
+    return 2.0;
+  });
+  const [liveUserTranscript, setLiveUserTranscript] = useState('');
+
+  const callSilenceThresholdRef = useRef(callSilenceThreshold);
+  const liveUserTranscriptRef = useRef(liveUserTranscript);
+  const silenceTimerRef = useRef(null);
+  const inputRef = useRef(input);
+
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [panelTab, setPanelTab] = useState('favorites');
 
@@ -8615,8 +8629,12 @@ function Speaking({
 
   const processTtsQueue = async () => {
     if (isTtsPlayingRef.current || ttsQueueRef.current.length === 0) return;
+    const initialCallMode = isCallModeRef.current;
     isTtsPlayingRef.current = true;
     while (ttsQueueRef.current.length > 0) {
+      if (initialCallMode && !isCallModeRef.current) {
+        break;
+      }
       const item = ttsQueueRef.current.shift();
       if (!item || !item.text) continue;
 
@@ -8630,6 +8648,10 @@ function Speaking({
       } else {
         // Fallback if not pre-fetched
         blob = await fetchTTSBlob(text, _voiceGender, _voiceAccent);
+      }
+
+      if (initialCallMode && !isCallModeRef.current) {
+        break;
       }
 
       if (blob) {
@@ -8654,9 +8676,15 @@ function Speaking({
         await new Promise((resolve) => {
           audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
           audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.onpause = () => { URL.revokeObjectURL(url); resolve(); };
           audio.play().catch(resolve);
         });
       }
+
+      if (initialCallMode && !isCallModeRef.current) {
+        break;
+      }
+
       // Cleanup cache
       prefetchCacheRef.current.delete(text);
     }
@@ -8708,7 +8736,7 @@ function Speaking({
     if (transcriptScrollRef.current) {
       transcriptScrollRef.current.scrollTop = transcriptScrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, liveUserTranscript]);
   // Use ElevenLabs for natural AI voice — falls back to browser TTS if key not set.
   // Male: Adam (pNInz6obpgDQGcFmaJgB) — American | Female: Rachel (21m00Tcm4TlvDq8ikWAM) — American
   // Keep module-level accent var in sync with React state
@@ -8730,6 +8758,25 @@ function Speaking({
   useEffect(() => { micAutoModeRef.current = micAutoMode; }, [micAutoMode]);
   useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
   useEffect(() => { autoReadRef.current = autoRead; }, [autoRead]);
+  useEffect(() => {
+    callSilenceThresholdRef.current = callSilenceThreshold;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('venoxa_call_silence_threshold', callSilenceThreshold.toString());
+    }
+  }, [callSilenceThreshold]);
+  useEffect(() => { liveUserTranscriptRef.current = liveUserTranscript; }, [liveUserTranscript]);
+  useEffect(() => { inputRef.current = input; }, [input]);
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      cancelTTS();
+    };
+  }, []);
   // Keep personalityRateRef in sync so processTtsQueue always reads the live rate
   useEffect(() => {
     const p = PERSONALITIES.find(p => p.id === personality);
@@ -9029,35 +9076,64 @@ function Speaking({
     }
     if (isRecording || wantRecordingRef.current) {
       wantRecordingRef.current = false;
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
       recognitionRef.current?.stop();
       setIsRecording(false);
+      setLiveUserTranscript('');
       return;
     }
     wantRecordingRef.current = true;
+    setLiveUserTranscript('');
 
     const startRecognition = () => {
       if (!wantRecordingRef.current) return;
+      const baseText = isCallModeRef.current ? liveUserTranscriptRef.current : inputRef.current;
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
       recognition.lang = 'en-US';
-      recognition.interimResults = false;
+      recognition.interimResults = true;
       recognition.maxAlternatives = 1;
-      recognition.continuous = true; // Always continuous — browser auto-stops on silence; we restart
+      recognition.continuous = true;
       recognition.onstart = () => setIsRecording(true);
       recognition.onresult = event => {
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        let completedText = '';
+        let interimText = '';
+        for (let i = 0; i < event.results.length; i++) {
+          const text = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            const phrase = event.results[i][0].transcript.trim();
-            if (phrase) {
-              if (isCallMode) {
+            completedText += text + ' ';
+          } else {
+            interimText += text;
+          }
+        }
+        const sessionTranscript = (completedText + interimText).trim();
+        const fullTranscript = (baseText + ' ' + sessionTranscript).replace(/\s+/g, ' ').trim();
+
+        if (fullTranscript) {
+          if (isCallModeRef.current) {
+            setLiveUserTranscript(fullTranscript);
+
+            // Clear previous silence timer
+            if (silenceTimerRef.current) {
+              clearTimeout(silenceTimerRef.current);
+            }
+
+            // Set new silence timer
+            silenceTimerRef.current = setTimeout(() => {
+              if (wantRecordingRef.current) {
                 wantRecordingRef.current = false;
                 recognition.stop();
                 setIsRecording(false);
-                handleSend(phrase);
-              } else {
-                setInput(prev => (prev + ' ' + phrase).trim());
+                setLiveUserTranscript('');
+                handleSend(fullTranscript);
               }
-            }
+            }, callSilenceThresholdRef.current * 1000);
+
+          } else {
+            setInput(fullTranscript);
           }
         }
       };
@@ -9071,6 +9147,10 @@ function Speaking({
       };
       recognition.onend = () => {
         setIsRecording(false);
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
         // Auto-restart if user still wants to record (browser stopped on silence)
         if (wantRecordingRef.current) {
           setTimeout(startRecognition, 150);
@@ -9086,9 +9166,15 @@ function Speaking({
       setCallReview(corrections.length > 0 ? corrections : null);
       if (callAudioRef.current) { callAudioRef.current.pause(); callAudioRef.current = null; }
       cancelTTS();
+      ttsQueueRef.current = [];
       wantRecordingRef.current = false;
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsRecording(false);
+      setLiveUserTranscript('');
       setIsCallMode(false);
     } else {
       setCallReview(null);
@@ -9164,7 +9250,7 @@ function Speaking({
           </div>
         </div>
 
-        {/* Right: Level + Topic + Scenario */}
+        {/* Right: Level + Topic + Delay + Scenario */}
         <div className="flex items-center gap-2">
           {/* Level dropdown */}
           <CallMiniDropdown
@@ -9182,6 +9268,20 @@ function Speaking({
               value: tp,
               label: lang === 'ar' ? tp.split('(')[0].trim() : (tp.match(/\(([^)]+)\)/)?.[1] || tp)
             }))}
+            isDark={isDark}
+          />
+
+          {/* Response Delay / Silence Threshold dropdown */}
+          <CallMiniDropdown
+            value={callSilenceThreshold}
+            onChange={v => setCallSilenceThreshold(Number(v))}
+            options={[
+              { value: 1.5, label: '1.5s' },
+              { value: 2.0, label: '2.0s' },
+              { value: 3.0, label: '3.0s' },
+              { value: 4.0, label: '4.0s' }
+            ]}
+            prefix={lang === 'ar' ? 'تأخير:' : 'Delay:'}
             isDark={isDark}
           />
 
@@ -9240,21 +9340,32 @@ function Speaking({
             }}
           >
             {showCallTranscript ? (
-              messages.filter(m => m.role === 'ai' && m.text).length > 0
-                ? messages.filter(m => m.role === 'ai' && m.text).map(m => (
-                  <div key={m.id} className="text-center px-4">
-                    <p className={`text-lg md:text-xl leading-[1.6] font-medium ${isDark ? 'text-white' : 'text-gray-900'}`} dir="ltr">
-                      {/* Split by common sentence endings but keep them, then map to spans with reveal animation */}
-                      {String(m.text).split(/(?<=[.!?])\s+/).map((segment, sIdx) => (
-                        <span key={sIdx} className="animate-textReveal inline-block mr-1">
-                          {safeRender(segment)}
-                        </span>
-                      ))}
-                      {m.streaming && <span className={`inline-block w-[3px] h-5 ml-1 align-middle animate-pulse rounded-full ${isDark ? 'bg-white' : 'bg-black'}`} />}
-                    </p>
-                  </div>
-                ))
-                : <p className={`text-lg font-medium text-center ${isDark ? 'text-white/30' : 'text-black/30'}`}>{t.tapMic}</p>
+              messages.filter(m => m.role === 'ai' && m.text).length > 0 || liveUserTranscript ? (
+                <>
+                  {messages.filter(m => m.role === 'ai' && m.text).map(m => (
+                    <div key={m.id} className="text-center px-4 animate-fadeIn">
+                      <p className={`text-lg md:text-xl leading-[1.6] font-medium ${isDark ? 'text-white' : 'text-gray-900'}`} dir="ltr">
+                        {/* Split by common sentence endings but keep them, then map to spans with reveal animation */}
+                        {String(m.text).split(/(?<=[.!?])\s+/).map((segment, sIdx) => (
+                          <span key={sIdx} className="animate-textReveal inline-block mr-1">
+                            {safeRender(segment)}
+                          </span>
+                        ))}
+                        {m.streaming && <span className={`inline-block w-[3px] h-5 ml-1 align-middle animate-pulse rounded-full ${isDark ? 'bg-white' : 'bg-black'}`} />}
+                      </p>
+                    </div>
+                  ))}
+                  {liveUserTranscript && (
+                    <div className="text-center px-4 mt-2 animate-fadeIn">
+                      <p className={`text-base md:text-lg leading-[1.6] font-medium opacity-65 italic animate-pulse ${isDark ? 'text-gray-300' : 'text-gray-600'}`} dir="ltr">
+                        🎤 {liveUserTranscript}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className={`text-lg font-medium text-center ${isDark ? 'text-white/30' : 'text-black/30'}`}>{t.tapMic}</p>
+              )
             ) : (
               <p className={`text-lg font-medium text-center ${isDark ? 'text-white/20' : 'text-black/25'}`}>{_resolveTranslation(lang, 'النص مخفي', 'Transcript off')}</p>
             )}
