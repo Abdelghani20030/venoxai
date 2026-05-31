@@ -7753,7 +7753,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
         {showHistoryPanel && (
           <div className="p-4 pt-0 flex flex-col gap-4">
             {/* Tabs selector */}
-            <div className="flex border-b border-white/5 pb-2 gap-4">
+            <div className="flex border-b border-black/5 dark:border-white/5 pb-2 gap-4">
               <button
                 onClick={() => setPanelTab('favorites')}
                 className={`text-xs font-bold pb-1 border-b-2 transition-all ${
@@ -9887,7 +9887,7 @@ function Speaking({
         {showHistoryPanel && (
           <div className="p-4 pt-0 flex flex-col gap-4">
             {/* Tabs selector */}
-            <div className="flex border-b border-white/5 pb-2 gap-4">
+            <div className="flex border-b border-black/5 dark:border-white/5 pb-2 gap-4">
               <button
                 onClick={() => setPanelTab('favorites')}
                 className={`text-xs font-bold pb-1 border-b-2 transition-all ${
