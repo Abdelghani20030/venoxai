@@ -19,6 +19,7 @@ import {
   sendPasswordReset as fbSendPasswordReset,
   uploadVocabCSV,
   loadAllVocabFromStorage,
+  subscribeToProgress,
 } from './insforge.jsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1523,9 +1524,11 @@ function AppInner() {
   const [authModalMode, setAuthModalMode] = useState('login');
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
   const syncStatusTimerRef = useRef(null);
+  const latestLocalRef = useRef({});
 
   // ── Auth state listener (validates stored JWT on page load) ──
   useEffect(() => {
+    let unsubscribeProgress = null;
     const unsubscribe = onAuthChange(async (validatedUser) => {
       if (validatedUser) {
         // Update user state immediately with validated user data from Firestore
@@ -1547,8 +1550,18 @@ function AppInner() {
             if (vocabs.slangVocab?.length)   { setIdiomsVocab(vocabs.slangVocab);    localStorage.setItem('venoxa_idioms_vocab',        JSON.stringify(vocabs.slangVocab));   }
             if (vocabs.langeekVocab?.length) { setLangeekVocab(vocabs.langeekVocab); localStorage.setItem('venoxa_langeek_vocab',       JSON.stringify(vocabs.langeekVocab)); }
           }).catch(err => console.warn('loadAllVocabFromStorage failed:', err));
+
+          // ── Real-time listener for Firestore progress updates ──
+          if (unsubscribeProgress) unsubscribeProgress();
+          unsubscribeProgress = subscribeToProgress(auth.currentUser?.uid, (mergedUser) => {
+            applyMergedUserData(mergedUser);
+          });
         }
       } else {
+        if (unsubscribeProgress) {
+          unsubscribeProgress();
+          unsubscribeProgress = null;
+        }
         setToken(null);
         setUser(null);
         localStorage.removeItem('venoxa_token');
@@ -1564,7 +1577,10 @@ function AppInner() {
         }).catch(err => console.warn('Guest loadAllVocabFromStorage failed:', err));
       }
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (unsubscribeProgress) unsubscribeProgress();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1730,6 +1746,135 @@ function AppInner() {
         wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory
       }
     };
+  };
+
+  const applyMergedUserData = (mergedUser) => {
+    const _local = latestLocalRef.current;
+
+    setUser(mergedUser);
+
+    if (mergedUser.completedCells) {
+      const ccStr = JSON.stringify(mergedUser.completedCells);
+      if (ccStr !== JSON.stringify(_local.completedCells)) {
+        localStorage.setItem('venoxa_completed_cells', ccStr);
+        setCompletedCells(mergedUser.completedCells);
+      }
+    }
+    if (mergedUser.level && mergedUser.level !== _local.level) {
+      localStorage.setItem('userLevel', mergedUser.level);
+      setUserLevel(mergedUser.level);
+    }
+    if (mergedUser.avatar && !_local.localAv) {
+      localStorage.setItem('venoxa_local_avatar', mergedUser.avatar);
+      setLocalAvatar(mergedUser.avatar);
+    }
+    if (mergedUser.streak !== undefined) {
+      const currentStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
+      if (mergedUser.streak > currentStreak.current) {
+        const newStreakData = { current: mergedUser.streak, lastDate: currentStreak.lastDate || new Date().toISOString().slice(0, 10) };
+        localStorage.setItem('venoxa_streak', JSON.stringify(newStreakData));
+        setStreakData(newStreakData);
+      }
+    }
+    if (mergedUser.usageTime && Object.keys(mergedUser.usageTime).length > 0) {
+      const localUsage = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
+      const mergedUsage = { ...localUsage };
+      for (const [day, secs] of Object.entries(mergedUser.usageTime)) {
+        mergedUsage[day] = Math.max(mergedUsage[day] || 0, secs);
+      }
+      localStorage.setItem('venoxa_daily_usage_secs', JSON.stringify(mergedUsage));
+      localStorage.setItem('venoxa_usage_time', JSON.stringify(mergedUsage));
+    }
+    if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(_local.srsData)) {
+      setSrsData(mergedUser.srsData);
+    }
+    if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(_local.langeekSrsData)) {
+      setLangeekSrsData(mergedUser.langeekSrsData);
+    }
+    if (mergedUser.phrasalSrs && JSON.stringify(mergedUser.phrasalSrs) !== JSON.stringify(_local.phrasalSrs)) {
+      setPhrasalSrs(mergedUser.phrasalSrs);
+    }
+    if (mergedUser.idiomsSrs && JSON.stringify(mergedUser.idiomsSrs) !== JSON.stringify(_local.idiomsSrs)) {
+      setIdiomsSrs(mergedUser.idiomsSrs);
+    }
+    if (mergedUser.idiomsProperSrs && JSON.stringify(mergedUser.idiomsProperSrs) !== JSON.stringify(_local.idiomsProperSrs)) {
+      setIdiomsProperSrs(mergedUser.idiomsProperSrs);
+    }
+    if (mergedUser.speakingHistory && JSON.stringify(mergedUser.speakingHistory) !== JSON.stringify(_local.speakingHistory)) {
+      localStorage.setItem('venoxa_speaking_history', JSON.stringify(mergedUser.speakingHistory));
+      setSpeakingHistory(mergedUser.speakingHistory);
+    }
+    if (mergedUser.writingHistory && JSON.stringify(mergedUser.writingHistory) !== JSON.stringify(_local.writingHistory)) {
+      localStorage.setItem('venoxa_writing_history', JSON.stringify(mergedUser.writingHistory));
+      setWritingHistory(mergedUser.writingHistory);
+    }
+    if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
+      const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
+      if (JSON.stringify(mergedUser.planConfig) !== JSON.stringify(localPlan)) {
+        localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
+        if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
+        if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
+      }
+    }
+    if (Array.isArray(mergedUser.studiedWords) && mergedUser.studiedWords.length > 0) {
+      localStorage.setItem('studiedWords', JSON.stringify(mergedUser.studiedWords));
+    }
+    if (mergedUser.translationHistory && JSON.stringify(mergedUser.translationHistory) !== JSON.stringify(_local.translationHistory)) {
+      localStorage.setItem('venoxa_translation_history', JSON.stringify(mergedUser.translationHistory));
+      setTranslationHistory(mergedUser.translationHistory);
+    }
+    if (mergedUser.translationFavorites && JSON.stringify(mergedUser.translationFavorites) !== JSON.stringify(_local.translationFavorites)) {
+      localStorage.setItem('venoxa_translation_favorites', JSON.stringify(mergedUser.translationFavorites));
+      setTranslationFavorites(mergedUser.translationFavorites);
+    }
+    if (mergedUser.savedWords && JSON.stringify(mergedUser.savedWords) !== JSON.stringify(_local.savedWords)) {
+      localStorage.setItem('venoxa_saved_words', JSON.stringify(mergedUser.savedWords));
+      setSavedWords(mergedUser.savedWords);
+    }
+    if (mergedUser.savedIdioms && JSON.stringify(mergedUser.savedIdioms) !== JSON.stringify(_local.savedIdioms)) {
+      localStorage.setItem('venoxa_saved_idioms', JSON.stringify(mergedUser.savedIdioms));
+      setSavedIdioms(mergedUser.savedIdioms);
+    }
+    if (mergedUser.toneRewriterFavorites && JSON.stringify(mergedUser.toneRewriterFavorites) !== JSON.stringify(_local.toneRewriterFavorites)) {
+      localStorage.setItem('venoxa_tone_rewriter_favorites', JSON.stringify(mergedUser.toneRewriterFavorites));
+      setToneRewriterFavorites(mergedUser.toneRewriterFavorites);
+    }
+    if (mergedUser.toneRewriterHistory && JSON.stringify(mergedUser.toneRewriterHistory) !== JSON.stringify(_local.toneRewriterHistory)) {
+      localStorage.setItem('venoxa_tone_rewriter_history', JSON.stringify(mergedUser.toneRewriterHistory));
+      setToneRewriterHistory(mergedUser.toneRewriterHistory);
+    }
+    if (mergedUser.sentenceDiagrammerFavorites && JSON.stringify(mergedUser.sentenceDiagrammerFavorites) !== JSON.stringify(_local.sentenceDiagrammerFavorites)) {
+      localStorage.setItem('venoxa_sentence_diagrammer_favorites', JSON.stringify(mergedUser.sentenceDiagrammerFavorites));
+      setSentenceDiagrammerFavorites(mergedUser.sentenceDiagrammerFavorites);
+    }
+    if (mergedUser.sentenceDiagrammerHistory && JSON.stringify(mergedUser.sentenceDiagrammerHistory) !== JSON.stringify(_local.sentenceDiagrammerHistory)) {
+      localStorage.setItem('venoxa_sentence_diagrammer_history', JSON.stringify(mergedUser.sentenceDiagrammerHistory));
+      setSentenceDiagrammerHistory(mergedUser.sentenceDiagrammerHistory);
+    }
+    if (mergedUser.wordFamilyFavorites && JSON.stringify(mergedUser.wordFamilyFavorites) !== JSON.stringify(_local.wordFamilyFavorites)) {
+      localStorage.setItem('venoxa_word_family_favorites', JSON.stringify(mergedUser.wordFamilyFavorites));
+      setWordFamilyFavorites(mergedUser.wordFamilyFavorites);
+    }
+    if (mergedUser.wordFamilyHistory && JSON.stringify(mergedUser.wordFamilyHistory) !== JSON.stringify(_local.wordFamilyHistory)) {
+      localStorage.setItem('venoxa_word_family_history', JSON.stringify(mergedUser.wordFamilyHistory));
+      setWordFamilyHistory(mergedUser.wordFamilyHistory);
+    }
+    if (mergedUser.collocationFavorites && JSON.stringify(mergedUser.collocationFavorites) !== JSON.stringify(_local.collocationFavorites)) {
+      localStorage.setItem('venoxa_collocations_favorites', JSON.stringify(mergedUser.collocationFavorites));
+      setCollocationFavorites(mergedUser.collocationFavorites);
+    }
+    if (mergedUser.collocationHistory && JSON.stringify(mergedUser.collocationHistory) !== JSON.stringify(_local.collocationHistory)) {
+      localStorage.setItem('venoxa_collocations_history', JSON.stringify(mergedUser.collocationHistory));
+      setCollocationHistory(mergedUser.collocationHistory);
+    }
+    if (mergedUser.etymologyFavorites && JSON.stringify(mergedUser.etymologyFavorites) !== JSON.stringify(_local.etymologyFavorites)) {
+      localStorage.setItem('venoxa_etymology_favorites', JSON.stringify(mergedUser.etymologyFavorites));
+      setEtymologyFavorites(mergedUser.etymologyFavorites);
+    }
+    if (mergedUser.etymologyHistory && JSON.stringify(mergedUser.etymologyHistory) !== JSON.stringify(_local.etymologyHistory)) {
+      localStorage.setItem('venoxa_etymology_history', JSON.stringify(mergedUser.etymologyHistory));
+      setEtymologyHistory(mergedUser.etymologyHistory);
+    }
   };
 
   const syncProgress = async (currentToken = token, currentUser = user, customCells = null) => {
@@ -2035,6 +2180,28 @@ function AppInner() {
   useEffect(() => localStorage.setItem('venoxa_collocations_history', JSON.stringify(collocationHistory)), [collocationHistory]);
   useEffect(() => localStorage.setItem('venoxa_etymology_favorites', JSON.stringify(etymologyFavorites)), [etymologyFavorites]);
   useEffect(() => localStorage.setItem('venoxa_etymology_history', JSON.stringify(etymologyHistory)), [etymologyHistory]);
+
+  useEffect(() => {
+    latestLocalRef.current = {
+      srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData,
+      speakingHistory, writingHistory, completedCells, streakData,
+      translationHistory, translationFavorites, savedWords, savedIdioms,
+      toneRewriterFavorites, toneRewriterHistory,
+      sentenceDiagrammerFavorites, sentenceDiagrammerHistory,
+      wordFamilyFavorites, wordFamilyHistory,
+      collocationFavorites, collocationHistory,
+      etymologyFavorites, etymologyHistory
+    };
+  }, [
+    srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData,
+    speakingHistory, writingHistory, completedCells, streakData,
+    translationHistory, translationFavorites, savedWords, savedIdioms,
+    toneRewriterFavorites, toneRewriterHistory,
+    sentenceDiagrammerFavorites, sentenceDiagrammerHistory,
+    wordFamilyFavorites, wordFamilyHistory,
+    collocationFavorites, collocationHistory,
+    etymologyFavorites, etymologyHistory
+  ]);
 
   // Debounced background sync to the cloud database when local data is modified
   useEffect(() => {

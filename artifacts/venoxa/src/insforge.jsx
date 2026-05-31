@@ -17,6 +17,7 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import {
   ref,
@@ -276,6 +277,18 @@ export function syncBeacon(_tokenOrUid, localData = {}) {
     });
     navigator.sendBeacon('/api/sync-beacon', new Blob([payload], { type: 'application/json' }));
   } catch { /* best effort */ }
+}
+
+export function subscribeToProgress(uid, callback) {
+  if (!uid) return () => {};
+  const ref = doc(db, 'users', uid);
+  return onSnapshot(ref, (snap) => {
+    if (snap.exists()) {
+      callback(docToUser(uid, snap.data().email || '', snap.data()));
+    }
+  }, (err) => {
+    console.warn('subscribeToProgress error:', err);
+  });
 }
 
 // ─── Cloud Vocabulary Storage ─────────────────────────────────────────────────
