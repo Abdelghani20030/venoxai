@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, User, Lock, Mail } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, ChevronUp, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, User, Lock, Mail, Heart } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import ProfileDashboard from './ProfileDashboard';
 import {
@@ -1512,6 +1512,21 @@ function AppInner() {
   const [testSessions, setTestSessions] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa-test-sessions')) || []; } catch { return []; }
   });
+  const [listeningHistory, setListeningHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_listening_history')) || []; } catch { return []; }
+  });
+  const [listeningFavorites, setListeningFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_listening_favorites')) || []; } catch { return []; }
+  });
+  const [readingHistory, setReadingHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_reading_history')) || []; } catch { return []; }
+  });
+  const [readingFavorites, setReadingFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_reading_favorites')) || []; } catch { return []; }
+  });
+  const [speakingFavorites, setSpeakingFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_speaking_favorites')) || []; } catch { return []; }
+  });
   const [isCloudProgressLoaded, setIsCloudProgressLoaded] = useState(false);
 
   const [token, setToken] = useState(() => localStorage.getItem('venoxa_token') || null);
@@ -1753,14 +1768,19 @@ function AppInner() {
       etymologyHistory,
       pronBookmarks,
       pronCompleted,
-      testSessions,
+      listeningHistory,
+      listeningFavorites,
+      readingHistory,
+      readingFavorites,
+      speakingFavorites,
       // keep references for diff-checking later
       _local: { 
         sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv, 
         translationHistory: tHistory, translationFavorites: tFavorites, savedWords: sWords, savedIdioms: sIdioms,
         toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory,
         wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory,
-        pronBookmarks, pronCompleted, testSessions
+        pronBookmarks, pronCompleted, testSessions,
+        listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites
       }
     };
   };
@@ -1903,6 +1923,26 @@ function AppInner() {
     if (mergedUser.testSessions && JSON.stringify(mergedUser.testSessions) !== JSON.stringify(_local.testSessions)) {
       localStorage.setItem('venoxa-test-sessions', JSON.stringify(mergedUser.testSessions));
       setTestSessions(mergedUser.testSessions);
+    }
+    if (mergedUser.listeningHistory && JSON.stringify(mergedUser.listeningHistory) !== JSON.stringify(_local.listeningHistory)) {
+      localStorage.setItem('venoxa_listening_history', JSON.stringify(mergedUser.listeningHistory));
+      setListeningHistory(mergedUser.listeningHistory);
+    }
+    if (mergedUser.listeningFavorites && JSON.stringify(mergedUser.listeningFavorites) !== JSON.stringify(_local.listeningFavorites)) {
+      localStorage.setItem('venoxa_listening_favorites', JSON.stringify(mergedUser.listeningFavorites));
+      setListeningFavorites(mergedUser.listeningFavorites);
+    }
+    if (mergedUser.readingHistory && JSON.stringify(mergedUser.readingHistory) !== JSON.stringify(_local.readingHistory)) {
+      localStorage.setItem('venoxa_reading_history', JSON.stringify(mergedUser.readingHistory));
+      setReadingHistory(mergedUser.readingHistory);
+    }
+    if (mergedUser.readingFavorites && JSON.stringify(mergedUser.readingFavorites) !== JSON.stringify(_local.readingFavorites)) {
+      localStorage.setItem('venoxa_reading_favorites', JSON.stringify(mergedUser.readingFavorites));
+      setReadingFavorites(mergedUser.readingFavorites);
+    }
+    if (mergedUser.speakingFavorites && JSON.stringify(mergedUser.speakingFavorites) !== JSON.stringify(_local.speakingFavorites)) {
+      localStorage.setItem('venoxa_speaking_favorites', JSON.stringify(mergedUser.speakingFavorites));
+      setSpeakingFavorites(mergedUser.speakingFavorites);
     }
   };
 
@@ -2229,6 +2269,11 @@ function AppInner() {
   useEffect(() => localStorage.setItem('venoxa_pron_bookmarks', JSON.stringify(pronBookmarks)), [pronBookmarks]);
   useEffect(() => localStorage.setItem('venoxa_pron_completed', JSON.stringify(pronCompleted)), [pronCompleted]);
   useEffect(() => localStorage.setItem('venoxa-test-sessions', JSON.stringify(testSessions)), [testSessions]);
+  useEffect(() => localStorage.setItem('venoxa_listening_history', JSON.stringify(listeningHistory)), [listeningHistory]);
+  useEffect(() => localStorage.setItem('venoxa_listening_favorites', JSON.stringify(listeningFavorites)), [listeningFavorites]);
+  useEffect(() => localStorage.setItem('venoxa_reading_history', JSON.stringify(readingHistory)), [readingHistory]);
+  useEffect(() => localStorage.setItem('venoxa_reading_favorites', JSON.stringify(readingFavorites)), [readingFavorites]);
+  useEffect(() => localStorage.setItem('venoxa_speaking_favorites', JSON.stringify(speakingFavorites)), [speakingFavorites]);
 
   useEffect(() => {
     latestLocalRef.current = {
@@ -2240,7 +2285,8 @@ function AppInner() {
       wordFamilyFavorites, wordFamilyHistory,
       collocationFavorites, collocationHistory,
       etymologyFavorites, etymologyHistory,
-      pronBookmarks, pronCompleted, testSessions
+      pronBookmarks, pronCompleted, testSessions,
+      listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites
     };
   }, [
     srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData,
@@ -2251,7 +2297,8 @@ function AppInner() {
     wordFamilyFavorites, wordFamilyHistory,
     collocationFavorites, collocationHistory,
     etymologyFavorites, etymologyHistory,
-    pronBookmarks, pronCompleted, testSessions
+    pronBookmarks, pronCompleted, testSessions,
+    listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites
   ]);
 
   // Debounced background sync to the cloud database when local data is modified
@@ -2262,7 +2309,7 @@ function AppInner() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory, pronBookmarks, pronCompleted, testSessions]);
+  }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory, pronBookmarks, pronCompleted, testSessions, listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
@@ -2359,11 +2406,11 @@ function AppInner() {
       case 'writing':
         return <Writing {...props} writingHistory={writingHistory} setWritingHistory={setWritingHistory} />;
       case 'speaking':
-        return <Speaking {...props} speakingHistory={speakingHistory} setSpeakingHistory={setSpeakingHistory} />;
+        return <Speaking {...props} speakingHistory={speakingHistory} setSpeakingHistory={setSpeakingHistory} favorites={speakingFavorites} setFavorites={setSpeakingFavorites} />;
       case 'listening':
-        return <ListeningReading type="listening" {...props} />;
+        return <ListeningReading type="listening" {...props} history={listeningHistory} setHistory={setListeningHistory} favorites={listeningFavorites} setFavorites={setListeningFavorites} />;
       case 'reading':
-        return <ListeningReading type="reading" {...props} />;
+        return <ListeningReading type="reading" {...props} history={readingHistory} setHistory={setReadingHistory} favorites={readingFavorites} setFavorites={setReadingFavorites} />;
       case 'langeek':
         return <Langeek {...props} langeekVocab={langeekVocab} setLangeekVocab={setLangeekVocab} langeekSrsData={langeekSrsData} setLangeekSrsData={setLangeekSrsData} />;
       case 'pronunciation':
@@ -6922,9 +6969,12 @@ function Grammar({
     </div>
   );
 }
-function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
+function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], setHistory, favorites = [], setFavorites }) {
   const [story, setStory] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [panelTab, setPanelTab] = useState('favorites');
 
   // Topic + length
   const [listenTopic, setListenTopic] = useState('');
@@ -7045,15 +7095,31 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
     setDictMode(false);
     setDictResults([]);
     stopAudio();
+    const topicText = listenTopic || 'Daily Life';
     try {
-      const topicText = listenTopic || 'Daily Life';
       const wc = WORD_COUNTS[listenLength] || 150;
       const prompt = type === 'listening'
         ? `Write a natural, engaging ${wc}-word spoken passage (podcast-style monologue or short story) for a ${userLevel} English learner. Topic: "${topicText}". Use vocabulary and grammar appropriate for ${userLevel} level. Write naturally flowing speech. No bullet points, no headers, no markdown. Plain text only.`
         : `Write a ${wc}-word story/passage for a ${userLevel} English learner. Topic: "${topicText}". Include a short vocabulary list at the end with ${lang === 'ar' ? 'Arabic' : 'simple English'} meanings. Plain text, no markdown.`;
       let _full = '';
       await streamFromAPI(prompt, (delta) => { _full += delta; setStory(_full); });
-      setStory(cleanFallbackText(_full) || _full);
+      const finalText = cleanFallbackText(_full) || _full;
+      setStory(finalText);
+      if (finalText && !finalText.startsWith('Error') && !finalText.startsWith('Failed')) {
+        setHistory(prev => {
+          const exists = prev.some(x => x.story === finalText);
+          if (exists) return prev;
+          return [{
+            id: Date.now().toString(),
+            type,
+            topic: topicText,
+            length: listenLength,
+            story: finalText,
+            quiz: null,
+            timestamp: Date.now()
+          }, ...prev].slice(0, 25);
+        });
+      }
     } catch { setStory('Error generating content.'); }
     setLoading(false);
   };
@@ -7127,13 +7193,37 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
       if (!questions && objStart !== -1 && objEnd !== -1) {
         try { const obj = JSON.parse(trimmed.slice(objStart, objEnd + 1)); questions = obj.questions || obj.quiz || null; } catch { }
       }
-      if (questions?.length) {
-        questions = questions.map(q => ({ ...q, answer: String(q.answer || '').trim().toUpperCase().charAt(0) }));
-      }
-      setQuiz(questions?.length ? questions : []);
+      const finalQuestions = questions?.length
+        ? questions.map(q => ({ ...q, answer: String(q.answer || '').trim().toUpperCase().charAt(0) }))
+        : [];
+      setQuiz(finalQuestions);
+      setHistory(prev => prev.map(x => x.story === story ? { ...x, quiz: finalQuestions } : x));
+      setFavorites(prev => prev.map(x => x.story === story ? { ...x, quiz: finalQuestions } : x));
     } catch { setQuiz([]); }
     setQuizLoading(false);
   };
+
+  const toggleFavorite = () => {
+    if (!story) return;
+    setFavorites(prev => {
+      const exists = prev.some(x => x.story === story);
+      if (exists) {
+        return prev.filter(x => x.story !== story);
+      } else {
+        return [{
+          id: Date.now().toString(),
+          type,
+          topic: listenTopic || 'Daily Life',
+          length: listenLength,
+          story,
+          quiz,
+          timestamp: Date.now()
+        }, ...prev];
+      }
+    });
+  };
+
+  const isFavorited = favorites.some(x => x.story === story);
 
   const quizScore = quizSubmitted && quiz
     ? quiz.filter((q, i) => userAnswers[i] === q.answer).length
@@ -7239,8 +7329,35 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
           <p className="text-gray-600 dark:text-[var(--app-text)]">{t.desc}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap justify-center md:justify-end">
+          {/* History & Favorite toggles for Reading */}
           {type === 'reading' && (
             <>
+              <button
+                onClick={() => setShowHistoryPanel(v => !v)}
+                className={`p-2.5 rounded-2xl transition-all border ${
+                  showHistoryPanel
+                    ? 'bg-[var(--app-accent1)] text-white border-[var(--app-accent1)]'
+                    : 'bg-white/5 text-gray-400 hover:text-white border-white/10'
+                }`}
+                title={_resolveTranslation(lang, 'المحفوظات والسجل', 'Saved & History')}
+              >
+                <Clock className="w-5 h-5" />
+              </button>
+
+              {story && (
+                <button
+                  onClick={toggleFavorite}
+                  className={`p-2.5 rounded-2xl transition-all border ${
+                    isFavorited
+                      ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                      : 'bg-white/5 text-gray-400 hover:text-red-400 border-white/10'
+                  }`}
+                  title={isFavorited ? _resolveTranslation(lang, 'إزالة من المفضلة', 'Remove from favorites') : _resolveTranslation(lang, 'حفظ في المفضلة', 'Save to favorites')}
+                >
+                  <Heart className="w-5 h-5" fill={isFavorited ? 'currentColor' : 'none'} />
+                </button>
+              )}
+
               <div className="flex h-11 items-center gap-1 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
                 <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><GBFlag style={{width:20,height:10,borderRadius:2}} /> UK</button>
                 <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><USFlag style={{width:20,height:10,borderRadius:2}} /> US</button>
@@ -7274,6 +7391,33 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
                 >{l}</button>
               ))}
             </div>
+
+            {/* History & Favorite toggles for Listening */}
+            <button
+              onClick={() => setShowHistoryPanel(v => !v)}
+              className={`p-2.5 rounded-2xl transition-all border ${
+                showHistoryPanel
+                  ? 'bg-[var(--app-accent1)] text-white border-[var(--app-accent1)]'
+                  : 'bg-white/5 text-gray-400 hover:text-white border-white/10'
+              }`}
+              title={_resolveTranslation(lang, 'المحفوظات والسجل', 'Saved & History')}
+            >
+              <Clock className="w-5 h-5" />
+            </button>
+
+            {story && (
+              <button
+                onClick={toggleFavorite}
+                className={`p-2.5 rounded-2xl transition-all border ${
+                  isFavorited
+                    ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                    : 'bg-white/5 text-gray-400 hover:text-red-400 border-white/10'
+                }`}
+                title={isFavorited ? _resolveTranslation(lang, 'إزالة من المفضلة', 'Remove from favorites') : _resolveTranslation(lang, 'حفظ في المفضلة', 'Save to favorites')}
+              >
+                <Heart className="w-5 h-5" fill={isFavorited ? 'currentColor' : 'none'} />
+              </button>
+            )}
 
             <button
               onClick={handleGenerate}
@@ -7557,6 +7701,130 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme }) {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ── Saved & History Panel ── */}
+      <div className="rounded-3xl overflow-hidden mt-2" style={{ background: theme === 'dark' ? '#0F0F16' : '#ffffff', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)' }}>
+        <button
+          onClick={() => setShowHistoryPanel(v => !v)}
+          className={`w-full flex items-center justify-between px-5 py-4 text-sm font-bold transition-all ${
+            theme === 'dark' ? 'text-gray-200 hover:bg-white/5' : 'text-gray-700 hover:bg-black/3'
+          }`}
+        >
+          <div className="flex items-center gap-2 text-[var(--app-text)] dark:text-gray-200">
+            <Clock className="w-4 h-4 text-[var(--app-accent1)]" />
+            {_resolveTranslation(lang, 'السجل والمحفوظات', 'History & Saved')}
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+              {favorites.length + history.length}
+            </span>
+          </div>
+          {showHistoryPanel
+            ? <ChevronUp className="w-4 h-4 opacity-50" />
+            : <ChevronDown className="w-4 h-4 opacity-50" />}
+        </button>
+
+        {showHistoryPanel && (
+          <div className="p-4 pt-0 flex flex-col gap-4">
+            {/* Tabs selector */}
+            <div className="flex border-b border-white/5 pb-2 gap-4">
+              <button
+                onClick={() => setPanelTab('favorites')}
+                className={`text-xs font-bold pb-1 border-b-2 transition-all ${
+                  panelTab === 'favorites'
+                    ? 'border-[var(--app-accent1)] text-gray-900 dark:text-white'
+                    : 'border-transparent text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {_resolveTranslation(lang, 'المحفوظات', 'Saved')} ({favorites.length})
+              </button>
+              <button
+                onClick={() => setPanelTab('history')}
+                className={`text-xs font-bold pb-1 border-b-2 transition-all ${
+                  panelTab === 'history'
+                    ? 'border-[var(--app-accent1)] text-gray-900 dark:text-white'
+                    : 'border-transparent text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {_resolveTranslation(lang, 'الأخيرة', 'Recent')} ({history.length})
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (panelTab === 'favorites') {
+                    setFavorites([]);
+                  } else {
+                    setHistory([]);
+                  }
+                }}
+                className="ml-auto text-xs font-bold text-red-400 hover:text-red-300 transition-all"
+              >
+                {_resolveTranslation(lang, 'مسح الكل', 'Clear all')}
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+              {(panelTab === 'favorites' ? favorites : history).length === 0 ? (
+                <p className="text-xs text-gray-500 py-4 text-center">{_resolveTranslation(lang, 'لا توجد عناصر.', 'No items found.')}</p>
+              ) : (
+                (panelTab === 'favorites' ? favorites : history).map((item) => {
+                  return (
+                    <div key={item.id} className={`flex items-start justify-between gap-3 p-3 rounded-2xl transition-all ${
+                      theme === 'dark' ? 'bg-white/3 hover:bg-white/5' : 'bg-black/2 hover:bg-black/4'
+                    }`} dir="ltr">
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+                            {item.type} | {item.topic} ({item.length})
+                          </span>
+                          <span className="text-[10px] text-gray-500 font-medium">
+                            {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className={`text-xs font-semibold truncate ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {item.story}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setStory(item.story);
+                            setQuiz(item.quiz);
+                            setListenTopic(item.topic || '');
+                            setListenLength(item.length || 'medium');
+                            setDictMode(false);
+                            setDictResults([]);
+                            setUserAnswers({});
+                            setQuizSubmitted(false);
+                            stopAudio();
+                          }}
+                          title={_resolveTranslation(lang, 'تحميل', 'Load')}
+                          className={`p-1.5 rounded-xl transition-all ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-black/5 text-gray-500 hover:text-gray-800'}`}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (panelTab === 'favorites') {
+                              setFavorites(prev => prev.filter(x => x.id !== item.id));
+                            } else {
+                              setHistory(prev => prev.filter(x => x.id !== item.id));
+                            }
+                          }}
+                          title={_resolveTranslation(lang, 'حذف', 'Delete')}
+                          className={`p-1.5 rounded-xl transition-all ${theme === 'dark' ? 'hover:bg-white/10 text-gray-500 hover:text-red-400' : 'hover:bg-black/5 text-gray-400 hover:text-red-500'}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
     </div>
@@ -8196,8 +8464,10 @@ function Speaking({
   userLevel,
   lang,
   theme,
-  speakingHistory,
-  setSpeakingHistory
+  speakingHistory = [],
+  setSpeakingHistory,
+  favorites = [],
+  setFavorites
 }) {
   const t = {
     welcome: _resolveTranslation(lang, `مرحباً بك! بناءً على تقييمك، مهاراتك في التحدث ممتازة (${userLevel}). لنتدرب على بعض المواضيع المتقدمة.`, `Hello! Your speaking skills are evaluated at ${userLevel}. Let's practice some advanced topics.`),
@@ -8270,6 +8540,40 @@ function Speaking({
   const ttsQueueRef = useRef([]); // Stores { text, msgId } objects
   const prefetchCacheRef = useRef(new Map());
   const isTtsPlayingRef = useRef(false);
+
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [panelTab, setPanelTab] = useState('favorites');
+
+  const toggleFavorite = () => {
+    if (messages.length <= 1) return;
+    const lastAiMessage = [...messages].reverse().find(msg => msg.role === 'ai' && msg.text && msg.text !== t.welcome);
+    const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
+    const firstUserText = String(lastUserMessage?.text || '').trim();
+    const firstAiText = String(lastAiMessage?.text || '').trim();
+    const source = `${topic || ''} ${firstUserText} ${firstAiText}`.trim().toLowerCase();
+    const title = source.includes('hi') || source.includes('hello') || source.includes('hey') || source.includes('greeting') ? 'Greeting' : source.includes('interview') ? 'Interview' : source.includes('travel') ? 'Travel' : source.includes('work') || source.includes('job') ? 'Work' : source.includes('study') || source.includes('learn') ? 'Study' : String(topic || 'Conversation').split('(')[0].trim().replace(/\s+/g, ' ') || 'Conversation';
+
+    setFavorites(prev => {
+      const exists = prev.some(x => JSON.stringify(x.messages) === JSON.stringify(messages));
+      if (exists) {
+        return prev.filter(x => JSON.stringify(x.messages) !== JSON.stringify(messages));
+      } else {
+        return [{
+          id: Date.now(),
+          mode: isCallMode ? 'call' : 'chat',
+          topic,
+          title,
+          level: chatLevel,
+          messages,
+          summary: lastUserMessage?.text || lastAiMessage?.text || '',
+          reply: lastAiMessage?.text || '',
+          createdAt: new Date().toISOString()
+        }, ...prev];
+      }
+    });
+  };
+
+  const isFavorited = favorites.some(x => JSON.stringify(x.messages) === JSON.stringify(messages));
 
   const processTtsQueue = async () => {
     if (isTtsPlayingRef.current || ttsQueueRef.current.length === 0) return;
@@ -9045,9 +9349,25 @@ function Speaking({
               </button>
 
               <div className="flex h-11 items-center bg-gray-50 dark:bg-[var(--app-surface)] p-1 rounded-2xl border border-gray-100 dark:border-[var(--app-border)]">
-                <button onClick={() => setShowHistory(!showHistory)} title={t.history} className={`px-3 h-full flex items-center rounded-xl transition-colors ${showHistory ? 'glass-panel text-[var(--app-accent1)]' : 'text-gray-400 hover:text-gray-600'}`}>
+                <button
+                  onClick={() => setShowHistoryPanel(v => !v)}
+                  title={_resolveTranslation(lang, 'المحفوظات والسجل', 'Saved & History')}
+                  className={`px-3 h-full flex items-center rounded-xl transition-colors ${showHistoryPanel ? 'glass-panel text-[var(--app-accent1)]' : 'text-gray-400 hover:text-gray-600'}`}
+                >
                   <Clock size={16} />
                 </button>
+                {messages.length > 1 && (
+                  <>
+                    <div className="w-px h-4 bg-gray-200 dark:bg-[var(--app-card)]" />
+                    <button
+                      onClick={toggleFavorite}
+                      title={isFavorited ? _resolveTranslation(lang, 'إزالة من المفضلة', 'Remove from favorites') : _resolveTranslation(lang, 'حفظ في المفضلة', 'Save to favorites')}
+                      className={`px-3 h-full flex items-center rounded-xl transition-colors ${isFavorited ? 'text-red-500' : 'text-gray-400 hover:text-red-400'}`}
+                    >
+                      <Heart size={16} fill={isFavorited ? 'currentColor' : 'none'} />
+                    </button>
+                  </>
+                )}
                 <div className="w-px h-4 bg-gray-200 dark:bg-[var(--app-card)]" />
                 <button onClick={startNewConversation} title={t.newChat} className="px-3 h-full flex items-center rounded-xl text-gray-400 hover:text-[var(--app-accent1)] transition-colors">
                   <RotateCcw size={16} />
@@ -9058,20 +9378,6 @@ function Speaking({
         )}
 
         <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-white dark:bg-transparent scroll-smooth relative z-10">
-          {showHistory && (
-            <div className="mb-4 bg-white/90 dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-4 shadow-sm">
-              {speakingHistory.length === 0 ? (
-                <p className="text-gray-500 dark:text-[var(--app-text)]">No history yet.</p>
-              ) : (
-                speakingHistory.map(item => (
-                  <button key={item.id} onClick={() => setMessages(item.messages || [])} className="w-full text-left p-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] mb-3 last:mb-0 bg-gray-50 dark:bg-[var(--app-card)]">
-                    <p className="text-xs text-gray-500 dark:text-[var(--app-text-muted)]">{new Date(item.createdAt).toLocaleString()}</p>
-                    <p className="font-bold text-gray-900 dark:text-[var(--app-text)]">{item.title || item.topic}</p>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
 
           {messages.map((msg, idx) => (
             <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-slideUp`} style={{ animationDelay: `${idx * 0.05}s` }}>
@@ -9396,6 +9702,129 @@ function Speaking({
           ))}
         </div>
       </div>}
+
+      {/* ── Saved & History Panel ── */}
+      <div className="rounded-3xl overflow-hidden mt-2" style={{ background: theme === 'dark' ? '#0F0F16' : '#ffffff', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)' }}>
+        <button
+          onClick={() => setShowHistoryPanel(v => !v)}
+          className={`w-full flex items-center justify-between px-5 py-4 text-sm font-bold transition-all ${
+            theme === 'dark' ? 'text-gray-200 hover:bg-white/5' : 'text-gray-700 hover:bg-black/3'
+          }`}
+        >
+          <div className="flex items-center gap-2 text-[var(--app-text)] dark:text-gray-200">
+            <Clock className="w-4 h-4 text-[var(--app-accent1)]" />
+            {_resolveTranslation(lang, 'السجل والمحفوظات', 'History & Saved')}
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+              {favorites.length + speakingHistory.length}
+            </span>
+          </div>
+          {showHistoryPanel
+            ? <ChevronUp className="w-4 h-4 opacity-50" />
+            : <ChevronDown className="w-4 h-4 opacity-50" />}
+        </button>
+
+        {showHistoryPanel && (
+          <div className="p-4 pt-0 flex flex-col gap-4">
+            {/* Tabs selector */}
+            <div className="flex border-b border-white/5 pb-2 gap-4">
+              <button
+                onClick={() => setPanelTab('favorites')}
+                className={`text-xs font-bold pb-1 border-b-2 transition-all ${
+                  panelTab === 'favorites'
+                    ? 'border-[var(--app-accent1)] text-gray-900 dark:text-white'
+                    : 'border-transparent text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {_resolveTranslation(lang, 'المحفوظات', 'Saved')} ({favorites.length})
+              </button>
+              <button
+                onClick={() => setPanelTab('history')}
+                className={`text-xs font-bold pb-1 border-b-2 transition-all ${
+                  panelTab === 'history'
+                    ? 'border-[var(--app-accent1)] text-gray-900 dark:text-white'
+                    : 'border-transparent text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                {_resolveTranslation(lang, 'الأخيرة', 'Recent')} ({speakingHistory.length})
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (panelTab === 'favorites') {
+                    setFavorites([]);
+                  } else {
+                    setSpeakingHistory([]);
+                  }
+                }}
+                className="ml-auto text-xs font-bold text-red-400 hover:text-red-300 transition-all"
+              >
+                {_resolveTranslation(lang, 'مسح الكل', 'Clear all')}
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+              {(panelTab === 'favorites' ? favorites : speakingHistory).length === 0 ? (
+                <p className="text-xs text-gray-500 py-4 text-center">{_resolveTranslation(lang, 'لا توجد عناصر.', 'No items found.')}</p>
+              ) : (
+                (panelTab === 'favorites' ? favorites : speakingHistory).map((item) => {
+                  return (
+                    <div key={item.id} className={`flex items-start justify-between gap-3 p-3 rounded-2xl transition-all ${
+                      theme === 'dark' ? 'bg-white/3 hover:bg-white/5' : 'bg-black/2 hover:bg-black/4'
+                    }`} dir="ltr">
+                      <div className="flex-1 min-w-0 text-left">
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <span className="px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+                            {item.mode} | {item.level}
+                          </span>
+                          <span className="text-[10px] text-gray-500 font-medium">
+                            {new Date(item.createdAt || item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className={`text-xs font-semibold truncate ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {item.title || item.topic}
+                        </p>
+                        <p className="text-xs mt-1 text-[var(--app-accent1)] font-medium line-clamp-2">
+                          {item.summary || (item.messages && item.messages[item.messages.length - 1]?.text)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setMessages(item.messages || []);
+                            setTopic(item.topic || SPEAKING_TOPICS[0]);
+                            setChatLevel(item.level || userLevel);
+                            setIsCallMode(item.mode === 'call');
+                            setShowHistoryPanel(false);
+                          }}
+                          title={_resolveTranslation(lang, 'تحميل', 'Load')}
+                          className={`p-1.5 rounded-xl transition-all ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-black/5 text-gray-500 hover:text-gray-800'}`}
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (panelTab === 'favorites') {
+                              setFavorites(prev => prev.filter(x => x.id !== item.id));
+                            } else {
+                              setSpeakingHistory(prev => prev.filter(x => x.id !== item.id));
+                            }
+                          }}
+                          title={_resolveTranslation(lang, 'حذف', 'Delete')}
+                          className={`p-1.5 rounded-xl transition-all ${theme === 'dark' ? 'hover:bg-white/10 text-gray-500 hover:text-red-400' : 'hover:bg-black/5 text-gray-400 hover:text-red-500'}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

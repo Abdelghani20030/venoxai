@@ -81,6 +81,11 @@ function docToUser(uid, email, data = {}) {
     pronBookmarks:               data.pronBookmarks               || [],
     pronCompleted:               data.pronCompleted               || [],
     testSessions:                data.testSessions                || [],
+    listeningHistory:            data.listeningHistory            || [],
+    listeningFavorites:          data.listeningFavorites          || [],
+    readingHistory:              data.readingHistory              || [],
+    readingFavorites:            data.readingFavorites            || [],
+    speakingFavorites:           data.speakingFavorites           || [],
   };
 }
 
@@ -230,6 +235,8 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
       'collocationFavorites', 'collocationHistory',
       'etymologyFavorites', 'etymologyHistory',
       'pronBookmarks', 'pronCompleted', 'testSessions',
+      'listeningHistory', 'listeningFavorites', 'readingHistory', 'readingFavorites',
+      'speakingFavorites',
     ];
     const srsFields = [
       'srsData', 'langeekSrsData', 'phrasalSrs', 'idiomsSrs', 'idiomsProperSrs',
