@@ -53,11 +53,7 @@ function docToUser(uid, email, data = {}) {
     usageTime:            data.usageTime            || {},
     calendarDays:         data.calendarDays         || [],
     achievements:         data.achievements         || [],
-    globalVocab:          data.globalVocab          || [],
-    phrasalVocab:         data.phrasalVocab         || [],
-    idiomsVocab:          data.idiomsVocab          || [],
-    idiomsProperVocab:    data.idiomsProperVocab    || [],
-    langeekVocab:         data.langeekVocab         || [],
+
     srsData:              data.srsData              || {},
     langeekSrsData:       data.langeekSrsData       || {},
     phrasalSrs:           data.phrasalSrs           || {},
@@ -221,8 +217,7 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
 
     // Merge array fields (local wins on conflicts by id)
     const arrayFields = [
-      'globalVocab', 'phrasalVocab', 'idiomsVocab',
-      'idiomsProperVocab', 'langeekVocab', 'achievements',
+      'achievements',
       'calendarDays', 'speakingHistory', 'writingHistory', 'studiedWords',
       'translationHistory', 'translationFavorites', 'savedWords', 'savedIdioms',
       'toneRewriterFavorites', 'toneRewriterHistory',
@@ -375,10 +370,10 @@ function _parseIdiomsCSV(text) {
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
     const r = _parseCSVLine(lines[i], sep);
-    if (r.length >= 3 && r[0]) out.push({
-      word:    r[0].replace(/^"|"$/g, '').trim(),
-      meaning: r[1]?.replace(/^"|"$/g, '').trim() || '',
-      example: r[2]?.replace(/^"|"$/g, '').trim() || '',
+    if (r.length >= 3 && r[1]) out.push({
+      word:    r[1].replace(/^"|"$/g, '').trim(),
+      meaning: r[2]?.replace(/^"|"$/g, '').trim() || '',
+      example: r[3]?.replace(/^"|"$/g, '').trim() || '',
     });
   }
   return out;
@@ -390,7 +385,7 @@ function _parseLangeekCSV(text) {
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
     const r = _parseCSVLine(lines[i], ',');
-    if (r.length >= 4 && r[0]) out.push({
+    if (r.length >= 4 && r[2]) out.push({
       category: r[0]?.replace(/^"|"$/g, '') || 'General',
       level:    r[1]?.replace(/^"|"$/g, '') || '',
       word:     r[2]?.replace(/^"|"$/g, '') || '',

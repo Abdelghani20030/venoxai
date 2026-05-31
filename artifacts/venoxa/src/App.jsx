@@ -1683,11 +1683,7 @@ function AppInner() {
       calendarDays: Object.keys(cells).filter(k => k.length >= 10),
       avatar: localAv || undefined,
       achievements: [],
-      globalVocab: gVocab,
-      phrasalVocab: pVocab,
-      idiomsVocab: iVocab,
-      idiomsProperVocab: ipVocab,
-      langeekVocab: lVocab,
+
       speakingHistory: sHistory,
       writingHistory: wHistory,
       srsData: srs,
@@ -1713,7 +1709,7 @@ function AppInner() {
       etymologyHistory,
       // keep references for diff-checking later
       _local: { 
-        gVocab, pVocab, iVocab, ipVocab, lVocab, sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv, 
+        sHistory, wHistory, srs, lSrs, pSrs, iSrs, ipSrs, localAv, 
         translationHistory: tHistory, translationFavorites: tFavorites, savedWords: sWords, savedIdioms: sIdioms,
         toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory,
         wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory
@@ -1744,9 +1740,7 @@ function AppInner() {
 
       setUser(mergedUser);
       // Only store lightweight profile in localStorage to avoid quota errors
-      const { globalVocab: _gv, phrasalVocab: _pv, idiomsVocab: _iv,
-              idiomsProperVocab: _ipv, langeekVocab: _lv,
-              speakingHistory: _sh, writingHistory: _wh,
+      const { speakingHistory: _sh, writingHistory: _wh,
               srsData: _srs, langeekSrsData: _lsrs,
               phrasalSrs: _psrs, idiomsSrs: _isrs, idiomsProperSrs: _ipsrs,
               completedCells: _cc, usageTime: _ut, calendarDays: _cd,
@@ -1794,26 +1788,7 @@ function AppInner() {
         localStorage.setItem('venoxa_daily_usage_secs', JSON.stringify(mergedUsage));
         localStorage.setItem('venoxa_usage_time', JSON.stringify(mergedUsage));
       }
-      if (mergedUser.globalVocab && JSON.stringify(mergedUser.globalVocab) !== JSON.stringify(_local.gVocab)) {
-        localStorage.setItem('venoxa_global_vocab', JSON.stringify(mergedUser.globalVocab));
-        setGlobalVocab(mergedUser.globalVocab);
-      }
-      if (mergedUser.phrasalVocab && JSON.stringify(mergedUser.phrasalVocab) !== JSON.stringify(_local.pVocab)) {
-        localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(mergedUser.phrasalVocab));
-        setPhrasalVocab(mergedUser.phrasalVocab);
-      }
-      if (mergedUser.idiomsVocab && JSON.stringify(mergedUser.idiomsVocab) !== JSON.stringify(_local.iVocab)) {
-        localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(mergedUser.idiomsVocab));
-        setIdiomsVocab(mergedUser.idiomsVocab);
-      }
-      if (mergedUser.idiomsProperVocab && JSON.stringify(mergedUser.idiomsProperVocab) !== JSON.stringify(_local.ipVocab)) {
-        localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(mergedUser.idiomsProperVocab));
-        setIdiomsProperVocab(mergedUser.idiomsProperVocab);
-      }
-      if (mergedUser.langeekVocab && JSON.stringify(mergedUser.langeekVocab) !== JSON.stringify(_local.lVocab)) {
-        localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(mergedUser.langeekVocab));
-        setLangeekVocab(mergedUser.langeekVocab);
-      }
+
       if (mergedUser.speakingHistory && JSON.stringify(mergedUser.speakingHistory) !== JSON.stringify(_local.sHistory)) {
         localStorage.setItem('venoxa_speaking_history', JSON.stringify(mergedUser.speakingHistory));
         setSpeakingHistory(mergedUser.speakingHistory);
@@ -2049,7 +2024,7 @@ function AppInner() {
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [globalVocab, phrasalVocab, idiomsVocab, idiomsProperVocab, langeekVocab, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory]);
+  }, [speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
     const int = setInterval(() => setSrsRefreshTick(t => t + 1), 30000);
