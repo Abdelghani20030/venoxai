@@ -8568,6 +8568,17 @@ function Speaking({
   const prefetchCacheRef = useRef(new Map());
   const isTtsPlayingRef = useRef(false);
 
+  // ── Live-value refs so async callbacks always read the latest settings ──
+  const voiceGenderRef = useRef(voiceGender);
+  const voiceAccentRef = useRef(voiceAccent);
+  const chatLevelRef = useRef(chatLevel);
+  const topicRef = useRef(topic);
+  const formalityRef = useRef(formality);
+  const isCallModeRef = useRef(isCallMode);
+  const micAutoModeRef = useRef(micAutoMode);
+  const isRecordingRef = useRef(isRecording);
+  const autoReadRef = useRef(autoRead);
+
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [panelTab, setPanelTab] = useState('favorites');
 
@@ -8618,7 +8629,7 @@ function Speaking({
         blob = await blobPromise;
       } else {
         // Fallback if not pre-fetched
-        blob = await fetchTTSBlob(text, voiceGender, voiceAccent);
+        blob = await fetchTTSBlob(text, _voiceGender, _voiceAccent);
       }
 
       if (blob) {
@@ -8632,7 +8643,7 @@ function Speaking({
 
         // --- SYNC TRANSCRIPT TO VOICE ---
         // If we have a msgId, append this segment to the visible text as it starts playing (Call Mode only)
-        if (msgId && isCallMode) {
+        if (msgId && isCallModeRef.current) {
           setMessages(prev => prev.map(msg =>
             msg.id === msgId
               ? { ...msg, text: (msg.text || '') + (msg.text ? ' ' : '') + text }
@@ -8651,7 +8662,7 @@ function Speaking({
     }
     isTtsPlayingRef.current = false;
     // --- AUTO-MIC: Restart recording after AI finishes speaking ---
-    if (isCallMode && micAutoMode && !isRecording) {
+    if (isCallModeRef.current && micAutoModeRef.current && !isRecordingRef.current) {
       setTimeout(() => {
         handleVoiceRecord();
       }, 400); // Small delay to ensure clean start
@@ -8663,7 +8674,7 @@ function Speaking({
     if (!trimmed) return;
     // PRE-FETCH: Start synthesis IMMEDIATELY
     if (!prefetchCacheRef.current.has(trimmed)) {
-      prefetchCacheRef.current.set(trimmed, fetchTTSBlob(trimmed, voiceGender, voiceAccent));
+      prefetchCacheRef.current.set(trimmed, fetchTTSBlob(trimmed, _voiceGender, _voiceAccent));
     }
     ttsQueueRef.current.push({ text: trimmed, msgId });
     processTtsQueue();
@@ -8707,8 +8718,18 @@ function Speaking({
   }, [voiceAccent]);
   useEffect(() => {
     _voiceGender = voiceGender;
+    voiceGenderRef.current = voiceGender;
     if (typeof localStorage !== 'undefined') localStorage.setItem('venoxa_voice_gender', voiceGender);
   }, [voiceGender]);
+  // Keep all live-value refs in sync so async callbacks always read the latest settings
+  useEffect(() => { voiceAccentRef.current = voiceAccent; }, [voiceAccent]);
+  useEffect(() => { chatLevelRef.current = chatLevel; }, [chatLevel]);
+  useEffect(() => { topicRef.current = topic; }, [topic]);
+  useEffect(() => { formalityRef.current = formality; }, [formality]);
+  useEffect(() => { isCallModeRef.current = isCallMode; }, [isCallMode]);
+  useEffect(() => { micAutoModeRef.current = micAutoMode; }, [micAutoMode]);
+  useEffect(() => { isRecordingRef.current = isRecording; }, [isRecording]);
+  useEffect(() => { autoReadRef.current = autoRead; }, [autoRead]);
   // Keep personalityRateRef in sync so processTtsQueue always reads the live rate
   useEffect(() => {
     const p = PERSONALITIES.find(p => p.id === personality);
@@ -8843,7 +8864,7 @@ function Speaking({
   }, []);
 
   const speakText = async (text, interrupt = true) => {
-    const voiceId = voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID;
+    const voiceId = _voiceGender === 'female' ? ELEVENLABS_SARAH_ID : ELEVENLABS_BRIAN_ID;
     await elevenLabsSpeak(text, voiceId, interrupt);
     // Update TTS mode indicator after each call
     const engine = _lastTTSEngine || 'edge';
@@ -8868,7 +8889,7 @@ function Speaking({
         : 'Reply in English.';
 
       // ── Step 1: Stream the reply immediately — plain text, no JSON ──────────
-      const replyPrompt = `You are a friendly, natural conversation partner helping an English learner. ${langInstruction} Level: ${chatLevel}. Topic: ${topic}. Style: ${formality}. Personality: ${getPersonalityInstruction()} Recent context: ${history}. User said: "${userMsg}". Reply warmly in 1-3 sentences. Output the reply text ONLY — no JSON, no labels, no analysis whatsoever.`;
+      const replyPrompt = `You are a friendly, natural conversation partner helping an English learner. ${langInstruction} Level: ${chatLevelRef.current}. Topic: ${topicRef.current}. Style: ${formalityRef.current}. Personality: ${getPersonalityInstruction()} Recent context: ${history}. User said: "${userMsg}". Reply warmly in 1-3 sentences. Output the reply text ONLY — no JSON, no labels, no analysis whatsoever.`;
       let replyText = '';
       let spokenSentencesCount = 0;
 
@@ -8881,14 +8902,14 @@ function Speaking({
         // --- SYNCED TRANSCRIPT LOGIC ---
         // If in Call Mode, we don't update the message text here. 
         // Instead, processTtsQueue will append text as it speaks.
-        if (!isCallMode) {
+        if (!isCallModeRef.current) {
           setMessages(prev => prev.map(msg =>
             msg.id === aiMsgId ? { ...msg, text: replyText } : msg
           ));
         }
 
         // ── Real-time High-Speed Rolling TTS ──
-        if (isCallMode || autoRead) {
+        if (isCallModeRef.current || autoReadRef.current) {
           const unsent = replyText.slice(spokenSentencesCount).trim();
           // Match any natural break: . ? ! \n , ; or a long segment (> 70 chars)
           const breakMatch = unsent.match(/[^.!?\n,;]{5,}[.!?\n,;]+/);
