@@ -1863,9 +1863,12 @@ function AppInner() {
     if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
       const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
       if (JSON.stringify(mergedUser.planConfig) !== JSON.stringify(localPlan)) {
-        localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
-        if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
-        if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
+        const userIsEditing = localPlan && localPlan.hasOwnProperty('planMeta') && localPlan.planMeta === null;
+        if (!userIsEditing && !planResetBlockRef.current) {
+          localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
+          if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
+          if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
+        }
       }
     }
     if (Array.isArray(mergedUser.studiedWords) && mergedUser.studiedWords.length > 0) {
@@ -2073,9 +2076,12 @@ function AppInner() {
       if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
         const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
         if (JSON.stringify(mergedUser.planConfig) !== JSON.stringify(localPlan)) {
-          localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
-          if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
-          if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
+          const userIsEditing = localPlan && localPlan.hasOwnProperty('planMeta') && localPlan.planMeta === null;
+          if (!userIsEditing && !planResetBlockRef.current) {
+            localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
+            if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
+            if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
+          }
         }
       }
       if (Array.isArray(mergedUser.studiedWords) && mergedUser.studiedWords.length > 0) {
@@ -2208,6 +2214,8 @@ function AppInner() {
       return raw ? JSON.parse(raw)?.planMeta || null : null;
     } catch { return null; }
   });
+  // Blocks cloud sync from re-applying a planMeta after the user intentionally resets
+  const planResetBlockRef = useRef(false);
   const [completedCells, setCompletedCells] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {}; } catch { return {}; }
   });
@@ -2361,6 +2369,39 @@ function AppInner() {
     }
   }, [theme]);
 
+  // ── Force white background on print — the inline style on the root div
+  //    has higher specificity than CSS @media print rules, so we override
+  //    it directly via beforeprint/afterprint events.
+  useEffect(() => {
+    const rootDiv = document.getElementById('venoxa-root-div');
+    const beforePrint = () => {
+      if (rootDiv) {
+        rootDiv.style.setProperty('background', '#ffffff', 'important');
+        rootDiv.style.setProperty('color', '#1e293b', 'important');
+        rootDiv.style.setProperty('height', 'auto', 'important');
+        rootDiv.style.setProperty('overflow', 'visible', 'important');
+      }
+      document.documentElement.style.setProperty('background', '#ffffff', 'important');
+      document.body.style.setProperty('background', '#ffffff', 'important');
+    };
+    const afterPrint = () => {
+      if (rootDiv) {
+        rootDiv.style.removeProperty('background');
+        rootDiv.style.removeProperty('color');
+        rootDiv.style.removeProperty('height');
+        rootDiv.style.removeProperty('overflow');
+      }
+      document.documentElement.style.removeProperty('background');
+      document.body.style.removeProperty('background');
+    };
+    window.addEventListener('beforeprint', beforePrint);
+    window.addEventListener('afterprint', afterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', beforePrint);
+      window.removeEventListener('afterprint', afterPrint);
+    };
+  }, []);
+
   // ── Favicon fix: inject an SVG favicon so the Venoxa logo shows on the tab ──
   useEffect(() => {
     const svgFavicon = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#7C3AED"/><path d="M8 10 L16 22 L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="16" cy="10" r="2.5" fill="white"/></svg>`)}`;
@@ -2417,6 +2458,7 @@ function AppInner() {
           token={token}
           user={user}
           syncProgress={syncProgress}
+          planResetBlockRef={planResetBlockRef}
         />;
       case 'vocab':
         return <Vocabulary {...props} globalVocab={globalVocab} setGlobalVocab={setGlobalVocab} srsData={srsData} setSrsData={setSrsData} />;
@@ -2631,6 +2673,7 @@ function AppInner() {
 
   return (
     <div
+      id="venoxa-root-div"
       className="flex flex-col h-screen overflow-hidden transition-colors duration-500 font-sans relative"
       dir={_resolveTranslation(lang, 'rtl', 'ltr')}
       style={{
@@ -3996,14 +4039,13 @@ function PlanWeekTable({
   onToggleCell,
   wordSource
 }) {
-  // Row color map — each category gets a vivid left-border accent + subtle tinted bg
   const rowColors = {
-    listen:  { bg: 'bg-cyan-50/60 dark:bg-cyan-950/20',    border: 'border-l-4 border-l-cyan-500',    icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',    summary: 'text-cyan-700 dark:text-cyan-300' },
-    read:    { bg: 'bg-emerald-50/60 dark:bg-emerald-950/20', border: 'border-l-4 border-l-emerald-500', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', summary: 'text-emerald-700 dark:text-emerald-300' },
-    speak:   { bg: 'bg-rose-50/60 dark:bg-rose-950/20',     border: 'border-l-4 border-l-rose-500',    icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',    summary: 'text-rose-700 dark:text-rose-300' },
-    write:   { bg: 'bg-amber-50/60 dark:bg-amber-950/20',   border: 'border-l-4 border-l-amber-500',   icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',   summary: 'text-amber-700 dark:text-amber-300' },
-    vocab:   { bg: 'bg-orange-50/60 dark:bg-orange-950/20', border: 'border-l-4 border-l-orange-500',  icon: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',  summary: 'text-orange-700 dark:text-orange-300' },
-    grammar: { bg: 'bg-violet-50/60 dark:bg-violet-950/20', border: 'border-l-4 border-l-violet-500',  icon: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400',  summary: 'text-violet-700 dark:text-violet-300' },
+    listen:  { bg: 'bg-cyan-50/60 dark:bg-cyan-950/20',    border: '',    icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',    summary: 'text-cyan-700 dark:text-cyan-300' },
+    read:    { bg: 'bg-emerald-50/60 dark:bg-emerald-950/20', border: '', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', summary: 'text-emerald-700 dark:text-emerald-300' },
+    speak:   { bg: 'bg-rose-50/60 dark:bg-rose-950/20',     border: '',    icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',    summary: 'text-rose-700 dark:text-rose-300' },
+    write:   { bg: 'bg-amber-50/60 dark:bg-amber-950/20',   border: '',   icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',   summary: 'text-amber-700 dark:text-amber-300' },
+    vocab:   { bg: 'bg-orange-50/60 dark:bg-orange-950/20', border: '',  icon: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',  summary: 'text-orange-700 dark:text-orange-300' },
+    grammar: { bg: 'bg-violet-50/60 dark:bg-violet-950/20', border: '',  icon: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400',  summary: 'text-violet-700 dark:text-violet-300' },
   };
 
   const B = "border-gray-200/60 dark:border-white/[0.06]";
@@ -4011,9 +4053,9 @@ function PlanWeekTable({
   const cellBase = `px-3 py-6 text-center border-b border-e ${B} relative transition-all duration-200`;
 
   return (
-    <div className="rounded-[28px] print:rounded-none overflow-hidden border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none glass-panel print:bg-white">
-      <div className="overflow-x-auto">
-        <table className="w-full border-separate [border-spacing:0] min-w-[800px]">
+    <div className="rounded-[28px] print:rounded-none overflow-hidden print:overflow-visible border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none print:bg-white print:backdrop-filter-none plan-table-wrapper">
+      <div className="overflow-x-auto print:overflow-visible">
+        <table className="w-full border-separate [border-spacing:0] min-w-[800px] print:border-collapse print:min-w-0">
           <thead>
             <tr>
               <th className={`${headBase} w-[220px]`}>{t.activity}</th>
@@ -4030,9 +4072,9 @@ function PlanWeekTable({
               const colors = rowColors[cat.id] || rowColors.listen;
               return (
               <tr key={cat.id} className={`group hover:brightness-105 dark:hover:brightness-125 transition-all ${colors.bg} ${colors.border}`}>
-                <td className={`py-6 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
-                  <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
-                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm`}>
+                <td className={`py-4 px-3 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white print:py-3 print:align-middle`}>
+                  <div className="flex items-center gap-3 h-full print:gap-2">
+                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm print:hidden`}>
                       <cat.icon className="w-5 h-5" />
                     </div>
                     <span className="truncate leading-normal">{cat.name}</span>
@@ -4057,7 +4099,7 @@ function PlanWeekTable({
                           {completion === 'done' ? '✓' : '✗'}
                         </div>
                       )}
-                      <div className="flex flex-col items-center justify-center gap-1 min-h-[40px]">
+                      <div className="flex flex-col items-center justify-center gap-1 print:gap-0.5">
                         {cat.id === 'vocab' ? (
                           <div className="flex flex-col items-center gap-1">
                             <span className="text-sm font-bold text-gray-900 dark:text-white" dir="ltr">{getVocabRange(weekNum, d)}</span>
@@ -4082,7 +4124,7 @@ function PlanWeekTable({
                     </td>
                   );
                 })}
-                <td className={`py-6 border-b border-s ${B} text-center font-extrabold text-[13px] ${colors.summary} plan-cell-hover`}>
+                <td className={`py-4 px-3 border-b border-s ${B} text-center font-extrabold text-[13px] ${colors.summary} plan-cell-hover print:py-3 print:border`}>
                   {formatTime(cat.mins * 7)}
                 </td>
               </tr>
@@ -4090,10 +4132,10 @@ function PlanWeekTable({
             })}
 
             {/* ── Spaced Repetition Review Row ── */}
-            <tr className="bg-purple-50/70 dark:bg-purple-950/25 border-l-4 border-l-purple-500 group hover:brightness-105 dark:hover:brightness-125 transition-all">
-              <td className={`py-5 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
-                <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
-                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm">
+            <tr className="bg-purple-50/70 dark:bg-purple-950/25 group hover:brightness-105 dark:hover:brightness-125 transition-all">
+              <td className={`py-4 px-3 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white print:py-3 print:align-middle`}>
+                <div className="flex items-center gap-3 h-full print:gap-2">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm print:hidden">
                     <RotateCcw className="w-5 h-5" />
                   </div>
                   <span className="truncate leading-normal">{t.spacedRep}</span>
@@ -4102,7 +4144,7 @@ function PlanWeekTable({
               {[0, 1, 2, 3, 4, 5, 6].map(d => {
                 const phases = getSpacedRepetition(weekNum, d);
                 return (
-                  <td key={d} className={`${cellBase} align-top`}>
+                  <td key={d} className={`${cellBase} print:align-middle`}>
                     {phases.length === 0 ? (
                       <span className="text-[10px] text-gray-400 dark:text-gray-600">—</span>
                     ) : (
@@ -4148,7 +4190,7 @@ function PlanWeekTable({
                   </td>
                 );
               })}
-              <td className={`py-5 border-b border-s ${B} text-center plan-cell-hover`}>
+              <td className={`py-4 px-3 border-b border-s ${B} text-center plan-cell-hover print:py-3 print:border`}>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[9px] uppercase tracking-wider text-purple-500 dark:text-purple-400 opacity-70">{_resolveTranslation(lang, 'الفجوات', 'intervals')}</span>
                   <span dir="ltr" className="font-mono text-[9px] font-bold text-purple-600 dark:text-purple-300">+1·+4·+7·+12·+20</span>
@@ -4157,21 +4199,21 @@ function PlanWeekTable({
             </tr>
 
             {/* Summary Row */}
-            <tr className="bg-teal-50 dark:bg-teal-950/30 border-l-4 border-l-teal-500">
-              <td className={`py-8 border-e ${B} font-extrabold text-sm text-gray-900 dark:text-white`}>
-                <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
-                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+            <tr className="bg-teal-50 dark:bg-teal-950/30">
+              <td className={`py-4 px-3 border-e ${B} font-extrabold text-sm text-gray-900 dark:text-white print:py-3 print:align-middle`}>
+                <div className="flex items-center gap-3 h-full print:gap-2">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm print:hidden">
                     <Clock className="w-5 h-5" />
                   </div>
                   <span className="leading-normal">{t.categories.total}</span>
                 </div>
               </td>
               {[0, 1, 2, 3, 4, 5, 6].map(d => (
-                <td key={d} className={`px-6 py-8 text-center border-e ${B} font-extrabold text-sm text-teal-700 dark:text-teal-300 plan-cell-hover`}>
+                <td key={d} className={`px-3 py-4 text-center border-e ${B} font-extrabold text-sm text-teal-700 dark:text-teal-300 plan-cell-hover print:py-3 print:border`}>
                   {formatTime(dailyTotalMins)}
                 </td>
               ))}
-              <td className={`px-6 py-8 border-s ${B} text-center font-black text-sm text-teal-700 dark:text-teal-200 bg-teal-100/50 dark:bg-teal-500/10 plan-cell-hover`}>
+              <td className={`px-3 py-4 border-s ${B} text-center font-black text-sm text-teal-700 dark:text-teal-200 bg-teal-100/50 dark:bg-teal-500/10 plan-cell-hover print:py-3 print:border`}>
                 {formatTime(weeklyTotalMins)}
               </td>
             </tr>
@@ -4245,7 +4287,8 @@ function StudyPlan({
   theme,
   token,
   user,
-  syncProgress
+  syncProgress,
+  planResetBlockRef,
 }) {
   const stored = useMemo(() => loadStoredPlan(), []);
   const [targetLevel, setTargetLevel] = useState(stored?.targetLevel || 'C1');
@@ -4276,6 +4319,8 @@ function StudyPlan({
   const [wordsManual, setWordsManual] = useState(stored?.wordsManual || 10);
   const [studyHoursPreset, setStudyHoursPreset] = useState(stored?.studyHoursPreset || null);
   const [vocabMins, setVocabMins] = useState(stored?.vocabMins ?? 15);
+  // isEditing: show the configuration form even when a plan already exists
+  const [isEditing, setIsEditing] = useState(false);
   const [vocabModal, setVocabModal] = useState(null);
   const [grammarModal, setGrammarModal] = useState(null);
   const [studiedWords, setStudiedWords] = useState(() => {
@@ -4602,6 +4647,7 @@ function StudyPlan({
       userLevel,
     });
     setCurrentWeek(1);
+    setIsEditing(false);
   };
   const setSkillDefault = (id, useDefault) => {
     setSkillSettings(prev => ({
@@ -4787,19 +4833,51 @@ function StudyPlan({
     });
   };
   const handlePrint = () => {
-    // Force light theme for printing — the dark theme is unreadable on paper.
     const html = document.documentElement;
     const wasDark = html.classList.contains('dark');
+
+    // 1. Force light theme
     if (wasDark) html.classList.remove('dark');
+
+    // 2. Force white on root div (inline style beats @media print CSS)
+    const rootDiv = document.getElementById('venoxa-root-div');
+    if (rootDiv) {
+      rootDiv.style.background = '#ffffff';
+      rootDiv.style.height = 'auto';
+      rootDiv.style.overflow = 'visible';
+    }
+
+    // 3. Show the print container
+    const printContainer = document.querySelector('.print-layout-container');
+    if (printContainer) {
+      printContainer.style.display = 'block';
+      printContainer.style.visibility = 'visible';
+      printContainer.style.position = 'static';
+    }
+
+    // 4. Add a class to body so CSS can target it
+    document.body.classList.add('venoxa-printing');
+
     const restore = () => {
-      if (wasDark) html.classList.add('dark');
+      if (wasDark) html.classList.remove('dark');
+      if (rootDiv) {
+        rootDiv.style.background = '';
+        rootDiv.style.height = '';
+        rootDiv.style.overflow = '';
+      }
+      if (printContainer) {
+        printContainer.style.display = '';
+        printContainer.style.visibility = '';
+        printContainer.style.position = '';
+      }
+      document.body.classList.remove('venoxa-printing');
+      // Remove injected style tag
+      const injected = document.getElementById('venoxa-print-fix');
+      if (injected) injected.remove();
       window.removeEventListener('afterprint', restore);
     };
     window.addEventListener('afterprint', restore);
-    // Allow the browser one frame to recompute styles before opening the dialog.
-    requestAnimationFrame(() => {
-      setTimeout(() => window.print(), 50);
-    });
+    requestAnimationFrame(() => setTimeout(() => window.print(), 50));
   };
   const formatTime = mins => {
     const h = Math.floor(mins / 60);
@@ -4884,11 +4962,39 @@ function StudyPlan({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  const handleResetPlan = () => {
+    // Block cloud sync from overwriting the reset for 5 seconds
+    if (planResetBlockRef) planResetBlockRef.current = true;
+    setPlanMeta(null);
+    const local = {
+      targetLevel,
+      startDate,
+      targetDate,
+      skillSettings,
+      wordsMode,
+      wordSource,
+      wordsManual,
+      planMeta: null,
+      currentWeek: 1,
+      studyHoursPreset,
+      vocabMins,
+    };
+    try {
+      localStorage.setItem('venoxa-plan-v3', JSON.stringify(local));
+    } catch {}
+    if (syncProgress) {
+      syncProgress(token, user, null, true);
+    }
+    // Unblock sync after 5 seconds — long enough for Firebase to settle
+    if (planResetBlockRef) {
+      setTimeout(() => { planResetBlockRef.current = false; }, 5000);
+    }
+  };
   const dailyTotalMins = planData?.categories.reduce((acc, cat) => acc + cat.mins, 0) || 0;
   const weeklyTotalMins = dailyTotalMins * 7;
   const todayStr = new Date().toISOString().split('T')[0];
   return <div className="space-y-8 animate-fadeIn print:m-0 print:p-0">
-    {!planData && <div className="glass-panel p-5 sm:p-8 lg:p-12 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] relative transition-colors">
+    {(!planData || isEditing) && <div className="glass-panel p-5 sm:p-8 lg:p-12 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] relative transition-colors">
 
       <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-5 lg:mb-8 text-gray-900 dark:text-[var(--app-text)] flex items-center gap-3 relative z-10">
         <Sparkles className="text-black dark:text-white w-8 h-8" /> {t.title}
@@ -5317,8 +5423,11 @@ function StudyPlan({
           <button onClick={handlePrint} className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-xl shadow-sm">
             <Printer className="w-4 h-4" /> {t.exportPdf}
           </button>
-          <button onClick={() => setPlanMeta(null)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-2 text-sm font-bold transition-colors bg-gray-100 dark:bg-[var(--app-surface)] px-4 py-2 rounded-xl">
-            <RotateCcw className="w-4 h-4" /> {t.reset}
+          <button onClick={() => setIsEditing(prev => !prev)} className={`flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-xl ${isEditing ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-[var(--app-surface)]'}`}>
+            <Sliders className="w-4 h-4" /> {isEditing ? _resolveTranslation(lang, 'إخفاء الإعدادات', 'Hide Settings') : t.reset}
+          </button>
+          <button onClick={handleResetPlan} className="text-red-500 hover:text-red-700 flex items-center gap-2 text-sm font-bold transition-colors bg-red-50 dark:bg-red-500/10 hover:bg-red-100 px-4 py-2 rounded-xl">
+            <Trash2 className="w-4 h-4" /> {_resolveTranslation(lang, 'حذف الخطة', 'Delete Plan')}
           </button>
         </div>
       </div>
@@ -5441,22 +5550,22 @@ function StudyPlan({
       </div>
 
       {/* Screen view: current week only */}
-      <div className="print:hidden">
+      <div className="print-screen-only print:hidden">
         <PlanWeekTable weekNum={currentWeek} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} planGrammarRules={planGrammarRules} rulesPerDay={planMeta?.rulesPerDay || rulesPerDay} t={t} lang={lang} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive completedCells={completedCells} onToggleCell={toggleCellCompletion} wordSource={planMeta?.wordSource || wordSource} />
       </div>
 
       {/* Print view: every week, page break between */}
-      <div className="hidden print:block">
-        <div className="text-center mb-4">
-          <h1 className="text-2xl font-bold text-black">{_resolveTranslation(lang, 'الجدول الأسبوعي للمذاكرة - Venoxa AI', 'Weekly Study Plan - Venoxa AI')}</h1>
-          <p className="text-gray-700 mt-1 text-sm">{t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel} | {planData.totalWeeks} {_resolveTranslation(lang, 'أسابيع', 'weeks')}</p>
-        </div>
-        {Array.from({
-          length: planData.totalWeeks
-        }, (_, i) => i + 1).map(w => (
-          <div key={w} className={`print:block print:break-inside-avoid break-inside-avoid ${w < planData.totalWeeks ? 'break-after-page' : ''}`} style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto', breakInside: 'avoid', pageBreakInside: 'avoid' }}>
-            <div className="text-center mb-4 print:pt-4">
-              <h2 className="text-xl font-bold text-black">{t.week} {w}</h2>
+      <div className="print-layout-container" style={{ display: 'none' }}>
+        {Array.from({ length: planData.totalWeeks }, (_, i) => i + 1).map(w => (
+          <div key={w} className="print-week-page" style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto', pageBreakInside: 'avoid', breakInside: 'avoid', breakAfter: w < planData.totalWeeks ? 'page' : 'auto' }}>
+            {w === 1 && (
+              <div style={{ textAlign: 'center', marginBottom: '6mm' }}>
+                <h1 style={{ fontSize: '20px', fontWeight: 900, color: '#0f172a', margin: '0 0 3px' }}>{_resolveTranslation(lang, 'الجدول الأسبوعي للمذاكرة - Venoxa AI', 'Weekly Study Plan - Venoxa AI')}</h1>
+                <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>{t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel} | {planData.totalWeeks} {_resolveTranslation(lang, 'أسابيع', 'weeks')}</p>
+              </div>
+            )}
+            <div style={{ textAlign: 'center', marginBottom: '5mm' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b', margin: 0 }}>{t.week} {w}</h2>
             </div>
             <PlanWeekTable 
               weekNum={w} 
@@ -9012,6 +9121,144 @@ function Speaking({
       setLoading(false);
     }
   };
+  const generateDynamicOpener = async (targetPersonality = personality, targetTopic = topic, overrideCustomPrompt = null) => {
+    setLoading(true);
+    cancelTTS();
+    ttsQueueRef.current = [];
+    if (callAudioRef.current) { callAudioRef.current.pause(); callAudioRef.current = null; }
+
+    const aiMsgId = Date.now();
+    setMessages([{ id: aiMsgId, role: 'ai', text: '', streaming: true }]);
+
+    let spokenSentencesCount = 0;
+    try {
+      const pObj = PERSONALITIES.find(p => p.id === targetPersonality);
+      let pInstruction = 'Be helpful and natural. Adapt fully to whatever the user needs.';
+      switch (targetPersonality) {
+        case 'custom': {
+          const effectivePrompt = overrideCustomPrompt !== null ? overrideCustomPrompt : customPrompt;
+          pInstruction = effectivePrompt.trim() ? effectivePrompt.trim() : 'Be helpful and natural. Adapt fully to whatever the user needs.';
+          break;
+        }
+        case 'assistant':
+          pInstruction = 'You are a precise, efficient AI assistant. Respond clearly and concisely. Stay on-topic, never waffle, always helpful.';
+          break;
+        case 'teacher':
+          pInstruction = 'You are a patient, encouraging English teacher. Gently flag any errors the user makes at the very end of your reply inside [brackets], with a brief fix. Never shame; always explain why.';
+          break;
+        case 'friend':
+          pInstruction = 'You are the user\'s warm, funny best friend. Use contractions, casual slang, ask about their life, laugh often (haha / lol sparingly), and keep things light and human.';
+          break;
+        case 'native':
+          pInstruction = 'Speak exactly like a relaxed native English speaker — use real idioms, phrasal verbs, natural fillers (you know, like, honestly), colloquialisms, and a conversational rhythm. Never sound textbook-formal.';
+          break;
+        case 'debate':
+          pInstruction = 'You are a sharp debate partner. Respectfully but firmly challenge every claim the user makes. Ask probing follow-up questions. Play devil\'s advocate. Never just agree — push them to think harder and defend their position.';
+          break;
+        case 'interviewer':
+          pInstruction = 'You are a seasoned interviewer conducting a professional job or university interview. Ask one focused question at a time. Give concise, honest feedback on the user\'s answers. Maintain a polished, slightly formal tone.';
+          break;
+        case 'storyteller':
+          pInstruction = 'You are a masterful storyteller. Weave vivid imagery, rich metaphors, and a compelling narrative arc into every reply. Use sensory language. Make the conversation feel like a story unfolding.';
+          break;
+        case 'therapist':
+          pInstruction = 'You are a warm, attentive therapist. Listen deeply. Reflect feelings back without judgment ("It sounds like you feel…"). Ask gentle open questions. Never give unsolicited advice — hold space and validate first. Speak softly and slowly.';
+          break;
+        case 'meditation':
+          pInstruction = 'You are a serene meditation and mindfulness guide. Speak in a slow, calm, grounding tone. Use breath cues naturally ("take a slow breath…"). Use gentle, present-moment language. Silence is fine — short responses are better. Never rush.';
+          break;
+        case 'doc':
+          pInstruction = 'You are a clear-spoken medical professional (Grok "Doc" style). Give factual, evidence-based information using plain language. Define jargon. Recommend professional consultation when appropriate. Stay methodical and precise, but compassionate.';
+          break;
+        case 'kids_story':
+          pInstruction = 'You are a magical, enthusiastic children\'s storyteller. Use simple words, vivid imagination, funny characters, and gentle suspense. Every reply continues or starts a short bedtime-style adventure. End with a cliffhanger or a sweet question to keep them engaged. Always appropriate for ages 4-10.';
+          break;
+        case 'kids_trivia':
+          pInstruction = 'You are a super-energetic kids\' trivia game host! Ask one fun, age-appropriate trivia question at a time (topics: animals, nature, space, cartoons). React with BIG excitement for right answers ("WOOHOO! You got it! 🎉") and gentle encouragement for wrong ones. Keep it playful and short.';
+          break;
+        case 'unhinged':
+          pInstruction = 'You are completely unfiltered, chaotic, and unpredictable. Jump between ideas, use ALL CAPS for emphasis, make wild comparisons, go on tangents, laugh at your own chaos. Be raw, irreverent, and gloriously unhinged — but never hateful or harmful.';
+          break;
+        case 'sexy':
+          pInstruction = 'You are confident, playful, and flirtatious. Speak with a low, deliberate tone. Use suggestive but tasteful language — innuendo, compliments, slow pacing. Make the user feel desired and interesting. Never crude, always alluring.';
+          break;
+        case 'motivation':
+          pInstruction = 'You are an INTENSE motivational coach — part drill sergeant, part hype man. Use short punchy sentences. SHOUT IN CAPS when building energy. Call out excuses. Demand greatness. Reference elite performers. Every reply should make the user want to sprint to the gym or start their dream RIGHT NOW.';
+          break;
+        case 'conspiracy':
+          pInstruction = 'You are a passionate conspiracy theorist. Question official narratives, connect unlikely dots, use phrases like "They don\'t want you to know this…", "Follow the money…", "Look at who benefits…". Be dramatic and convincing. Frame everything as a hidden pattern. Stay entertaining, not harmful.';
+          break;
+        case 'romantic':
+          pInstruction = 'You are a deep, passionate romantic. Use beautiful, poetic, tender, and intimate language. Make the user feel adored and special. Keep it sweet, emotional, and warm.';
+          break;
+        case 'argumentative':
+          pInstruction = 'You are highly argumentative. Dispute almost everything, pick apart details, and robustly argue your side with a slightly stubborn attitude.';
+          break;
+      }
+
+      const currentTopic = targetTopic || "General Conversation";
+
+      const prompt = `You are a dynamic English conversation partner. You are acting in the following personality mode:
+Personality name: ${pObj?.label || targetPersonality}
+Personality instruction: ${pInstruction}
+
+Your task is to start an engaging conversation in English for a ${chatLevel} learner about the topic "${currentTopic}".
+The tone should be ${formality === 'formal' ? 'formal' : 'casual'}.
+
+Generate exactly ONE natural, engaging opening question in English related to your personality and the topic to start the conversation.
+Do NOT include any introduction, meta-text, brackets, or markdown. Output the question text ONLY, so it can be read directly to the user.`;
+
+      let accumulated = '';
+      await streamFromAPI(prompt, (delta) => {
+        accumulated += delta;
+        setMessages([{ id: aiMsgId, role: 'ai', text: accumulated, streaming: true }]);
+
+        if (isCallModeRef.current || autoReadRef.current) {
+          const unsent = accumulated.slice(spokenSentencesCount).trim();
+          const breakMatch = unsent.match(/[^.!?\n,;]{5,}[.!?\n,;]+/);
+          if (breakMatch) {
+            const segment = breakMatch[0];
+            queueSpeech(segment, aiMsgId);
+            spokenSentencesCount += (accumulated.indexOf(segment, spokenSentencesCount) - spokenSentencesCount) + segment.length;
+          }
+        }
+      });
+
+      const remaining = accumulated.trim().slice(spokenSentencesCount);
+      if (remaining.length > 2) {
+        if (isCallModeRef.current || autoReadRef.current) {
+          queueSpeech(remaining, aiMsgId);
+        }
+      }
+
+      setMessages([{ id: aiMsgId, role: 'ai', text: accumulated.trim(), streaming: false }]);
+    } catch (e) {
+      console.error(e);
+      setMessages([{
+        id: Date.now(),
+        role: 'system',
+        text: _resolveTranslation(lang, "فشل الاتصال.", "Connection failed.")
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handlePersonalityChange = (newId) => {
+    setPersonality(newId);
+    if (newId === 'custom') {
+      // Clear messages and show instruction to use the custom prompt panel
+      cancelTTS();
+      ttsQueueRef.current = [];
+      if (callAudioRef.current) { callAudioRef.current.pause(); callAudioRef.current = null; }
+      setMessages([{
+        id: Date.now(),
+        role: 'system',
+        text: '✏️ Custom mode selected. Open the Personality panel below, describe your persona, then tap "Apply & Generate Question" to start.'
+      }]);
+    } else {
+      generateDynamicOpener(newId, topic);
+    }
+  };
   const startNewConversation = async () => {
     setLoading(true);
     const currentConversation = [...messages];
@@ -9059,13 +9306,7 @@ function Speaking({
   useEffect(() => {
     if (!topic) return;
     if (messages.length > 1) {
-      const opener = `Let's talk about ${topic}. What interests you most about it?`;
-      const aiMsgId = Date.now();
-      setMessages([{ id: aiMsgId, role: 'ai', text: isCallMode ? '' : opener }]);
-      if (autoRead) {
-        if (isCallMode) queueSpeech(opener, aiMsgId);
-        else speakText(opener);
-      }
+      generateDynamicOpener(personality, topic);
     }
   }, [topic]);
   const handleVoiceRecord = () => {
@@ -9179,7 +9420,7 @@ function Speaking({
     } else {
       setCallReview(null);
       setIsCallMode(true);
-      speakText("Call started. What would you like to talk about?");
+      generateDynamicOpener(personality, topic);
     }
   };
   const generateScenario = async () => {
@@ -9257,6 +9498,15 @@ function Speaking({
             value={chatLevel}
             onChange={setChatLevel}
             options={['A1','A2','B1','B2','C1','C2'].map(l => ({ value: l, label: l }))}
+            isDark={isDark}
+          />
+
+          {/* Personality / Mode dropdown */}
+          <CallMiniDropdown
+            value={personality}
+            onChange={handlePersonalityChange}
+            options={PERSONALITIES.map(p => ({ value: p.id, label: `${p.icon} ${p.label}` }))}
+            prefix={lang === 'ar' ? 'الوضعية:' : 'Mode:'}
             isDark={isDark}
           />
 
@@ -9699,7 +9949,7 @@ function Speaking({
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5 mt-1">🛠️ Standard &amp; Roleplay</p>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 mb-3">
                 {PERSONALITIES.filter(p => p.category === 'standard').map(p => (
-                  <button key={p.id} onClick={() => setPersonality(p.id)}
+                  <button key={p.id} onClick={() => handlePersonalityChange(p.id)}
                     title={p.desc}
                     className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all ${personality === p.id
                       ? 'bg-[var(--app-accent1)]/10 border-[var(--app-accent1)]/50 text-[var(--app-accent1)]'
@@ -9712,7 +9962,7 @@ function Speaking({
 
               {/* Custom prompt input — shown only when 'custom' selected */}
               {personality === 'custom' && (
-                <div className="mb-3 animate-fadeIn">
+                <div className="mb-3 animate-fadeIn flex flex-col gap-2">
                   <textarea
                     value={customPrompt}
                     onChange={e => setCustomPrompt(e.target.value)}
@@ -9720,6 +9970,16 @@ function Speaking({
                     rows={2}
                     className="w-full bg-white dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)] rounded-xl px-3 py-2 text-sm text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 resize-none outline-none focus:border-[var(--app-accent1)]/50 transition-colors"
                   />
+                  <button
+                    onClick={() => {
+                      if (!customPrompt.trim()) return;
+                      generateDynamicOpener('custom', topic, customPrompt);
+                    }}
+                    disabled={!customPrompt.trim()}
+                    className="self-end px-3 py-1.5 rounded-xl bg-[var(--app-accent1)] text-white text-xs font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm shadow-[var(--app-accent1)]/30 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Apply &amp; Generate Question
+                  </button>
                 </div>
               )}
 
@@ -9727,7 +9987,7 @@ function Speaking({
               <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1.5">👶 Kids-Friendly</p>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 mb-3">
                 {PERSONALITIES.filter(p => p.category === 'kids').map(p => (
-                  <button key={p.id} onClick={() => setPersonality(p.id)}
+                  <button key={p.id} onClick={() => handlePersonalityChange(p.id)}
                     title={p.desc}
                     className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all ${personality === p.id
                       ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
@@ -9755,7 +10015,7 @@ function Speaking({
                 )}
                 {matureUnlocked && (
                   <button
-                    onClick={() => { setMatureUnlocked(false); if (PERSONALITIES.find(p => p.id === personality)?.mature) setPersonality('assistant'); }}
+                    onClick={() => { setMatureUnlocked(false); if (PERSONALITIES.find(p => p.id === personality)?.mature) handlePersonalityChange('assistant'); }}
                     className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-400 hover:text-rose-500 transition-all"
                   >
                     Lock 🔒
@@ -9770,7 +10030,7 @@ function Speaking({
               ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                   {PERSONALITIES.filter(p => p.category === 'mature').map(p => (
-                    <button key={p.id} onClick={() => setPersonality(p.id)}
+                    <button key={p.id} onClick={() => handlePersonalityChange(p.id)}
                       title={p.desc}
                       className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all ${personality === p.id
                         ? 'bg-rose-500/10 border-rose-500/50 text-rose-500'
