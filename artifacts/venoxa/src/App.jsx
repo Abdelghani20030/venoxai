@@ -2369,39 +2369,6 @@ function AppInner() {
     }
   }, [theme]);
 
-  // ── Force white background on print — the inline style on the root div
-  //    has higher specificity than CSS @media print rules, so we override
-  //    it directly via beforeprint/afterprint events.
-  useEffect(() => {
-    const rootDiv = document.getElementById('venoxa-root-div');
-    const beforePrint = () => {
-      if (rootDiv) {
-        rootDiv.style.setProperty('background', '#ffffff', 'important');
-        rootDiv.style.setProperty('color', '#1e293b', 'important');
-        rootDiv.style.setProperty('height', 'auto', 'important');
-        rootDiv.style.setProperty('overflow', 'visible', 'important');
-      }
-      document.documentElement.style.setProperty('background', '#ffffff', 'important');
-      document.body.style.setProperty('background', '#ffffff', 'important');
-    };
-    const afterPrint = () => {
-      if (rootDiv) {
-        rootDiv.style.removeProperty('background');
-        rootDiv.style.removeProperty('color');
-        rootDiv.style.removeProperty('height');
-        rootDiv.style.removeProperty('overflow');
-      }
-      document.documentElement.style.removeProperty('background');
-      document.body.style.removeProperty('background');
-    };
-    window.addEventListener('beforeprint', beforePrint);
-    window.addEventListener('afterprint', afterPrint);
-    return () => {
-      window.removeEventListener('beforeprint', beforePrint);
-      window.removeEventListener('afterprint', afterPrint);
-    };
-  }, []);
-
   // ── Favicon fix: inject an SVG favicon so the Venoxa logo shows on the tab ──
   useEffect(() => {
     const svgFavicon = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#7C3AED"/><path d="M8 10 L16 22 L24 10" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="16" cy="10" r="2.5" fill="white"/></svg>`)}`;
@@ -2673,7 +2640,6 @@ function AppInner() {
 
   return (
     <div
-      id="venoxa-root-div"
       className="flex flex-col h-screen overflow-hidden transition-colors duration-500 font-sans relative"
       dir={_resolveTranslation(lang, 'rtl', 'ltr')}
       style={{
@@ -4039,13 +4005,14 @@ function PlanWeekTable({
   onToggleCell,
   wordSource
 }) {
+  // Row color map — each category gets a vivid left-border accent + subtle tinted bg
   const rowColors = {
-    listen:  { bg: 'bg-cyan-50/60 dark:bg-cyan-950/20',    border: '',    icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',    summary: 'text-cyan-700 dark:text-cyan-300' },
-    read:    { bg: 'bg-emerald-50/60 dark:bg-emerald-950/20', border: '', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', summary: 'text-emerald-700 dark:text-emerald-300' },
-    speak:   { bg: 'bg-rose-50/60 dark:bg-rose-950/20',     border: '',    icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',    summary: 'text-rose-700 dark:text-rose-300' },
-    write:   { bg: 'bg-amber-50/60 dark:bg-amber-950/20',   border: '',   icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',   summary: 'text-amber-700 dark:text-amber-300' },
-    vocab:   { bg: 'bg-orange-50/60 dark:bg-orange-950/20', border: '',  icon: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',  summary: 'text-orange-700 dark:text-orange-300' },
-    grammar: { bg: 'bg-violet-50/60 dark:bg-violet-950/20', border: '',  icon: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400',  summary: 'text-violet-700 dark:text-violet-300' },
+    listen:  { bg: 'bg-cyan-50/60 dark:bg-cyan-950/20',    border: 'border-l-4 border-l-cyan-500',    icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',    summary: 'text-cyan-700 dark:text-cyan-300' },
+    read:    { bg: 'bg-emerald-50/60 dark:bg-emerald-950/20', border: 'border-l-4 border-l-emerald-500', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', summary: 'text-emerald-700 dark:text-emerald-300' },
+    speak:   { bg: 'bg-rose-50/60 dark:bg-rose-950/20',     border: 'border-l-4 border-l-rose-500',    icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',    summary: 'text-rose-700 dark:text-rose-300' },
+    write:   { bg: 'bg-amber-50/60 dark:bg-amber-950/20',   border: 'border-l-4 border-l-amber-500',   icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',   summary: 'text-amber-700 dark:text-amber-300' },
+    vocab:   { bg: 'bg-orange-50/60 dark:bg-orange-950/20', border: 'border-l-4 border-l-orange-500',  icon: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',  summary: 'text-orange-700 dark:text-orange-300' },
+    grammar: { bg: 'bg-violet-50/60 dark:bg-violet-950/20', border: 'border-l-4 border-l-violet-500',  icon: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400',  summary: 'text-violet-700 dark:text-violet-300' },
   };
 
   const B = "border-gray-200/60 dark:border-white/[0.06]";
@@ -4053,9 +4020,9 @@ function PlanWeekTable({
   const cellBase = `px-3 py-6 text-center border-b border-e ${B} relative transition-all duration-200`;
 
   return (
-    <div className="rounded-[28px] print:rounded-none overflow-hidden print:overflow-visible border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none print:bg-white print:backdrop-filter-none plan-table-wrapper">
-      <div className="overflow-x-auto print:overflow-visible">
-        <table className="w-full border-separate [border-spacing:0] min-w-[800px] print:border-collapse print:min-w-0">
+    <div className="rounded-[28px] print:rounded-none overflow-hidden border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none glass-panel print:bg-white">
+      <div className="overflow-x-auto">
+        <table className="w-full border-separate [border-spacing:0] min-w-[800px]">
           <thead>
             <tr>
               <th className={`${headBase} w-[220px]`}>{t.activity}</th>
@@ -4072,9 +4039,9 @@ function PlanWeekTable({
               const colors = rowColors[cat.id] || rowColors.listen;
               return (
               <tr key={cat.id} className={`group hover:brightness-105 dark:hover:brightness-125 transition-all ${colors.bg} ${colors.border}`}>
-                <td className={`py-4 px-3 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white print:py-3 print:align-middle`}>
-                  <div className="flex items-center gap-3 h-full print:gap-2">
-                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm print:hidden`}>
+                <td className={`py-6 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
+                  <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
+                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm`}>
                       <cat.icon className="w-5 h-5" />
                     </div>
                     <span className="truncate leading-normal">{cat.name}</span>
@@ -4099,7 +4066,7 @@ function PlanWeekTable({
                           {completion === 'done' ? '✓' : '✗'}
                         </div>
                       )}
-                      <div className="flex flex-col items-center justify-center gap-1 print:gap-0.5">
+                      <div className="flex flex-col items-center justify-center gap-1 min-h-[40px]">
                         {cat.id === 'vocab' ? (
                           <div className="flex flex-col items-center gap-1">
                             <span className="text-sm font-bold text-gray-900 dark:text-white" dir="ltr">{getVocabRange(weekNum, d)}</span>
@@ -4124,7 +4091,7 @@ function PlanWeekTable({
                     </td>
                   );
                 })}
-                <td className={`py-4 px-3 border-b border-s ${B} text-center font-extrabold text-[13px] ${colors.summary} plan-cell-hover print:py-3 print:border`}>
+                <td className={`py-6 border-b border-s ${B} text-center font-extrabold text-[13px] ${colors.summary} plan-cell-hover`}>
                   {formatTime(cat.mins * 7)}
                 </td>
               </tr>
@@ -4132,10 +4099,10 @@ function PlanWeekTable({
             })}
 
             {/* ── Spaced Repetition Review Row ── */}
-            <tr className="bg-purple-50/70 dark:bg-purple-950/25 group hover:brightness-105 dark:hover:brightness-125 transition-all">
-              <td className={`py-4 px-3 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white print:py-3 print:align-middle`}>
-                <div className="flex items-center gap-3 h-full print:gap-2">
-                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm print:hidden">
+            <tr className="bg-purple-50/70 dark:bg-purple-950/25 border-l-4 border-l-purple-500 group hover:brightness-105 dark:hover:brightness-125 transition-all">
+              <td className={`py-5 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
+                <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm">
                     <RotateCcw className="w-5 h-5" />
                   </div>
                   <span className="truncate leading-normal">{t.spacedRep}</span>
@@ -4144,7 +4111,7 @@ function PlanWeekTable({
               {[0, 1, 2, 3, 4, 5, 6].map(d => {
                 const phases = getSpacedRepetition(weekNum, d);
                 return (
-                  <td key={d} className={`${cellBase} print:align-middle`}>
+                  <td key={d} className={`${cellBase} align-top`}>
                     {phases.length === 0 ? (
                       <span className="text-[10px] text-gray-400 dark:text-gray-600">—</span>
                     ) : (
@@ -4190,7 +4157,7 @@ function PlanWeekTable({
                   </td>
                 );
               })}
-              <td className={`py-4 px-3 border-b border-s ${B} text-center plan-cell-hover print:py-3 print:border`}>
+              <td className={`py-5 border-b border-s ${B} text-center plan-cell-hover`}>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[9px] uppercase tracking-wider text-purple-500 dark:text-purple-400 opacity-70">{_resolveTranslation(lang, 'الفجوات', 'intervals')}</span>
                   <span dir="ltr" className="font-mono text-[9px] font-bold text-purple-600 dark:text-purple-300">+1·+4·+7·+12·+20</span>
@@ -4199,21 +4166,21 @@ function PlanWeekTable({
             </tr>
 
             {/* Summary Row */}
-            <tr className="bg-teal-50 dark:bg-teal-950/30">
-              <td className={`py-4 px-3 border-e ${B} font-extrabold text-sm text-gray-900 dark:text-white print:py-3 print:align-middle`}>
-                <div className="flex items-center gap-3 h-full print:gap-2">
-                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm print:hidden">
+            <tr className="bg-teal-50 dark:bg-teal-950/30 border-l-4 border-l-teal-500">
+              <td className={`py-8 border-e ${B} font-extrabold text-sm text-gray-900 dark:text-white`}>
+                <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
                     <Clock className="w-5 h-5" />
                   </div>
                   <span className="leading-normal">{t.categories.total}</span>
                 </div>
               </td>
               {[0, 1, 2, 3, 4, 5, 6].map(d => (
-                <td key={d} className={`px-3 py-4 text-center border-e ${B} font-extrabold text-sm text-teal-700 dark:text-teal-300 plan-cell-hover print:py-3 print:border`}>
+                <td key={d} className={`px-6 py-8 text-center border-e ${B} font-extrabold text-sm text-teal-700 dark:text-teal-300 plan-cell-hover`}>
                   {formatTime(dailyTotalMins)}
                 </td>
               ))}
-              <td className={`px-3 py-4 border-s ${B} text-center font-black text-sm text-teal-700 dark:text-teal-200 bg-teal-100/50 dark:bg-teal-500/10 plan-cell-hover print:py-3 print:border`}>
+              <td className={`px-6 py-8 border-s ${B} text-center font-black text-sm text-teal-700 dark:text-teal-200 bg-teal-100/50 dark:bg-teal-500/10 plan-cell-hover`}>
                 {formatTime(weeklyTotalMins)}
               </td>
             </tr>
@@ -4833,51 +4800,33 @@ function StudyPlan({
     });
   };
   const handlePrint = () => {
+    // Force light theme for printing — the dark theme is unreadable on paper.
     const html = document.documentElement;
     const wasDark = html.classList.contains('dark');
-
-    // 1. Force light theme
     if (wasDark) html.classList.remove('dark');
 
-    // 2. Force white on root div (inline style beats @media print CSS)
-    const rootDiv = document.getElementById('venoxa-root-div');
-    if (rootDiv) {
-      rootDiv.style.background = '#ffffff';
-      rootDiv.style.height = 'auto';
-      rootDiv.style.overflow = 'visible';
-    }
-
-    // 3. Show the print container
+    // Make the print-layout-container visible (it's hidden:block via Tailwind which may not compile)
     const printContainer = document.querySelector('.print-layout-container');
+    const screenView = document.querySelector('.print-screen-only');
     if (printContainer) {
       printContainer.style.display = 'block';
       printContainer.style.visibility = 'visible';
-      printContainer.style.position = 'static';
     }
-
-    // 4. Add a class to body so CSS can target it
-    document.body.classList.add('venoxa-printing');
+    if (screenView) screenView.style.display = 'none';
 
     const restore = () => {
-      if (wasDark) html.classList.remove('dark');
-      if (rootDiv) {
-        rootDiv.style.background = '';
-        rootDiv.style.height = '';
-        rootDiv.style.overflow = '';
-      }
+      if (wasDark) html.classList.add('dark');
       if (printContainer) {
         printContainer.style.display = '';
         printContainer.style.visibility = '';
-        printContainer.style.position = '';
       }
-      document.body.classList.remove('venoxa-printing');
-      // Remove injected style tag
-      const injected = document.getElementById('venoxa-print-fix');
-      if (injected) injected.remove();
+      if (screenView) screenView.style.display = '';
       window.removeEventListener('afterprint', restore);
     };
     window.addEventListener('afterprint', restore);
-    requestAnimationFrame(() => setTimeout(() => window.print(), 50));
+    requestAnimationFrame(() => {
+      setTimeout(() => window.print(), 50);
+    });
   };
   const formatTime = mins => {
     const h = Math.floor(mins / 60);
@@ -5556,16 +5505,16 @@ function StudyPlan({
 
       {/* Print view: every week, page break between */}
       <div className="print-layout-container" style={{ display: 'none' }}>
-        {Array.from({ length: planData.totalWeeks }, (_, i) => i + 1).map(w => (
-          <div key={w} className="print-week-page" style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto', pageBreakInside: 'avoid', breakInside: 'avoid', breakAfter: w < planData.totalWeeks ? 'page' : 'auto' }}>
-            {w === 1 && (
-              <div style={{ textAlign: 'center', marginBottom: '6mm' }}>
-                <h1 style={{ fontSize: '20px', fontWeight: 900, color: '#0f172a', margin: '0 0 3px' }}>{_resolveTranslation(lang, 'الجدول الأسبوعي للمذاكرة - Venoxa AI', 'Weekly Study Plan - Venoxa AI')}</h1>
-                <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>{t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel} | {planData.totalWeeks} {_resolveTranslation(lang, 'أسابيع', 'weeks')}</p>
-              </div>
-            )}
-            <div style={{ textAlign: 'center', marginBottom: '5mm' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b', margin: 0 }}>{t.week} {w}</h2>
+        <div className="text-center mb-4">
+          <h1 className="text-2xl font-bold text-black">{_resolveTranslation(lang, 'الجدول الأسبوعي للمذاكرة - Venoxa AI', 'Weekly Study Plan - Venoxa AI')}</h1>
+          <p className="text-gray-700 mt-1 text-sm">{t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel} | {planData.totalWeeks} {_resolveTranslation(lang, 'أسابيع', 'weeks')}</p>
+        </div>
+        {Array.from({
+          length: planData.totalWeeks
+        }, (_, i) => i + 1).map(w => (
+          <div key={w} className={`print-week-page print:block print:break-inside-avoid break-inside-avoid ${w < planData.totalWeeks ? 'break-after-page' : ''}`} style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto', breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+            <div className="text-center mb-4 print:pt-4">
+              <h2 className="text-xl font-bold text-black">{t.week} {w}</h2>
             </div>
             <PlanWeekTable 
               weekNum={w} 

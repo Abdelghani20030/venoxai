@@ -462,106 +462,106 @@ html:not(.dark) .border-gray-100 {
 @media print {
   @page {
     size: A4 landscape;
-    margin: 10mm 8mm;
+    margin: 12mm 10mm;
   }
 
-  /* ── Colour fidelity ─────────────────────────────────────────── */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* ── White page ──────────────────────────────────────────────── */
-  html, body, #venoxa-root-div {
-    background: #ffffff !important;
-    background-color: #ffffff !important;
+  html,
+  body,
+  #root {
+    background: #fff !important;
+    color: #000 !important;
     height: auto !important;
+    min-height: 0 !important;
     overflow: visible !important;
+    display: block !important;
+  }
+
+  /* ── Hide UI shell elements ───────────────────────────────────── */
+  aside,
+  nav,
+  header,
+  .fixed,
+  .absolute:not(.print-visible),
+  .print-hidden {
+    display: none !important;
+  }
+
+  /* Hide app-shell buttons but NOT buttons inside table cells
+     (table cell buttons render vocab/grammar chip labels) */
+  body > * button:not(table button),
+  header button,
+  nav button,
+  aside button {
+    display: none !important;
+  }
+
+  /* ── Main content ─────────────────────────────────────────────── */
+  main {
     margin: 0 !important;
     padding: 0 !important;
+    width: 100% !important;
+    display: block !important;
+    overflow: visible !important;
+    position: static !important;
+    transform: none !important;
   }
 
-  /* ── Hide shell chrome always ────────────────────────────────── */
-  aside, nav, header,
-  .fixed, .sticky,
-  .absolute:not(.print-visible),
-  .print-hidden,
+  #root *,
+  #root *::before,
+  #root *::after {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* ── Week page wrappers ───────────────────────────────────────── */
+  .print-layout-container {
+    display: block !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* Hide screen-only wrapper during actual print */
   .print-screen-only {
     display: none !important;
   }
 
-  /* ── Kill glass-panel backdrop artifact ──────────────────────── */
-  .glass-panel, .premium-card, .plan-table-wrapper,
-  [class*="glass"], [class*="backdrop"] {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    background: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    overflow: visible !important;
-    animation: none !important;
-    transition: none !important;
-  }
-
-  /* ── Global reset ────────────────────────────────────────────── */
-  #venoxa-root-div *, #venoxa-root-div *::before, #venoxa-root-div *::after {
-    overflow: visible !important;
-    max-height: none !important;
-    min-height: 0 !important;
-    border-radius: 0 !important;
-    animation: none !important;
-    transition: none !important;
-  }
-
-  /* ── Strip ALL tr borders — they bleed outside rows ─────────── */
-  thead tr, tbody tr, tfoot tr, tr {
-    border: none !important;
-    border-left: none !important;
-    border-right: none !important;
-    border-top: none !important;
-    border-bottom: none !important;
-    border-width: 0 !important;
-    outline: none !important;
-    box-shadow: none !important;
-  }
-
-  /* ── Print container ─────────────────────────────────────────── */
-  .print-layout-container {
-    display: block !important;
-    visibility: visible !important;
-    width: 100% !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    background: #ffffff !important;
-    overflow: visible !important;
-    position: static !important;
-  }
-
-  /* ── Per-week page ───────────────────────────────────────────── */
+  /* Every week starts on a new page */
   .print-week-page {
     display: block !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
   }
 
-  /* ── Table ───────────────────────────────────────────────────── */
+  /* The very first week must NOT get a blank page before it */
+  .print-week-page:first-child {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+  }
+
+  /* ── Tables ───────────────────────────────────────────────────── */
   table {
     width: 100% !important;
-    margin: 0 0 3mm !important;
+    max-width: 100% !important;
+    margin: 6px 0 16px !important;
     border-collapse: collapse !important;
-    border-spacing: 0 !important;
     border: 1.5px solid #222 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     table-layout: fixed !important;
   }
 
-  th, td {
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th,
+  td {
     border: 1px solid #444 !important;
     padding: 5px 4px !important;
     text-align: center !important;
@@ -572,32 +572,21 @@ html:not(.dark) .border-gray-100 {
     background-color: #fff !important;
     font-size: 9.5px !important;
     line-height: 1.3 !important;
-    margin: 0 !important;
-    min-height: 0 !important;
-    height: auto !important;
   }
 
   thead tr th {
-    background-color: #1e293b !important;
-    color: #ffffff !important;
+    background-color: #ebebeb !important;
     font-weight: 800 !important;
-    font-size: 9px !important;
-    border-bottom: 2px solid #000 !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
+    font-size: 10px !important;
+    color: #000 !important;
+    border-bottom: 2px solid #222 !important;
   }
-}
 
-/* ── Plan table wrapper: glass only on screen, completely transparent on print ── */
-.plan-table-wrapper {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(48px) saturate(200%);
-  -webkit-backdrop-filter: blur(48px) saturate(200%);
-}
-.dark .plan-table-wrapper {
-  background: rgba(20, 20, 30, 0.75);
-  backdrop-filter: blur(48px) saturate(180%);
-  -webkit-backdrop-filter: blur(48px) saturate(180%);
+  /* ── Colour accuracy ──────────────────────────────────────────── */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }
 
 /* ── Unified Dropdowns ── */
