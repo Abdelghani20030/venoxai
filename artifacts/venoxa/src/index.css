@@ -862,3 +862,28 @@ html { scroll-behavior: smooth; }
 .dark .premium-card:hover {
   box-shadow: revert !important;
 }
+
+/* ══════════════════════════════════════════════
+   Print — force all glass/card shadows to none.
+   This block MUST stay last in the file so it
+   wins over the `box-shadow: revert !important`
+   rule on .glass-panel above.
+   ══════════════════════════════════════════════ */
+@media print {
+  .glass-panel,
+  .dark .glass-panel,
+  .premium-card,
+  .dark .premium-card,
+  .card-shine,
+  .topbar-glass,
+  .glass-panel:hover,
+  .dark .glass-panel:hover,
+  .premium-card:hover,
+  .dark .premium-card:hover {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: transparent !important;
+    border: none !important;
+  }
+}

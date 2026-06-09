@@ -2357,7 +2357,7 @@ function AppInner() {
   useEffect(() => {
     if (token) {
       const timer = setTimeout(() => {
-        syncProgress(token, user);
+        syncProgress(token, user, null, true); // force=true: user just changed data, push it immediately
       }, 2500);
       return () => clearTimeout(timer);
     }
@@ -4024,12 +4024,12 @@ function PlanWeekTable({
 }) {
   // Row color map — each category gets a vivid left-border accent + subtle tinted bg
   const rowColors = {
-    listen:  { bg: 'bg-cyan-50/60 dark:bg-cyan-950/20',    border: 'border-l-4 border-l-cyan-500',    icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',    summary: 'text-cyan-700 dark:text-cyan-300' },
-    read:    { bg: 'bg-emerald-50/60 dark:bg-emerald-950/20', border: 'border-l-4 border-l-emerald-500', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', summary: 'text-emerald-700 dark:text-emerald-300' },
-    speak:   { bg: 'bg-rose-50/60 dark:bg-rose-950/20',     border: 'border-l-4 border-l-rose-500',    icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',    summary: 'text-rose-700 dark:text-rose-300' },
-    write:   { bg: 'bg-amber-50/60 dark:bg-amber-950/20',   border: 'border-l-4 border-l-amber-500',   icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',   summary: 'text-amber-700 dark:text-amber-300' },
-    vocab:   { bg: 'bg-orange-50/60 dark:bg-orange-950/20', border: 'border-l-4 border-l-orange-500',  icon: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',  summary: 'text-orange-700 dark:text-orange-300' },
-    grammar: { bg: 'bg-violet-50/60 dark:bg-violet-950/20', border: 'border-l-4 border-l-violet-500',  icon: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400',  summary: 'text-violet-700 dark:text-violet-300' },
+    listen:  { bg: 'bg-cyan-50/60 dark:bg-cyan-950/20 print:bg-white',    border: 'border-l-4 border-l-cyan-500 print:border-l-0',    icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',    summary: 'text-cyan-700 dark:text-cyan-300' },
+    read:    { bg: 'bg-emerald-50/60 dark:bg-emerald-950/20 print:bg-white', border: 'border-l-4 border-l-emerald-500 print:border-l-0', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', summary: 'text-emerald-700 dark:text-emerald-300' },
+    speak:   { bg: 'bg-rose-50/60 dark:bg-rose-950/20 print:bg-white',     border: 'border-l-4 border-l-rose-500 print:border-l-0',    icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',    summary: 'text-rose-700 dark:text-rose-300' },
+    write:   { bg: 'bg-amber-50/60 dark:bg-amber-950/20 print:bg-white',   border: 'border-l-4 border-l-amber-500 print:border-l-0',   icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',   summary: 'text-amber-700 dark:text-amber-300' },
+    vocab:   { bg: 'bg-orange-50/60 dark:bg-orange-950/20 print:bg-white', border: 'border-l-4 border-l-orange-500 print:border-l-0',  icon: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',  summary: 'text-orange-700 dark:text-orange-300' },
+    grammar: { bg: 'bg-violet-50/60 dark:bg-violet-950/20 print:bg-white', border: 'border-l-4 border-l-violet-500 print:border-l-0',  icon: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400',  summary: 'text-violet-700 dark:text-violet-300' },
   };
 
   const B = "border-gray-200/60 dark:border-white/[0.06]";
@@ -4037,9 +4037,9 @@ function PlanWeekTable({
   const cellBase = `px-3 py-6 text-center border-b border-e ${B} relative transition-all duration-200`;
 
   return (
-    <div className="rounded-[28px] print:rounded-none overflow-hidden border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none glass-panel print:bg-white">
+    <div className="rounded-[28px] print:rounded-none overflow-hidden border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none print:!shadow-none glass-panel print:bg-white print:overflow-visible">
       <div className="overflow-x-auto">
-        <table className="w-full border-separate [border-spacing:0] min-w-[800px]">
+        <table className="w-full border-separate [border-spacing:0] min-w-[800px] print:border-collapse">
           <thead>
             <tr>
               <th className={`${headBase} w-[220px]`}>{t.activity}</th>
@@ -4058,7 +4058,7 @@ function PlanWeekTable({
               <tr key={cat.id} className={`group hover:brightness-105 dark:hover:brightness-125 transition-all ${colors.bg} ${colors.border}`}>
                 <td className={`py-6 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
                   <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
-                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm`}>
+                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm print:shadow-none`}>
                       <cat.icon className="w-5 h-5" />
                     </div>
                     <span className="truncate leading-normal">{cat.name}</span>
@@ -4116,10 +4116,10 @@ function PlanWeekTable({
             })}
 
             {/* ── Spaced Repetition Review Row ── */}
-            <tr className="bg-purple-50/70 dark:bg-purple-950/25 border-l-4 border-l-purple-500 group hover:brightness-105 dark:hover:brightness-125 transition-all">
+            <tr className="bg-purple-50/70 dark:bg-purple-950/25 print:bg-white border-l-4 border-l-purple-500 print:border-l-0 group hover:brightness-105 dark:hover:brightness-125 transition-all">
               <td className={`py-5 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
                 <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
-                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm print:shadow-none">
                     <RotateCcw className="w-5 h-5" />
                   </div>
                   <span className="truncate leading-normal">{t.spacedRep}</span>
@@ -4183,10 +4183,10 @@ function PlanWeekTable({
             </tr>
 
             {/* Summary Row */}
-            <tr className="bg-teal-50 dark:bg-teal-950/30 border-l-4 border-l-teal-500">
+            <tr className="bg-teal-50 dark:bg-teal-950/30 print:bg-white border-l-4 border-l-teal-500 print:border-l-0">
               <td className={`py-8 border-e ${B} font-extrabold text-sm text-gray-900 dark:text-white`}>
                 <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
-                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm print:shadow-none">
                     <Clock className="w-5 h-5" />
                   </div>
                   <span className="leading-normal">{t.categories.total}</span>
@@ -5359,7 +5359,7 @@ function StudyPlan({
       <button onClick={generatePlan} className="w-full bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black rounded-2xl py-4 font-bold transition shadow-lg active:scale-95 flex items-center justify-center gap-2">{t.gen}</button>
     </div>}
 
-    {planData && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
+    {planData && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:!shadow-none print:border-none print:p-0">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex h-11 items-center gap-2 bg-gray-50 dark:bg-[var(--app-card)] px-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
