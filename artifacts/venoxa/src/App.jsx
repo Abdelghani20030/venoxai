@@ -1972,11 +1972,19 @@ function AppInner() {
     }
   };
 
+  const lastSyncTimeRef = useRef(0);
+  const MIN_SYNC_GAP_MS = 4 * 60 * 1000; // never sync more than once per 4 minutes unless forced
+
   const syncProgress = async (currentToken = token, currentUser = user, customCells = null, force = false) => {
     if (!currentToken) return;
     if (!isCloudProgressLoaded && !force) {
       console.log('syncProgress blocked: cloud progress not loaded yet');
       return;
+    }
+    if (!force) {
+      const now = Date.now();
+      if (now - lastSyncTimeRef.current < MIN_SYNC_GAP_MS) return; // too soon since last sync
+      lastSyncTimeRef.current = now;
     }
     setSyncStatus('syncing');
     try {
@@ -2190,7 +2198,7 @@ function AppInner() {
   // ── Periodic background sync every 5 minutes ──
   useEffect(() => {
     if (!token) return;
-    const interval = setInterval(() => syncProgress(token, user), 5 * 60 * 1000);
+    const interval = setInterval(() => syncProgress(token, user), 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, [token]);
 
@@ -2253,6 +2261,15 @@ function AppInner() {
       return raw ? JSON.parse(raw)?.currentWeek || 1 : 1;
     } catch { return 1; }
   });
+
+  // Keep venoxa-plan-v3 in sync with currentWeek so the sync payload always has the correct week
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('venoxa-plan-v3');
+      const plan = raw ? JSON.parse(raw) : {};
+      localStorage.setItem('venoxa-plan-v3', JSON.stringify({ ...plan, currentWeek }));
+    } catch {}
+  }, [currentWeek]);
 
   const dailyGoalPct = useMemo(() => {
     const weekPrefix = `${currentWeek}-`;
@@ -6043,7 +6060,7 @@ Rules:
             {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
             {aiStory && <div className={`bg-gray-50 dark:bg-[var(--app-card)] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
             {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
-            {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+            {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
           </div>}
         </div>
 
@@ -6287,7 +6304,7 @@ Rules:
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiStory && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-orange-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
         {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -6589,7 +6606,7 @@ Rules:
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiSentence && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
         {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -6889,7 +6906,7 @@ Rules:
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiSentence && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
         {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -11686,9 +11703,7 @@ Rules:
           whiteSpace: 'pre-wrap'
         }}>{safeRender(aiStory)}</div></div>}
         {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
-          e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found';
-        }} /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
 
