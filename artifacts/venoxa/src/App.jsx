@@ -3368,30 +3368,34 @@ function AppInner() {
       </header>
 
       {/* ── Main Content Area ── */}
-      <main className="relative z-10 flex-1 h-full overflow-y-auto overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px]">
+      <main className={`relative z-10 flex-1 h-full overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px] ${activeTab === 'speaking' ? 'overflow-y-hidden' : 'overflow-y-auto'}`}>
 
-        {/* ── Blur curtain z-[54] — blurs scrolling content under the navbar ── */}
-        <div
-          className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[54] print:hidden"
-          style={{
-            backdropFilter: 'blur(16px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(140%)',
-            maskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
-          }}
-        />
+        {/* ── Blur curtain — hidden on speaking tab for sharp edge ── */}
+        {activeTab !== 'speaking' && (
+          <div
+            className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[54] print:hidden"
+            style={{
+              backdropFilter: 'blur(16px) saturate(140%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+              maskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
+            }}
+          />
+        )}
 
-        {/* Colour-fade z-[55] — dark/light gradient taper over the navbar area */}
-        <div
-          className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[55] print:hidden"
-          style={{
-            maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
-            background: theme === 'dark'
-              ? 'linear-gradient(to bottom, rgba(10,10,14,0.85) 0%, rgba(10,10,14,0.4) 55%, rgba(10,10,14,0) 100%)'
-              : 'linear-gradient(to bottom, rgba(245,245,250,0.92) 0%, rgba(245,245,250,0.5) 55%, rgba(245,245,250,0) 100%)',
-          }}
-        />
+        {/* Colour-fade — hidden on speaking tab for sharp edge */}
+        {activeTab !== 'speaking' && (
+          <div
+            className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[55] print:hidden"
+            style={{
+              maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
+              background: theme === 'dark'
+                ? 'linear-gradient(to bottom, rgba(10,10,14,0.85) 0%, rgba(10,10,14,0.4) 55%, rgba(10,10,14,0) 100%)'
+                : 'linear-gradient(to bottom, rgba(245,245,250,0.92) 0%, rgba(245,245,250,0.5) 55%, rgba(245,245,250,0) 100%)',
+            }}
+          />
+        )}
 
 
 
@@ -9966,10 +9970,10 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
   }
   return (
     <>
-      <div className={`w-full h-[calc(100vh-112px)] flex flex-col animate-fadeIn overflow-hidden bg-white dark:bg-black transition-colors relative ${isCallMode ? '' : 'border border-gray-100 dark:border-[var(--app-border)] rounded-2xl'}`}>
+      <div className={`w-full flex flex-col animate-fadeIn bg-white dark:bg-black transition-colors overflow-hidden ${isCallMode ? '' : 'border border-gray-100 dark:border-[var(--app-border)] rounded-2xl'}`} style={{ height: 'calc(100vh - 88px)' }}>
         {theme === 'dark' && <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden"><ParticlesBackground /></div>}
         {!isCallMode && (
-          <header className="sticky top-[88px] z-20 px-6 py-4 border-b border-gray-100 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-4 bg-white/95 dark:bg-black/95 backdrop-blur-md">
+          <header className="flex-shrink-0 px-6 py-4 border-b border-gray-100 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-[var(--app-bg,#0a0a0e)] relative z-20">
             <div className="flex items-center gap-4">
               <div className="p-2.5 rounded-2xl bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]">
                 <MessageSquare className="w-5 h-5" />
@@ -10077,7 +10081,8 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
           </header>
         )}
 
-        <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-white dark:bg-transparent scroll-smooth relative z-10">
+        {/* ── Scrollable messages area — only this part scrolls ── */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white dark:bg-transparent scroll-smooth relative z-10">
 
           {messages.map((msg, idx) => (
             <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-slideUp`} style={{ animationDelay: `${idx * 0.05}s` }}>
@@ -10209,7 +10214,9 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
           <div ref={chatEndRef} />
         </div>
 
-        <div className="px-4 py-4 border-t border-gray-100 dark:border-[var(--app-border)] bg-white/95 dark:bg-black/95 backdrop-blur-md transition-colors relative z-10">
+        {/* ── Fixed bottom section — input, personality panel, history, call review (never scrolls) ── */}
+        <div className="flex-shrink-0 relative z-20">
+        <div className="px-4 py-4 border-t border-gray-100 dark:border-[var(--app-border)] bg-white dark:bg-[var(--app-bg,#0a0a0e)] transition-colors">
           {/* Personality Panel */}
           {showPersonalityPanel && (
             <div className="mb-3 p-3 bg-gray-50 dark:bg-[var(--app-surface)] border border-gray-100 dark:border-[var(--app-border)] rounded-2xl animate-fadeIn max-h-[420px] overflow-y-auto custom-scrollbar">
@@ -10392,29 +10399,30 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
             </div>
           </div>
         </div>
-      </div>
-      {callReview && <div className="w-full mt-6 glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden animate-fadeIn">
-        <div className="bg-[var(--app-accent1)] p-4 text-white flex justify-between items-center">
-          <h3 className="font-extrabold text-lg flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Call Corrections Review</h3>
-          <button onClick={() => setCallReview(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          {callReview.map((msg, i) => (
-            <div key={i} className="p-4 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl border border-gray-200 dark:border-[var(--app-border)]">
-              <p className="text-xs text-gray-500 font-extrabold uppercase tracking-wider mb-2">You said:</p>
-              <p className="text-gray-900 dark:text-[var(--app-text)] font-medium mb-3" dir="ltr">"{safeRender(msg.text)}"</p>
-              {msg.review && <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                {msg.review.grammar && <div className="p-2.5 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 rounded-2xl"><p className="font-bold text-red-600 dark:text-red-400 text-xs mb-1">Grammar</p><p className="text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.grammar)}</p></div>}
-                {msg.review.clarity && <div className="p-2.5 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30 rounded-2xl"><p className="font-bold text-[#FF4081] dark:text-[#FF4081] text-xs mb-1">Clarity</p><p className="text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.clarity)}</p></div>}
-                {msg.review.native_way && <div className="p-2.5 bg-emerald-50 dark:bg-[var(--app-accent1)]/10 border border-[#FF4081]/30 dark:border-[var(--app-accent1)]/30 rounded-2xl"><p className="font-bold text-emerald-600 dark:text-[#FF4081] text-xs mb-1">Native way</p><p className="text-gray-800 dark:text-[var(--app-text)] italic">"{safeRender(msg.review.native_way)}"</p></div>}
-              </div>}
-            </div>
-          ))}
-        </div>
-      </div>}
 
-      {/* ── Saved & History Panel ── */}
-      <div className="rounded-3xl overflow-hidden mt-2" style={{ background: theme === 'dark' ? '#0F0F16' : '#ffffff', border: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)' }}>
+        {/* ── Call Review — inside fixed bottom, scrollable within its own box ── */}
+        {callReview && <div className="mx-4 mb-3 glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl overflow-hidden animate-fadeIn max-h-48 overflow-y-auto">
+          <div className="bg-[var(--app-accent1)] p-4 text-white flex justify-between items-center">
+            <h3 className="font-extrabold text-lg flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Call Corrections Review</h3>
+            <button onClick={() => setCallReview(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+          </div>
+          <div className="p-5 space-y-4">
+            {callReview.map((msg, i) => (
+              <div key={i} className="p-4 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl border border-gray-200 dark:border-[var(--app-border)]">
+                <p className="text-xs text-gray-500 font-extrabold uppercase tracking-wider mb-2">You said:</p>
+                <p className="text-gray-900 dark:text-[var(--app-text)] font-medium mb-3" dir="ltr">"{safeRender(msg.text)}"</p>
+                {msg.review && <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                  {msg.review.grammar && <div className="p-2.5 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 rounded-2xl"><p className="font-bold text-red-600 dark:text-red-400 text-xs mb-1">Grammar</p><p className="text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.grammar)}</p></div>}
+                  {msg.review.clarity && <div className="p-2.5 bg-[var(--app-accent1)]/10 dark:bg-[var(--app-accent1)]/10 border border-[var(--app-accent1)]/30 dark:border-[var(--app-accent1)]/30 rounded-2xl"><p className="font-bold text-[#FF4081] dark:text-[#FF4081] text-xs mb-1">Clarity</p><p className="text-gray-800 dark:text-[var(--app-text)]">{safeRender(msg.review.clarity)}</p></div>}
+                  {msg.review.native_way && <div className="p-2.5 bg-emerald-50 dark:bg-[var(--app-accent1)]/10 border border-[#FF4081]/30 dark:border-[var(--app-accent1)]/30 rounded-2xl"><p className="font-bold text-emerald-600 dark:text-[#FF4081] text-xs mb-1">Native way</p><p className="text-gray-800 dark:text-[var(--app-text)] italic">"{safeRender(msg.review.native_way)}"</p></div>}
+                </div>}
+              </div>
+            ))}
+          </div>
+        </div>}
+
+        {/* ── Saved & History Panel — inside fixed bottom, not scrollable ── */}
+        <div className="border-t border-gray-100 dark:border-[var(--app-border)]" style={{ background: theme === 'dark' ? '#0A0A0E' : '#ffffff' }}>
         <button
           onClick={() => setShowHistoryPanel(v => !v)}
           className={`w-full flex items-center justify-between px-5 py-4 text-sm font-bold transition-all ${
@@ -10534,6 +10542,8 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
             </div>
           </div>
         )}
+        </div>
+        </div>{/* end fixed bottom section */}
       </div>
     </>
   );
