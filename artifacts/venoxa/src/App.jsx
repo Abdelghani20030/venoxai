@@ -2236,11 +2236,29 @@ function AppInner() {
     }
   }, [token]);
 
-  // ── Sync when tab becomes visible again (critical for multi-device) ──
+  // ── Multi-device harmony: sync on both hide and show ──────────────────────
+  // • Tab goes HIDDEN  → upload any pending local changes immediately
+  //   (covers: switching apps, locking phone, changing browser tab)
+  //   So Device B always sees the latest when you open it next.
+  // • Tab becomes VISIBLE → pull latest from cloud
+  //   (covers: returning to the site from another device)
+  // This gives full multi-device sync without burning bandwidth during active use.
   useEffect(() => {
     if (!token) return;
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'hidden') {
+        // User is leaving — push any pending changes so other devices see them
+        try {
+          const payload = _gatherSyncPayload();
+          const { _local, ...syncBody } = payload;
+          const delta = _buildDelta(syncBody);
+          if (Object.keys(delta).length > 0) {
+            // Prefer beacon (non-blocking, fires even if tab is killed)
+            syncBeacon(delta);
+          }
+        } catch {}
+      } else if (document.visibilityState === 'visible') {
+        // User returned — pull latest from cloud so we have fresh data
         syncProgress(token, user);
       }
     };
