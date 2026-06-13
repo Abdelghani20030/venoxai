@@ -10421,30 +10421,10 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
           </div>
         </div>}
 
-        {/* ── Saved & History Panel — inside fixed bottom, not scrollable ── */}
-        <div className="border-t border-gray-100 dark:border-[var(--app-border)]" style={{ background: theme === 'dark' ? '#0A0A0E' : '#ffffff' }}>
-        <button
-          onClick={() => setShowHistoryPanel(v => !v)}
-          className={`w-full flex items-center justify-between px-5 py-4 text-sm font-bold transition-all ${
-            theme === 'dark' ? 'text-gray-200 hover:bg-white/5' : 'text-gray-700 hover:bg-black/3'
-          }`}
-        >
-          <div className="flex items-center gap-2 text-[var(--app-text)] dark:text-gray-200">
-            <Clock className="w-4 h-4 text-[var(--app-accent1)]" />
-            {_resolveTranslation(lang, 'السجل والمحفوظات', 'History & Saved')}
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
-              {favorites.length + speakingHistory.length}
-            </span>
-          </div>
-          {showHistoryPanel
-            ? <ChevronUp className="w-4 h-4 opacity-50" />
-            : <ChevronDown className="w-4 h-4 opacity-50" />}
-        </button>
-
         {showHistoryPanel && (
-          <div className="p-4 pt-0 flex flex-col gap-4">
+          <div className="border-t border-gray-100 dark:border-[var(--app-border)] animate-fadeIn" style={{ background: theme === 'dark' ? '#0A0A0E' : '#ffffff' }}>
             {/* Tabs selector */}
-            <div className="flex border-b border-black/5 dark:border-white/5 pb-2 gap-4">
+            <div className="flex border-b border-black/5 dark:border-white/5 px-4 pt-3 pb-2 gap-4">
               <button
                 onClick={() => setPanelTab('favorites')}
                 className={`text-xs font-bold pb-1 border-b-2 transition-all ${
@@ -10465,7 +10445,6 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
               >
                 {_resolveTranslation(lang, 'الأخيرة', 'Recent')} ({speakingHistory.length})
               </button>
-              
               <button
                 onClick={() => {
                   if (panelTab === 'favorites') {
@@ -10481,7 +10460,7 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
             </div>
 
             {/* List */}
-            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+            <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto p-4 pt-2 pr-5">
               {(panelTab === 'favorites' ? favorites : speakingHistory).length === 0 ? (
                 <p className="text-xs text-gray-500 py-4 text-center">{_resolveTranslation(lang, 'لا توجد عناصر.', 'No items found.')}</p>
               ) : (
@@ -10542,7 +10521,6 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
             </div>
           </div>
         )}
-        </div>
         </div>{/* end fixed bottom section */}
       </div>
     </>
