@@ -402,20 +402,10 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
   background: transparent;
 }
 
-@media screen {
-  /* Hide the print layout container on screen — it is rendered via React state
-     and only visible when the browser’s print dialog is open */
-  .print-layout-container {
-    position: fixed !important;
-    top: -9999px !important;
-    left: -9999px !important;
-    width: 100vw !important;
-    height: auto !important;
-    overflow: hidden !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-    z-index: -1000 !important;
-  }
+/* Hide the print layout container on screen — it is rendered via React state
+   and only visible in the browser’s print view/PDF output */
+.print-layout-container {
+  display: none !important;
 }
 
 *::-webkit-scrollbar-thumb {

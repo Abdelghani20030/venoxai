@@ -5836,8 +5836,8 @@ function StudyPlan({
         </div>
       </div>}
 
-      {/* Screen view: current week only — hidden while editing or in print mode */}
-      {!isEditing && !isPrintMode && (
+      {/* Screen view: current week only — hidden while editing */}
+      {!isEditing && (
         <div className="print-screen-only print:hidden">
           <PlanWeekTable weekNum={currentWeek} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} planGrammarRules={planGrammarRules} rulesPerDay={planMeta?.rulesPerDay || rulesPerDay} t={t} lang={lang} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive completedCells={completedCells} onToggleCell={toggleCellCompletion} wordSource={planMeta?.wordSource || wordSource} />
         </div>
