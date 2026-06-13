@@ -603,6 +603,25 @@ html:not(.dark) .border-gray-100 {
     border-bottom: 2px solid #222 !important;
   }
 
+  /* ── Force all table text to black (overrides Tailwind gray classes) */
+  .plan-table-wrapper td *,
+  .plan-table-wrapper th *,
+  .plan-table-wrapper td,
+  .plan-table-wrapper th,
+  .print-week-page td *,
+  .print-week-page th *,
+  .print-week-page td,
+  .print-week-page th {
+    color: #000 !important;
+  }
+
+  /* Keep summary/accent column text dark but slightly distinct */
+  .print-week-page td:last-child,
+  .print-week-page td:last-child * {
+    color: #111 !important;
+    font-weight: 800 !important;
+  }
+
   /* ── Colour accuracy ──────────────────────────────────────────── */
   * {
     -webkit-print-color-adjust: exact !important;
