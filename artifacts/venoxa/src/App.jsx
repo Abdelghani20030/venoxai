@@ -5680,7 +5680,7 @@ function StudyPlan({
       <button onClick={generatePlan} className="w-full bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black rounded-2xl py-4 font-bold transition shadow-lg active:scale-95 flex items-center justify-center gap-2">{t.gen}</button>
     </div>}
 
-    {planData && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
+    {planData && !isEditing && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex h-11 items-center gap-2 bg-gray-50 dark:bg-[var(--app-card)] px-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
