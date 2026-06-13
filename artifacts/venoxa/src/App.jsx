@@ -19,8 +19,12 @@ import {
   sendPasswordReset as fbSendPasswordReset,
   uploadVocabCSV,
   loadAllVocabFromStorage,
-  subscribeToProgress,
+  subscribeToProgress as _subscribeToProgress_unused,
+  pullProgress,
+  pushProgress,
 } from './insforge.jsx';
+import { loadBundledVocab } from './vocabData.js';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SECRET KEY GATE — change this to whatever key you want
@@ -1449,6 +1453,21 @@ function AppInner() {
   const [idiomsVocab, setIdiomsVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_vocab')) || []);
   const [idiomsProperVocab, setIdiomsProperVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_idioms_proper_vocab')) || []);
   const [langeekVocab, setLangeekVocab] = useState(() => JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || []);
+  const [customGlobalVocab, setCustomGlobalVocab] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_custom_global_vocab')) || []; } catch { return []; }
+  });
+  const [customPhrasalVocab, setCustomPhrasalVocab] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_custom_phrasal_vocab')) || []; } catch { return []; }
+  });
+  const [customIdiomsVocab, setCustomIdiomsVocab] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_custom_idioms_vocab')) || []; } catch { return []; }
+  });
+  const [customIdiomsProperVocab, setCustomIdiomsProperVocab] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_custom_idioms_proper_vocab')) || []; } catch { return []; }
+  });
+  const [customLangeekVocab, setCustomLangeekVocab] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_custom_langeek_vocab')) || []; } catch { return []; }
+  });
   const [srsData, setSrsData] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_srs_data')) || {}; } catch { return {}; }
   });
@@ -1541,6 +1560,341 @@ function AppInner() {
   });
   const [isCloudProgressLoaded, setIsCloudProgressLoaded] = useState(false);
 
+  // ── Dirty Fields Tracker & State Setters Rebuild ──
+  const dirtyFields = useRef(new Set());
+  const blockDirtyTracking = useRef(false);
+
+  const markFieldDirty = (fieldName) => {
+    if (blockDirtyTracking.current) return;
+    dirtyFields.current.add(fieldName);
+  };
+
+  const mergeByWord = (base = [], override = []) => {
+    if (!override || override.length === 0) return base;
+    const map = new Map(base.map(w => [w.word?.toLowerCase(), w]));
+    for (const w of override) {
+      if (w.word) map.set(w.word.toLowerCase(), w);
+    }
+    return Array.from(map.values());
+  };
+
+  // Merge custom vocabs with bundled vocabs whenever custom vocabs change
+  useEffect(() => {
+    loadBundledVocab().then(bundled => {
+      const merged = mergeByWord(bundled.globalVocab, customGlobalVocab);
+      setGlobalVocab(merged);
+    }).catch(console.warn);
+  }, [customGlobalVocab]);
+
+  useEffect(() => {
+    loadBundledVocab().then(bundled => {
+      const merged = mergeByWord(bundled.phrasalVocab, customPhrasalVocab);
+      setPhrasalVocab(merged);
+    }).catch(console.warn);
+  }, [customPhrasalVocab]);
+
+  useEffect(() => {
+    loadBundledVocab().then(bundled => {
+      const merged = mergeByWord(bundled.slangVocab, customIdiomsVocab);
+      setIdiomsVocab(merged);
+    }).catch(console.warn);
+  }, [customIdiomsVocab]);
+
+  useEffect(() => {
+    loadBundledVocab().then(bundled => {
+      const merged = mergeByWord(bundled.idiomsVocab, customIdiomsProperVocab);
+      setIdiomsProperVocab(merged);
+    }).catch(console.warn);
+  }, [customIdiomsProperVocab]);
+
+  useEffect(() => {
+    loadBundledVocab().then(bundled => {
+      const merged = mergeByWord(bundled.langeekVocab, customLangeekVocab);
+      setLangeekVocab(merged);
+    }).catch(console.warn);
+  }, [customLangeekVocab]);
+
+  // Wrapped Setters
+  const setSrsDataWrapped = (val) => {
+    setSrsData(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('srsData');
+      return next;
+    });
+  };
+  const setLangeekSrsDataWrapped = (val) => {
+    setLangeekSrsData(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('langeekSrsData');
+      return next;
+    });
+  };
+  const setPhrasalSrsWrapped = (val) => {
+    setPhrasalSrs(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('phrasalSrs');
+      return next;
+    });
+  };
+  const setIdiomsSrsWrapped = (val) => {
+    setIdiomsSrs(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('idiomsSrs');
+      return next;
+    });
+  };
+  const setIdiomsProperSrsWrapped = (val) => {
+    setIdiomsProperSrs(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('idiomsProperSrs');
+      return next;
+    });
+  };
+  const setSpeakingHistoryWrapped = (val) => {
+    setSpeakingHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('speakingHistory');
+      return next;
+    });
+  };
+  const setWritingHistoryWrapped = (val) => {
+    setWritingHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('writingHistory');
+      return next;
+    });
+  };
+  const setTranslationHistoryWrapped = (val) => {
+    setTranslationHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('translationHistory');
+      return next;
+    });
+  };
+  const setTranslationFavoritesWrapped = (val) => {
+    setTranslationFavorites(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('translationFavorites');
+      return next;
+    });
+  };
+  const setSavedWordsWrapped = (val) => {
+    setSavedWords(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('savedWords');
+      return next;
+    });
+  };
+  const setSavedIdiomsWrapped = (val) => {
+    setSavedIdioms(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('savedIdioms');
+      return next;
+    });
+  };
+  const setToneRewriterFavoritesWrapped = (val) => {
+    setToneRewriterFavorites(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('toneRewriterFavorites');
+      return next;
+    });
+  };
+  const setToneRewriterHistoryWrapped = (val) => {
+    setToneRewriterHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('toneRewriterHistory');
+      return next;
+    });
+  };
+  const setSentenceDiagrammerFavoritesWrapped = (val) => {
+    setSentenceDiagrammerFavorites(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('sentenceDiagrammerFavorites');
+      return next;
+    });
+  };
+  const setSentenceDiagrammerHistoryWrapped = (val) => {
+    setSentenceDiagrammerHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('sentenceDiagrammerHistory');
+      return next;
+    });
+  };
+  const setWordFamilyFavoritesWrapped = (val) => {
+    setWordFamilyFavorites(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('wordFamilyFavorites');
+      return next;
+    });
+  };
+  const setWordFamilyHistoryWrapped = (val) => {
+    setWordFamilyHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('wordFamilyHistory');
+      return next;
+    });
+  };
+  const setCollocationFavoritesWrapped = (val) => {
+    setCollocationFavorites(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('collocationFavorites');
+      return next;
+    });
+  };
+  const setCollocationHistoryWrapped = (val) => {
+    setCollocationHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('collocationHistory');
+      return next;
+    });
+  };
+  const setEtymologyFavoritesWrapped = (val) => {
+    setEtymologyFavorites(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('etymologyFavorites');
+      return next;
+    });
+  };
+  const setEtymologyHistoryWrapped = (val) => {
+    setEtymologyHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('etymologyHistory');
+      return next;
+    });
+  };
+  const setPronBookmarksWrapped = (val) => {
+    setPronBookmarks(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('pronBookmarks');
+      return next;
+    });
+  };
+  const setPronCompletedWrapped = (val) => {
+    setPronCompleted(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('pronCompleted');
+      return next;
+    });
+  };
+  const setTestSessionsWrapped = (val) => {
+    setTestSessions(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('testSessions');
+      return next;
+    });
+  };
+  const setListeningHistoryWrapped = (val) => {
+    setListeningHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('listeningHistory');
+      return next;
+    });
+  };
+  const setListeningFavoritesWrapped = (val) => {
+    setListeningFavorites(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('listeningFavorites');
+      return next;
+    });
+  };
+  const setReadingHistoryWrapped = (val) => {
+    setReadingHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('readingHistory');
+      return next;
+    });
+  };
+  const setReadingFavoritesWrapped = (val) => {
+    setReadingFavorites(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('readingFavorites');
+      return next;
+    });
+  };
+  const setSpeakingFavoritesWrapped = (val) => {
+    setSpeakingFavorites(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('speakingFavorites');
+      return next;
+    });
+  };
+  const setWordOfDayHistoryWrapped = (val) => {
+    setWordOfDayHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('wordOfDayHistory');
+      return next;
+    });
+  };
+  const setIdiomOfDayHistoryWrapped = (val) => {
+    setIdiomOfDayHistory(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('idiomOfDayHistory');
+      return next;
+    });
+  };
+
+  // Wrapped vocabulary setters
+  const setGlobalVocabWrapped = (val) => {
+    const parsedData = typeof val === 'function' ? val(customGlobalVocab) : val;
+    setCustomGlobalVocab(parsedData);
+    localStorage.setItem('venoxa_custom_global_vocab', JSON.stringify(parsedData));
+    markFieldDirty('customGlobalVocab');
+  };
+  const setPhrasalVocabWrapped = (val) => {
+    const parsedData = typeof val === 'function' ? val(customPhrasalVocab) : val;
+    setCustomPhrasalVocab(parsedData);
+    localStorage.setItem('venoxa_custom_phrasal_vocab', JSON.stringify(parsedData));
+    markFieldDirty('customPhrasalVocab');
+  };
+  const setIdiomsVocabWrapped = (val) => {
+    const parsedData = typeof val === 'function' ? val(customIdiomsVocab) : val;
+    setCustomIdiomsVocab(parsedData);
+    localStorage.setItem('venoxa_custom_idioms_vocab', JSON.stringify(parsedData));
+    markFieldDirty('customIdiomsVocab');
+  };
+  const setIdiomsProperVocabWrapped = (val) => {
+    const parsedData = typeof val === 'function' ? val(customIdiomsProperVocab) : val;
+    setCustomIdiomsProperVocab(parsedData);
+    localStorage.setItem('venoxa_custom_idioms_proper_vocab', JSON.stringify(parsedData));
+    markFieldDirty('customIdiomsProperVocab');
+  };
+  const setLangeekVocabWrapped = (val) => {
+    const parsedData = typeof val === 'function' ? val(customLangeekVocab) : val;
+    setCustomLangeekVocab(parsedData);
+    localStorage.setItem('venoxa_custom_langeek_vocab', JSON.stringify(parsedData));
+    markFieldDirty('customLangeekVocab');
+  };
+
+  const setLocalAvatarWrapped = (newAvatar) => {
+    setLocalAvatar(newAvatar);
+    localStorage.setItem('venoxa_local_avatar', newAvatar);
+    markFieldDirty('avatar');
+  };
+
+  const setUserLevelWrapped = (lvl) => {
+    setUserLevel(lvl);
+    localStorage.setItem('userLevel', lvl);
+    markFieldDirty('level');
+  };
+
+  const setCompletedCellsWrapped = (val) => {
+    setCompletedCells(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('completedCells');
+      markFieldDirty('calendarDays');
+      return next;
+    });
+  };
+
+  const setStreakDataWrapped = (val) => {
+    setStreakData(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('streak');
+      return next;
+    });
+  };
+
+
   const [token, setToken] = useState(() => localStorage.getItem('venoxa_token') || null);
   const [user, setUser] = useState(() => {
     try {
@@ -1565,7 +1919,6 @@ function AppInner() {
 
   // ── Auth state listener (validates stored JWT on page load) ──
   useEffect(() => {
-    let unsubscribeProgress = null;
     const unsubscribe = onAuthChange(async (validatedUser) => {
       if (validatedUser) {
         // Update user state immediately with validated user data from Firestore
@@ -1577,27 +1930,24 @@ function AppInner() {
           setToken(storedToken);
           localStorage.setItem('venoxa_token', storedToken);
 
-          // ── Load vocab CSVs from Firebase Storage ──
+          // ── Load vocab (custom words) from Firestore, merge with bundled ──
+          // NOTE: We use loadAllVocabFromStorage which reads from Firestore custom fields
+          // and merges with bundled vocab. This is a one-time fetch on auth, not real-time.
           loadAllVocabFromStorage().then(vocabs => {
             if (vocabs.globalVocab?.length)  { setGlobalVocab(vocabs.globalVocab);   localStorage.setItem('venoxa_global_vocab',       JSON.stringify(vocabs.globalVocab));  }
             if (vocabs.phrasalVocab?.length) { setPhrasalVocab(vocabs.phrasalVocab); localStorage.setItem('venoxa_phrasal_vocab',      JSON.stringify(vocabs.phrasalVocab)); }
             if (vocabs.idiomsVocab?.length)  { setIdiomsProperVocab(vocabs.idiomsVocab); localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(vocabs.idiomsVocab)); }
             if (vocabs.slangVocab?.length)   { setIdiomsVocab(vocabs.slangVocab);    localStorage.setItem('venoxa_idioms_vocab',        JSON.stringify(vocabs.slangVocab));   }
             if (vocabs.langeekVocab?.length) { setLangeekVocab(vocabs.langeekVocab); localStorage.setItem('venoxa_langeek_vocab',       JSON.stringify(vocabs.langeekVocab)); }
-          }).catch(err => console.warn('loadAllVocabFromStorage failed:', err));
-
-          // ── Real-time listener for Firestore progress updates ──
-          if (unsubscribeProgress) unsubscribeProgress();
-          unsubscribeProgress = subscribeToProgress(auth.currentUser?.uid, (mergedUser) => {
-            applyMergedUserData(mergedUser);
-            setIsCloudProgressLoaded(true);
+            // After vocabs load, pull progress once (safe merge, respects dirty flags)
+            pullChanges().then(() => setIsCloudProgressLoaded(true)).catch(console.warn);
+          }).catch(err => {
+            console.warn('loadAllVocabFromStorage failed:', err);
+            // Still pull progress even if vocab fetch fails
+            pullChanges().then(() => setIsCloudProgressLoaded(true)).catch(console.warn);
           });
         }
       } else {
-        if (unsubscribeProgress) {
-          unsubscribeProgress();
-          unsubscribeProgress = null;
-        }
         setToken(null);
         setUser(null);
         setIsCloudProgressLoaded(false);
@@ -1614,10 +1964,7 @@ function AppInner() {
         }).catch(err => console.warn('Guest loadAllVocabFromStorage failed:', err));
       }
     });
-    return () => {
-      unsubscribe();
-      if (unsubscribeProgress) unsubscribeProgress();
-    };
+    return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1696,7 +2043,6 @@ function AppInner() {
     setUser(null);
     localStorage.removeItem('venoxa_token');
     localStorage.removeItem('venoxa_user');
-    localStorage.removeItem('venoxa_sync_snapshot'); // clear delta baseline for next user
   };
 
   const updateProfile = async (updates) => {
@@ -1713,41 +2059,6 @@ function AppInner() {
       console.error(err);
       alert(err.message);
     }
-  };
-
-  // ── Delta sync: only upload fields that actually changed ─────────────────
-  // Stores a hash of each field after every successful sync in localStorage.
-  // Next sync: compare hashes → send only changed fields → 0 bytes if nothing changed.
-  const _SNAP_KEY = 'venoxa_sync_snapshot';
-  const _hashVal = (v) => {
-    const s = JSON.stringify(v) ?? '';
-    let h = 5381;
-    for (let i = 0; i < s.length; i++) h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0;
-    return h.toString(36);
-  };
-  const _loadSnap = () => {
-    try { return JSON.parse(localStorage.getItem(_SNAP_KEY) || '{}'); } catch { return {}; }
-  };
-  const _saveSnap = (snap) => {
-    try { localStorage.setItem(_SNAP_KEY, JSON.stringify(snap)); } catch {}
-  };
-  // Stamp all fields in payload as "known good baseline" after a successful sync
-  const _stampSnap = (payload) => {
-    const snap = _loadSnap();
-    for (const [k, v] of Object.entries(payload)) snap[k] = _hashVal(v);
-    _saveSnap(snap);
-  };
-  // Return only the fields whose hash differs from the last snapshot.
-  // IMPORTANT: if there is no snapshot on this device (incognito / new device),
-  // we return an empty delta so we NEVER upload empty arrays as if they were
-  // deliberate changes — that would wipe the cloud data for other devices.
-  const _buildDelta = (payload) => {
-    const snap = _loadSnap();
-    const hasSnapshot = Object.keys(snap).length > 0;
-    if (!hasSnapshot) return {}; // no baseline — upload nothing, only download
-    return Object.fromEntries(
-      Object.entries(payload).filter(([k, v]) => _hashVal(v) !== snap[k])
-    );
   };
 
   // ── Gather all syncable localStorage data into a single object ──
@@ -1836,461 +2147,365 @@ function AppInner() {
     };
   };
 
-  const applyMergedUserData = (mergedUser) => {
-    const _local = latestLocalRef.current;
+  const lastSyncSnapshot = useRef({});
 
-    setUser(mergedUser);
+  const detectDirtyFields = (currentPayload) => {
+    const dirty = new Set(dirtyFields.current);
+    const snapshot = lastSyncSnapshot.current;
+    
+    // completedCells / calendarDays
+    if (JSON.stringify(currentPayload.completedCells) !== JSON.stringify(snapshot.completedCells)) {
+      dirty.add('completedCells');
+      dirty.add('calendarDays');
+    }
+    
+    // usageTime
+    if (JSON.stringify(currentPayload.usageTime) !== JSON.stringify(snapshot.usageTime)) {
+      dirty.add('usageTime');
+    }
 
-    if (mergedUser.completedCells) {
-      const ccStr = JSON.stringify(mergedUser.completedCells);
-      if (ccStr !== JSON.stringify(_local.completedCells)) {
-        localStorage.setItem('venoxa_completed_cells', ccStr);
-        setCompletedCells(mergedUser.completedCells);
-      }
+    // level
+    if (currentPayload.level !== snapshot.level) {
+      dirty.add('level');
     }
-    if (mergedUser.level && mergedUser.level !== _local.level) {
-      localStorage.setItem('userLevel', mergedUser.level);
-      setUserLevel(mergedUser.level);
+
+    // streak
+    if (currentPayload.streak !== snapshot.streak) {
+      dirty.add('streak');
     }
-    if (mergedUser.avatar && !_local.localAv) {
-      localStorage.setItem('venoxa_local_avatar', mergedUser.avatar);
-      setLocalAvatar(mergedUser.avatar);
+
+    // avatar
+    if (currentPayload.avatar !== snapshot.avatar) {
+      dirty.add('avatar');
     }
-    if (mergedUser.streak !== undefined) {
-      const currentStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
-      if (mergedUser.streak > currentStreak.current) {
-        const newStreakData = { current: mergedUser.streak, lastDate: currentStreak.lastDate || new Date().toISOString().slice(0, 10) };
-        localStorage.setItem('venoxa_streak', JSON.stringify(newStreakData));
-        setStreakData(newStreakData);
-      }
-    }
-    if (mergedUser.usageTime && Object.keys(mergedUser.usageTime).length > 0) {
-      const localUsage = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
-      const mergedUsage = { ...localUsage };
-      for (const [day, secs] of Object.entries(mergedUser.usageTime)) {
-        mergedUsage[day] = Math.max(mergedUsage[day] || 0, secs);
-      }
-      localStorage.setItem('venoxa_daily_usage_secs', JSON.stringify(mergedUsage));
-      localStorage.setItem('venoxa_usage_time', JSON.stringify(mergedUsage));
-    }
-    if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(_local.srsData)) {
-      setSrsData(mergedUser.srsData);
-    }
-    if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(_local.langeekSrsData)) {
-      setLangeekSrsData(mergedUser.langeekSrsData);
-    }
-    if (mergedUser.phrasalSrs && JSON.stringify(mergedUser.phrasalSrs) !== JSON.stringify(_local.phrasalSrs)) {
-      setPhrasalSrs(mergedUser.phrasalSrs);
-    }
-    if (mergedUser.idiomsSrs && JSON.stringify(mergedUser.idiomsSrs) !== JSON.stringify(_local.idiomsSrs)) {
-      setIdiomsSrs(mergedUser.idiomsSrs);
-    }
-    if (mergedUser.idiomsProperSrs && JSON.stringify(mergedUser.idiomsProperSrs) !== JSON.stringify(_local.idiomsProperSrs)) {
-      setIdiomsProperSrs(mergedUser.idiomsProperSrs);
-    }
-    if (mergedUser.speakingHistory && JSON.stringify(mergedUser.speakingHistory) !== JSON.stringify(_local.speakingHistory)) {
-      localStorage.setItem('venoxa_speaking_history', JSON.stringify(mergedUser.speakingHistory));
-      setSpeakingHistory(mergedUser.speakingHistory);
-    }
-    if (mergedUser.writingHistory && JSON.stringify(mergedUser.writingHistory) !== JSON.stringify(_local.writingHistory)) {
-      localStorage.setItem('venoxa_writing_history', JSON.stringify(mergedUser.writingHistory));
-      setWritingHistory(mergedUser.writingHistory);
-    }
-    if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
-      const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
-      if (JSON.stringify(mergedUser.planConfig) !== JSON.stringify(localPlan)) {
-        const userIsEditing = localPlan && localPlan.hasOwnProperty('planMeta') && localPlan.planMeta === null;
-        if (!userIsEditing && !planResetBlockRef.current) {
-          localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
-          if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
-          if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
-        }
-      }
-    }
-    if (Array.isArray(mergedUser.studiedWords) && mergedUser.studiedWords.length > 0) {
-      localStorage.setItem('studiedWords', JSON.stringify(mergedUser.studiedWords));
-    }
-    if (mergedUser.translationHistory && JSON.stringify(mergedUser.translationHistory) !== JSON.stringify(_local.translationHistory)) {
-      localStorage.setItem('venoxa_translation_history', JSON.stringify(mergedUser.translationHistory));
-      setTranslationHistory(mergedUser.translationHistory);
-    }
-    if (mergedUser.translationFavorites && JSON.stringify(mergedUser.translationFavorites) !== JSON.stringify(_local.translationFavorites)) {
-      localStorage.setItem('venoxa_translation_favorites', JSON.stringify(mergedUser.translationFavorites));
-      setTranslationFavorites(mergedUser.translationFavorites);
-    }
-    if (mergedUser.savedWords && JSON.stringify(mergedUser.savedWords) !== JSON.stringify(_local.savedWords)) {
-      localStorage.setItem('venoxa_saved_words', JSON.stringify(mergedUser.savedWords));
-      setSavedWords(mergedUser.savedWords);
-    }
-    if (mergedUser.savedIdioms && JSON.stringify(mergedUser.savedIdioms) !== JSON.stringify(_local.savedIdioms)) {
-      localStorage.setItem('venoxa_saved_idioms', JSON.stringify(mergedUser.savedIdioms));
-      setSavedIdioms(mergedUser.savedIdioms);
-    }
-    if (mergedUser.toneRewriterFavorites && JSON.stringify(mergedUser.toneRewriterFavorites) !== JSON.stringify(_local.toneRewriterFavorites)) {
-      localStorage.setItem('venoxa_tone_rewriter_favorites', JSON.stringify(mergedUser.toneRewriterFavorites));
-      setToneRewriterFavorites(mergedUser.toneRewriterFavorites);
-    }
-    if (mergedUser.toneRewriterHistory && JSON.stringify(mergedUser.toneRewriterHistory) !== JSON.stringify(_local.toneRewriterHistory)) {
-      localStorage.setItem('venoxa_tone_rewriter_history', JSON.stringify(mergedUser.toneRewriterHistory));
-      setToneRewriterHistory(mergedUser.toneRewriterHistory);
-    }
-    if (mergedUser.sentenceDiagrammerFavorites && JSON.stringify(mergedUser.sentenceDiagrammerFavorites) !== JSON.stringify(_local.sentenceDiagrammerFavorites)) {
-      localStorage.setItem('venoxa_sentence_diagrammer_favorites', JSON.stringify(mergedUser.sentenceDiagrammerFavorites));
-      setSentenceDiagrammerFavorites(mergedUser.sentenceDiagrammerFavorites);
-    }
-    if (mergedUser.sentenceDiagrammerHistory && JSON.stringify(mergedUser.sentenceDiagrammerHistory) !== JSON.stringify(_local.sentenceDiagrammerHistory)) {
-      localStorage.setItem('venoxa_sentence_diagrammer_history', JSON.stringify(mergedUser.sentenceDiagrammerHistory));
-      setSentenceDiagrammerHistory(mergedUser.sentenceDiagrammerHistory);
-    }
-    if (mergedUser.wordFamilyFavorites && JSON.stringify(mergedUser.wordFamilyFavorites) !== JSON.stringify(_local.wordFamilyFavorites)) {
-      localStorage.setItem('venoxa_word_family_favorites', JSON.stringify(mergedUser.wordFamilyFavorites));
-      setWordFamilyFavorites(mergedUser.wordFamilyFavorites);
-    }
-    if (mergedUser.wordFamilyHistory && JSON.stringify(mergedUser.wordFamilyHistory) !== JSON.stringify(_local.wordFamilyHistory)) {
-      localStorage.setItem('venoxa_word_family_history', JSON.stringify(mergedUser.wordFamilyHistory));
-      setWordFamilyHistory(mergedUser.wordFamilyHistory);
-    }
-    if (mergedUser.collocationFavorites && JSON.stringify(mergedUser.collocationFavorites) !== JSON.stringify(_local.collocationFavorites)) {
-      localStorage.setItem('venoxa_collocations_favorites', JSON.stringify(mergedUser.collocationFavorites));
-      setCollocationFavorites(mergedUser.collocationFavorites);
-    }
-    if (mergedUser.collocationHistory && JSON.stringify(mergedUser.collocationHistory) !== JSON.stringify(_local.collocationHistory)) {
-      localStorage.setItem('venoxa_collocations_history', JSON.stringify(mergedUser.collocationHistory));
-      setCollocationHistory(mergedUser.collocationHistory);
-    }
-    if (mergedUser.etymologyFavorites && JSON.stringify(mergedUser.etymologyFavorites) !== JSON.stringify(_local.etymologyFavorites)) {
-      localStorage.setItem('venoxa_etymology_favorites', JSON.stringify(mergedUser.etymologyFavorites));
-      setEtymologyFavorites(mergedUser.etymologyFavorites);
-    }
-    if (mergedUser.etymologyHistory && JSON.stringify(mergedUser.etymologyHistory) !== JSON.stringify(_local.etymologyHistory)) {
-      localStorage.setItem('venoxa_etymology_history', JSON.stringify(mergedUser.etymologyHistory));
-      setEtymologyHistory(mergedUser.etymologyHistory);
-    }
-    if (mergedUser.pronBookmarks && JSON.stringify(mergedUser.pronBookmarks) !== JSON.stringify(_local.pronBookmarks)) {
-      localStorage.setItem('venoxa_pron_bookmarks', JSON.stringify(mergedUser.pronBookmarks));
-      setPronBookmarks(mergedUser.pronBookmarks);
-    }
-    if (mergedUser.pronCompleted && JSON.stringify(mergedUser.pronCompleted) !== JSON.stringify(_local.pronCompleted)) {
-      localStorage.setItem('venoxa_pron_completed', JSON.stringify(mergedUser.pronCompleted));
-      setPronCompleted(mergedUser.pronCompleted);
-    }
-    if (mergedUser.testSessions && JSON.stringify(mergedUser.testSessions) !== JSON.stringify(_local.testSessions)) {
-      localStorage.setItem('venoxa-test-sessions', JSON.stringify(mergedUser.testSessions));
-      setTestSessions(mergedUser.testSessions);
-    }
-    if (mergedUser.listeningHistory && JSON.stringify(mergedUser.listeningHistory) !== JSON.stringify(_local.listeningHistory)) {
-      localStorage.setItem('venoxa_listening_history', JSON.stringify(mergedUser.listeningHistory));
-      setListeningHistory(mergedUser.listeningHistory);
-    }
-    if (mergedUser.listeningFavorites && JSON.stringify(mergedUser.listeningFavorites) !== JSON.stringify(_local.listeningFavorites)) {
-      localStorage.setItem('venoxa_listening_favorites', JSON.stringify(mergedUser.listeningFavorites));
-      setListeningFavorites(mergedUser.listeningFavorites);
-    }
-    if (mergedUser.readingHistory && JSON.stringify(mergedUser.readingHistory) !== JSON.stringify(_local.readingHistory)) {
-      localStorage.setItem('venoxa_reading_history', JSON.stringify(mergedUser.readingHistory));
-      setReadingHistory(mergedUser.readingHistory);
-    }
-    if (mergedUser.readingFavorites && JSON.stringify(mergedUser.readingFavorites) !== JSON.stringify(_local.readingFavorites)) {
-      localStorage.setItem('venoxa_reading_favorites', JSON.stringify(mergedUser.readingFavorites));
-      setReadingFavorites(mergedUser.readingFavorites);
-    }
-    if (mergedUser.speakingFavorites && JSON.stringify(mergedUser.speakingFavorites) !== JSON.stringify(_local.speakingFavorites)) {
-      localStorage.setItem('venoxa_speaking_favorites', JSON.stringify(mergedUser.speakingFavorites));
-      setSpeakingFavorites(mergedUser.speakingFavorites);
-    }
-    if (mergedUser.wordOfDayHistory && JSON.stringify(mergedUser.wordOfDayHistory) !== JSON.stringify(_local.wordOfDayHistory)) {
-      localStorage.setItem('venoxa_word_of_day_history', JSON.stringify(mergedUser.wordOfDayHistory));
-      setWordOfDayHistory(mergedUser.wordOfDayHistory);
-    }
-    if (mergedUser.idiomOfDayHistory && JSON.stringify(mergedUser.idiomOfDayHistory) !== JSON.stringify(_local.idiomOfDayHistory)) {
-      localStorage.setItem('venoxa_idiom_of_day_history', JSON.stringify(mergedUser.idiomOfDayHistory));
-      setIdiomOfDayHistory(mergedUser.idiomOfDayHistory);
-    }
+
+    return dirty;
   };
 
-  const lastSyncTimeRef = useRef(0);
-  // ── Offline-first strategy: localStorage is always up-to-date instantly.
-  // Network upload is batched and only fires when truly needed (like Duolingo / LanGeek).
-  // Forced login/register syncs are never throttled.
-  const MIN_SYNC_GAP_MS = 30 * 60 * 1000; // never sync more than once per 30 min unless forced
-
-  const syncProgress = async (currentToken = token, currentUser = user, customCells = null, force = false) => {
-    if (!currentToken) return;
+  const pushChanges = async (force = false) => {
+    if (!token) return;
     if (!isCloudProgressLoaded && !force) {
-      console.log('syncProgress blocked: cloud progress not loaded yet');
+      console.log('pushChanges blocked: cloud progress not loaded yet');
       return;
     }
-    if (!force) {
-      const now = Date.now();
-      if (now - lastSyncTimeRef.current < MIN_SYNC_GAP_MS) return; // too soon since last sync
-      lastSyncTimeRef.current = now;
+
+    const currentPayload = _gatherSyncPayload();
+    const dirty = detectDirtyFields(currentPayload);
+
+    if (dirty.size === 0) {
+      console.log('pushChanges: nothing is dirty, skipping push');
+      return;
     }
+
+    console.log('pushChanges: pushing dirty fields:', Array.from(dirty));
     setSyncStatus('syncing');
+
     try {
-      const payload = _gatherSyncPayload(customCells);
-      const { _local, ...syncBody } = payload;
-
-      // ── Delta check: only upload what actually changed ──────────────────
-      const delta = _buildDelta(syncBody);
-      const hasDelta = Object.keys(delta).length > 0;
-
-      // How long since we last pulled from the server (for multi-device freshness)
-      const PULL_INTERVAL_MS = 20 * 60 * 1000; // pull every 20 min even with no local changes
-      const msSinceLastSync = Date.now() - lastSyncTimeRef.current;
-      const needsPull = msSinceLastSync >= PULL_INTERVAL_MS;
-
-      if (!hasDelta && !force && !needsPull) {
-        // Nothing changed and we synced recently — skip the network call entirely
-        setSyncStatus('idle');
-        return;
-      }
-
-      // Send only changed fields (delta). If nothing changed but we need to pull,
-      // send an empty object — the server just returns the current DB state.
-      const uploadBody = hasDelta ? delta : {};
-      const merged = await fbSyncProgress(currentToken, uploadBody);
-      if (!merged) throw new Error('No data returned from InsForge');
-
-      const mergedUser = {
-        uid:      currentToken,
-        email:    auth.currentUser?.email || currentUser?.email || '',
-        username: merged.username  || currentUser?.username || '',
-        avatar:   merged.avatar    || '',
-        level:    merged.level     || 'B2',
-        streak:   merged.streak    || 0,
-        xp:       merged.xp        || 0,
-        ...merged,
-      };
-
-      setUser(mergedUser);
-      // Only store lightweight profile in localStorage to avoid quota errors
-      const { speakingHistory: _sh, writingHistory: _wh,
-              srsData: _srs, langeekSrsData: _lsrs,
-              phrasalSrs: _psrs, idiomsSrs: _isrs, idiomsProperSrs: _ipsrs,
-              completedCells: _cc, usageTime: _ut, calendarDays: _cd,
-              planConfig: _pc, studiedWords: _sw,
-              translationHistory: _th, translationFavorites: _tf,
-              savedWords: _swo, savedIdioms: _sid,
-              toneRewriterFavorites: _trf, toneRewriterHistory: _trh,
-              sentenceDiagrammerFavorites: _sdf, sentenceDiagrammerHistory: _sdh,
-              wordFamilyFavorites: _wff, wordFamilyHistory: _wfh,
-              collocationFavorites: _cf, collocationHistory: _ch,
-              etymologyFavorites: _ef, etymologyHistory: _eth,
-              pronBookmarks: _pb, pronCompleted: _pcmp, testSessions: _ts,
-              ...lightProfile } = mergedUser;
-      try {
-        localStorage.setItem('venoxa_user', JSON.stringify(lightProfile));
-      } catch (e) {
-        console.warn('localStorage quota: could not save profile', e);
-      }
-
-      if (mergedUser.completedCells) {
-        localStorage.setItem('venoxa_completed_cells', JSON.stringify(mergedUser.completedCells));
-        setCompletedCells(mergedUser.completedCells);
-      }
-      if (mergedUser.level) {
-        localStorage.setItem('userLevel', mergedUser.level);
-        setUserLevel(mergedUser.level);
-      }
-      if (mergedUser.avatar && !_local.localAv) {
-        localStorage.setItem('venoxa_local_avatar', mergedUser.avatar);
-        setLocalAvatar(mergedUser.avatar);
-      }
-      if (mergedUser.streak !== undefined) {
-        const currentStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
-        if (mergedUser.streak > currentStreak.current) {
-          const newStreakData = { current: mergedUser.streak, lastDate: currentStreak.lastDate || new Date().toISOString().slice(0, 10) };
-          localStorage.setItem('venoxa_streak', JSON.stringify(newStreakData));
-          setStreakData(newStreakData);
+      const delta = {};
+      for (const field of dirty) {
+        if (field === 'xp') {
+          delta.xp = currentPayload.xp;
+        } else if (field === 'calendarDays') {
+          delta.calendarDays = currentPayload.calendarDays;
+        } else if (field === 'customGlobalVocab') {
+          delta.customGlobalVocab = customGlobalVocab;
+        } else if (field === 'customPhrasalVocab') {
+          delta.customPhrasalVocab = customPhrasalVocab;
+        } else if (field === 'customIdiomsVocab') {
+          delta.customIdiomsVocab = customIdiomsVocab;
+        } else if (field === 'customIdiomsProperVocab') {
+          delta.customIdiomsProperVocab = customIdiomsProperVocab;
+        } else if (field === 'customLangeekVocab') {
+          delta.customLangeekVocab = customLangeekVocab;
+        } else if (currentPayload.hasOwnProperty(field)) {
+          delta[field] = currentPayload[field];
         }
       }
-      if (mergedUser.usageTime && Object.keys(mergedUser.usageTime).length > 0) {
-        const localUsage = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
-        const mergedUsage = { ...localUsage };
-        for (const [day, secs] of Object.entries(mergedUser.usageTime)) {
-          mergedUsage[day] = Math.max(mergedUsage[day] || 0, secs);
-        }
-        localStorage.setItem('venoxa_daily_usage_secs', JSON.stringify(mergedUsage));
-        localStorage.setItem('venoxa_usage_time', JSON.stringify(mergedUsage));
+
+      await pushProgress(auth.currentUser?.uid, delta);
+
+      for (const field of dirty) {
+        lastSyncSnapshot.current[field] = JSON.parse(
+          JSON.stringify(currentPayload[field] !== undefined ? currentPayload[field] : (delta[field] !== undefined ? delta[field] : {}))
+        );
+        dirtyFields.current.delete(field);
       }
 
-      if (mergedUser.speakingHistory && JSON.stringify(mergedUser.speakingHistory) !== JSON.stringify(_local.sHistory)) {
-        localStorage.setItem('venoxa_speaking_history', JSON.stringify(mergedUser.speakingHistory));
-        setSpeakingHistory(mergedUser.speakingHistory);
-      }
-      if (mergedUser.writingHistory && JSON.stringify(mergedUser.writingHistory) !== JSON.stringify(_local.wHistory)) {
-        localStorage.setItem('venoxa_writing_history', JSON.stringify(mergedUser.writingHistory));
-        setWritingHistory(mergedUser.writingHistory);
-      }
-      if (mergedUser.srsData && JSON.stringify(mergedUser.srsData) !== JSON.stringify(_local.srs)) {
-        setSrsData(mergedUser.srsData);
-      }
-      if (mergedUser.langeekSrsData && JSON.stringify(mergedUser.langeekSrsData) !== JSON.stringify(_local.lSrs)) {
-        setLangeekSrsData(mergedUser.langeekSrsData);
-      }
-      // Sync the 3 additional SRS stores (new — previously local-only)
-      if (mergedUser.phrasalSrs && JSON.stringify(mergedUser.phrasalSrs) !== JSON.stringify(_local.pSrs)) {
-        setPhrasalSrs(mergedUser.phrasalSrs);
-      }
-      if (mergedUser.idiomsSrs && JSON.stringify(mergedUser.idiomsSrs) !== JSON.stringify(_local.iSrs)) {
-        setIdiomsSrs(mergedUser.idiomsSrs);
-      }
-      if (mergedUser.idiomsProperSrs && JSON.stringify(mergedUser.idiomsProperSrs) !== JSON.stringify(_local.ipSrs)) {
-        setIdiomsProperSrs(mergedUser.idiomsProperSrs);
-      }
-      if (mergedUser.planConfig && Object.keys(mergedUser.planConfig).length > 0) {
-        const localPlan = JSON.parse(localStorage.getItem('venoxa-plan-v3') || '{}');
-        if (JSON.stringify(mergedUser.planConfig) !== JSON.stringify(localPlan)) {
-          const userIsEditing = localPlan && localPlan.hasOwnProperty('planMeta') && localPlan.planMeta === null;
-          if (!userIsEditing && !planResetBlockRef.current) {
-            localStorage.setItem('venoxa-plan-v3', JSON.stringify(mergedUser.planConfig));
-            if (mergedUser.planConfig.planMeta) setPlanMeta(mergedUser.planConfig.planMeta);
-            if (mergedUser.planConfig.currentWeek) setCurrentWeek(mergedUser.planConfig.currentWeek);
-          }
-        }
-      }
-      if (Array.isArray(mergedUser.studiedWords) && mergedUser.studiedWords.length > 0) {
-        localStorage.setItem('studiedWords', JSON.stringify(mergedUser.studiedWords));
-      }
-      if (mergedUser.translationHistory && JSON.stringify(mergedUser.translationHistory) !== JSON.stringify(_local.translationHistory)) {
-        localStorage.setItem('venoxa_translation_history', JSON.stringify(mergedUser.translationHistory));
-        setTranslationHistory(mergedUser.translationHistory);
-      }
-      if (mergedUser.translationFavorites && JSON.stringify(mergedUser.translationFavorites) !== JSON.stringify(_local.translationFavorites)) {
-        localStorage.setItem('venoxa_translation_favorites', JSON.stringify(mergedUser.translationFavorites));
-        setTranslationFavorites(mergedUser.translationFavorites);
-      }
-      if (mergedUser.savedWords && JSON.stringify(mergedUser.savedWords) !== JSON.stringify(_local.savedWords)) {
-        localStorage.setItem('venoxa_saved_words', JSON.stringify(mergedUser.savedWords));
-        setSavedWords(mergedUser.savedWords);
-      }
-      if (mergedUser.savedIdioms && JSON.stringify(mergedUser.savedIdioms) !== JSON.stringify(_local.savedIdioms)) {
-        localStorage.setItem('venoxa_saved_idioms', JSON.stringify(mergedUser.savedIdioms));
-        setSavedIdioms(mergedUser.savedIdioms);
-      }
-      if (mergedUser.toneRewriterFavorites && JSON.stringify(mergedUser.toneRewriterFavorites) !== JSON.stringify(_local.toneRewriterFavorites)) {
-        localStorage.setItem('venoxa_tone_rewriter_favorites', JSON.stringify(mergedUser.toneRewriterFavorites));
-        setToneRewriterFavorites(mergedUser.toneRewriterFavorites);
-      }
-      if (mergedUser.toneRewriterHistory && JSON.stringify(mergedUser.toneRewriterHistory) !== JSON.stringify(_local.toneRewriterHistory)) {
-        localStorage.setItem('venoxa_tone_rewriter_history', JSON.stringify(mergedUser.toneRewriterHistory));
-        setToneRewriterHistory(mergedUser.toneRewriterHistory);
-      }
-      if (mergedUser.sentenceDiagrammerFavorites && JSON.stringify(mergedUser.sentenceDiagrammerFavorites) !== JSON.stringify(_local.sentenceDiagrammerFavorites)) {
-        localStorage.setItem('venoxa_sentence_diagrammer_favorites', JSON.stringify(mergedUser.sentenceDiagrammerFavorites));
-        setSentenceDiagrammerFavorites(mergedUser.sentenceDiagrammerFavorites);
-      }
-      if (mergedUser.sentenceDiagrammerHistory && JSON.stringify(mergedUser.sentenceDiagrammerHistory) !== JSON.stringify(_local.sentenceDiagrammerHistory)) {
-        localStorage.setItem('venoxa_sentence_diagrammer_history', JSON.stringify(mergedUser.sentenceDiagrammerHistory));
-        setSentenceDiagrammerHistory(mergedUser.sentenceDiagrammerHistory);
-      }
-      if (mergedUser.wordFamilyFavorites && JSON.stringify(mergedUser.wordFamilyFavorites) !== JSON.stringify(_local.wordFamilyFavorites)) {
-        localStorage.setItem('venoxa_word_family_favorites', JSON.stringify(mergedUser.wordFamilyFavorites));
-        setWordFamilyFavorites(mergedUser.wordFamilyFavorites);
-      }
-      if (mergedUser.wordFamilyHistory && JSON.stringify(mergedUser.wordFamilyHistory) !== JSON.stringify(_local.wordFamilyHistory)) {
-        localStorage.setItem('venoxa_word_family_history', JSON.stringify(mergedUser.wordFamilyHistory));
-        setWordFamilyHistory(mergedUser.wordFamilyHistory);
-      }
-      if (mergedUser.collocationFavorites && JSON.stringify(mergedUser.collocationFavorites) !== JSON.stringify(_local.collocationFavorites)) {
-        localStorage.setItem('venoxa_collocations_favorites', JSON.stringify(mergedUser.collocationFavorites));
-        setCollocationFavorites(mergedUser.collocationFavorites);
-      }
-      if (mergedUser.collocationHistory && JSON.stringify(mergedUser.collocationHistory) !== JSON.stringify(_local.collocationHistory)) {
-        localStorage.setItem('venoxa_collocations_history', JSON.stringify(mergedUser.collocationHistory));
-        setCollocationHistory(mergedUser.collocationHistory);
-      }
-      if (mergedUser.etymologyFavorites && JSON.stringify(mergedUser.etymologyFavorites) !== JSON.stringify(_local.etymologyFavorites)) {
-        localStorage.setItem('venoxa_etymology_favorites', JSON.stringify(mergedUser.etymologyFavorites));
-        setEtymologyFavorites(mergedUser.etymologyFavorites);
-      }
-      if (mergedUser.etymologyHistory && JSON.stringify(mergedUser.etymologyHistory) !== JSON.stringify(_local.etymologyHistory)) {
-        localStorage.setItem('venoxa_etymology_history', JSON.stringify(mergedUser.etymologyHistory));
-        setEtymologyHistory(mergedUser.etymologyHistory);
-      }
-      if (mergedUser.pronBookmarks && JSON.stringify(mergedUser.pronBookmarks) !== JSON.stringify(_local.pronBookmarks)) {
-        localStorage.setItem('venoxa_pron_bookmarks', JSON.stringify(mergedUser.pronBookmarks));
-        setPronBookmarks(mergedUser.pronBookmarks);
-      }
-      if (mergedUser.pronCompleted && JSON.stringify(mergedUser.pronCompleted) !== JSON.stringify(_local.pronCompleted)) {
-        localStorage.setItem('venoxa_pron_completed', JSON.stringify(mergedUser.pronCompleted));
-        setPronCompleted(mergedUser.pronCompleted);
-      }
-      if (mergedUser.testSessions && JSON.stringify(mergedUser.testSessions) !== JSON.stringify(_local.testSessions)) {
-        localStorage.setItem('venoxa-test-sessions', JSON.stringify(mergedUser.testSessions));
-        setTestSessions(mergedUser.testSessions);
-      }
+      localStorage.setItem('venoxa_last_sync_snapshot', JSON.stringify(lastSyncSnapshot.current));
 
       setSyncStatus('synced');
-      _stampSnap(syncBody); // record current state — next sync will diff against this
       if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 3000);
-
     } catch (err) {
-      console.error('InsForge sync failed:', err);
+      console.error('pushChanges failed:', err);
       setSyncStatus('error');
       if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 5000);
     }
   };
 
+  const pullChanges = async (force = false) => {
+    if (!token) return;
+    try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+
+      console.log('pullChanges: pulling latest remote data from Firestore');
+      const remote = await pullProgress(uid);
+      if (!remote) return;
+
+      blockDirtyTracking.current = true;
+      let changed = false;
+
+      const applyRemoteIfSafe = (field, setLocalState, storageKey, isArray = false, isObject = false) => {
+        if (dirtyFields.current.has(field)) {
+          console.log(`pullChanges: Field '${field}' is dirty locally. Skipping remote overwrite.`);
+          return;
+        }
+
+        const localVal = _gatherSyncPayload()[field];
+        const remoteVal = remote[field];
+
+        if (remoteVal !== undefined) {
+          const localStr = JSON.stringify(localVal);
+          const remoteStr = JSON.stringify(remoteVal);
+          
+          if (localStr !== remoteStr) {
+            console.log(`pullChanges: Field '${field}' updated from remote.`);
+            if (field === 'customGlobalVocab') {
+              setCustomGlobalVocab(remoteVal);
+              localStorage.setItem('venoxa_custom_global_vocab', remoteStr);
+            } else if (field === 'customPhrasalVocab') {
+              setCustomPhrasalVocab(remoteVal);
+              localStorage.setItem('venoxa_custom_phrasal_vocab', remoteStr);
+            } else if (field === 'customIdiomsVocab') {
+              setCustomIdiomsVocab(remoteVal);
+              localStorage.setItem('venoxa_custom_idioms_vocab', remoteStr);
+            } else if (field === 'customIdiomsProperVocab') {
+              setCustomIdiomsProperVocab(remoteVal);
+              localStorage.setItem('venoxa_custom_idioms_proper_vocab', remoteStr);
+            } else if (field === 'customLangeekVocab') {
+              setCustomLangeekVocab(remoteVal);
+              localStorage.setItem('venoxa_custom_langeek_vocab', remoteStr);
+            } else {
+              setLocalState(remoteVal);
+              if (storageKey) {
+                localStorage.setItem(storageKey, isObject || isArray ? remoteStr : remoteVal);
+              }
+            }
+            lastSyncSnapshot.current[field] = JSON.parse(remoteStr);
+            changed = true;
+          }
+        }
+      };
+
+      applyRemoteIfSafe('srsData', setSrsData, 'venoxa_srs_data', false, true);
+      applyRemoteIfSafe('langeekSrsData', setLangeekSrsData, 'venoxa_langeek_srs_data', false, true);
+      applyRemoteIfSafe('phrasalSrs', setPhrasalSrs, 'venoxa_phrasal_srs', false, true);
+      applyRemoteIfSafe('idiomsSrs', setIdiomsSrs, 'venoxa_idioms_srs', false, true);
+      applyRemoteIfSafe('idiomsProperSrs', setIdiomsProperSrs, 'venoxa_idioms_proper_srs', false, true);
+
+      applyRemoteIfSafe('speakingHistory', setSpeakingHistory, 'venoxa_speaking_history', true);
+      applyRemoteIfSafe('writingHistory', setWritingHistory, 'venoxa_writing_history', true);
+      applyRemoteIfSafe('translationHistory', setTranslationHistory, 'venoxa_translation_history', true);
+      applyRemoteIfSafe('translationFavorites', setTranslationFavorites, 'venoxa_translation_favorites', true);
+      applyRemoteIfSafe('savedWords', setSavedWords, 'venoxa_saved_words', true);
+      applyRemoteIfSafe('savedIdioms', setSavedIdioms, 'venoxa_saved_idioms', true);
+
+      applyRemoteIfSafe('toneRewriterFavorites', setToneRewriterFavorites, 'venoxa_tone_rewriter_favorites', true);
+      applyRemoteIfSafe('toneRewriterHistory', setToneRewriterHistory, 'venoxa_tone_rewriter_history', true);
+      applyRemoteIfSafe('sentenceDiagrammerFavorites', setSentenceDiagrammerFavorites, 'venoxa_sentence_diagrammer_favorites', true);
+      applyRemoteIfSafe('sentenceDiagrammerHistory', setSentenceDiagrammerHistory, 'venoxa_sentence_diagrammer_history', true);
+      applyRemoteIfSafe('wordFamilyFavorites', setWordFamilyFavorites, 'venoxa_word_family_favorites', true);
+      applyRemoteIfSafe('wordFamilyHistory', setWordFamilyHistory, 'venoxa_word_family_history', true);
+      applyRemoteIfSafe('collocationFavorites', setCollocationFavorites, 'venoxa_collocations_favorites', true);
+      applyRemoteIfSafe('collocationHistory', setCollocationHistory, 'venoxa_collocations_history', true);
+      applyRemoteIfSafe('etymologyFavorites', setEtymologyFavorites, 'venoxa_etymology_favorites', true);
+      applyRemoteIfSafe('etymologyHistory', setEtymologyHistory, 'venoxa_etymology_history', true);
+      applyRemoteIfSafe('pronBookmarks', setPronBookmarks, 'venoxa_pron_bookmarks', true);
+      applyRemoteIfSafe('pronCompleted', setPronCompleted, 'venoxa_pron_completed', true);
+      applyRemoteIfSafe('testSessions', setTestSessions, 'venoxa-test-sessions', true);
+      applyRemoteIfSafe('listeningHistory', setListeningHistory, 'venoxa_listening_history', true);
+      applyRemoteIfSafe('listeningFavorites', setListeningFavorites, 'venoxa_listening_favorites', true);
+      applyRemoteIfSafe('readingHistory', setReadingHistory, 'venoxa_reading_history', true);
+      applyRemoteIfSafe('readingFavorites', setReadingFavorites, 'venoxa_reading_favorites', true);
+      applyRemoteIfSafe('speakingFavorites', setSpeakingFavorites, 'venoxa_speaking_favorites', true);
+      applyRemoteIfSafe('wordOfDayHistory', setWordOfDayHistory, 'venoxa_word_of_day_history', true);
+      applyRemoteIfSafe('idiomOfDayHistory', setIdiomOfDayHistory, 'venoxa_idiom_of_day_history', true);
+
+      applyRemoteIfSafe('customGlobalVocab', null, 'venoxa_custom_global_vocab', true);
+      applyRemoteIfSafe('customPhrasalVocab', null, 'venoxa_custom_phrasal_vocab', true);
+      applyRemoteIfSafe('customIdiomsVocab', null, 'venoxa_custom_idioms_vocab', true);
+      applyRemoteIfSafe('customIdiomsProperVocab', null, 'venoxa_custom_idioms_proper_vocab', true);
+      applyRemoteIfSafe('customLangeekVocab', null, 'venoxa_custom_langeek_vocab', true);
+
+      if (!dirtyFields.current.has('completedCells') && remote.completedCells) {
+        const localCells = JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {};
+        if (JSON.stringify(localCells) !== JSON.stringify(remote.completedCells)) {
+          setCompletedCells(remote.completedCells);
+          localStorage.setItem('venoxa_completed_cells', JSON.stringify(remote.completedCells));
+          lastSyncSnapshot.current.completedCells = JSON.parse(JSON.stringify(remote.completedCells));
+          changed = true;
+        }
+      }
+
+      if (!dirtyFields.current.has('level') && remote.level) {
+        const localLvl = localStorage.getItem('userLevel') || 'B2';
+        if (localLvl !== remote.level) {
+          setUserLevel(remote.level);
+          localStorage.setItem('userLevel', remote.level);
+          lastSyncSnapshot.current.level = remote.level;
+          changed = true;
+        }
+      }
+
+      if (!dirtyFields.current.has('avatar') && remote.avatar) {
+        const localAv = localStorage.getItem('venoxa_local_avatar') || '';
+        if (localAv !== remote.avatar) {
+          setLocalAvatar(remote.avatar);
+          localStorage.setItem('venoxa_local_avatar', remote.avatar);
+          lastSyncSnapshot.current.avatar = remote.avatar;
+          changed = true;
+        }
+      }
+
+      if (!dirtyFields.current.has('streak') && remote.streak !== undefined) {
+        const localStreak = JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0 };
+        if (remote.streak > localStreak.current) {
+          const newStreak = { current: remote.streak, lastDate: localStreak.lastDate || new Date().toISOString().slice(0, 10) };
+          setStreakData(newStreak);
+          localStorage.setItem('venoxa_streak', JSON.stringify(newStreak));
+          lastSyncSnapshot.current.streak = remote.streak;
+          changed = true;
+        }
+      }
+
+      if (!dirtyFields.current.has('usageTime') && remote.usageTime) {
+        const localUsage = JSON.parse(localStorage.getItem('venoxa_daily_usage_secs')) || {};
+        let usageChanged = false;
+        const mergedUsage = { ...localUsage };
+        for (const [day, secs] of Object.entries(remote.usageTime)) {
+          if ((mergedUsage[day] || 0) < secs) {
+            mergedUsage[day] = secs;
+            usageChanged = true;
+          }
+        }
+        if (usageChanged) {
+          localStorage.setItem('venoxa_daily_usage_secs', JSON.stringify(mergedUsage));
+          localStorage.setItem('venoxa_usage_time', JSON.stringify(mergedUsage));
+          lastSyncSnapshot.current.usageTime = JSON.parse(JSON.stringify(mergedUsage));
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        const lightProfile = {
+          uid: remote.uid,
+          email: remote.email || auth.currentUser?.email || '',
+          username: remote.username || 'New Learner',
+          avatar: remote.avatar || '',
+          level: remote.level || 'B2',
+          streak: remote.streak || 0,
+          xp: remote.xp || 0,
+        };
+        setUser(lightProfile);
+        localStorage.setItem('venoxa_user', JSON.stringify(lightProfile));
+      }
+
+      localStorage.setItem('venoxa_last_sync_snapshot', JSON.stringify(lastSyncSnapshot.current));
+      setIsCloudProgressLoaded(true);
+    } catch (err) {
+      console.warn('pullChanges failed:', err);
+    } finally {
+      blockDirtyTracking.current = false;
+    }
+  };
+
+  const syncProgress = async (currentToken = token, currentUser = user, customCells = null, force = false) => {
+    if (!currentToken) return;
+    if (force) {
+      await pushChanges(true);
+      await pullChanges(true);
+    } else {
+      if (dirtyFields.current.size > 0) {
+        await pushChanges();
+      } else {
+        await pullChanges();
+      }
+    }
+  };
+
   // ── Sync on mount (existing token from localStorage) and on token change ──
   useEffect(() => {
     if (token) {
-      syncProgress(token, user);
+      try {
+        const savedSnapshot = localStorage.getItem('venoxa_last_sync_snapshot');
+        if (savedSnapshot) {
+          lastSyncSnapshot.current = JSON.parse(savedSnapshot);
+        }
+      } catch {}
+      pullChanges().then(() => {
+        setIsCloudProgressLoaded(true);
+      });
     }
   }, [token]);
 
-  // ── Multi-device harmony: full Firestore sync on hide/show ───────────────
-  // KEY INSIGHT: syncBeacon only saves xp/streak/usageTime/calendarDays.
-  // Vocabulary words, SRS data, idioms, etc. are NEVER saved via beacon.
-  // Fix: when the tab goes HIDDEN (user switches tab, opens incognito, locks
-  // phone), we do a FULL Firestore write via syncProgress while the tab is
-  // still alive in the background — async calls still complete reliably here.
-  // When tab becomes VISIBLE again, we pull the latest data from Firestore.
+  // ── Sync when tab visibility changes (critical for multi-device) ──
   useEffect(() => {
     if (!token) return;
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        // Tab going to background — do a FULL Firestore write (not beacon).
-        // syncBeacon only saves xp/streak — it loses all vocab words, SRS, idioms.
-        // The tab is still alive here, so async Firestore writes complete reliably.
-        try {
-          const payload = _gatherSyncPayload();
-          const { _local, ...syncBody } = payload;
-          const delta = _buildDelta(syncBody);
-          if (Object.keys(delta).length > 0) {
-            // force=true: bypass the 30-min gap guard — must save NOW
-            syncProgress(token, user, null, true);
-          }
-        } catch {}
-      } else if (document.visibilityState === 'visible') {
-        // Tab returned to foreground — pull latest from Firestore
-        syncProgress(token, user);
+      if (document.visibilityState === 'visible') {
+        pullChanges();
+      } else if (document.visibilityState === 'hidden') {
+        pushChanges();
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [token]);
 
-  // ── Periodic background sync every 30 minutes ──
-  // Data is always safe in localStorage; this is just a cloud backup heartbeat.
+  // ── Periodic background sync every 5 minutes ──
   useEffect(() => {
     if (!token) return;
-    const interval = setInterval(() => syncProgress(token, user), 30 * 60 * 1000);
+    const interval = setInterval(() => {
+      if (dirtyFields.current.size > 0) {
+        pushChanges();
+      } else {
+        pullChanges();
+      }
+    }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [token]);
 
-  // ── Best-effort sync on tab close (uses sendBeacon for reliability) ──
+  // ── Best-effort sync on tab close ──
   useEffect(() => {
     if (!token) return;
     const handleUnload = () => {
       try {
-        const payload = _gatherSyncPayload();
-        const { _local, ...syncBody } = payload;
-        const delta = _buildDelta(syncBody);
-        if (Object.keys(delta).length > 0) {
-          syncBeacon(delta); // only send what changed — 0 bytes if nothing changed
+        const currentPayload = _gatherSyncPayload();
+        const dirty = detectDirtyFields(currentPayload);
+        if (dirty.size > 0) {
+          const delta = {};
+          for (const field of dirty) {
+            if (field === 'xp') {
+              delta.xp = currentPayload.xp;
+            } else if (field === 'calendarDays') {
+              delta.calendarDays = currentPayload.calendarDays;
+            } else if (field === 'customGlobalVocab') {
+              delta.customGlobalVocab = customGlobalVocab;
+            } else if (field === 'customPhrasalVocab') {
+              delta.customPhrasalVocab = customPhrasalVocab;
+            } else if (field === 'customIdiomsVocab') {
+              delta.customIdiomsVocab = customIdiomsVocab;
+            } else if (field === 'customIdiomsProperVocab') {
+              delta.customIdiomsProperVocab = customIdiomsProperVocab;
+            } else if (field === 'customLangeekVocab') {
+              delta.customLangeekVocab = customLangeekVocab;
+            } else if (currentPayload.hasOwnProperty(field)) {
+              delta[field] = currentPayload[field];
+            }
+          }
+          pushProgress(auth.currentUser?.uid, delta);
         }
       } catch {}
     };
@@ -2337,21 +2552,13 @@ function AppInner() {
       return newData;
     });
   };
+  const weekSyncBlockedRef = useRef(false);
   const [currentWeek, setCurrentWeek] = useState(() => {
     try {
       const raw = localStorage.getItem('venoxa-plan-v3');
       return raw ? JSON.parse(raw)?.currentWeek || 1 : 1;
     } catch { return 1; }
   });
-
-  // Keep venoxa-plan-v3 in sync with currentWeek so the sync payload always has the correct week
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('venoxa-plan-v3');
-      const plan = raw ? JSON.parse(raw) : {};
-      localStorage.setItem('venoxa-plan-v3', JSON.stringify({ ...plan, currentWeek }));
-    } catch {}
-  }, [currentWeek]);
 
   const dailyGoalPct = useMemo(() => {
     const weekPrefix = `${currentWeek}-`;
@@ -2435,17 +2642,14 @@ function AppInner() {
     wordOfDayHistory, idiomOfDayHistory
   ]);
 
-  // ── Offline-first idle sync ──────────────────────────────────────────────────
-  // Data changes are already persisted to localStorage immediately (zero latency).
-  // We only attempt a cloud upload after the user has been idle for 5 minutes.
-  // The MIN_SYNC_GAP_MS guard (30 min) further ensures we never spam the server.
-  // This mirrors what Duolingo / LanGeek do: local-first, lazy cloud backup.
+  // Debounced background sync to the cloud database when local data is modified
   useEffect(() => {
-    if (!token) return;
-    const timer = setTimeout(() => {
-      syncProgress(token, user); // no force — respects the 30-min gap guard
-    }, 5 * 60 * 1000); // wait 5 min of idle before attempting upload
-    return () => clearTimeout(timer);
+    if (token) {
+      const timer = setTimeout(() => {
+        syncProgress(token, user);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
   }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory, pronBookmarks, pronCompleted, testSessions, listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites, wordOfDayHistory, idiomOfDayHistory]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
@@ -2470,6 +2674,39 @@ function AppInner() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // ── Force white background on print — the inline style on the root div
+  //    has higher specificity than CSS @media print rules, so we override
+  //    it directly via beforeprint/afterprint events.
+  useEffect(() => {
+    const rootDiv = document.getElementById('venoxa-root-div');
+    const beforePrint = () => {
+      if (rootDiv) {
+        rootDiv.style.setProperty('background', '#ffffff', 'important');
+        rootDiv.style.setProperty('color', '#1e293b', 'important');
+        rootDiv.style.setProperty('height', 'auto', 'important');
+        rootDiv.style.setProperty('overflow', 'visible', 'important');
+      }
+      document.documentElement.style.setProperty('background', '#ffffff', 'important');
+      document.body.style.setProperty('background', '#ffffff', 'important');
+    };
+    const afterPrint = () => {
+      if (rootDiv) {
+        rootDiv.style.removeProperty('background');
+        rootDiv.style.removeProperty('color');
+        rootDiv.style.removeProperty('height');
+        rootDiv.style.removeProperty('overflow');
+      }
+      document.documentElement.style.removeProperty('background');
+      document.body.style.removeProperty('background');
+    };
+    window.addEventListener('beforeprint', beforePrint);
+    window.addEventListener('afterprint', afterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', beforePrint);
+      window.removeEventListener('afterprint', afterPrint);
+    };
+  }, []);
 
   // ── Favicon fix: inject an SVG favicon so the Venoxa logo shows on the tab ──
   useEffect(() => {
@@ -2504,7 +2741,7 @@ function AppInner() {
   const renderContent = () => {
     const props = {
       userLevel,
-      setUserLevel,
+      setUserLevel: setUserLevelWrapped,
       AI_KEY: GEMINI_API_KEY,
       lang,
       theme
@@ -2520,7 +2757,7 @@ function AppInner() {
           planMeta={planMeta} 
           setPlanMeta={setPlanMeta} 
           completedCells={completedCells} 
-          setCompletedCells={setCompletedCells}
+          setCompletedCells={setCompletedCellsWrapped}
           currentWeek={currentWeek}
           setCurrentWeek={setCurrentWeek}
           recordActivity={recordActivity}
@@ -2528,44 +2765,45 @@ function AppInner() {
           user={user}
           syncProgress={syncProgress}
           planResetBlockRef={planResetBlockRef}
+          weekSyncBlockedRef={weekSyncBlockedRef}
         />;
       case 'vocab':
-        return <Vocabulary {...props} globalVocab={globalVocab} setGlobalVocab={setGlobalVocab} srsData={srsData} setSrsData={setSrsData} />;
+        return <Vocabulary {...props} globalVocab={globalVocab} setGlobalVocab={setGlobalVocabWrapped} srsData={srsData} setSrsData={setSrsDataWrapped} />;
       case 'phrasal':
-        return <PhrasalVerbs {...props} phrasalVocab={phrasalVocab} setPhrasalVocab={setPhrasalVocab} phrasalSrs={phrasalSrs} setPhrasalSrs={setPhrasalSrs} />;
+        return <PhrasalVerbs {...props} phrasalVocab={phrasalVocab} setPhrasalVocab={setPhrasalVocabWrapped} phrasalSrs={phrasalSrs} setPhrasalSrs={setPhrasalSrsWrapped} />;
       case 'idioms':
-        return <IdiomsSlang {...props} idiomsVocab={idiomsVocab} setIdiomsVocab={setIdiomsVocab} idiomsSrs={idiomsSrs} setIdiomsSrs={setIdiomsSrs} />;
+        return <IdiomsSlang {...props} idiomsVocab={idiomsVocab} setIdiomsVocab={setIdiomsVocabWrapped} idiomsSrs={idiomsSrs} setIdiomsSrs={setIdiomsSrsWrapped} />;
       case 'idioms-proper':
-        return <IdiomsProper {...props} idiomsProperVocab={idiomsProperVocab} setIdiomsProperVocab={setIdiomsProperVocab} idiomsProperSrs={idiomsProperSrs} setIdiomsProperSrs={setIdiomsProperSrs} />;
+        return <IdiomsProper {...props} idiomsProperVocab={idiomsProperVocab} setIdiomsProperVocab={setIdiomsProperVocabWrapped} idiomsProperSrs={idiomsProperSrs} setIdiomsProperSrs={setIdiomsProperSrsWrapped} />;
       case 'test-gen':
-        return <TestGenerator {...props} sessions={testSessions} setSessions={setTestSessions} />;
+        return <TestGenerator {...props} sessions={testSessions} setSessions={setTestSessionsWrapped} />;
       case 'grammar':
         return <Grammar {...props} />;
       case 'writing':
-        return <Writing {...props} writingHistory={writingHistory} setWritingHistory={setWritingHistory} />;
+        return <Writing {...props} writingHistory={writingHistory} setWritingHistory={setWritingHistoryWrapped} />;
       case 'speaking':
-        return <Speaking {...props} speakingHistory={speakingHistory} setSpeakingHistory={setSpeakingHistory} favorites={speakingFavorites} setFavorites={setSpeakingFavorites} />;
+        return <Speaking {...props} speakingHistory={speakingHistory} setSpeakingHistory={setSpeakingHistoryWrapped} favorites={speakingFavorites} setFavorites={setSpeakingFavoritesWrapped} />;
       case 'listening':
-        return <ListeningReading type="listening" {...props} history={listeningHistory} setHistory={setListeningHistory} favorites={listeningFavorites} setFavorites={setListeningFavorites} />;
+        return <ListeningReading type="listening" {...props} history={listeningHistory} setHistory={setListeningHistoryWrapped} favorites={listeningFavorites} setFavorites={setListeningFavoritesWrapped} />;
       case 'reading':
-        return <ListeningReading type="reading" {...props} history={readingHistory} setHistory={setReadingHistory} favorites={readingFavorites} setFavorites={setReadingFavorites} />;
+        return <ListeningReading type="reading" {...props} history={readingHistory} setHistory={setReadingHistoryWrapped} favorites={readingFavorites} setFavorites={setReadingFavoritesWrapped} />;
       case 'langeek':
-        return <Langeek {...props} langeekVocab={langeekVocab} setLangeekVocab={setLangeekVocab} langeekSrsData={langeekSrsData} setLangeekSrsData={setLangeekSrsData} />;
+        return <Langeek {...props} langeekVocab={langeekVocab} setLangeekVocab={setLangeekVocabWrapped} langeekSrsData={langeekSrsData} setLangeekSrsData={setLangeekSrsDataWrapped} />;
       case 'pronunciation':
         return <Pronunciation lang={lang} theme={theme} AI_KEY={GEMINI_API_KEY} speakFn={async (text, gender, accentKey) => {
           const saved = _voiceAccent;
           if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
           try { await edgeTTSSpeak(text, gender); } finally { _voiceAccent = saved; }
-        }} bookmarks={pronBookmarks} setBookmarks={setPronBookmarks} completed={pronCompleted} setCompleted={setPronCompleted} />;
+        }} bookmarks={pronBookmarks} setBookmarks={setPronBookmarksWrapped} completed={pronCompleted} setCompleted={setPronCompletedWrapped} />;
       case 'smart-translation':
         return <SmartTranslation
           lang={lang}
           theme={theme}
           AI_KEY={GEMINI_API_KEY}
           translationHistory={translationHistory}
-          setTranslationHistory={setTranslationHistory}
+          setTranslationHistory={setTranslationHistoryWrapped}
           translationFavorites={translationFavorites}
-          setTranslationFavorites={setTranslationFavorites}
+          setTranslationFavorites={setTranslationFavoritesWrapped}
           speakFn={async (text, gender, accentKey) => {
             const saved = _voiceAccent;
             if (accentKey === 'us' || accentKey === 'uk') _voiceAccent = accentKey;
@@ -2579,18 +2817,18 @@ function AppInner() {
           lang={lang} 
           theme={theme} 
           favorites={toneRewriterFavorites}
-          setFavorites={setToneRewriterFavorites}
+          setFavorites={setToneRewriterFavoritesWrapped}
           history={toneRewriterHistory}
-          setHistory={setToneRewriterHistory}
+          setHistory={setToneRewriterHistoryWrapped}
         />;
       case 'sentence-diagrammer':
         return <SentenceDiagrammer 
           lang={lang} 
           theme={theme} 
           favorites={sentenceDiagrammerFavorites}
-          setFavorites={setSentenceDiagrammerFavorites}
+          setFavorites={setSentenceDiagrammerFavoritesWrapped}
           history={sentenceDiagrammerHistory}
-          setHistory={setSentenceDiagrammerHistory}
+          setHistory={setSentenceDiagrammerHistoryWrapped}
         />;
       case 'minimal-pairs':
         return <MinimalPairs lang={lang} theme={theme} />;
@@ -2599,32 +2837,32 @@ function AppInner() {
           lang={lang} 
           theme={theme} 
           favorites={wordFamilyFavorites}
-          setFavorites={setWordFamilyFavorites}
+          setFavorites={setWordFamilyFavoritesWrapped}
           history={wordFamilyHistory}
-          setHistory={setWordFamilyHistory}
+          setHistory={setWordFamilyHistoryWrapped}
         />;
       case 'collocations':
         return <CollocationFinder 
           lang={lang} 
           theme={theme} 
           favorites={collocationFavorites}
-          setFavorites={setCollocationFavorites}
+          setFavorites={setCollocationFavoritesWrapped}
           history={collocationHistory}
-          setHistory={setCollocationHistory}
+          setHistory={setCollocationHistoryWrapped}
         />;
       case 'etymology':
         return <EtymologyExplorer 
           lang={lang} 
           theme={theme} 
           favorites={etymologyFavorites}
-          setFavorites={setEtymologyFavorites}
+          setFavorites={setEtymologyFavoritesWrapped}
           history={etymologyHistory}
-          setHistory={setEtymologyHistory}
+          setHistory={setEtymologyHistoryWrapped}
         />;
       case 'word-of-day':
-        return <WordOfTheDay lang={lang} theme={theme} savedWords={savedWords} setSavedWords={setSavedWords} history={wordOfDayHistory} setHistory={setWordOfDayHistory} />;
+        return <WordOfTheDay lang={lang} theme={theme} savedWords={savedWords} setSavedWords={setSavedWordsWrapped} history={wordOfDayHistory} setHistory={setWordOfDayHistoryWrapped} />;
       case 'idiom-of-day':
-        return <IdiomOfTheDay lang={lang} theme={theme} savedIdioms={savedIdioms} setSavedIdioms={setSavedIdioms} history={idiomOfDayHistory} setHistory={setIdiomOfDayHistory} />;
+        return <IdiomOfTheDay lang={lang} theme={theme} savedIdioms={savedIdioms} setSavedIdioms={setSavedIdiomsWrapped} history={idiomOfDayHistory} setHistory={setIdiomOfDayHistoryWrapped} />;
       case 'profile':
         return <ProfileDashboard
           {...props}
@@ -2637,7 +2875,7 @@ function AppInner() {
           planMeta={planMeta}
           currentWeek={currentWeek}
           dailyGoalPct={dailyGoalPct}
-          onAvatarChange={(newAvatar) => setLocalAvatar(newAvatar)}
+          onAvatarChange={(newAvatar) => setLocalAvatarWrapped(newAvatar)}
           onOpenAuth={() => {
             setAuthModalMode('login');
             setIsAuthModalOpen(true);
@@ -2742,6 +2980,7 @@ function AppInner() {
 
   return (
     <div
+      id="venoxa-root-div"
       className="flex flex-col h-screen overflow-hidden transition-colors duration-500 font-sans relative"
       dir={_resolveTranslation(lang, 'rtl', 'ltr')}
       style={{
@@ -4107,14 +4346,13 @@ function PlanWeekTable({
   onToggleCell,
   wordSource
 }) {
-  // Row color map — each category gets a vivid left-border accent + subtle tinted bg
   const rowColors = {
-    listen:  { bg: 'bg-cyan-50/60 dark:bg-cyan-950/20 print:bg-white',    border: 'border-l-4 border-l-cyan-500 print:border-l-0',    icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',    summary: 'text-cyan-700 dark:text-cyan-300' },
-    read:    { bg: 'bg-emerald-50/60 dark:bg-emerald-950/20 print:bg-white', border: 'border-l-4 border-l-emerald-500 print:border-l-0', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', summary: 'text-emerald-700 dark:text-emerald-300' },
-    speak:   { bg: 'bg-rose-50/60 dark:bg-rose-950/20 print:bg-white',     border: 'border-l-4 border-l-rose-500 print:border-l-0',    icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',    summary: 'text-rose-700 dark:text-rose-300' },
-    write:   { bg: 'bg-amber-50/60 dark:bg-amber-950/20 print:bg-white',   border: 'border-l-4 border-l-amber-500 print:border-l-0',   icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',   summary: 'text-amber-700 dark:text-amber-300' },
-    vocab:   { bg: 'bg-orange-50/60 dark:bg-orange-950/20 print:bg-white', border: 'border-l-4 border-l-orange-500 print:border-l-0',  icon: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',  summary: 'text-orange-700 dark:text-orange-300' },
-    grammar: { bg: 'bg-violet-50/60 dark:bg-violet-950/20 print:bg-white', border: 'border-l-4 border-l-violet-500 print:border-l-0',  icon: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400',  summary: 'text-violet-700 dark:text-violet-300' },
+    listen:  { bg: 'bg-cyan-50/60 dark:bg-cyan-950/20',    border: '',    icon: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',    summary: 'text-cyan-700 dark:text-cyan-300' },
+    read:    { bg: 'bg-emerald-50/60 dark:bg-emerald-950/20', border: '', icon: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', summary: 'text-emerald-700 dark:text-emerald-300' },
+    speak:   { bg: 'bg-rose-50/60 dark:bg-rose-950/20',     border: '',    icon: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',    summary: 'text-rose-700 dark:text-rose-300' },
+    write:   { bg: 'bg-amber-50/60 dark:bg-amber-950/20',   border: '',   icon: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',   summary: 'text-amber-700 dark:text-amber-300' },
+    vocab:   { bg: 'bg-orange-50/60 dark:bg-orange-950/20', border: '',  icon: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400',  summary: 'text-orange-700 dark:text-orange-300' },
+    grammar: { bg: 'bg-violet-50/60 dark:bg-violet-950/20', border: '',  icon: 'bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400',  summary: 'text-violet-700 dark:text-violet-300' },
   };
 
   const B = "border-gray-200/60 dark:border-white/[0.06]";
@@ -4122,9 +4360,9 @@ function PlanWeekTable({
   const cellBase = `px-3 py-6 text-center border-b border-e ${B} relative transition-all duration-200`;
 
   return (
-    <div className="rounded-[28px] print:rounded-none overflow-hidden border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none print:!shadow-none glass-panel print:bg-white print:overflow-visible">
-      <div className="overflow-x-auto">
-        <table className="w-full border-separate [border-spacing:0] min-w-[800px] print:border-collapse">
+    <div className="rounded-[28px] print:rounded-none overflow-hidden print:overflow-visible border border-gray-200 dark:border-[var(--app-border)] print:border-none shadow-sm print:shadow-none print:bg-white print:backdrop-filter-none plan-table-wrapper">
+      <div className="overflow-x-auto print:overflow-visible">
+        <table className="w-full border-separate [border-spacing:0] min-w-[800px] print:border-collapse print:min-w-0">
           <thead>
             <tr>
               <th className={`${headBase} w-[220px]`}>{t.activity}</th>
@@ -4141,9 +4379,9 @@ function PlanWeekTable({
               const colors = rowColors[cat.id] || rowColors.listen;
               return (
               <tr key={cat.id} className={`group hover:brightness-105 dark:hover:brightness-125 transition-all ${colors.bg} ${colors.border}`}>
-                <td className={`py-6 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
-                  <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
-                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm print:shadow-none`}>
+                <td className={`py-4 px-3 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white print:py-3 print:align-middle`}>
+                  <div className="flex items-center gap-3 h-full print:gap-2">
+                    <div className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl ${colors.icon} group-hover:scale-110 transition-transform shadow-sm print:hidden`}>
                       <cat.icon className="w-5 h-5" />
                     </div>
                     <span className="truncate leading-normal">{cat.name}</span>
@@ -4168,7 +4406,7 @@ function PlanWeekTable({
                           {completion === 'done' ? '✓' : '✗'}
                         </div>
                       )}
-                      <div className="flex flex-col items-center justify-center gap-1 min-h-[40px]">
+                      <div className="flex flex-col items-center justify-center gap-1 print:gap-0.5">
                         {cat.id === 'vocab' ? (
                           <div className="flex flex-col items-center gap-1">
                             <span className="text-sm font-bold text-gray-900 dark:text-white" dir="ltr">{getVocabRange(weekNum, d)}</span>
@@ -4193,7 +4431,7 @@ function PlanWeekTable({
                     </td>
                   );
                 })}
-                <td className={`py-6 border-b border-s ${B} text-center font-extrabold text-[13px] ${colors.summary} plan-cell-hover`}>
+                <td className={`py-4 px-3 border-b border-s ${B} text-center font-extrabold text-[13px] ${colors.summary} plan-cell-hover print:py-3 print:border`}>
                   {formatTime(cat.mins * 7)}
                 </td>
               </tr>
@@ -4201,10 +4439,10 @@ function PlanWeekTable({
             })}
 
             {/* ── Spaced Repetition Review Row ── */}
-            <tr className="bg-purple-50/70 dark:bg-purple-950/25 print:bg-white border-l-4 border-l-purple-500 print:border-l-0 group hover:brightness-105 dark:hover:brightness-125 transition-all">
-              <td className={`py-5 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white`}>
-                <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
-                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm print:shadow-none">
+            <tr className="bg-purple-50/70 dark:bg-purple-950/25 group hover:brightness-105 dark:hover:brightness-125 transition-all">
+              <td className={`py-4 px-3 border-b border-e ${B} font-bold text-[13px] text-gray-900 dark:text-white print:py-3 print:align-middle`}>
+                <div className="flex items-center gap-3 h-full print:gap-2">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform shadow-sm print:hidden">
                     <RotateCcw className="w-5 h-5" />
                   </div>
                   <span className="truncate leading-normal">{t.spacedRep}</span>
@@ -4213,7 +4451,7 @@ function PlanWeekTable({
               {[0, 1, 2, 3, 4, 5, 6].map(d => {
                 const phases = getSpacedRepetition(weekNum, d);
                 return (
-                  <td key={d} className={`${cellBase} align-top`}>
+                  <td key={d} className={`${cellBase} print:align-middle`}>
                     {phases.length === 0 ? (
                       <span className="text-[10px] text-gray-400 dark:text-gray-600">—</span>
                     ) : (
@@ -4259,7 +4497,7 @@ function PlanWeekTable({
                   </td>
                 );
               })}
-              <td className={`py-5 border-b border-s ${B} text-center plan-cell-hover`}>
+              <td className={`py-4 px-3 border-b border-s ${B} text-center plan-cell-hover print:py-3 print:border`}>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-[9px] uppercase tracking-wider text-purple-500 dark:text-purple-400 opacity-70">{_resolveTranslation(lang, 'الفجوات', 'intervals')}</span>
                   <span dir="ltr" className="font-mono text-[9px] font-bold text-purple-600 dark:text-purple-300">+1·+4·+7·+12·+20</span>
@@ -4268,21 +4506,21 @@ function PlanWeekTable({
             </tr>
 
             {/* Summary Row */}
-            <tr className="bg-teal-50 dark:bg-teal-950/30 print:bg-white border-l-4 border-l-teal-500 print:border-l-0">
-              <td className={`py-8 border-e ${B} font-extrabold text-sm text-gray-900 dark:text-white`}>
-                <div className="w-[170px] mx-auto flex items-center gap-4 h-full">
-                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm print:shadow-none">
+            <tr className="bg-teal-50 dark:bg-teal-950/30">
+              <td className={`py-4 px-3 border-e ${B} font-extrabold text-sm text-gray-900 dark:text-white print:py-3 print:align-middle`}>
+                <div className="flex items-center gap-3 h-full print:gap-2">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 shadow-sm print:hidden">
                     <Clock className="w-5 h-5" />
                   </div>
                   <span className="leading-normal">{t.categories.total}</span>
                 </div>
               </td>
               {[0, 1, 2, 3, 4, 5, 6].map(d => (
-                <td key={d} className={`px-6 py-8 text-center border-e ${B} font-extrabold text-sm text-teal-700 dark:text-teal-300 plan-cell-hover`}>
+                <td key={d} className={`px-3 py-4 text-center border-e ${B} font-extrabold text-sm text-teal-700 dark:text-teal-300 plan-cell-hover print:py-3 print:border`}>
                   {formatTime(dailyTotalMins)}
                 </td>
               ))}
-              <td className={`px-6 py-8 border-s ${B} text-center font-black text-sm text-teal-700 dark:text-teal-200 bg-teal-100/50 dark:bg-teal-500/10 plan-cell-hover`}>
+              <td className={`px-3 py-4 border-s ${B} text-center font-black text-sm text-teal-700 dark:text-teal-200 bg-teal-100/50 dark:bg-teal-500/10 plan-cell-hover print:py-3 print:border`}>
                 {formatTime(weeklyTotalMins)}
               </td>
             </tr>
@@ -4358,6 +4596,7 @@ function StudyPlan({
   user,
   syncProgress,
   planResetBlockRef,
+  weekSyncBlockedRef,
 }) {
   const stored = useMemo(() => loadStoredPlan(), []);
   const [targetLevel, setTargetLevel] = useState(stored?.targetLevel || 'C1');
@@ -4390,6 +4629,8 @@ function StudyPlan({
   const [vocabMins, setVocabMins] = useState(stored?.vocabMins ?? 15);
   // isEditing: show the configuration form even when a plan already exists
   const [isEditing, setIsEditing] = useState(false);
+  const [isPrintMode, setIsPrintMode] = useState(false);
+  const userPickedWeekRef = useRef(false);
   const [vocabModal, setVocabModal] = useState(null);
   const [grammarModal, setGrammarModal] = useState(null);
   const [studiedWords, setStudiedWords] = useState(() => {
@@ -4828,10 +5069,18 @@ function StudyPlan({
     });
   };
   const handleNextWeek = () => {
-    if (currentWeek < planData.totalWeeks) setCurrentWeek(prev => prev + 1);
+    if (currentWeek < planData.totalWeeks) {
+      userPickedWeekRef.current = true;
+      if (weekSyncBlockedRef) weekSyncBlockedRef.current = true;
+      setCurrentWeek(prev => prev + 1);
+    }
   };
   const handlePrevWeek = () => {
-    if (currentWeek > 1) setCurrentWeek(prev => prev - 1);
+    if (currentWeek > 1) {
+      userPickedWeekRef.current = true;
+      if (weekSyncBlockedRef) weekSyncBlockedRef.current = true;
+      setCurrentWeek(prev => prev - 1);
+    }
   };
   const openVocabModal = dayIndex => {
     // Langeek source: show actual words from the uploaded Langeek CSV if available,
@@ -4902,33 +5151,51 @@ function StudyPlan({
     });
   };
   const handlePrint = () => {
-    // Force light theme for printing — the dark theme is unreadable on paper.
     const html = document.documentElement;
     const wasDark = html.classList.contains('dark');
+
+    // 1. Force light theme
     if (wasDark) html.classList.remove('dark');
 
-    // Make the print-layout-container visible (it's hidden:block via Tailwind which may not compile)
+    // 2. Force white on root div (inline style beats @media print CSS)
+    const rootDiv = document.getElementById('venoxa-root-div');
+    if (rootDiv) {
+      rootDiv.style.background = '#ffffff';
+      rootDiv.style.height = 'auto';
+      rootDiv.style.overflow = 'visible';
+    }
+
+    // 3. Show the print container
     const printContainer = document.querySelector('.print-layout-container');
-    const screenView = document.querySelector('.print-screen-only');
     if (printContainer) {
       printContainer.style.display = 'block';
       printContainer.style.visibility = 'visible';
+      printContainer.style.position = 'static';
     }
-    if (screenView) screenView.style.display = 'none';
+
+    // 4. Add a class to body so CSS can target it
+    document.body.classList.add('venoxa-printing');
 
     const restore = () => {
-      if (wasDark) html.classList.add('dark');
+      if (wasDark) html.classList.remove('dark');
+      if (rootDiv) {
+        rootDiv.style.background = '';
+        rootDiv.style.height = '';
+        rootDiv.style.overflow = '';
+      }
       if (printContainer) {
         printContainer.style.display = '';
         printContainer.style.visibility = '';
+        printContainer.style.position = '';
       }
-      if (screenView) screenView.style.display = '';
+      document.body.classList.remove('venoxa-printing');
+      // Remove injected style tag
+      const injected = document.getElementById('venoxa-print-fix');
+      if (injected) injected.remove();
       window.removeEventListener('afterprint', restore);
     };
     window.addEventListener('afterprint', restore);
-    requestAnimationFrame(() => {
-      setTimeout(() => window.print(), 50);
-    });
+    requestAnimationFrame(() => setTimeout(() => window.print(), 50));
   };
   const formatTime = mins => {
     const h = Math.floor(mins / 60);
@@ -5444,7 +5711,7 @@ function StudyPlan({
       <button onClick={generatePlan} className="w-full bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black rounded-2xl py-4 font-bold transition shadow-lg active:scale-95 flex items-center justify-center gap-2">{t.gen}</button>
     </div>}
 
-    {planData && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:!shadow-none print:border-none print:p-0">
+    {planData && <div className="card-shine glass-panel border border-gray-200 dark:border-[var(--app-border)] rounded-2xl p-6 md:p-8 animate-fadeIn transition-colors relative print:shadow-none print:border-none print:p-0">
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex h-11 items-center gap-2 bg-gray-50 dark:bg-[var(--app-card)] px-3 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] shadow-sm">
@@ -5460,7 +5727,7 @@ function StudyPlan({
           </div>
           <CustomDropdown 
             value={currentWeek} 
-            onChange={val => setCurrentWeek(Number(val))} 
+            onChange={val => { userPickedWeekRef.current = true; if (weekSyncBlockedRef) weekSyncBlockedRef.current = true; setCurrentWeek(Number(val)); }} 
             options={Array.from({ length: planData.totalWeeks }, (_, i) => ({ value: i + 1, label: `${t.week} ${i + 1}` }))} 
             theme={theme}
             className="min-w-[120px]"
@@ -5607,16 +5874,16 @@ function StudyPlan({
 
       {/* Print view: every week, page break between */}
       <div className="print-layout-container" style={{ display: 'none' }}>
-        <div className="text-center mb-4">
-          <h1 className="text-2xl font-bold text-black">{_resolveTranslation(lang, 'الجدول الأسبوعي للمذاكرة - Venoxa AI', 'Weekly Study Plan - Venoxa AI')}</h1>
-          <p className="text-gray-700 mt-1 text-sm">{t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel} | {planData.totalWeeks} {_resolveTranslation(lang, 'أسابيع', 'weeks')}</p>
-        </div>
-        {Array.from({
-          length: planData.totalWeeks
-        }, (_, i) => i + 1).map(w => (
-          <div key={w} className={`print-week-page print:block print:break-inside-avoid break-inside-avoid ${w < planData.totalWeeks ? 'break-after-page' : ''}`} style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto', breakInside: 'avoid', pageBreakInside: 'avoid' }}>
-            <div className="text-center mb-4 print:pt-4">
-              <h2 className="text-xl font-bold text-black">{t.week} {w}</h2>
+        {Array.from({ length: planData.totalWeeks }, (_, i) => i + 1).map(w => (
+          <div key={w} className="print-week-page" style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto', pageBreakInside: 'avoid', breakInside: 'avoid', breakAfter: w < planData.totalWeeks ? 'page' : 'auto' }}>
+            {w === 1 && (
+              <div style={{ textAlign: 'center', marginBottom: '6mm' }}>
+                <h1 style={{ fontSize: '20px', fontWeight: 900, color: '#0f172a', margin: '0 0 3px' }}>{_resolveTranslation(lang, 'الجدول الأسبوعي للمذاكرة - Venoxa AI', 'Weekly Study Plan - Venoxa AI')}</h1>
+                <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>{t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel} | {planData.totalWeeks} {_resolveTranslation(lang, 'أسابيع', 'weeks')}</p>
+              </div>
+            )}
+            <div style={{ textAlign: 'center', marginBottom: '5mm' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b', margin: 0 }}>{t.week} {w}</h2>
             </div>
             <PlanWeekTable 
               weekNum={w} 
@@ -6145,7 +6412,7 @@ Rules:
             {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
             {aiStory && <div className={`bg-gray-50 dark:bg-[var(--app-card)] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
             {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
-            {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+            {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
           </div>}
         </div>
 
@@ -6389,7 +6656,7 @@ Rules:
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiStory && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-orange-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
         {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -6691,7 +6958,7 @@ Rules:
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiSentence && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
         {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -6991,7 +7258,7 @@ Rules:
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiSentence && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
         {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -11788,7 +12055,9 @@ Rules:
           whiteSpace: 'pre-wrap'
         }}>{safeRender(aiStory)}</div></div>}
         {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { const src = e.target.src; if (src.includes('/api/image?') || src.includes('%2Fapi%2Fimage')) { try { const u = new URL(src, window.location.origin); const prompt = u.searchParams.get('prompt'); const seed = u.searchParams.get('seed') || '0'; if (prompt) { e.target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=420&nologo=true&seed=${seed}&model=flux`; return; } } catch(_) {} } e.target.onerror = null; e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
+          e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found';
+        }} /></div>}
       </div>}
     </div>}
 

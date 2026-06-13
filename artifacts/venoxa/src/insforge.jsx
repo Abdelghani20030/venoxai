@@ -88,6 +88,11 @@ function docToUser(uid, email, data = {}) {
     speakingFavorites:           data.speakingFavorites           || [],
     wordOfDayHistory:            data.wordOfDayHistory            || [],
     idiomOfDayHistory:           data.idiomOfDayHistory           || [],
+    customGlobalVocab:           data.customGlobalVocab           || [],
+    customPhrasalVocab:          data.customPhrasalVocab          || [],
+    customIdiomsVocab:           data.customIdiomsVocab           || [],
+    customIdiomsProperVocab:     data.customIdiomsProperVocab     || [],
+    customLangeekVocab:          data.customLangeekVocab          || [],
   };
 }
 
@@ -276,6 +281,43 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
   }
 }
 
+export async function pullProgress(uid) {
+  if (!uid) return null;
+  try {
+    const ref = doc(db, 'users', uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      return docToUser(uid, auth.currentUser?.email || snap.data().email || '', snap.data());
+    }
+  } catch (err) {
+    console.warn('pullProgress failed', err);
+  }
+  return null;
+}
+
+export async function pushProgress(uid, delta) {
+  if (!uid) return;
+  try {
+    const ref = doc(db, 'users', uid);
+    await updateDoc(ref, {
+      ...delta,
+      updatedAt: serverTimestamp()
+    });
+  } catch (err) {
+    console.warn('pushProgress updateDoc failed, attempting setDoc with merge', err);
+    try {
+      const ref = doc(db, 'users', uid);
+      await setDoc(ref, {
+        ...delta,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (e) {
+      console.error('pushProgress completely failed', e);
+      throw e;
+    }
+  }
+}
+
 export function syncBeacon(_tokenOrUid, localData = {}) {
   // Fires on page unload. Resolve uid from auth — the passed arg is a JWT token.
   const uid = auth.currentUser?.uid;
@@ -449,27 +491,79 @@ export async function loadAllVocabFromStorage() {
   // ── 1. Load default bundled data ──
   const bundled = await loadBundledVocab();
 
-  // ── 2. Load user-specific overrides from Firebase Storage ──
-  const sections = ['global', 'phrasal', 'slang', 'idioms', 'langeek'];
-  const parsers = {
-    global:  _parseGlobalCSV,
-    phrasal: _parsePhrasalCSV,
-    slang:   _parseSlangCSV,
-    idioms:  _parseIdiomsCSV,
-    langeek: _parseLangeekCSV,
+  const uid = auth.currentUser?.uid;
+  let uploaded = {
+    globalVocab:  null,
+    phrasalVocab: null,
+    slangVocab:   null,
+    idiomsVocab:  null,
+    langeekVocab: null,
   };
 
-  const results = await Promise.allSettled(
-    sections.map(s => downloadVocabCSV(s))
-  );
+  if (uid) {
+    try {
+      const ref = doc(db, 'users', uid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const data = snap.data();
+        uploaded.globalVocab = data.customGlobalVocab || null;
+        uploaded.phrasalVocab = data.customPhrasalVocab || null;
+        uploaded.slangVocab = data.customIdiomsVocab || null;       // maps to slangVocab / idiomsVocab key in App.jsx
+        uploaded.idiomsVocab = data.customIdiomsProperVocab || null;  // maps to idiomsVocab / idiomsProperVocab key in App.jsx
+        uploaded.langeekVocab = data.customLangeekVocab || null;
+      }
+    } catch (err) {
+      console.warn('Failed to load custom vocab from Firestore', err);
+    }
 
-  const uploaded = {
-    globalVocab:  results[0].value ? parsers.global(results[0].value)  : null,
-    phrasalVocab: results[1].value ? parsers.phrasal(results[1].value) : null,
-    slangVocab:   results[2].value ? parsers.slang(results[2].value)   : null,
-    idiomsVocab:  results[3].value ? parsers.idioms(results[3].value)  : null,
-    langeekVocab: results[4].value ? parsers.langeek(results[4].value) : null,
-  };
+    // Fallback to Firebase Storage if Firestore has no custom vocab data
+    const hasCustomVocabInFirestore =
+      (uploaded.globalVocab && uploaded.globalVocab.length > 0) ||
+      (uploaded.phrasalVocab && uploaded.phrasalVocab.length > 0) ||
+      (uploaded.slangVocab && uploaded.slangVocab.length > 0) ||
+      (uploaded.idiomsVocab && uploaded.idiomsVocab.length > 0) ||
+      (uploaded.langeekVocab && uploaded.langeekVocab.length > 0);
+
+    if (!hasCustomVocabInFirestore) {
+      console.log('No custom vocabs in Firestore; checking Firebase Storage fallback...');
+      const sections = ['global', 'phrasal', 'slang', 'idioms', 'langeek'];
+      const parsers = {
+        global:  _parseGlobalCSV,
+        phrasal: _parsePhrasalCSV,
+        slang:   _parseSlangCSV,
+        idioms:  _parseIdiomsCSV,
+        langeek: _parseLangeekCSV,
+      };
+
+      const results = await Promise.allSettled(
+        sections.map(s => downloadVocabCSV(s))
+      );
+
+      uploaded.globalVocab = results[0].value ? parsers.global(results[0].value)  : null;
+      uploaded.phrasalVocab = results[1].value ? parsers.phrasal(results[1].value) : null;
+      uploaded.slangVocab = results[2].value ? parsers.slang(results[2].value)   : null;
+      uploaded.idiomsVocab = results[3].value ? parsers.idioms(results[3].value)  : null;
+      uploaded.langeekVocab = results[4].value ? parsers.langeek(results[4].value) : null;
+
+      // Automatically migrate downloaded Storage CSV data to Firestore!
+      const migrationDelta = {};
+      if (uploaded.globalVocab && uploaded.globalVocab.length > 0) migrationDelta.customGlobalVocab = uploaded.globalVocab;
+      if (uploaded.phrasalVocab && uploaded.phrasalVocab.length > 0) migrationDelta.customPhrasalVocab = uploaded.phrasalVocab;
+      if (uploaded.slangVocab && uploaded.slangVocab.length > 0) migrationDelta.customIdiomsVocab = uploaded.slangVocab;
+      if (uploaded.idiomsVocab && uploaded.idiomsVocab.length > 0) migrationDelta.customIdiomsProperVocab = uploaded.idiomsVocab;
+      if (uploaded.langeekVocab && uploaded.langeekVocab.length > 0) migrationDelta.customLangeekVocab = uploaded.langeekVocab;
+
+      if (Object.keys(migrationDelta).length > 0) {
+        try {
+          const ref = doc(db, 'users', uid);
+          await updateDoc(ref, migrationDelta);
+          console.log('Migrated custom vocabs from Firebase Storage to Firestore successfully.');
+        } catch (err) {
+          console.warn('Migration of custom vocabs to Firestore failed', err);
+        }
+      }
+    }
+  }
 
   // ── 3. Merge helper: user overrides bundled by `word` key ──
   function mergeByWord(base = [], override) {
