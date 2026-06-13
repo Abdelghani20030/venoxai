@@ -1737,9 +1737,14 @@ function AppInner() {
     for (const [k, v] of Object.entries(payload)) snap[k] = _hashVal(v);
     _saveSnap(snap);
   };
-  // Return only the fields whose hash differs from the last snapshot
+  // Return only the fields whose hash differs from the last snapshot.
+  // IMPORTANT: if there is no snapshot on this device (incognito / new device),
+  // we return an empty delta so we NEVER upload empty arrays as if they were
+  // deliberate changes — that would wipe the cloud data for other devices.
   const _buildDelta = (payload) => {
     const snap = _loadSnap();
+    const hasSnapshot = Object.keys(snap).length > 0;
+    if (!hasSnapshot) return {}; // no baseline — upload nothing, only download
     return Object.fromEntries(
       Object.entries(payload).filter(([k, v]) => _hashVal(v) !== snap[k])
     );
