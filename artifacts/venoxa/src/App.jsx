@@ -2241,29 +2241,31 @@ function AppInner() {
     }
   }, [token]);
 
-  // ── Multi-device harmony: sync on both hide and show ──────────────────────
-  // • Tab goes HIDDEN  → upload any pending local changes immediately
-  //   (covers: switching apps, locking phone, changing browser tab)
-  //   So Device B always sees the latest when you open it next.
-  // • Tab becomes VISIBLE → pull latest from cloud
-  //   (covers: returning to the site from another device)
-  // This gives full multi-device sync without burning bandwidth during active use.
+  // ── Multi-device harmony: full Firestore sync on hide/show ───────────────
+  // KEY INSIGHT: syncBeacon only saves xp/streak/usageTime/calendarDays.
+  // Vocabulary words, SRS data, idioms, etc. are NEVER saved via beacon.
+  // Fix: when the tab goes HIDDEN (user switches tab, opens incognito, locks
+  // phone), we do a FULL Firestore write via syncProgress while the tab is
+  // still alive in the background — async calls still complete reliably here.
+  // When tab becomes VISIBLE again, we pull the latest data from Firestore.
   useEffect(() => {
     if (!token) return;
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
-        // User is leaving — push any pending changes so other devices see them
+        // Tab going to background — do a FULL Firestore write (not beacon).
+        // syncBeacon only saves xp/streak — it loses all vocab words, SRS, idioms.
+        // The tab is still alive here, so async Firestore writes complete reliably.
         try {
           const payload = _gatherSyncPayload();
           const { _local, ...syncBody } = payload;
           const delta = _buildDelta(syncBody);
           if (Object.keys(delta).length > 0) {
-            // Prefer beacon (non-blocking, fires even if tab is killed)
-            syncBeacon(delta);
+            // force=true: bypass the 30-min gap guard — must save NOW
+            syncProgress(token, user, null, true);
           }
         } catch {}
       } else if (document.visibilityState === 'visible') {
-        // User returned — pull latest from cloud so we have fresh data
+        // Tab returned to foreground — pull latest from Firestore
         syncProgress(token, user);
       }
     };
