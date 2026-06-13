@@ -1696,6 +1696,7 @@ function AppInner() {
     setUser(null);
     localStorage.removeItem('venoxa_token');
     localStorage.removeItem('venoxa_user');
+    localStorage.removeItem('venoxa_sync_snapshot'); // clear delta baseline for next user
   };
 
   const updateProfile = async (updates) => {
@@ -1712,6 +1713,36 @@ function AppInner() {
       console.error(err);
       alert(err.message);
     }
+  };
+
+  // ── Delta sync: only upload fields that actually changed ─────────────────
+  // Stores a hash of each field after every successful sync in localStorage.
+  // Next sync: compare hashes → send only changed fields → 0 bytes if nothing changed.
+  const _SNAP_KEY = 'venoxa_sync_snapshot';
+  const _hashVal = (v) => {
+    const s = JSON.stringify(v) ?? '';
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  };
+  const _loadSnap = () => {
+    try { return JSON.parse(localStorage.getItem(_SNAP_KEY) || '{}'); } catch { return {}; }
+  };
+  const _saveSnap = (snap) => {
+    try { localStorage.setItem(_SNAP_KEY, JSON.stringify(snap)); } catch {}
+  };
+  // Stamp all fields in payload as "known good baseline" after a successful sync
+  const _stampSnap = (payload) => {
+    const snap = _loadSnap();
+    for (const [k, v] of Object.entries(payload)) snap[k] = _hashVal(v);
+    _saveSnap(snap);
+  };
+  // Return only the fields whose hash differs from the last snapshot
+  const _buildDelta = (payload) => {
+    const snap = _loadSnap();
+    return Object.fromEntries(
+      Object.entries(payload).filter(([k, v]) => _hashVal(v) !== snap[k])
+    );
   };
 
   // ── Gather all syncable localStorage data into a single object ──
@@ -1973,7 +2004,10 @@ function AppInner() {
   };
 
   const lastSyncTimeRef = useRef(0);
-  const MIN_SYNC_GAP_MS = 4 * 60 * 1000; // never sync more than once per 4 minutes unless forced
+  // ── Offline-first strategy: localStorage is always up-to-date instantly.
+  // Network upload is batched and only fires when truly needed (like Duolingo / LanGeek).
+  // Forced login/register syncs are never throttled.
+  const MIN_SYNC_GAP_MS = 30 * 60 * 1000; // never sync more than once per 30 min unless forced
 
   const syncProgress = async (currentToken = token, currentUser = user, customCells = null, force = false) => {
     if (!currentToken) return;
@@ -1991,7 +2025,25 @@ function AppInner() {
       const payload = _gatherSyncPayload(customCells);
       const { _local, ...syncBody } = payload;
 
-      const merged = await fbSyncProgress(currentToken, syncBody);
+      // ── Delta check: only upload what actually changed ──────────────────
+      const delta = _buildDelta(syncBody);
+      const hasDelta = Object.keys(delta).length > 0;
+
+      // How long since we last pulled from the server (for multi-device freshness)
+      const PULL_INTERVAL_MS = 20 * 60 * 1000; // pull every 20 min even with no local changes
+      const msSinceLastSync = Date.now() - lastSyncTimeRef.current;
+      const needsPull = msSinceLastSync >= PULL_INTERVAL_MS;
+
+      if (!hasDelta && !force && !needsPull) {
+        // Nothing changed and we synced recently — skip the network call entirely
+        setSyncStatus('idle');
+        return;
+      }
+
+      // Send only changed fields (delta). If nothing changed but we need to pull,
+      // send an empty object — the server just returns the current DB state.
+      const uploadBody = hasDelta ? delta : {};
+      const merged = await fbSyncProgress(currentToken, uploadBody);
       if (!merged) throw new Error('No data returned from InsForge');
 
       const mergedUser = {
@@ -2165,6 +2217,7 @@ function AppInner() {
       }
 
       setSyncStatus('synced');
+      _stampSnap(syncBody); // record current state — next sync will diff against this
       if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 3000);
 
@@ -2195,10 +2248,11 @@ function AppInner() {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [token]);
 
-  // ── Periodic background sync every 5 minutes ──
+  // ── Periodic background sync every 30 minutes ──
+  // Data is always safe in localStorage; this is just a cloud backup heartbeat.
   useEffect(() => {
     if (!token) return;
-    const interval = setInterval(() => syncProgress(token, user), 15 * 60 * 1000);
+    const interval = setInterval(() => syncProgress(token, user), 30 * 60 * 1000);
     return () => clearInterval(interval);
   }, [token]);
 
@@ -2209,7 +2263,10 @@ function AppInner() {
       try {
         const payload = _gatherSyncPayload();
         const { _local, ...syncBody } = payload;
-        syncBeacon(syncBody);
+        const delta = _buildDelta(syncBody);
+        if (Object.keys(delta).length > 0) {
+          syncBeacon(delta); // only send what changed — 0 bytes if nothing changed
+        }
       } catch {}
     };
     window.addEventListener('beforeunload', handleUnload);
@@ -2353,14 +2410,17 @@ function AppInner() {
     wordOfDayHistory, idiomOfDayHistory
   ]);
 
-  // Debounced background sync to the cloud database when local data is modified
+  // ── Offline-first idle sync ──────────────────────────────────────────────────
+  // Data changes are already persisted to localStorage immediately (zero latency).
+  // We only attempt a cloud upload after the user has been idle for 5 minutes.
+  // The MIN_SYNC_GAP_MS guard (30 min) further ensures we never spam the server.
+  // This mirrors what Duolingo / LanGeek do: local-first, lazy cloud backup.
   useEffect(() => {
-    if (token) {
-      const timer = setTimeout(() => {
-        syncProgress(token, user, null, true); // force=true: user just changed data, push it immediately
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
+    if (!token) return;
+    const timer = setTimeout(() => {
+      syncProgress(token, user); // no force — respects the 30-min gap guard
+    }, 5 * 60 * 1000); // wait 5 min of idle before attempting upload
+    return () => clearTimeout(timer);
   }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory, pronBookmarks, pronCompleted, testSessions, listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites, wordOfDayHistory, idiomOfDayHistory]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
