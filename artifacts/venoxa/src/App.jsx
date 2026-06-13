@@ -5719,8 +5719,8 @@ function StudyPlan({
         </div>
       </div>
 
-      {/* Per-skill progress sliders — auto-advance with the current week */}
-      <div className="bg-gray-50 dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)]/50 rounded-2xl p-5 mb-6 print:hidden">
+      {/* Per-skill progress sliders — hidden while editing */}
+      {!isEditing && <div className="bg-gray-50 dark:bg-[var(--app-card)] border border-gray-200 dark:border-[var(--app-border)]/50 rounded-2xl p-5 mb-6 print:hidden">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="text-lg font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
             <Layers className="w-5 h-5 text-black dark:text-white" /> {t.progressTitle}
@@ -5834,7 +5834,7 @@ function StudyPlan({
             </div>);
           })()}
         </div>
-      </div>
+      </div>}
 
       {/* Screen view: current week only — hidden while editing or in print mode */}
       {!isEditing && !isPrintMode && (
