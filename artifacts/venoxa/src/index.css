@@ -402,6 +402,22 @@ html:not(.dark) [class*="hover:shadow-2xl"] {
   background: transparent;
 }
 
+@media screen {
+  /* Hide the print layout container on screen — it is rendered via React state
+     and only visible when the browser’s print dialog is open */
+  .print-layout-container {
+    position: fixed !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    width: 100vw !important;
+    height: auto !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    z-index: -1000 !important;
+  }
+}
+
 *::-webkit-scrollbar-thumb {
   background-color: rgba(100, 116, 139, 0.3);
   border-radius: 999px;
@@ -462,7 +478,7 @@ html:not(.dark) .border-gray-100 {
 @media print {
   @page {
     size: A4 landscape;
-    margin: 12mm 10mm;
+    margin: 10mm 8mm;
   }
 
   html,
@@ -515,9 +531,14 @@ html:not(.dark) .border-gray-100 {
 
   /* ── Week page wrappers ───────────────────────────────────────── */
   .print-layout-container {
+    position: static !important;
+    visibility: visible !important;
     display: block !important;
     width: 100% !important;
     overflow: visible !important;
+    top: auto !important;
+    left: auto !important;
+    z-index: auto !important;
   }
 
   /* Hide screen-only wrapper during actual print */

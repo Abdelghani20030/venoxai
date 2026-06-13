@@ -5151,51 +5151,20 @@ function StudyPlan({
     });
   };
   const handlePrint = () => {
-    const html = document.documentElement;
-    const wasDark = html.classList.contains('dark');
-
-    // 1. Force light theme
-    if (wasDark) html.classList.remove('dark');
-
-    // 2. Force white on root div (inline style beats @media print CSS)
-    const rootDiv = document.getElementById('venoxa-root-div');
-    if (rootDiv) {
-      rootDiv.style.background = '#ffffff';
-      rootDiv.style.height = 'auto';
-      rootDiv.style.overflow = 'visible';
-    }
-
-    // 3. Show the print container
-    const printContainer = document.querySelector('.print-layout-container');
-    if (printContainer) {
-      printContainer.style.display = 'block';
-      printContainer.style.visibility = 'visible';
-      printContainer.style.position = 'static';
-    }
-
-    // 4. Add a class to body so CSS can target it
-    document.body.classList.add('venoxa-printing');
-
-    const restore = () => {
-      if (wasDark) html.classList.remove('dark');
-      if (rootDiv) {
-        rootDiv.style.background = '';
-        rootDiv.style.height = '';
-        rootDiv.style.overflow = '';
-      }
-      if (printContainer) {
-        printContainer.style.display = '';
-        printContainer.style.visibility = '';
-        printContainer.style.position = '';
-      }
-      document.body.classList.remove('venoxa-printing');
-      // Remove injected style tag
-      const injected = document.getElementById('venoxa-print-fix');
-      if (injected) injected.remove();
-      window.removeEventListener('afterprint', restore);
-    };
-    window.addEventListener('afterprint', restore);
-    requestAnimationFrame(() => setTimeout(() => window.print(), 50));
+    // Show the print container via React state, then print once it renders
+    setIsPrintMode(true);
+    // Wait for React to render the print layout, then trigger print
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        window.print();
+        // After print dialog closes, restore normal view
+        const handleAfterPrint = () => {
+          setIsPrintMode(false);
+          window.removeEventListener('afterprint', handleAfterPrint);
+        };
+        window.addEventListener('afterprint', handleAfterPrint);
+      }, 100);
+    });
   };
   const formatTime = mins => {
     const h = Math.floor(mins / 60);
@@ -5867,48 +5836,50 @@ function StudyPlan({
         </div>
       </div>
 
-      {/* Screen view: current week only */}
-      <div className="print-screen-only print:hidden">
-        <PlanWeekTable weekNum={currentWeek} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} planGrammarRules={planGrammarRules} rulesPerDay={planMeta?.rulesPerDay || rulesPerDay} t={t} lang={lang} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive completedCells={completedCells} onToggleCell={toggleCellCompletion} wordSource={planMeta?.wordSource || wordSource} />
-      </div>
-
-      {/* Print view: every week, page break between */}
-      <div className="print-layout-container" style={{ display: 'none' }}>
-        {Array.from({ length: planData.totalWeeks }, (_, i) => i + 1).map(w => (
-          <div key={w} className="print-week-page" style={{ pageBreakAfter: w < planData.totalWeeks ? 'always' : 'auto', pageBreakInside: 'avoid', breakInside: 'avoid', breakAfter: w < planData.totalWeeks ? 'page' : 'auto' }}>
-            {w === 1 && (
-              <div style={{ textAlign: 'center', marginBottom: '6mm' }}>
-                <h1 style={{ fontSize: '20px', fontWeight: 900, color: '#0f172a', margin: '0 0 3px' }}>{_resolveTranslation(lang, 'الجدول الأسبوعي للمذاكرة - Venoxa AI', 'Weekly Study Plan - Venoxa AI')}</h1>
-                <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>{t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel} | {planData.totalWeeks} {_resolveTranslation(lang, 'أسابيع', 'weeks')}</p>
+      {/* Screen view: current week only — hidden while editing or in print mode */}
+      {!isEditing && !isPrintMode && (
+        <div className="print-screen-only print:hidden">
+          <PlanWeekTable weekNum={currentWeek} planData={planData} userLevel={userLevel} wordsPerDay={wordsPerDay} planGrammarRules={planGrammarRules} rulesPerDay={planMeta?.rulesPerDay || rulesPerDay} t={t} lang={lang} formatTime={formatTime} getVocabRange={getVocabRange} getSpacedRepetition={getSpacedRepetition} dailyTotalMins={dailyTotalMins} weeklyTotalMins={weeklyTotalMins} openVocabModal={openVocabModal} openGrammarModal={openGrammarModal} interactive completedCells={completedCells} onToggleCell={toggleCellCompletion} wordSource={planMeta?.wordSource || wordSource} />
+        </div>
+      )}
+      {/* Print view: all weeks — only rendered when isPrintMode is active */}
+      {isPrintMode && (
+        <div className="print-layout-container">
+          {Array.from({ length: planData.totalWeeks }, (_, i) => i + 1).map(w => (
+            <div key={w} className="print-week-page">
+              {w === 1 && (
+                <div style={{ textAlign: 'center', marginBottom: '6mm' }}>
+                  <h1 style={{ fontSize: '20px', fontWeight: 900, color: '#0f172a', margin: '0 0 3px' }}>{_resolveTranslation(lang, 'الجدول الأسبوعي للمذاكرة - Venoxa AI', 'Weekly Study Plan - Venoxa AI')}</h1>
+                  <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>{t.currentLvl}: {userLevel} | {t.targetLvl}: {targetLevel} | {planData.totalWeeks} {_resolveTranslation(lang, 'أسابيع', 'weeks')}</p>
+                </div>
+              )}
+              <div style={{ textAlign: 'center', marginBottom: '5mm' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b', margin: 0 }}>{t.week} {w}</h2>
               </div>
-            )}
-            <div style={{ textAlign: 'center', marginBottom: '5mm' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b', margin: 0 }}>{t.week} {w}</h2>
+              <PlanWeekTable 
+                weekNum={w} 
+                planData={planData} 
+                userLevel={userLevel} 
+                wordsPerDay={wordsPerDay} 
+                planGrammarRules={planGrammarRules}
+                rulesPerDay={planMeta?.rulesPerDay || rulesPerDay}
+                t={t}
+                lang={lang}
+                formatTime={formatTime} 
+                getVocabRange={getVocabRange} 
+                getSpacedRepetition={getSpacedRepetition} 
+                dailyTotalMins={dailyTotalMins} 
+                weeklyTotalMins={weeklyTotalMins} 
+                openVocabModal={openVocabModal} 
+                openGrammarModal={openGrammarModal} 
+                interactive={false} 
+                completedCells={completedCells}
+                wordSource={planMeta?.wordSource || wordSource}
+              />
             </div>
-            <PlanWeekTable 
-              weekNum={w} 
-              planData={planData} 
-              userLevel={userLevel} 
-              wordsPerDay={wordsPerDay} 
-              planGrammarRules={planGrammarRules}
-              rulesPerDay={planMeta?.rulesPerDay || rulesPerDay}
-              t={t}
-              lang={lang}
-              formatTime={formatTime} 
-              getVocabRange={getVocabRange} 
-              getSpacedRepetition={getSpacedRepetition} 
-              dailyTotalMins={dailyTotalMins} 
-              weeklyTotalMins={weeklyTotalMins} 
-              openVocabModal={openVocabModal} 
-              openGrammarModal={openGrammarModal} 
-              interactive={false} 
-              completedCells={completedCells}
-              wordSource={planMeta?.wordSource || wordSource}
-            />
-          </div>
-        ))}
-      </div>
-
+          ))}
+        </div>
+      )}
       {vocabModal && ReactDOM.createPortal(
         <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden`} onClick={() => setVocabModal(null)}>
           <div className="glass-panel rounded-2xl max-w-sm w-full border border-gray-200 dark:border-[var(--app-border)] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
