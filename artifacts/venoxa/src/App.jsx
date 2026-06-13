@@ -9966,10 +9966,10 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
   }
   return (
     <>
-      <div className={`w-full h-[90vh] flex flex-col animate-fadeIn overflow-hidden bg-white dark:bg-black transition-colors relative ${isCallMode ? '' : 'border border-gray-100 dark:border-[var(--app-border)] rounded-2xl'}`}>
+      <div className={`w-full h-[calc(100vh-112px)] flex flex-col animate-fadeIn overflow-hidden bg-white dark:bg-black transition-colors relative ${isCallMode ? '' : 'border border-gray-100 dark:border-[var(--app-border)] rounded-2xl'}`}>
         {theme === 'dark' && <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden"><ParticlesBackground /></div>}
         {!isCallMode && (
-          <header className="px-6 py-4 border-b border-gray-100 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-transparent relative z-20">
+          <header className="sticky top-[88px] z-20 px-6 py-4 border-b border-gray-100 dark:border-[var(--app-border)] flex flex-col md:flex-row justify-between items-center gap-4 bg-white/95 dark:bg-black/95 backdrop-blur-md">
             <div className="flex items-center gap-4">
               <div className="p-2.5 rounded-2xl bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]">
                 <MessageSquare className="w-5 h-5" />
@@ -10209,7 +10209,7 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
           <div ref={chatEndRef} />
         </div>
 
-        <div className="px-4 py-4 border-t border-gray-100 dark:border-[var(--app-border)] bg-white dark:bg-transparent transition-colors relative z-10">
+        <div className="px-4 py-4 border-t border-gray-100 dark:border-[var(--app-border)] bg-white/95 dark:bg-black/95 backdrop-blur-md transition-colors relative z-10">
           {/* Personality Panel */}
           {showPersonalityPanel && (
             <div className="mb-3 p-3 bg-gray-50 dark:bg-[var(--app-surface)] border border-gray-100 dark:border-[var(--app-border)] rounded-2xl animate-fadeIn max-h-[420px] overflow-y-auto custom-scrollbar">
