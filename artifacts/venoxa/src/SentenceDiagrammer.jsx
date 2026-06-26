@@ -128,6 +128,7 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
     <div className="flex flex-col gap-5 max-w-5xl mx-auto w-full pb-8 animate-fadeIn"
          dir={uiLang === 'ar' ? 'rtl' : 'ltr'}>
 
+      {/* ── Header ── */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-2xl bg-[var(--app-accent1)] flex items-center justify-center shadow-lg">
           <GitBranch className="w-5 h-5 text-white" />
@@ -143,7 +144,7 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
         </div>
       </div>
 
-      {/* Input */}
+      {/* ── Input ── */}
       <div className="card-shine glass-panel rounded-3xl flex flex-col">
         <textarea
           value={sentence}
@@ -172,6 +173,7 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
         </div>
       </div>
 
+      {/* ── Error ── */}
       {error && (
         <div className="flex items-center gap-3 py-4 px-5 rounded-2xl liquid-glass bg-red-500/8">
           <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
@@ -179,8 +181,9 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
         </div>
       )}
 
+      {/* ── Loading ── */}
       {busy && !data && !error && (
-        <div className="flex items-center gap-3 justify-center py-8">
+        <div className="flex items-center gap-3 justify-center py-12">
           <Loader2 className="w-5 h-5 text-[var(--app-accent1)] animate-spin" />
           <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             {t('Diagramming…', 'جارٍ التحليل…')}
@@ -188,15 +191,19 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
         </div>
       )}
 
+      {/* ── Results ── */}
       {data && (
-        <>
-          {/* Sentence type chip and Save button */}
+        <div className="card-shine glass-panel rounded-3xl p-6 flex flex-col gap-5">
+
+          {/* Sentence type chip + Save */}
           <div className="flex items-center justify-between">
-            {data.type ? (
-              <span className="px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-widest bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
-                {data.type}
-              </span>
-            ) : <div />}
+            <div className="flex items-center gap-2 flex-wrap">
+              {data.type && (
+                <span className="px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-widest bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
+                  {data.type}
+                </span>
+              )}
+            </div>
             <button
               onClick={toggleFavorite}
               title={isFavorited ? t('Remove from favorites', 'إزالة من المفضلة') : t('Save to favorites', 'حفظ في المفضلة')}
@@ -206,51 +213,54 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
                   : isDark ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10' : 'text-gray-400 hover:text-red-500 hover:bg-red-500/8'
               }`}
             >
-              <Heart className="w-4 h-4" fill={isFavorited ? 'currentColor' : 'none'} />
+              <Heart className="w-5 h-5" fill={isFavorited ? 'currentColor' : 'none'} />
             </button>
           </div>
 
-          {/* Token diagram */}
+          {/* ── Token diagram ── */}
           {data.tokens?.length > 0 && (
-            <div className={`rounded-3xl p-5 flex flex-wrap gap-2 liquid-glass ${
-              isDark ? 'bg-white/3' : 'bg-white/55'
-            }`} dir="ltr">
-              {data.tokens.map((tok, i) => {
-                const s = posStyle(tok.pos);
-                return (
-                  <div key={i} className="flex flex-col items-center">
-                    <span className={`text-base font-bold leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {tok.text}
-                    </span>
-                    <span className={`mt-1 text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded ${s.bg} ${s.text}`}
-                          title={s.label}>
-                      {tok.pos}
-                    </span>
-                  </div>
-                );
-              })}
+            <div>
+              <div className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--app-accent1)] mb-3">
+                {t('Word Analysis', 'تحليل الكلمات')}
+              </div>
+              <div className={`rounded-2xl p-4 flex flex-wrap gap-3 ${
+                isDark ? 'bg-white/5' : 'bg-white/70'
+              }`} dir="ltr">
+                {data.tokens.map((tok, i) => {
+                  const s = posStyle(tok.pos);
+                  return (
+                    <div key={i} className="flex flex-col items-center gap-1.5">
+                      <span className={`text-base font-bold leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {tok.text}
+                      </span>
+                      <span className={`text-[9px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-lg ${s.bg} ${s.text}`}
+                            title={s.label}>
+                        {tok.pos}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
-          {/* Structure breakdown */}
+          {/* ── Structure breakdown ── */}
           {data.structure && (
-            <div className={`rounded-3xl overflow-hidden liquid-glass ${
-              isDark ? 'bg-white/3' : 'bg-white/40'
-            }`}>
-              <div className={`px-5 py-3 text-xs font-extrabold uppercase tracking-widest ${
-                isDark ? 'bg-white/5 text-gray-300' : 'bg-black/4 text-gray-600'
-              }`}>
+            <div>
+              <div className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--app-accent2)] mb-3">
                 {t('Structure', 'البنية')}
               </div>
-              <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { k: 'subject',         enLabel: 'Subject',          arLabel: 'الفاعل',           color: 'text-blue-500' },
-                  { k: 'verb',            enLabel: 'Verb',             arLabel: 'الفعل',            color: 'text-green-600' },
-                  { k: 'object',          enLabel: 'Object',           arLabel: 'المفعول به',       color: 'text-pink-500' },
-                  { k: 'indirectObject',  enLabel: 'Indirect Object',  arLabel: 'مفعول غير مباشر',  color: 'text-purple-500' },
+                  { k: 'subject',         enLabel: 'Subject',          arLabel: 'الفاعل',           color: 'border-blue-500',   labelColor: 'text-blue-500' },
+                  { k: 'verb',            enLabel: 'Verb',             arLabel: 'الفعل',            color: 'border-green-500',  labelColor: 'text-green-600' },
+                  { k: 'object',          enLabel: 'Object',           arLabel: 'المفعول به',       color: 'border-pink-500',   labelColor: 'text-pink-500' },
+                  { k: 'indirectObject',  enLabel: 'Indirect Object',  arLabel: 'مفعول غير مباشر',  color: 'border-purple-500', labelColor: 'text-purple-500' },
                 ].filter(x => data.structure[x.k]).map(x => (
-                  <div key={x.k}>
-                    <div className={`text-[10px] font-extrabold uppercase tracking-widest mb-1 ${x.color}`}>
+                  <div key={x.k} className={`rounded-2xl p-4 border-l-4 ${x.color} ${
+                    isDark ? 'bg-white/5' : 'bg-white/70'
+                  }`}>
+                    <div className={`text-[10px] font-extrabold uppercase tracking-widest mb-1.5 ${x.labelColor}`}>
                       {uiLang === 'ar' ? x.arLabel : x.enLabel}
                     </div>
                     <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`} dir="ltr">
@@ -259,8 +269,10 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
                   </div>
                 ))}
                 {data.structure.modifiers?.length > 0 && (
-                  <div className="sm:col-span-2">
-                    <div className="text-[10px] font-extrabold uppercase tracking-widest mb-1 text-orange-500">
+                  <div className={`sm:col-span-2 rounded-2xl p-4 border-l-4 border-orange-500 ${
+                    isDark ? 'bg-white/5' : 'bg-white/70'
+                  }`}>
+                    <div className="text-[10px] font-extrabold uppercase tracking-widest mb-2 text-orange-500">
                       {t('Modifiers', 'المعدِّلات')}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -274,39 +286,37 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
             </div>
           )}
 
-          {/* Clauses */}
+          {/* ── Clauses ── */}
           {data.clauses?.length > 0 && (
-            <div className={`rounded-3xl overflow-hidden liquid-glass ${
-              isDark ? 'bg-white/3' : 'bg-white/40'
-            }`}>
-              <div className={`px-5 py-3 text-xs font-extrabold uppercase tracking-widest ${
-                isDark ? 'bg-white/5 text-gray-300' : 'bg-black/4 text-gray-600'
-              }`}>
+            <div>
+              <div className="text-[10px] font-extrabold uppercase tracking-widest text-[var(--app-accent1)] mb-3">
                 {t('Clauses', 'الجمل الفرعية')}
               </div>
-              <div className="flex flex-col gap-2 p-4">
+              <div className="flex flex-col gap-2">
                 {data.clauses.map((c, i) => (
-                  <div key={i} className={`rounded-2xl p-3 border ${isDark ? 'border-white/6 bg-white/3' : 'border-black/5 bg-white/60'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-md bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
+                  <div key={i} className={`rounded-2xl p-4 border-l-4 border-[var(--app-accent1)] ${
+                    isDark ? 'bg-white/5' : 'bg-white/70'
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-lg bg-[var(--app-accent1)]/15 text-[var(--app-accent1)]">
                         {c.type}
                       </span>
                       {c.role && (
-                        <span className="text-[10px] opacity-50 font-bold">{c.role}</span>
+                        <span className={`text-[10px] font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>— {c.role}</span>
                       )}
                     </div>
-                    <p className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`} dir="ltr">{c.text}</p>
+                    <p className={`text-sm font-medium leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} dir="ltr">{c.text}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Explanation */}
+          {/* ── Explanation ── */}
           {(data.explanation || data.explanationAr) && (
-            <div className={`rounded-3xl px-5 py-4 liquid-glass ${
+            <div className={`rounded-2xl p-4 border-l-4 border-yellow-500 ${
               isDark ? 'bg-yellow-500/5' : 'bg-yellow-50/70'
-            }`} style={{ '--lg-border-color': 'rgba(234,179,8,0.3)' }}>
+            }`}>
               <div className="text-[10px] font-extrabold uppercase tracking-widest text-yellow-500 mb-2">
                 {t('Explanation', 'الشرح')}
               </div>
@@ -315,10 +325,11 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
               </p>
             </div>
           )}
-        </>
+        </div>
       )}
+
       {/* ── Saved & History Panel ── */}
-      <div className="rounded-3xl overflow-hidden mt-2" style={{ background: isDark ? '#0F0F16' : '#ffffff', border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.07)' }}>
+      <div className="card-shine glass-panel rounded-3xl overflow-hidden">
         <button
           onClick={() => setShowHistoryPanel(v => !v)}
           className={`w-full flex items-center justify-between px-5 py-4 text-sm font-bold transition-all ${
@@ -340,7 +351,7 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
         {showHistoryPanel && (
           <div className="p-4 pt-0 flex flex-col gap-4">
             {/* Tabs selector */}
-            <div className="flex border-b border-black/5 dark:border-white/5 pb-2 gap-4">
+            <div className={`flex pb-2 gap-4 border-b ${isDark ? 'border-white/5' : 'border-black/5'}`}>
               <button
                 onClick={() => setPanelTab('favorites')}
                 className={`text-xs font-bold pb-1 border-b-2 transition-all ${
@@ -383,12 +394,12 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
               ) : (
                 (panelTab === 'favorites' ? favorites : history).map((item) => (
                   <div key={item.id} className={`flex items-start justify-between gap-3 p-3 rounded-2xl transition-all ${
-                    isDark ? 'bg-white/3 hover:bg-white/5' : 'bg-black/2 hover:bg-black/4'
+                    isDark ? 'bg-white/3 hover:bg-white/6' : 'bg-black/2 hover:bg-black/4'
                   }`} dir="ltr">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         {item.data?.type && (
-                          <span className="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
+                          <span className="px-1.5 py-0.5 rounded-lg text-[8px] font-extrabold uppercase tracking-wide bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
                             {item.data.type}
                           </span>
                         )}
