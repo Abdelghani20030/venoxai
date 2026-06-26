@@ -36,23 +36,28 @@ const posStyle = (raw = '') => {
   return POS_COLORS[k] || POS_COLORS.N;
 };
 
-const PROMPT = (sentence) => `You are a linguist. Analyse the structure of this English sentence and return a SINGLE JSON object (no markdown, no preamble) matching EXACTLY this schema:
+const PROMPT = (sentence) => `You are a linguist helping Arabic-speaking learners. Analyse the structure of this English sentence and return a SINGLE JSON object (no markdown, no preamble) matching EXACTLY this schema:
 
 {
   "sentence": "the original sentence",
+  "sentenceAr": "ترجمة الجملة بالعربية",
   "type": "declarative | interrogative | imperative | exclamatory",
   "tokens": [
-    { "text": "word or punctuation", "pos": "N|PRON|V|AUX|ADJ|ADV|PREP|CONJ|DET|INTJ|PUNC", "lemma": "base form" }
+    { "text": "word or punctuation", "ar": "ترجمة عربية", "pos": "N|PRON|V|AUX|ADJ|ADV|PREP|CONJ|DET|INTJ|PUNC", "lemma": "base form" }
   ],
   "structure": {
     "subject":  "the simple subject phrase",
+    "subjectAr": "ترجمة الفاعل",
     "verb":     "the main verb phrase",
+    "verbAr":   "ترجمة الفعل",
     "object":   "direct object phrase or null",
+    "objectAr": "ترجمة المفعول به",
     "indirectObject": "indirect object or null",
-    "modifiers": ["adverbial / prepositional / adjectival modifiers"]
+    "indirectObjectAr": "ترجمة المفعول غير المباشر",
+    "modifiers": ["المعدلات"]
   },
   "clauses": [
-    { "type": "main | subordinate | relative | adverbial | noun", "text": "clause text", "role": "what it does in the sentence" }
+    { "type": "main | subordinate | relative | adverbial | noun", "text": "clause text", "textAr": "ترجمة عربية", "role": "what it does in the sentence" }
   ],
   "explanation": "2-3 sentence plain-English summary of how the sentence is built.",
   "explanationAr": "نفس الشرح باللغة العربية، 2-3 جمل."
@@ -63,7 +68,7 @@ Sentence to analyse:
 ${sentence}
 """
 
-Output ONLY valid JSON. No markdown. No code fences.`;
+Always include Arabic translations for all fields. Output ONLY valid JSON. No markdown. No code fences.`;
 
 export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark', favorites = [], setFavorites, history = [], setHistory }) {
   const isDark = theme === 'dark';
@@ -233,6 +238,9 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
                       <span className={`text-base font-bold leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {tok.text}
                       </span>
+                      {tok.ar && (
+                        <span className={`text-[10px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`} dir="rtl">{tok.ar}</span>
+                      )}
                       <span className={`text-[9px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-lg ${s.bg} ${s.text}`}
                             title={s.label}>
                         {tok.pos}
@@ -252,10 +260,10 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { k: 'subject',         enLabel: 'Subject',          arLabel: 'الفاعل',           color: 'border-blue-500',   labelColor: 'text-blue-500' },
-                  { k: 'verb',            enLabel: 'Verb',             arLabel: 'الفعل',            color: 'border-green-500',  labelColor: 'text-green-600' },
-                  { k: 'object',          enLabel: 'Object',           arLabel: 'المفعول به',       color: 'border-pink-500',   labelColor: 'text-pink-500' },
-                  { k: 'indirectObject',  enLabel: 'Indirect Object',  arLabel: 'مفعول غير مباشر',  color: 'border-purple-500', labelColor: 'text-purple-500' },
+                  { k: 'subject',        kAr: 'subjectAr',        enLabel: 'Subject',         arLabel: 'الفاعل',          color: 'border-blue-500',   labelColor: 'text-blue-500' },
+                  { k: 'verb',           kAr: 'verbAr',           enLabel: 'Verb',            arLabel: 'الفعل',           color: 'border-green-500',  labelColor: 'text-green-600' },
+                  { k: 'object',         kAr: 'objectAr',         enLabel: 'Object',          arLabel: 'المفعول به',      color: 'border-pink-500',   labelColor: 'text-pink-500' },
+                  { k: 'indirectObject', kAr: 'indirectObjectAr', enLabel: 'Indirect Object', arLabel: 'مفعول غير مباشر', color: 'border-purple-500', labelColor: 'text-purple-500' },
                 ].filter(x => data.structure[x.k]).map(x => (
                   <div key={x.k} className={`rounded-2xl p-4 border-l-4 ${x.color} ${
                     isDark ? 'bg-white/5' : 'bg-white/70'
@@ -266,6 +274,11 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
                     <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-800'}`} dir="ltr">
                       {data.structure[x.k]}
                     </div>
+                    {data.structure[x.kAr] && (
+                      <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} dir="rtl">
+                        {data.structure[x.kAr]}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {data.structure.modifiers?.length > 0 && (
@@ -306,6 +319,9 @@ export default function SentenceDiagrammer({ lang: uiLang = 'ar', theme = 'dark'
                       )}
                     </div>
                     <p className={`text-sm font-medium leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`} dir="ltr">{c.text}</p>
+                    {c.textAr && (
+                      <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} dir="rtl">{c.textAr}</p>
+                    )}
                   </div>
                 ))}
               </div>

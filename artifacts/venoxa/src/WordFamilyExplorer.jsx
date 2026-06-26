@@ -23,9 +23,11 @@ const PROMPT = (word) => `You are a lexicographer helping Arabic-speaking learne
 
 {
   "base": "${word}",
+  "baseAr": "الترجمة العربية للكلمة الأساسية",
   "ipa": "IPA of the base form",
   "verb": {
     "base":            "infinitive form",
+    "baseAr":          "ترجمة الفعل",
     "thirdPerson":     "3rd person singular present (-s)",
     "past":            "simple past",
     "pastParticiple":  "past participle",
@@ -34,16 +36,16 @@ const PROMPT = (word) => `You are a lexicographer helping Arabic-speaking learne
     "exampleAr":       "ترجمة عربية للجملة"
   },
   "nouns": [
-    { "form": "noun form", "type": "agent | abstract | concrete | gerund | etc.", "example": "sentence", "exampleAr": "ترجمة عربية" }
+    { "form": "noun form", "formAr": "ترجمة عربية", "type": "agent | abstract | concrete | gerund | etc.", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ],
   "adjectives": [
-    { "form": "adjective form", "comparative": "comp", "superlative": "sup", "example": "sentence", "exampleAr": "ترجمة عربية" }
+    { "form": "adjective form", "formAr": "ترجمة عربية", "comparative": "comp", "superlative": "sup", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ],
   "adverbs": [
-    { "form": "adverb form", "example": "sentence", "exampleAr": "ترجمة عربية" }
+    { "form": "adverb form", "formAr": "ترجمة عربية", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ],
   "related": [
-    { "form": "related/derived word", "note": "what it is (e.g. negation, prefix re-, etc.)", "example": "sentence", "exampleAr": "ترجمة عربية" }
+    { "form": "related/derived word", "formAr": "ترجمة عربية", "note": "what it is (e.g. negation, prefix re-, etc.)", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ]
 }
 
@@ -51,28 +53,33 @@ Rules:
 - Omit any section that genuinely doesn't apply to the word.
 - Provide AT MOST 3 entries per array.
 - Examples should be short (8-15 words) and natural.
-- Always include Arabic translations for all example sentences.
+- Always include Arabic translations for all words and example sentences.
 - Output ONLY valid JSON. No markdown. No code fences. No commentary.`;
 
-function FormChip({ form, label, isDark, accent = 'en-US' }) {
+function FormChip({ form, formAr, label, isDark, accent = 'en-US' }) {
   if (!form) return null;
   return (
-    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-bold liquid-glass ${
+    <div className={`inline-flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-sm font-bold liquid-glass ${
       isDark ? 'bg-white/5 text-white' : 'bg-white/70 text-gray-800'
     }`} dir="ltr">
-      {label && <span className={`text-[10px] font-extrabold uppercase tracking-widest ${
-        isDark ? 'text-gray-500' : 'text-gray-400'
-      }`}>{label}</span>}
-      <span>{form}</span>
-      <button
-        onClick={() => speakEdge(form, accent)}
-        className={`p-1 rounded-lg transition-all ${
-          isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-400'
-        }`}
-        title="Speak"
-      >
-        <Volume2 className="w-3 h-3" />
-      </button>
+      <div className="flex items-center gap-2">
+        {label && <span className={`text-[10px] font-extrabold uppercase tracking-widest ${
+          isDark ? 'text-gray-500' : 'text-gray-400'
+        }`}>{label}</span>}
+        <span>{form}</span>
+        <button
+          onClick={() => speakEdge(form, accent)}
+          className={`p-1 rounded-lg transition-all ${
+            isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-400'
+          }`}
+          title="Speak"
+        >
+          <Volume2 className="w-3 h-3" />
+        </button>
+      </div>
+      {formAr && (
+        <span className={`text-[10px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`} dir="rtl">{formAr}</span>
+      )}
     </div>
   );
 }
@@ -212,7 +219,12 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
         <>
           {/* Header card with base + IPA */}
           <div className="glass-panel rounded-3xl px-6 py-5 flex items-center gap-4">
-            <span className={`text-3xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`} dir="ltr">{data.base}</span>
+            <div className="flex flex-col">
+              <span className={`text-3xl font-extrabold ${isDark ? 'text-white' : 'text-gray-900'}`} dir="ltr">{data.base}</span>
+              {data.baseAr && (
+                <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`} dir="rtl">{data.baseAr}</span>
+              )}
+            </div>
             {data.ipa && (
               <span className={`text-sm font-mono font-bold px-3 py-1 rounded-xl ${
                 isDark ? 'bg-white/8 text-gray-200' : 'bg-black/5 text-gray-700'
@@ -250,7 +262,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
           {data.verb && (data.verb.base || data.verb.past) && (
             <Section title={t('Verb forms', 'صيغ الفعل')} color="#22c55e" isDark={isDark}>
               <div className="flex flex-wrap gap-2">
-                <FormChip form={data.verb.base}           label="base"  isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.base}           formAr={data.verb.baseAr} label="base"  isDark={isDark} accent={accent} />
                 <FormChip form={data.verb.thirdPerson}    label="-s"    isDark={isDark} accent={accent} />
                 <FormChip form={data.verb.past}           label="past"  isDark={isDark} accent={accent} />
                 <FormChip form={data.verb.pastParticiple} label="p.p."  isDark={isDark} accent={accent} />
@@ -273,7 +285,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
               {data.nouns.map((n, i) => (
                 <div key={i} className="flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <FormChip form={n.form} isDark={isDark} accent={accent} />
+                    <FormChip form={n.form} formAr={n.formAr} isDark={isDark} accent={accent} />
                     {n.type && (
                       <span className={`text-[10px] font-extrabold uppercase tracking-widest opacity-50`}>{n.type}</span>
                     )}
@@ -295,7 +307,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
               {data.adjectives.map((a, i) => (
                 <div key={i} className="flex flex-col gap-1">
                   <div className="flex flex-wrap gap-2">
-                    <FormChip form={a.form}        label="adj"  isDark={isDark} accent={accent} />
+                    <FormChip form={a.form}        formAr={a.formAr} label="adj"  isDark={isDark} accent={accent} />
                     <FormChip form={a.comparative} label="-er"  isDark={isDark} accent={accent} />
                     <FormChip form={a.superlative} label="-est" isDark={isDark} accent={accent} />
                   </div>
@@ -315,7 +327,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
             <Section title={t('Adverb forms', 'صيغ الحال')} color="#f97316" isDark={isDark}>
               {data.adverbs.map((a, i) => (
                 <div key={i} className="flex flex-col gap-1">
-                  <FormChip form={a.form} isDark={isDark} accent={accent} />
+                  <FormChip form={a.form} formAr={a.formAr} isDark={isDark} accent={accent} />
                   {a.example && (
                     <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">“{a.example}”</p>
                   )}
@@ -333,7 +345,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
               {data.related.map((r, i) => (
                 <div key={i} className="flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <FormChip form={r.form} isDark={isDark} accent={accent} />
+                    <FormChip form={r.form} formAr={r.formAr} isDark={isDark} accent={accent} />
                     {r.note && (
                       <span className="text-[10px] font-extrabold uppercase tracking-widest opacity-50">{r.note}</span>
                     )}
