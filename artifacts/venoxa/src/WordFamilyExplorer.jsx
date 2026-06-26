@@ -26,20 +26,24 @@ const PROMPT = (word) => `You are a lexicographer helping Arabic-speaking learne
   "baseAr": "الترجمة العربية للكلمة الأساسية",
   "ipa": "IPA of the base form",
   "verb": {
-    "base":            "infinitive form",
-    "baseAr":          "ترجمة الفعل",
-    "thirdPerson":     "3rd person singular present (-s)",
-    "past":            "simple past",
-    "pastParticiple":  "past participle",
-    "ing":             "present participle / gerund (-ing)",
-    "example":         "one natural sentence using the verb",
-    "exampleAr":       "ترجمة عربية للجملة"
+    "base":               "infinitive form",
+    "baseAr":             "ترجمة الفعل",
+    "thirdPerson":        "3rd person singular present (-s)",
+    "thirdPersonAr":      "ترجمة صيغة الغائب",
+    "past":               "simple past",
+    "pastAr":             "ترجمة الماضي",
+    "pastParticiple":     "past participle",
+    "pastParticipleAr":   "ترجمة اسم المفعول",
+    "ing":                "present participle / gerund (-ing)",
+    "ingAr":              "ترجمة صيغة -ing",
+    "example":            "one natural sentence using the verb",
+    "exampleAr":          "ترجمة عربية للجملة"
   },
   "nouns": [
     { "form": "noun form", "formAr": "ترجمة عربية", "type": "agent | abstract | concrete | gerund | etc.", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ],
   "adjectives": [
-    { "form": "adjective form", "formAr": "ترجمة عربية", "comparative": "comp", "superlative": "sup", "example": "sentence", "exampleAr": "ترجمة عربية" }
+    { "form": "adjective form", "formAr": "ترجمة عربية", "comparative": "comp", "comparativeAr": "ترجمة المقارنة", "superlative": "sup", "superlativeAr": "ترجمة التفضيل", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ],
   "adverbs": [
     { "form": "adverb form", "formAr": "ترجمة عربية", "example": "sentence", "exampleAr": "ترجمة عربية" }
@@ -53,7 +57,7 @@ Rules:
 - Omit any section that genuinely doesn't apply to the word.
 - Provide AT MOST 3 entries per array.
 - Examples should be short (8-15 words) and natural.
-- Always include Arabic translations for all words and example sentences.
+- CRITICAL: Always include Arabic translation for EVERY word form and example sentence — no exceptions.
 - Output ONLY valid JSON. No markdown. No code fences. No commentary.`;
 
 function FormChip({ form, formAr, label, isDark, accent = 'en-US' }) {
@@ -262,11 +266,11 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
           {data.verb && (data.verb.base || data.verb.past) && (
             <Section title={t('Verb forms', 'صيغ الفعل')} color="#22c55e" isDark={isDark}>
               <div className="flex flex-wrap gap-2">
-                <FormChip form={data.verb.base}           formAr={data.verb.baseAr} label="base"  isDark={isDark} accent={accent} />
-                <FormChip form={data.verb.thirdPerson}    label="-s"    isDark={isDark} accent={accent} />
-                <FormChip form={data.verb.past}           label="past"  isDark={isDark} accent={accent} />
-                <FormChip form={data.verb.pastParticiple} label="p.p."  isDark={isDark} accent={accent} />
-                <FormChip form={data.verb.ing}            label="-ing"  isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.base}           formAr={data.verb.baseAr}            label="base"  isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.thirdPerson}    formAr={data.verb.thirdPersonAr}     label="-s"    isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.past}           formAr={data.verb.pastAr}            label="past"  isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.pastParticiple} formAr={data.verb.pastParticipleAr}  label="p.p."  isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.ing}            formAr={data.verb.ingAr}             label="-ing"  isDark={isDark} accent={accent} />
               </div>
               {data.verb.example && (
                 <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">
@@ -307,9 +311,9 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
               {data.adjectives.map((a, i) => (
                 <div key={i} className="flex flex-col gap-1">
                   <div className="flex flex-wrap gap-2">
-                    <FormChip form={a.form}        formAr={a.formAr} label="adj"  isDark={isDark} accent={accent} />
-                    <FormChip form={a.comparative} label="-er"  isDark={isDark} accent={accent} />
-                    <FormChip form={a.superlative} label="-est" isDark={isDark} accent={accent} />
+                    <FormChip form={a.form}        formAr={a.formAr}          label="adj"  isDark={isDark} accent={accent} />
+                    <FormChip form={a.comparative} formAr={a.comparativeAr}   label="-er"  isDark={isDark} accent={accent} />
+                    <FormChip form={a.superlative} formAr={a.superlativeAr}   label="-est" isDark={isDark} accent={accent} />
                   </div>
                   {a.example && (
                     <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">“{a.example}”</p>
