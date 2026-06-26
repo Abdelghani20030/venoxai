@@ -23,7 +23,7 @@ const BASE = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL)
   ? import.meta.env.BASE_URL : '/';
 
 // ── AI fallback prompt ────────────────────────────────────────────────────────
-const AI_PROMPT = (word) => `You are a corpus lexicographer. For the English word "${word}", return a SINGLE JSON object listing collocations.
+const AI_PROMPT = (word) => `You are a corpus lexicographer helping Arabic-speaking learners. For the English word "${word}", return a SINGLE JSON object listing collocations.
 
 {
   "word": "${word}",
@@ -31,12 +31,13 @@ const AI_PROMPT = (word) => `You are a corpus lexicographer. For the English wor
     {
       "pattern": "VERB + WORD | ADJ. | WORD + NOUN | PHRASES",
       "collocations": ["make", "take", "reach"],
-      "example": "one natural example sentence"
+      "example": "one natural example sentence in English",
+      "exampleAr": "ترجمة عربية للجملة المثال"
     }
   ]
 }
 
-Rules: 4-6 groups, 5-10 short collocations per group, one example sentence per group.
+Rules: 4-6 groups, 5-10 short collocations per group, one example sentence per group with Arabic translation.
 Output ONLY valid JSON. No markdown. No code fences.`;
 
 
@@ -257,23 +258,28 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark',
               ))}
             </div>
             {group.example && (
-              <div className="flex items-start gap-2">
-                <p className={`flex-1 text-sm italic border-l-2 border-[var(--app-accent1)]/40 pl-3 ${
-                  isDark ? 'text-gray-400' : 'text-gray-600'
-                }`} dir="ltr">
-                  "{group.example}"
-                </p>
-                <button
-                  onClick={() => speakEdge(group.example, accent)}
-                  title="Play full sentence"
-                  className={`shrink-0 p-1.5 rounded-xl transition-all ${
-                    isDark
-                      ? 'text-gray-500 hover:text-white hover:bg-white/10'
-                      : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
-                  }`}
-                >
-                  <Volume2 className="w-3.5 h-3.5" />
-                </button>
+              <div>
+                <div className="flex items-start gap-2">
+                  <p className={`flex-1 text-sm italic border-l-2 border-[var(--app-accent1)]/40 pl-3 ${
+                    isDark ? 'text-gray-400' : 'text-gray-600'
+                  }`} dir="ltr">
+                    "{group.example}"
+                  </p>
+                  <button
+                    onClick={() => speakEdge(group.example, accent)}
+                    title="Play full sentence"
+                    className={`shrink-0 p-1.5 rounded-xl transition-all ${
+                      isDark
+                        ? 'text-gray-500 hover:text-white hover:bg-white/10'
+                        : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
+                    }`}
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                {group.exampleAr && (
+                  <p className="text-sm mt-1 text-[var(--app-accent1)]/85 pl-3 border-l-2 border-transparent" dir="rtl">{group.exampleAr}</p>
+                )}
               </div>
             )}
           </div>

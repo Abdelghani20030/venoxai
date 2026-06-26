@@ -642,13 +642,13 @@ html:not(.dark) .border-gray-100 {
   display: none;                  /* Chrome/Safari/Opera */
 }
 
-/* Dark: nearly-opaque dark glass — always looks solid regardless of parent backdrop-filter */
+/* Dark: fully opaque dark background — solid, no translucency */
 .dark .dropdown-menu {
-  background: rgba(33, 33, 42, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: none;
-  backdrop-filter: blur(48px) saturate(180%);
-  -webkit-backdrop-filter: blur(48px) saturate(180%);
+  background: #1a1a24;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .dropdown-item {

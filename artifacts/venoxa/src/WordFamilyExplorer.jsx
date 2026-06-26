@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { fetchFromAPI, parseJSONLoose, speakEdge, getToolsAccent, setToolsAccent } from './aiHelpers';
 
-const PROMPT = (word) => `You are a lexicographer. For the English word "${word}", return a SINGLE JSON object (no markdown, no preamble) with the complete word family. Schema:
+const PROMPT = (word) => `You are a lexicographer helping Arabic-speaking learners. For the English word "${word}", return a SINGLE JSON object (no markdown, no preamble) with the complete word family. Schema:
 
 {
   "base": "${word}",
@@ -30,19 +30,20 @@ const PROMPT = (word) => `You are a lexicographer. For the English word "${word}
     "past":            "simple past",
     "pastParticiple":  "past participle",
     "ing":             "present participle / gerund (-ing)",
-    "example":         "one natural sentence using the verb"
+    "example":         "one natural sentence using the verb",
+    "exampleAr":       "ترجمة عربية للجملة"
   },
   "nouns": [
-    { "form": "noun form", "type": "agent | abstract | concrete | gerund | etc.", "example": "sentence" }
+    { "form": "noun form", "type": "agent | abstract | concrete | gerund | etc.", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ],
   "adjectives": [
-    { "form": "adjective form", "comparative": "comp", "superlative": "sup", "example": "sentence" }
+    { "form": "adjective form", "comparative": "comp", "superlative": "sup", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ],
   "adverbs": [
-    { "form": "adverb form", "example": "sentence" }
+    { "form": "adverb form", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ],
   "related": [
-    { "form": "related/derived word", "note": "what it is (e.g. negation, prefix re-, etc.)", "example": "sentence" }
+    { "form": "related/derived word", "note": "what it is (e.g. negation, prefix re-, etc.)", "example": "sentence", "exampleAr": "ترجمة عربية" }
   ]
 }
 
@@ -50,6 +51,7 @@ Rules:
 - Omit any section that genuinely doesn't apply to the word.
 - Provide AT MOST 3 entries per array.
 - Examples should be short (8-15 words) and natural.
+- Always include Arabic translations for all example sentences.
 - Output ONLY valid JSON. No markdown. No code fences. No commentary.`;
 
 function FormChip({ form, label, isDark, accent = 'en-US' }) {
@@ -259,6 +261,9 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
                   “{data.verb.example}”
                 </p>
               )}
+              {data.verb.exampleAr && (
+                <p className="text-sm text-[var(--app-accent1)]/85" dir="rtl">{data.verb.exampleAr}</p>
+              )}
             </Section>
           )}
 
@@ -275,6 +280,9 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
                   </div>
                   {n.example && (
                     <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">“{n.example}”</p>
+                  )}
+                  {n.exampleAr && (
+                    <p className="text-sm text-[var(--app-accent1)]/85" dir="rtl">{n.exampleAr}</p>
                   )}
                 </div>
               ))}
@@ -294,6 +302,9 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
                   {a.example && (
                     <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">“{a.example}”</p>
                   )}
+                  {a.exampleAr && (
+                    <p className="text-sm text-[var(--app-accent1)]/85" dir="rtl">{a.exampleAr}</p>
+                  )}
                 </div>
               ))}
             </Section>
@@ -307,6 +318,9 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
                   <FormChip form={a.form} isDark={isDark} accent={accent} />
                   {a.example && (
                     <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">“{a.example}”</p>
+                  )}
+                  {a.exampleAr && (
+                    <p className="text-sm text-[var(--app-accent1)]/85" dir="rtl">{a.exampleAr}</p>
                   )}
                 </div>
               ))}
@@ -326,6 +340,9 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
                   </div>
                   {r.example && (
                     <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">“{r.example}”</p>
+                  )}
+                  {r.exampleAr && (
+                    <p className="text-sm text-[var(--app-accent1)]/85" dir="rtl">{r.exampleAr}</p>
                   )}
                 </div>
               ))}
