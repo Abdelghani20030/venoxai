@@ -9057,6 +9057,11 @@ function Speaking({
       }
 
       if (blob) {
+        // Bail out if call ended while we were fetching the blob
+        if (initialCallMode && !isCallModeRef.current) {
+          break;
+        }
+
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         // Apply personality-driven playback rate (personality base × user speed)
@@ -9384,7 +9389,7 @@ function Speaking({
 
       // Final flush for any remaining text
       const remaining = replyText.slice(spokenSentencesCount).trim();
-      if (remaining.length > 2) {
+      if (remaining.length > 2 && (isCallModeRef.current || autoReadRef.current)) {
         queueSpeech(remaining, aiMsgId);
       }
 
@@ -9569,7 +9574,7 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
         }
 
         // Sync check for start conversation too
-        if (isCallMode || autoRead) {
+        if (isCallModeRef.current || autoReadRef.current) {
           const unsent = accumulated.slice(spokenSentencesCount).trim();
           const breakMatch = unsent.match(/[^.!?\n,;]{5,}[.!?\n,;]+/);
           if (breakMatch) {
@@ -9581,7 +9586,7 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
       });
 
       const remaining = accumulated.trim().slice(spokenSentencesCount);
-      if (remaining.length > 2) {
+      if (remaining.length > 2 && (isCallModeRef.current || autoReadRef.current)) {
         queueSpeech(remaining, aiMsgId);
       }
 
@@ -9701,6 +9706,7 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
       if (callAudioRef.current) { callAudioRef.current.pause(); callAudioRef.current = null; }
       cancelTTS();
       ttsQueueRef.current = [];
+      prefetchCacheRef.current.clear();
       wantRecordingRef.current = false;
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
