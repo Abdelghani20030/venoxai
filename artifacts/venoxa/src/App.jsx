@@ -9677,7 +9677,7 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
         }
       };
       recognition.onerror = (e) => {
-        if (e.error === 'no-speech' || e.error === 'audio-capture') {
+        if (e.error === 'no-speech' || e.error === 'audio-capture' || e.error === 'aborted') {
           // Non-fatal — will restart via onend
         } else {
           wantRecordingRef.current = false;
@@ -9685,14 +9685,18 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
         }
       };
       recognition.onend = () => {
-        setIsRecording(false);
-        if (silenceTimerRef.current) {
-          clearTimeout(silenceTimerRef.current);
-          silenceTimerRef.current = null;
-        }
-        // Auto-restart if user still wants to record (browser stopped on silence)
+        // Auto-restart if user still wants to record (browser stopped on silence / time limit)
         if (wantRecordingRef.current) {
+          // Don't flicker isRecording off — keep it true during seamless restart
+          // Don't clear the silence timer — it should survive browser restarts
           setTimeout(startRecognition, 150);
+        } else {
+          // User intentionally stopped — clean up
+          setIsRecording(false);
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+          }
         }
       };
       recognition.start();
