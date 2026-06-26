@@ -197,10 +197,9 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark',
         </div>
       )}
 
-      {/* Source badge and Save button */}
       {data && source && (
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {source === 'ozdic' ? (
               <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[10px] font-extrabold uppercase tracking-widest bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
                 <Database className="w-3 h-3" />
@@ -212,6 +211,11 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark',
                 AI generated
               </span>
             )}
+            {/* Accent toggle — single control for all groups */}
+            <div className="flex items-center gap-1">
+              <button onClick={() => handleAccent('en-US')} title="American English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-US' ? 'bg-[var(--app-accent1)] text-white border-[var(--app-accent1)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>US</button>
+              <button onClick={() => handleAccent('en-GB')} title="British English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-GB' ? 'bg-[var(--app-accent2)] text-white border-[var(--app-accent2)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>UK</button>
+            </div>
           </div>
           <button
             onClick={toggleFavorite}
@@ -235,11 +239,6 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark',
             {group.pattern}
           </div>
           <div className="px-5 py-4 flex flex-col gap-3">
-            {/* Accent toggle */}
-            <div className="flex items-center gap-1 mb-2">
-              <button onClick={() => handleAccent('en-US')} title="American English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-US' ? 'bg-[var(--app-accent1)] text-white border-[var(--app-accent1)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>US</button>
-              <button onClick={() => handleAccent('en-GB')} title="British English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-GB' ? 'bg-[var(--app-accent2)] text-white border-[var(--app-accent2)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>UK</button>
-            </div>
             <div className="flex flex-wrap gap-2" dir="ltr">
               {group.collocations?.map((coll, ci) => (
                 <button
