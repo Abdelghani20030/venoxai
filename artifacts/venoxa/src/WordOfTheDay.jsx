@@ -25,7 +25,7 @@ import {
   BookMarked, Sparkles, Loader2, AlertCircle, Volume2, RefreshCw, Plus, Check,
   BookOpen, ChevronDown, ChevronUp, Trash2
 } from 'lucide-react';
-import { fetchFromAPI, parseJSONLoose, dailySeed, speakEdge } from './aiHelpers';
+import { fetchFromAPI, parseJSONLoose, dailySeed, speakEdge, getToolsAccent, setToolsAccent } from './aiHelpers';
 
 const CACHE_KEY = 'venoxa_word_of_day';
 
@@ -77,6 +77,8 @@ export default function WordOfTheDay({
   const [busy, setBusy]       = useState(false);
   const [error, setError]     = useState('');
   const [added, setAdded]     = useState(false);
+  const [accent, setAccent]   = useState(getToolsAccent);
+  const handleAccent = (a) => { setAccent(a); setToolsAccent(a); };
   const [showSaved, setShowSaved] = useState(false);
   const [localSavedWords, setLocalSavedWords] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_saved_words') || '[]'); } catch { return []; }
@@ -222,14 +224,14 @@ export default function WordOfTheDay({
               <span className={`text-4xl font-extrabold leading-none ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {data.word}
               </span>
-              <button
-                onClick={() => speakEdge(data.word)}
-                className={`mb-1 p-2 rounded-xl transition-all ${
-                  isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
-                }`}
-              >
-                <Volume2 className="w-5 h-5" />
-              </button>
+              {/* Accent toggle + play */}
+              <div className="mb-1 flex items-center gap-1">
+                <button onClick={() => handleAccent('en-US')} title="American English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-US' ? 'bg-[var(--app-accent1)] text-white border-[var(--app-accent1)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>US</button>
+                <button onClick={() => handleAccent('en-GB')} title="British English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-GB' ? 'bg-[var(--app-accent2)] text-white border-[var(--app-accent2)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>UK</button>
+                <button onClick={() => speakEdge(data.word, accent)} className={`p-2 rounded-xl transition-all ${isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'}`}>
+                  <Volume2 className="w-5 h-5" />
+                </button>
+              </div>
               {data.partOfSpeech && (
                 <span className="mb-1 text-xs font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-md bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
                   {data.partOfSpeech}

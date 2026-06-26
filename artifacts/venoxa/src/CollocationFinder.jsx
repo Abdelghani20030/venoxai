@@ -17,7 +17,7 @@ import React, { useState, useCallback } from 'react';
 import {
   Link2, Sparkles, Loader2, AlertCircle, Volume2, Database, Cpu, Heart, Clock, RotateCcw, Trash2, ChevronUp, ChevronDown
 } from 'lucide-react';
-import { fetchFromAPI, parseJSONLoose, speakEdge } from './aiHelpers';
+import { fetchFromAPI, parseJSONLoose, speakEdge, getToolsAccent, setToolsAccent } from './aiHelpers';
 
 const BASE = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL)
   ? import.meta.env.BASE_URL : '/';
@@ -48,6 +48,8 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark',
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [accent, setAccent] = useState(getToolsAccent);
+  const handleAccent = (a) => { setAccent(a); setToolsAccent(a); };
 
   const [source, setSource] = useState(null); // 'ozdic' | 'ai' | null
 
@@ -233,11 +235,16 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark',
             {group.pattern}
           </div>
           <div className="px-5 py-4 flex flex-col gap-3">
+            {/* Accent toggle */}
+            <div className="flex items-center gap-1 mb-2">
+              <button onClick={() => handleAccent('en-US')} title="American English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-US' ? 'bg-[var(--app-accent1)] text-white border-[var(--app-accent1)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>US</button>
+              <button onClick={() => handleAccent('en-GB')} title="British English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-GB' ? 'bg-[var(--app-accent2)] text-white border-[var(--app-accent2)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>UK</button>
+            </div>
             <div className="flex flex-wrap gap-2" dir="ltr">
               {group.collocations?.map((coll, ci) => (
                 <button
                   key={ci}
-                  onClick={() => speakEdge(coll)}
+                  onClick={() => speakEdge(coll, accent)}
                   title={`Speak "${coll}"`}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
                     isDark
@@ -258,7 +265,7 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark',
                   "{group.example}"
                 </p>
                 <button
-                  onClick={() => speakEdge(group.example)}
+                  onClick={() => speakEdge(group.example, accent)}
                   title="Play full sentence"
                   className={`shrink-0 p-1.5 rounded-xl transition-all ${
                     isDark

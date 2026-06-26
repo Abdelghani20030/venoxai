@@ -17,7 +17,7 @@ import React, { useState, useCallback } from 'react';
 import {
   GitFork, Sparkles, Loader2, AlertCircle, Volume2, Heart, Clock, RotateCcw, Trash2, ChevronUp, ChevronDown
 } from 'lucide-react';
-import { fetchFromAPI, parseJSONLoose, speakEdge } from './aiHelpers';
+import { fetchFromAPI, parseJSONLoose, speakEdge, getToolsAccent, setToolsAccent } from './aiHelpers';
 
 const PROMPT = (word) => `You are a lexicographer. For the English word "${word}", return a SINGLE JSON object (no markdown, no preamble) with the complete word family. Schema:
 
@@ -52,7 +52,7 @@ Rules:
 - Examples should be short (8-15 words) and natural.
 - Output ONLY valid JSON. No markdown. No code fences. No commentary.`;
 
-function FormChip({ form, label, isDark }) {
+function FormChip({ form, label, isDark, accent = 'en-US' }) {
   if (!form) return null;
   return (
     <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-bold liquid-glass ${
@@ -63,7 +63,7 @@ function FormChip({ form, label, isDark }) {
       }`}>{label}</span>}
       <span>{form}</span>
       <button
-        onClick={() => speakEdge(form)}
+        onClick={() => speakEdge(form, accent)}
         className={`p-1 rounded-lg transition-all ${
           isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-black/5 text-gray-400'
         }`}
@@ -96,6 +96,8 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [accent, setAccent] = useState(getToolsAccent);
+  const handleAccent = (a) => { setAccent(a); setToolsAccent(a); };
 
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [panelTab, setPanelTab] = useState('favorites');
@@ -226,14 +228,19 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
               >
                 <Heart className="w-5 h-5" fill={isFavorited ? 'currentColor' : 'none'} />
               </button>
-              <button
-                onClick={() => speakEdge(data.base)}
-                className={`p-2 rounded-xl transition-all ${
-                  isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
-                }`}
-              >
-                <Volume2 className="w-5 h-5" />
-              </button>
+              {/* Accent toggle + play */}
+              <div className="flex items-center gap-1">
+                <button onClick={() => handleAccent('en-US')} title="American English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-US' ? 'bg-[var(--app-accent1)] text-white border-[var(--app-accent1)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>US</button>
+                <button onClick={() => handleAccent('en-GB')} title="British English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-GB' ? 'bg-[var(--app-accent2)] text-white border-[var(--app-accent2)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>UK</button>
+                <button
+                  onClick={() => speakEdge(data.base, accent)}
+                  className={`p-2 rounded-xl transition-all ${
+                    isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
+                  }`}
+                >
+                  <Volume2 className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -241,11 +248,11 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
           {data.verb && (data.verb.base || data.verb.past) && (
             <Section title={t('Verb forms', 'صيغ الفعل')} color="#22c55e" isDark={isDark}>
               <div className="flex flex-wrap gap-2">
-                <FormChip form={data.verb.base}           label="base"  isDark={isDark} />
-                <FormChip form={data.verb.thirdPerson}    label="-s"    isDark={isDark} />
-                <FormChip form={data.verb.past}           label="past"  isDark={isDark} />
-                <FormChip form={data.verb.pastParticiple} label="p.p."  isDark={isDark} />
-                <FormChip form={data.verb.ing}            label="-ing"  isDark={isDark} />
+                <FormChip form={data.verb.base}           label="base"  isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.thirdPerson}    label="-s"    isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.past}           label="past"  isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.pastParticiple} label="p.p."  isDark={isDark} accent={accent} />
+                <FormChip form={data.verb.ing}            label="-ing"  isDark={isDark} accent={accent} />
               </div>
               {data.verb.example && (
                 <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">
@@ -261,7 +268,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
               {data.nouns.map((n, i) => (
                 <div key={i} className="flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <FormChip form={n.form} isDark={isDark} />
+                    <FormChip form={n.form} isDark={isDark} accent={accent} />
                     {n.type && (
                       <span className={`text-[10px] font-extrabold uppercase tracking-widest opacity-50`}>{n.type}</span>
                     )}
@@ -280,9 +287,9 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
               {data.adjectives.map((a, i) => (
                 <div key={i} className="flex flex-col gap-1">
                   <div className="flex flex-wrap gap-2">
-                    <FormChip form={a.form}        label="adj"  isDark={isDark} />
-                    <FormChip form={a.comparative} label="-er"  isDark={isDark} />
-                    <FormChip form={a.superlative} label="-est" isDark={isDark} />
+                    <FormChip form={a.form}        label="adj"  isDark={isDark} accent={accent} />
+                    <FormChip form={a.comparative} label="-er"  isDark={isDark} accent={accent} />
+                    <FormChip form={a.superlative} label="-est" isDark={isDark} accent={accent} />
                   </div>
                   {a.example && (
                     <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">“{a.example}”</p>
@@ -297,7 +304,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
             <Section title={t('Adverb forms', 'صيغ الحال')} color="#f97316" isDark={isDark}>
               {data.adverbs.map((a, i) => (
                 <div key={i} className="flex flex-col gap-1">
-                  <FormChip form={a.form} isDark={isDark} />
+                  <FormChip form={a.form} isDark={isDark} accent={accent} />
                   {a.example && (
                     <p className={`text-sm italic ${isDark ? 'text-gray-300' : 'text-gray-700'}`} dir="ltr">“{a.example}”</p>
                   )}
@@ -312,7 +319,7 @@ export default function WordFamilyExplorer({ lang: uiLang = 'ar', theme = 'dark'
               {data.related.map((r, i) => (
                 <div key={i} className="flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <FormChip form={r.form} isDark={isDark} />
+                    <FormChip form={r.form} isDark={isDark} accent={accent} />
                     {r.note && (
                       <span className="text-[10px] font-extrabold uppercase tracking-widest opacity-50">{r.note}</span>
                     )}

@@ -176,13 +176,13 @@ export const dailySeed = () => {
 
 // ─── Edge TTS helper ──────────────────────────────────────────────────────────
 /**
- * Voice map — matches exactly what App.jsx uses via edgeTTSSpeak():
- *   en-US → en-US-AvaMultilingualNeural  (American female)
- *   en-GB → en-GB-RyanNeural             (British male)
+ * Voice map:
+ *   en-US → en-US-BrianMultilingualNeural / en-US-AvaMultilingualNeural
+ *   en-GB → en-GB-RyanNeural              / en-GB-SoniaNeural
  */
 const _EDGE_VOICES = {
   'en-US': { male: 'en-US-BrianMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
-  'en-GB': { male: 'en-GB-RyanNeural',             female: 'en-GB-SoniaNeural' },
+  'en-GB': { male: 'en-GB-RyanNeural',              female: 'en-GB-SoniaNeural' },
 };
 
 let _currentEdgeAudio = null;
@@ -190,8 +190,6 @@ let _currentEdgeAudio = null;
 /**
  * _playAudioUrl(url, signal?)
  * Creates an Audio element, starts playing it, and resolves when done.
- * Returns the Audio element so the caller can cancel it if needed.
- * Rejects quickly if the audio errors out or the signal fires.
  */
 const _playAudioUrl = (url, signal) => {
   const audio = new Audio(url);
@@ -210,24 +208,28 @@ const _playAudioUrl = (url, signal) => {
 };
 
 /**
+ * getToolsAccent() / setToolsAccent(accent)
+ * Shared accent preference for all tool components ('en-US' | 'en-GB').
+ * Persisted in localStorage so it survives page reloads.
+ */
+export const getToolsAccent = () =>
+  (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_tools_accent')) || 'en-US';
+
+export const setToolsAccent = (accent) => {
+  if (typeof localStorage !== 'undefined') localStorage.setItem('venoxa_tools_accent', accent);
+};
+
+/**
  * speakEdge(text, accent?, options?)
  *
  * Speaks text using the Edge Neural TTS proxy (/api/edge-tts).
  *   accent:  'en-US' (default) | 'en-GB'
- *   options.noWait: if true, starts playback and returns immediately
- *                   (fire-and-forget for single-word pronunciation).
- *   options.fallback: if true, also tries Gemini TTS when Edge TTS fails.
+ *   options.noWait: if true, starts playback and returns immediately.
  *
- * FIX SUMMARY
- * ───────────
- * 1. Server now streams audio instead of buffering — browser starts playing
- *    as soon as the first bytes arrive, not after full generation.
- * 2. Uses AbortController so a new call immediately stops any prior audio.
- * 3. Added Gemini TTS fallback with a 6 s race — if Edge TTS hasn't started
- *    playing within 6 s, Gemini TTS takes over automatically.
- * 4. noWait option for fire-and-forget word playback (no blocking).
+ * NOTE: The Gemini TTS fallback race has been intentionally removed —
+ * it was causing audio to play twice (Edge + Gemini simultaneously).
  */
-export const speakEdge = async (text, accent = 'en-US', { noWait = false, fallback = true } = {}) => {
+export const speakEdge = async (text, accent = 'en-US', { noWait = false } = {}) => {
   if (!text?.trim()) return;
 
   // Cancel whatever is currently playing.
@@ -242,53 +244,24 @@ export const speakEdge = async (text, accent = 'en-US', { noWait = false, fallba
   const voiceAccentKey = accent === 'en-GB' ? 'en-GB' : 'en-US';
   const voice = _EDGE_VOICES[voiceAccentKey][preferredGender === 'female' ? 'female' : 'male'];
 
-  // Shared abort controller — whichever engine wins cancels the other.
-  const ac = new AbortController();
-
-  // ── Primary: Edge TTS ────────────────────────────────────────────────────
   const edgeURL = `${BASE}api/edge-tts?${new URLSearchParams({ text: text.trim().slice(0, 800), voice })}`;
-
-  const tryEdge = async () => {
-    const { audio, promise } = _playAudioUrl(edgeURL, ac.signal);
-    _currentEdgeAudio = audio;
-    audio.onended = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
-    audio.onerror = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
-    await promise;
-  };
-
-  // ── Fallback: Gemini TTS (races against Edge TTS with a 6 s head-start) ──
-  const geminiVoice = preferredGender === 'female' ? 'aoede' : 'puck';
-  const geminiURL = `${BASE}api/gemini-tts?${new URLSearchParams({ text: text.trim().slice(0, 800), voice: geminiVoice })}`;
-
-  const tryGemini = async () => {
-    // Give Edge TTS a 6-second head start before trying Gemini.
-    await new Promise(r => setTimeout(r, 6000));
-    if (ac.signal.aborted) return;
-    const { audio, promise } = _playAudioUrl(geminiURL, ac.signal);
-    _currentEdgeAudio = audio;
-    await promise;
-  };
 
   const run = async () => {
     try {
-      if (fallback) {
-        // Race: whichever TTS finishes playing first wins; the other is cancelled.
-        await Promise.race([
-          tryEdge().then(() => ac.abort()),
-          tryGemini().then(() => ac.abort()),
-        ]).catch(() => { /* one of the two will always "lose" gracefully */ });
-      } else {
-        await tryEdge();
-      }
+      const { audio, promise } = _playAudioUrl(edgeURL);
+      _currentEdgeAudio = audio;
+      audio.onended = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
+      audio.onerror = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
+      await promise;
     } catch {
-      // Both failed — silent.
+      // Silent failure.
     } finally {
-      if (_currentEdgeAudio) { _currentEdgeAudio = null; }
+      if (_currentEdgeAudio) _currentEdgeAudio = null;
     }
   };
 
   if (noWait) {
-    run(); // fire-and-forget
+    run();
   } else {
     await run();
   }

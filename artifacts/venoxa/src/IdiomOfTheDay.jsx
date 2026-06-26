@@ -20,7 +20,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Lightbulb, Loader2, AlertCircle, Volume2, RefreshCw, Quote, Plus, Check, BookOpen, ChevronDown, ChevronUp, Trash2
 } from 'lucide-react';
-import { fetchFromAPI, parseJSONLoose, dailySeed, speakEdge } from './aiHelpers';
+import { fetchFromAPI, parseJSONLoose, dailySeed, speakEdge, getToolsAccent, setToolsAccent } from './aiHelpers';
 
 const CACHE_KEY = 'venoxa_idiom_of_day';
 
@@ -82,6 +82,8 @@ export default function IdiomOfTheDay({
   const [busy, setBusy]       = useState(false);
   const [error, setError]     = useState('');
   const [added, setAdded]     = useState(false);
+  const [accent, setAccent]   = useState(getToolsAccent);
+  const handleAccent = (a) => { setAccent(a); setToolsAccent(a); };
   const [showSaved, setShowSaved] = useState(false);
   const [localSavedIdioms, setLocalSavedIdioms] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_saved_idioms') || '[]'); } catch { return []; }
@@ -220,14 +222,14 @@ export default function IdiomOfTheDay({
                 <span className={`text-2xl sm:text-3xl font-extrabold leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {data.idiom}
                 </span>
-                <button
-                  onClick={() => speakEdge(data.idiom)}
-                  className={`p-2 rounded-xl transition-all ${
-                    isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
-                  }`}
-                >
-                  <Volume2 className="w-5 h-5" />
-                </button>
+                {/* Accent toggle + play */}
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleAccent('en-US')} title="American English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-US' ? 'bg-[var(--app-accent1)] text-white border-[var(--app-accent1)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>US</button>
+                  <button onClick={() => handleAccent('en-GB')} title="British English" className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold border transition-all ${accent === 'en-GB' ? 'bg-[var(--app-accent2)] text-white border-[var(--app-accent2)]' : isDark ? 'border-white/20 text-gray-400 hover:border-white/40' : 'border-gray-300 text-gray-400 hover:border-gray-500'}`}>UK</button>
+                  <button onClick={() => speakEdge(data.idiom, accent)} className={`p-2 rounded-xl transition-all ${isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'}`}>
+                    <Volume2 className="w-5 h-5" />
+                  </button>
+                </div>
                 {data.register && (
                   <span className={`text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-md ${regStyle(data.register).bg} ${regStyle(data.register).text}`}>
                     {data.register}
@@ -293,7 +295,7 @@ export default function IdiomOfTheDay({
                       “{ex.en}”
                     </p>
                     <button
-                      onClick={() => speakEdge(ex.en)}
+                      onClick={() => speakEdge(ex.en, accent)}
                       className={`shrink-0 p-1 rounded-lg transition-all ${
                         isDark ? 'text-gray-500 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-black/5'
                       }`}
