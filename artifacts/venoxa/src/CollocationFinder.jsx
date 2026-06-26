@@ -30,14 +30,17 @@ const AI_PROMPT = (word) => `You are a corpus lexicographer helping Arabic-speak
   "groups": [
     {
       "pattern": "VERB + WORD | ADJ. | WORD + NOUN | PHRASES",
-      "collocations": ["make", "take", "reach"],
+      "collocations": [
+        { "en": "make", "ar": "يصنع" },
+        { "en": "take", "ar": "يأخذ" }
+      ],
       "example": "one natural example sentence in English",
       "exampleAr": "ترجمة عربية للجملة المثال"
     }
   ]
 }
 
-Rules: 4-6 groups, 5-10 short collocations per group, one example sentence per group with Arabic translation.
+Rules: 4-6 groups, 5-10 collocations per group (each with en + ar), one example sentence per group with Arabic translation.
 Output ONLY valid JSON. No markdown. No code fences.`;
 
 
@@ -241,21 +244,31 @@ export default function CollocationFinder({ lang: uiLang = 'ar', theme = 'dark',
           </div>
           <div className="px-5 py-4 flex flex-col gap-3">
             <div className="flex flex-wrap gap-2" dir="ltr">
-              {group.collocations?.map((coll, ci) => (
-                <button
-                  key={ci}
-                  onClick={() => speakEdge(coll, accent)}
-                  title={`Speak "${coll}"`}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
-                    isDark
-                      ? 'bg-white/6 text-white hover:bg-white/12 hover:text-[var(--app-accent1)]'
-                      : 'bg-white/70 text-gray-800 hover:bg-white hover:text-[var(--app-accent1)]'
-                  }`}
-                >
-                  {coll}
-                  <Volume2 className="w-3 h-3 opacity-40" />
-                </button>
-              ))}
+              {group.collocations?.map((coll, ci) => {
+                // Support both old string format and new {en,ar} object format
+                const word = typeof coll === 'string' ? coll : coll.en;
+                const wordAr = typeof coll === 'string' ? null : coll.ar;
+                return (
+                  <button
+                    key={ci}
+                    onClick={() => speakEdge(word, accent)}
+                    title={`Speak "${word}"`}
+                    className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                      isDark
+                        ? 'bg-white/6 text-white hover:bg-white/12 hover:text-[var(--app-accent1)]'
+                        : 'bg-white/70 text-gray-800 hover:bg-white hover:text-[var(--app-accent1)]'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {word}
+                      <Volume2 className="w-3 h-3 opacity-40" />
+                    </span>
+                    {wordAr && (
+                      <span className={`text-[10px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`} dir="rtl">{wordAr}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             {group.example && (
               <div>
