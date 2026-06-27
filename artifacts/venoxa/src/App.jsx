@@ -2524,6 +2524,9 @@ function AppInner() {
   const [completedCells, setCompletedCells] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {}; } catch { return {}; }
   });
+  const [cellDates, setCellDates] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_cell_dates')) || {}; } catch { return {}; }
+  });
   const [streakData, setStreakData] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('venoxa_streak')) || { current: 0, lastDate: null };
@@ -2561,20 +2564,12 @@ function AppInner() {
   });
 
   const dailyGoalPct = useMemo(() => {
-    const weekPrefix = `${currentWeek}-`;
-    // Get today's day-of-week index: Mon=0 … Sun=6
-    const todayIdx = (new Date().getDay() + 6) % 7; // JS getDay: 0=Sun, so shift to Mon=0
+    const today = new Date().toISOString().slice(0, 10);
     const todayDone = Object.entries(completedCells || {})
-      .filter(([key, val]) => {
-        if (val !== 'done' || !key.startsWith(weekPrefix)) return false;
-        // Key format: {week}-{catId}-{dayIndex}
-        const parts = key.split('-');
-        const dayIdx = parseInt(parts[parts.length - 1], 10);
-        return dayIdx === todayIdx;
-      })
+      .filter(([key, val]) => val === 'done' && cellDates[key] === today)
       .length;
     return Math.min(100, Math.round((todayDone / 6) * 100)) || 0;
-  }, [completedCells, currentWeek]);
+  }, [completedCells, cellDates]);
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -4054,21 +4049,15 @@ function Dashboard({
       progress = Math.round((skillsPct * 4 + wordsPct + rulesPct) / 6);
     }
 
-    // Daily Goal — only count today's actual day-of-week, not the whole week
-    const weekPrefix = `${currentWeek}-`;
-    const todayIdx = (new Date().getDay() + 6) % 7; // Mon=0 … Sun=6
+    // Daily Goal — count cells completed TODAY (by actual calendar date)
+    const today = new Date().toISOString().slice(0, 10);
     const todayDone = Object.entries(completedCells || {})
-      .filter(([key, val]) => {
-        if (val !== 'done' || !key.startsWith(weekPrefix)) return false;
-        const parts = key.split('-');
-        const dayIdx = parseInt(parts[parts.length - 1], 10);
-        return dayIdx === todayIdx;
-      })
+      .filter(([key, val]) => val === 'done' && cellDates[key] === today)
       .length;
     const dailyGoalPct = Math.min(100, Math.round((todayDone / 6) * 100)) || 0;
 
     return { xp, progress, dailyGoalPct, streak: streakData.current };
-  }, [completedCells, planMeta, currentWeek, streakData]);
+  }, [completedCells, cellDates, planMeta, currentWeek, streakData]);
 
   // Mouse follow glow state
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -4664,6 +4653,7 @@ function StudyPlan({
   };
   const toggleCellCompletion = (weekNum, catId, dayIdx) => {
     const key = `${weekNum}-${catId}-${dayIdx}`;
+    const today = new Date().toISOString().slice(0, 10);
     setCompletedCells(prev => {
       const current = prev[key];
       const next = current === 'done' ? 'missed' : current === 'missed' ? null : 'done';
@@ -4671,6 +4661,17 @@ function StudyPlan({
       if (next === null) delete newData[key]; else newData[key] = next;
       if (next === 'done' && recordActivity) recordActivity();
       localStorage.setItem('venoxa_completed_cells', JSON.stringify(newData));
+      // Track the date this cell was completed
+      setCellDates(prevDates => {
+        const newDates = { ...prevDates };
+        if (next === 'done') {
+          newDates[key] = today;
+        } else {
+          delete newDates[key];
+        }
+        localStorage.setItem('venoxa_cell_dates', JSON.stringify(newDates));
+        return newDates;
+      });
       return newData;
     });
   };
