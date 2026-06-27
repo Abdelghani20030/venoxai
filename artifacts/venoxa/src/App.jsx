@@ -2751,7 +2751,7 @@ function AppInner() {
     };
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} currentWeek={currentWeek} streakData={streakData} />;
+        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} />;
       case 'plan':
         return <StudyPlan 
           {...props} 
@@ -2885,7 +2885,7 @@ function AppInner() {
           }}
         />;
       default:
-        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} currentWeek={currentWeek} streakData={streakData} />;
+        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} />;
     }
   };
   // ── Persistent Timer State (survives section changes) ──
@@ -3811,6 +3811,7 @@ function Dashboard({
   theme,
   planMeta,
   completedCells,
+  cellDates,
   currentWeek,
   streakData
 }) {
