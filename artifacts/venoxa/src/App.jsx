@@ -2562,8 +2562,16 @@ function AppInner() {
 
   const dailyGoalPct = useMemo(() => {
     const weekPrefix = `${currentWeek}-`;
+    // Get today's day-of-week index: Mon=0 … Sun=6
+    const todayIdx = (new Date().getDay() + 6) % 7; // JS getDay: 0=Sun, so shift to Mon=0
     const todayDone = Object.entries(completedCells || {})
-      .filter(([key, val]) => key.startsWith(weekPrefix) && val === 'done')
+      .filter(([key, val]) => {
+        if (val !== 'done' || !key.startsWith(weekPrefix)) return false;
+        // Key format: {week}-{catId}-{dayIndex}
+        const parts = key.split('-');
+        const dayIdx = parseInt(parts[parts.length - 1], 10);
+        return dayIdx === todayIdx;
+      })
       .length;
     return Math.min(100, Math.round((todayDone / 6) * 100)) || 0;
   }, [completedCells, currentWeek]);
@@ -4046,10 +4054,16 @@ function Dashboard({
       progress = Math.round((skillsPct * 4 + wordsPct + rulesPct) / 6);
     }
 
-    // Daily Goal (for today in current week)
+    // Daily Goal — only count today's actual day-of-week, not the whole week
     const weekPrefix = `${currentWeek}-`;
+    const todayIdx = (new Date().getDay() + 6) % 7; // Mon=0 … Sun=6
     const todayDone = Object.entries(completedCells || {})
-      .filter(([key, val]) => key.startsWith(weekPrefix) && val === 'done')
+      .filter(([key, val]) => {
+        if (val !== 'done' || !key.startsWith(weekPrefix)) return false;
+        const parts = key.split('-');
+        const dayIdx = parseInt(parts[parts.length - 1], 10);
+        return dayIdx === todayIdx;
+      })
       .length;
     const dailyGoalPct = Math.min(100, Math.round((todayDone / 6) * 100)) || 0;
 
