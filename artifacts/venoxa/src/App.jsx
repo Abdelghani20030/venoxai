@@ -7861,7 +7861,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
 
       {/* ── Listening: topic / length / generate controls ── */}
       {type === 'listening' && (
-        <div className="relative z-50 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="relative z-[60] glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
           <div className="flex flex-col md:flex-row items-center gap-3">
             <CustomDropdown
               value={listenTopic}
@@ -7927,7 +7927,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
 
       {/* ── Listening: passage + player ── */}
       {story && type === 'listening' && (
-        <div className="relative z-50 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="relative z-40 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
 
           {/* Player bar */}
           <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-gray-100 dark:border-[var(--app-border)]">
@@ -7985,7 +7985,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
 
       {/* ── Comprehension Quiz ── */}
       {quiz !== null && !dictMode && (
-        <div className="relative z-50 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="relative z-30 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
           <h3 className="text-xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6 flex items-center gap-2">
             <HelpCircle className="w-5 h-5 text-[var(--app-accent1)]" />
             {_resolveTranslation(lang, 'أسئلة الفهم', 'Comprehension Quiz')}
@@ -8043,7 +8043,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
 
       {/* ── Dictation Mode ── */}
       {dictMode && (
-        <div className="relative z-50 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
+        <div className="relative z-20 glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-extrabold text-gray-900 dark:text-[var(--app-text)] flex items-center gap-2">
               <Mic className="w-5 h-5 text-black dark:text-white" />
