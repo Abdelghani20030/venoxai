@@ -7586,9 +7586,10 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
     const topicText = listenTopic || 'Daily Life';
     try {
       const wc = WORD_COUNTS[listenLength] || 150;
+      const randomSeed = Math.floor(Math.random() * 1000000);
       const prompt = type === 'listening'
-        ? `Write a natural, engaging ${wc}-word spoken passage (podcast-style monologue or short story) for a ${userLevel} English learner. Topic: "${topicText}". Use vocabulary and grammar appropriate for ${userLevel} level. Write naturally flowing speech. No bullet points, no headers, no markdown. Plain text only.`
-        : `Write a ${wc}-word story/passage for a ${userLevel} English learner. Topic: "${topicText}". Include a short vocabulary list at the end with ${lang === 'ar' ? 'Arabic' : 'simple English'} meanings. Plain text, no markdown.`;
+        ? `Write a natural, engaging ${wc}-word spoken passage (podcast-style monologue or short story) for a ${userLevel} English learner. Topic: "${topicText}". Use vocabulary and grammar appropriate for ${userLevel} level. Write naturally flowing speech. No bullet points, no headers, no markdown. Plain text only. Ensure this passage is completely unique and different from previous ones (seed: ${randomSeed}).`
+        : `Write a ${wc}-word story/passage for a ${userLevel} English learner. Topic: "${topicText}". Include a short vocabulary list at the end with ${lang === 'ar' ? 'Arabic' : 'simple English'} meanings. Plain text, no markdown. Ensure this story is completely unique and different from previous ones (seed: ${randomSeed}).`;
       let _full = '';
       await streamFromAPI(prompt, (delta) => { _full += delta; setStory(_full); });
       const finalText = cleanFallbackText(_full) || _full;
