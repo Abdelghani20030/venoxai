@@ -298,21 +298,28 @@ export async function pullProgress(uid) {
 
 export async function pushProgress(uid, delta) {
   if (!uid) return;
+  const withTimeout = (promise, ms) => {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`Firebase operation timed out after ${ms}ms. You might be offline or blocked by a firewall.`)), ms);
+      promise.then(resolve).catch(reject).finally(() => clearTimeout(timer));
+    });
+  };
+
   const safeDelta = JSON.parse(JSON.stringify(delta));
   try {
     const ref = doc(db, 'users', uid);
-    await updateDoc(ref, {
+    await withTimeout(updateDoc(ref, {
       ...safeDelta,
       updatedAt: serverTimestamp()
-    });
+    }), 10000);
   } catch (err) {
     console.warn('pushProgress updateDoc failed, attempting setDoc with merge', err);
     try {
       const ref = doc(db, 'users', uid);
-      await setDoc(ref, {
+      await withTimeout(setDoc(ref, {
         ...safeDelta,
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      }, { merge: true }), 10000);
     } catch (e) {
       console.error('pushProgress completely failed', e);
       throw e;
