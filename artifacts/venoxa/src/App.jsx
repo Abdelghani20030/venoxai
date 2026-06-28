@@ -2813,6 +2813,7 @@ function AppInner() {
           setPlanMeta={setPlanMeta} 
           completedCells={completedCells} 
           setCompletedCells={setCompletedCellsWrapped}
+          setCellDates={setCellDatesWrapped}
           currentWeek={currentWeek}
           setCurrentWeek={setCurrentWeek}
           recordActivity={recordActivity}
@@ -4660,6 +4661,7 @@ function StudyPlan({
   setPlanMeta,
   completedCells,
   setCompletedCells,
+  setCellDates,
   currentWeek,
   setCurrentWeek,
   recordActivity,
