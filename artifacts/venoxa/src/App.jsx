@@ -2167,6 +2167,7 @@ function AppInner() {
   };
 
   const lastSyncSnapshot = useRef({});
+  const isSyncing = useRef(false); // guard: prevents concurrent push/pull
 
   const detectDirtyFields = (currentPayload) => {
     const dirty = new Set(dirtyFields.current);
@@ -2177,11 +2178,10 @@ function AppInner() {
       dirty.add('completedCells');
       dirty.add('calendarDays');
     }
-    
-    // usageTime
-    if (JSON.stringify(currentPayload.usageTime) !== JSON.stringify(snapshot.usageTime)) {
-      dirty.add('usageTime');
-    }
+
+    // NOTE: usageTime is intentionally excluded here.
+    // ProfileDashboard writes it every second → it would always be dirty → infinite loop.
+    // usageTime is synced only in the 5-min periodic interval via markFieldDirty('usageTime').
 
     // level
     if (currentPayload.level !== snapshot.level) {
@@ -2217,6 +2217,10 @@ function AppInner() {
       console.log('pushChanges blocked: cloud progress not loaded yet');
       return;
     }
+    if (isSyncing.current) {
+      console.log('pushChanges blocked: another sync is already in progress');
+      return;
+    }
 
     const currentPayload = _gatherSyncPayload();
     const dirty = detectDirtyFields(currentPayload);
@@ -2227,6 +2231,7 @@ function AppInner() {
     }
 
     console.log('pushChanges: pushing dirty fields:', Array.from(dirty));
+    isSyncing.current = true;
     setSyncStatus('syncing');
 
     try {
@@ -2271,11 +2276,18 @@ function AppInner() {
       setSyncStatus('error');
       if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 5000);
+    } finally {
+      isSyncing.current = false;
     }
   };
 
   const pullChanges = async (force = false) => {
     if (!token) return;
+    if (isSyncing.current) {
+      console.log('pullChanges blocked: another sync is already in progress');
+      return;
+    }
+    isSyncing.current = true;
     try {
       const uid = auth.currentUser?.uid;
       if (!uid) return;
@@ -2452,6 +2464,7 @@ function AppInner() {
     } finally {
       setIsCloudProgressLoaded(true);  // Always unblock pushes, even if pull failed
       blockDirtyTracking.current = false;
+      isSyncing.current = false;
     }
   };
 
@@ -2469,7 +2482,9 @@ function AppInner() {
     }
   };
 
-  // ── Sync on mount (existing token from localStorage) and on token change ──
+  // ── Load the last sync snapshot from localStorage on mount (for dirty detection) ──
+  // NOTE: Do NOT call pullChanges() here — onAuthChange already calls it.
+  // Calling it here too causes a double-pull race condition on startup.
   useEffect(() => {
     if (token) {
       try {
@@ -2478,9 +2493,6 @@ function AppInner() {
           lastSyncSnapshot.current = JSON.parse(savedSnapshot);
         }
       } catch {}
-      pullChanges().catch(() => {}).finally(() => {
-        setIsCloudProgressLoaded(true);
-      });
     }
   }, [token]);
 
@@ -2499,9 +2511,11 @@ function AppInner() {
   }, [token]);
 
   // ── Periodic background sync every 5 minutes ──
+  // Also marks usageTime dirty so it gets synced periodically (not every second)
   useEffect(() => {
     if (!token) return;
     const interval = setInterval(() => {
+      markFieldDirty('usageTime'); // sync usage time every 5 mins, not every second
       if (dirtyFields.current.size > 0) {
         pushChanges();
       } else {
