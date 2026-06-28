@@ -2682,14 +2682,15 @@ function AppInner() {
     wordOfDayHistory, idiomOfDayHistory
   ]);
 
-  // Debounced background sync to the cloud database when local data is modified
+  // Debounced background sync to the cloud database when local data is modified.
+  // IMPORTANT: Only call pushChanges here, NEVER pullChanges/syncProgress.
+  // Calling pull here would update state → re-trigger this effect → infinite loop.
   useEffect(() => {
-    if (token) {
-      const timer = setTimeout(() => {
-        syncProgress(token, user);
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
+    if (!token || blockDirtyTracking.current) return;
+    const timer = setTimeout(() => {
+      pushChanges();
+    }, 2500);
+    return () => clearTimeout(timer);
   }, [srsData, phrasalSrs, idiomsSrs, idiomsProperSrs, langeekSrsData, speakingHistory, writingHistory, completedCells, streakData, translationHistory, translationFavorites, savedWords, savedIdioms, toneRewriterFavorites, toneRewriterHistory, sentenceDiagrammerFavorites, sentenceDiagrammerHistory, wordFamilyFavorites, wordFamilyHistory, collocationFavorites, collocationHistory, etymologyFavorites, etymologyHistory, pronBookmarks, pronCompleted, testSessions, listeningHistory, listeningFavorites, readingHistory, readingFavorites, speakingFavorites, wordOfDayHistory, idiomOfDayHistory]);
   const [srsRefreshTick, setSrsRefreshTick] = useState(0);
   useEffect(() => {
