@@ -2267,6 +2267,7 @@ function AppInner() {
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 3000);
     } catch (err) {
       console.error('pushChanges failed:', err);
+      setSyncErrorMsg(err.message || String(err));
       setSyncStatus('error');
       if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 5000);
@@ -3190,10 +3191,15 @@ function AppInner() {
                         </svg>
                       )}
                       {syncStatus === 'error' && (
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5">
-                          <circle cx="12" cy="12" r="10" opacity="0.3"/>
-                          <path d="M12 8v4M12 16h.01" strokeLinecap="round"/>
-                        </svg>
+                        <div className="relative group flex items-center justify-center">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5">
+                            <circle cx="12" cy="12" r="10" opacity="0.3"/>
+                            <path d="M12 8v4M12 16h.01" strokeLinecap="round"/>
+                          </svg>
+                          <div className="absolute hidden group-hover:block top-full right-0 mt-2 w-max max-w-[250px] bg-red-900/90 backdrop-blur text-white text-xs p-3 rounded-lg shadow-xl z-50 text-left">
+                            {syncErrorMsg || 'Unknown sync error'}
+                          </div>
+                        </div>
                       )}
                     </span>
                   )}
