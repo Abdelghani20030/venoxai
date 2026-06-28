@@ -273,7 +273,8 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
       merged.planConfig = localData.planConfig;
     }
 
-    await setDoc(ref, { ...merged, updatedAt: serverTimestamp() }, { merge: true });
+    const safeMerged = JSON.parse(JSON.stringify(merged));
+    await setDoc(ref, { ...safeMerged, updatedAt: serverTimestamp() }, { merge: true });
     return docToUser(uid, auth.currentUser?.email || remote.email || '', merged);
   } catch (err) {
     console.warn('syncProgress failed, using local data', err);
@@ -297,10 +298,11 @@ export async function pullProgress(uid) {
 
 export async function pushProgress(uid, delta) {
   if (!uid) return;
+  const safeDelta = JSON.parse(JSON.stringify(delta));
   try {
     const ref = doc(db, 'users', uid);
     await updateDoc(ref, {
-      ...delta,
+      ...safeDelta,
       updatedAt: serverTimestamp()
     });
   } catch (err) {
@@ -308,7 +310,7 @@ export async function pushProgress(uid, delta) {
     try {
       const ref = doc(db, 'users', uid);
       await setDoc(ref, {
-        ...delta,
+        ...safeDelta,
         updatedAt: serverTimestamp()
       }, { merge: true });
     } catch (e) {
