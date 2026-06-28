@@ -284,9 +284,13 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
 
 export async function pullProgress(uid) {
   if (!uid) return null;
+  const withTimeout = (promise, ms) => new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`pullProgress timed out after ${ms}ms`)), ms);
+    promise.then(resolve).catch(reject).finally(() => clearTimeout(t));
+  });
   try {
     const ref = doc(db, 'users', uid);
-    const snap = await getDoc(ref);
+    const snap = await withTimeout(getDoc(ref), 10000);
     if (snap.exists()) {
       return docToUser(uid, auth.currentUser?.email || snap.data().email || '', snap.data());
     }

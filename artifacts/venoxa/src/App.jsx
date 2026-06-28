@@ -2447,10 +2447,10 @@ function AppInner() {
       }
 
       localStorage.setItem('venoxa_last_sync_snapshot', JSON.stringify(lastSyncSnapshot.current));
-      setIsCloudProgressLoaded(true);
     } catch (err) {
       console.warn('pullChanges failed:', err);
     } finally {
+      setIsCloudProgressLoaded(true);  // Always unblock pushes, even if pull failed
       blockDirtyTracking.current = false;
     }
   };
@@ -2478,7 +2478,7 @@ function AppInner() {
           lastSyncSnapshot.current = JSON.parse(savedSnapshot);
         }
       } catch {}
-      pullChanges().then(() => {
+      pullChanges().catch(() => {}).finally(() => {
         setIsCloudProgressLoaded(true);
       });
     }
