@@ -67,6 +67,8 @@ export default function ProfileDashboard({
   onOpenAuth,
   dailyGoalPct,
   onAvatarChange,
+  calendarProgress,   // synced from cloud via App
+  onCalendarUpdate,   // callback to push changes back to cloud
 }) {
   const isDark = theme === 'dark';
 
@@ -236,15 +238,43 @@ export default function ProfileDashboard({
 
   // ─────────────────────────────────────────────────────────────────────────
   //  CALENDAR
-  // ─────────────────────────────────────────────────────────────────────────
-  const [calendarStore, setCalendarStore] = useState(() => readLS(CALENDAR_KEY));
+  // ─────────────────────────────────────────────────────────────────────────  // Calendar store: merge synced cloud data with any local data, cloud wins for past days
+  const [calendarStore, setCalendarStore] = useState(() => {
+    const local = readLS(CALENDAR_KEY);
+    const remote = calendarProgress || {};
+    // Merge: for each date, take the entry with the higher goalPct
+    const merged = { ...local };
+    for (const [date, val] of Object.entries(remote)) {
+      if (!merged[date] || (val.goalPct || 0) >= (merged[date]?.goalPct || 0)) {
+        merged[date] = val;
+      }
+    }
+    writeLS(CALENDAR_KEY, merged);
+    return merged;
+  });
+
+  // Sync incoming calendarProgress prop (remote data) into local store
+  useEffect(() => {
+    if (!calendarProgress || Object.keys(calendarProgress).length === 0) return;
+    setCalendarStore(prev => {
+      const merged = { ...calendarProgress, ...prev }; // local overrides remote for same day
+      // But remote wins for past days that local doesn't have
+      for (const [date, val] of Object.entries(calendarProgress)) {
+        if (!prev[date]) merged[date] = val;
+      }
+      writeLS(CALENDAR_KEY, merged);
+      return merged;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendarProgress]);
+
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const n = new Date();
     return { year: n.getFullYear(), month: n.getMonth() };
   });
   const [selectedDay, setSelectedDay] = useState(null);
 
-  // Snapshot today every time goalPct changes
+  // Snapshot today every time goalPct changes — and push to cloud
   useEffect(() => {
     const today = todayStr();
     const store = readLS(CALENDAR_KEY);
@@ -255,6 +285,10 @@ export default function ProfileDashboard({
     };
     writeLS(CALENDAR_KEY, store);
     setCalendarStore({ ...store });
+    // Push to cloud via App's sync system
+    if (onCalendarUpdate) {
+      onCalendarUpdate({ ...store });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goalPct, todaySecsTotal]);
 

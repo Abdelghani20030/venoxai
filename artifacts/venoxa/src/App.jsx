@@ -1886,6 +1886,23 @@ function AppInner() {
     });
   };
 
+  const setCalendarProgressWrapped = (val) => {
+    setCalendarProgress(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('calendarProgress');
+      markFieldDirty('cellDates');
+      return next;
+    });
+  };
+
+  const setCellDatesWrapped = (val) => {
+    setCellDates(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      markFieldDirty('cellDates');
+      return next;
+    });
+  };
+
   const setStreakDataWrapped = (val) => {
     setStreakData(prev => {
       const next = typeof val === 'function' ? val(prev) : val;
@@ -2099,6 +2116,8 @@ function AppInner() {
       completedCells: cells,
       usageTime,
       calendarDays: Object.keys(cells).filter(k => k.length >= 10),
+      calendarProgress: JSON.parse(localStorage.getItem('venoxa_calendar_progress')) || {},
+      cellDates: JSON.parse(localStorage.getItem('venoxa_cell_dates')) || {},
       avatar: localAv || undefined,
       achievements: [],
 
@@ -2177,6 +2196,16 @@ function AppInner() {
     // avatar
     if (currentPayload.avatar !== snapshot.avatar) {
       dirty.add('avatar');
+    }
+
+    // calendarProgress
+    if (JSON.stringify(currentPayload.calendarProgress) !== JSON.stringify(snapshot.calendarProgress)) {
+      dirty.add('calendarProgress');
+    }
+
+    // cellDates
+    if (JSON.stringify(currentPayload.cellDates) !== JSON.stringify(snapshot.cellDates)) {
+      dirty.add('cellDates');
     }
 
     return dirty;
@@ -2339,6 +2368,9 @@ function AppInner() {
       applyRemoteIfSafe('customIdiomsProperVocab', null, 'venoxa_custom_idioms_proper_vocab', true);
       applyRemoteIfSafe('customLangeekVocab', null, 'venoxa_custom_langeek_vocab', true);
 
+      applyRemoteIfSafe('calendarProgress', setCalendarProgress, 'venoxa_calendar_progress', false, true);
+      applyRemoteIfSafe('cellDates', setCellDates, 'venoxa_cell_dates', false, true);
+
       if (!dirtyFields.current.has('completedCells') && remote.completedCells) {
         const localCells = JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {};
         if (JSON.stringify(localCells) !== JSON.stringify(remote.completedCells)) {
@@ -2348,6 +2380,7 @@ function AppInner() {
           changed = true;
         }
       }
+
 
       if (!dirtyFields.current.has('level') && remote.level) {
         const localLvl = localStorage.getItem('userLevel') || 'B2';
@@ -2526,6 +2559,9 @@ function AppInner() {
   });
   const [cellDates, setCellDates] = useState(() => {
     try { return JSON.parse(localStorage.getItem('venoxa_cell_dates')) || {}; } catch { return {}; }
+  });
+  const [calendarProgress, setCalendarProgress] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_calendar_progress')) || {}; } catch { return {}; }
   });
   const [streakData, setStreakData] = useState(() => {
     try {
@@ -2878,6 +2914,8 @@ function AppInner() {
           planMeta={planMeta}
           currentWeek={currentWeek}
           dailyGoalPct={dailyGoalPct}
+          calendarProgress={calendarProgress}
+          onCalendarUpdate={setCalendarProgressWrapped}
           onAvatarChange={(newAvatar) => setLocalAvatarWrapped(newAvatar)}
           onOpenAuth={() => {
             setAuthModalMode('login');
