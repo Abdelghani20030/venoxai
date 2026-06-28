@@ -2471,8 +2471,8 @@ function AppInner() {
   const syncProgress = async (currentToken = token, currentUser = user, customCells = null, force = false) => {
     if (!currentToken) return;
     if (force) {
-      await pushChanges(true);
       await pullChanges(true);
+      await pushChanges(true);
     } else {
       if (dirtyFields.current.size > 0) {
         await pushChanges();
