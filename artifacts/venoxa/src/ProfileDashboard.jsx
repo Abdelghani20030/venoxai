@@ -242,10 +242,17 @@ export default function ProfileDashboard({
   const [calendarStore, setCalendarStore] = useState(() => {
     const local = readLS(CALENDAR_KEY);
     const remote = calendarProgress || {};
-    // Merge: for each date, take the entry with the higher goalPct
+    const today = todayStr();
+    // Remote wins for all past days; local only wins for today (live usage)
     const merged = { ...local };
     for (const [date, val] of Object.entries(remote)) {
-      if (!merged[date] || (val.goalPct || 0) >= (merged[date]?.goalPct || 0)) {
+      if (date === today) {
+        // For today: keep local if it has a higher goalPct (user is actively studying)
+        if (!merged[date] || (val.goalPct || 0) > (merged[date]?.goalPct || 0)) {
+          merged[date] = val;
+        }
+      } else {
+        // For past days: remote always wins (authoritative source)
         merged[date] = val;
       }
     }
@@ -256,11 +263,19 @@ export default function ProfileDashboard({
   // Sync incoming calendarProgress prop (remote data) into local store
   useEffect(() => {
     if (!calendarProgress || Object.keys(calendarProgress).length === 0) return;
+    const today = todayStr();
     setCalendarStore(prev => {
-      const merged = { ...calendarProgress, ...prev }; // local overrides remote for same day
-      // But remote wins for past days that local doesn't have
+      const merged = { ...prev };
       for (const [date, val] of Object.entries(calendarProgress)) {
-        if (!prev[date]) merged[date] = val;
+        if (date === today) {
+          // For today: keep local if it has a higher goalPct (user is actively studying)
+          if (!merged[date] || (val.goalPct || 0) > (merged[date]?.goalPct || 0)) {
+            merged[date] = val;
+          }
+        } else {
+          // For past days: remote always wins (authoritative source)
+          merged[date] = val;
+        }
       }
       writeLS(CALENDAR_KEY, merged);
       return merged;
