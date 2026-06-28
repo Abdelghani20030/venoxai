@@ -7464,9 +7464,10 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [panelTab, setPanelTab] = useState('favorites');
 
-  // Topic + length
+  // Topic + length + level
   const [listenTopic, setListenTopic] = useState('');
   const [listenLength, setListenLength] = useState('medium');
+  const [selectedLevel, setSelectedLevel] = useState(userLevel);
 
   // Full-passage audio player
   const [audioState, setAudioState] = useState('idle'); // idle | loading | playing | paused
@@ -7507,11 +7508,11 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
     { ar: 'الرياضة واللياقة',               en: 'Sports & Fitness' },
     { ar: 'العلوم والاكتشافات',             en: 'Science & Discoveries' },
   ];
-  const WORD_COUNTS = { short: 80, medium: 150, long: 250 };
+  const WORD_COUNTS = { short: 150, medium: 300, long: 500 };
 
   const getDynamicTitle = () => {
-    const isBeginner = userLevel === 'A1' || userLevel === 'A2';
-    const isInter = userLevel === 'B1' || userLevel === 'B2';
+    const isBeginner = selectedLevel === 'A1' || selectedLevel === 'A2';
+    const isInter = selectedLevel === 'B1' || selectedLevel === 'B2';
     if (lang === 'ar') {
       const skill = type === 'listening' ? 'الاستماع' : 'القراءة';
       const adj = isBeginner ? 'الأساسي' : isInter ? 'المتوسط' : 'المتقدم';
@@ -7528,19 +7529,19 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
   };
 
   const getDynamicDesc = () => {
-    const isBeginner = userLevel === 'A1' || userLevel === 'A2';
-    const isInter = userLevel === 'B1' || userLevel === 'B2';
+    const isBeginner = selectedLevel === 'A1' || selectedLevel === 'A2';
+    const isInter = selectedLevel === 'B1' || selectedLevel === 'B2';
     if (lang === 'ar') {
       const focus = isBeginner ? 'النصوص البسيطة والأساسية' : isInter ? 'النصوص المتوسطة' : 'النصوص المعقدة';
-      return `بما أن مستواك ${userLevel}، سنركز على ${focus}.`;
+      return `بما أن مستواك ${selectedLevel}، سنركز على ${focus}.`;
     }
-    if (lang === 'es') return `Dado que tu nivel es ${userLevel}, nos enfocaremos en textos ${isBeginner ? 'sencillos' : isInter ? 'intermedios' : 'complejos'}.`;
-    if (lang === 'fr') return `Étant donné que votre niveau est ${userLevel}, nous nous concentrons sur des textes ${isBeginner ? 'simples' : isInter ? 'intermédiaires' : 'complexes'}.`;
-    if (lang === 'de') return `Da dein Level ${userLevel} ist, konzentrieren wir uns auf ${isBeginner ? 'einfache' : isInter ? 'mittelschwere' : 'komplexe'} Texte.`;
-    if (lang === 'zh') return `由于您的水平是 ${userLevel}，我们将专注于${isBeginner ? '简单' : isInter ? '中级' : '复杂'}文本。`;
-    if (lang === 'ja') return `あなたのレベルは ${userLevel} なので、${isBeginner ? '簡単' : isInter ? '中級' : '複雑'}なテキストに焦点を当てます。`;
+    if (lang === 'es') return `Dado que tu nivel es ${selectedLevel}, nos enfocaremos en textos ${isBeginner ? 'sencillos' : isInter ? 'intermedios' : 'complejos'}.`;
+    if (lang === 'fr') return `Étant donné que votre niveau est ${selectedLevel}, nous nous concentrons sur des textes ${isBeginner ? 'simples' : isInter ? 'intermédiaires' : 'complexes'}.`;
+    if (lang === 'de') return `Da dein Level ${selectedLevel} ist, konzentrieren wir uns auf ${isBeginner ? 'einfache' : isInter ? 'mittelschwere' : 'komplexe'} Texte.`;
+    if (lang === 'zh') return `由于您的水平是 ${selectedLevel}，我们将专注于${isBeginner ? '简单' : isInter ? '中级' : '复杂'}文本。`;
+    if (lang === 'ja') return `あなたのレベルは ${selectedLevel} なので、${isBeginner ? '簡単' : isInter ? '中級' : '複雑'}なテキストに焦点を当てます。`;
     const focusEn = isBeginner ? 'simple texts' : isInter ? 'intermediate texts' : 'complex texts';
-    return `Since your level is ${userLevel}, we focus on ${focusEn}.`;
+    return `Since your level is ${selectedLevel}, we focus on ${focusEn}.`;
   };
 
   const t = {
@@ -7588,8 +7589,8 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
       const wc = WORD_COUNTS[listenLength] || 150;
       const randomSeed = Math.floor(Math.random() * 1000000);
       const prompt = type === 'listening'
-        ? `Write a natural, engaging ${wc}-word spoken passage (podcast-style monologue or short story) for a ${userLevel} English learner. Topic: "${topicText}". Use vocabulary and grammar appropriate for ${userLevel} level. Write naturally flowing speech. No bullet points, no headers, no markdown. Plain text only. Ensure this passage is completely unique and different from previous ones (seed: ${randomSeed}).`
-        : `Write a ${wc}-word story/passage for a ${userLevel} English learner. Topic: "${topicText}". Include a short vocabulary list at the end with ${lang === 'ar' ? 'Arabic' : 'simple English'} meanings. Plain text, no markdown. Ensure this story is completely unique and different from previous ones (seed: ${randomSeed}).`;
+        ? `Write a natural, engaging ${wc}-word spoken passage (podcast-style monologue or short story) for a ${selectedLevel} English learner. Topic: "${topicText}". Use vocabulary and grammar appropriate for ${selectedLevel} level. Write naturally flowing speech. No bullet points, no headers, no markdown. Plain text only. Ensure this passage is completely unique and different from previous ones (seed: ${randomSeed}).`
+        : `Write a ${wc}-word story/passage for a ${selectedLevel} English learner. Topic: "${topicText}". Include a short vocabulary list at the end with ${lang === 'ar' ? 'Arabic' : 'simple English'} meanings. Plain text, no markdown. Ensure this story is completely unique and different from previous ones (seed: ${randomSeed}).`;
       let _full = '';
       await streamFromAPI(prompt, (delta) => { _full += delta; setStory(_full); });
       const finalText = cleanFallbackText(_full) || _full;
@@ -7818,57 +7819,29 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
           <p className="text-gray-600 dark:text-[var(--app-text)]">{t.desc}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap justify-center md:justify-end">
-          {/* History & Favorite toggles for Reading */}
-          {type === 'reading' && (
-            <>
-              <button
-                onClick={() => setShowHistoryPanel(v => !v)}
-                className={`p-2.5 rounded-2xl transition-all border ${
-                  showHistoryPanel
-                    ? 'bg-[var(--app-accent1)] text-white border-[var(--app-accent1)]'
-                    : 'bg-white/5 text-gray-400 hover:text-white border-white/10'
-                }`}
-                title={_resolveTranslation(lang, 'المحفوظات والسجل', 'Saved & History')}
-              >
-                <Clock className="w-5 h-5" />
-              </button>
-
-              {story && (
-                <button
-                  onClick={toggleFavorite}
-                  className={`p-2.5 rounded-2xl transition-all border ${
-                    isFavorited
-                      ? 'bg-red-500/10 text-red-500 border-red-500/20'
-                      : 'bg-white/5 text-gray-400 hover:text-red-400 border-white/10'
-                  }`}
-                  title={isFavorited ? _resolveTranslation(lang, 'إزالة من المفضلة', 'Remove from favorites') : _resolveTranslation(lang, 'حفظ في المفضلة', 'Save to favorites')}
-                >
-                  <Heart className="w-5 h-5" fill={isFavorited ? 'currentColor' : 'none'} />
-                </button>
-              )}
-
-              <div className="flex h-11 items-center gap-1 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
-                <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><GBFlag style={{width:20,height:10,borderRadius:2}} /> UK</button>
-                <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><USFlag style={{width:20,height:10,borderRadius:2}} /> US</button>
-              </div>
-              <button onClick={handleGenerate} disabled={loading} className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black px-8 h-11 rounded-2xl font-bold flex items-center gap-2 shadow-sm transition whitespace-nowrap">
-                {loading ? <Activity className="animate-spin w-5 h-5" /> : <><Sparkles className="w-5 h-5" /> {t.btn}</>}
-              </button>
-            </>
-          )}
         </div>
       </div>
 
-      {/* ── Listening: topic / length / generate controls ── */}
-      {type === 'listening' && (
+      {/* ── Unified Controls ── */}
         <div className="relative z-[60] glass-panel p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] transition-colors">
-          <div className="flex flex-col md:flex-row items-center gap-3">
+          <div className="flex flex-col md:flex-row flex-wrap items-center gap-3">
+            
+            <div className="flex h-11 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
+              {['A1', 'A2', 'B1', 'B2', 'C1'].map(l => (
+                <button
+                  key={l}
+                  onClick={() => setSelectedLevel(l)}
+                  className={`px-3 sm:px-4 h-full rounded-xl text-sm font-bold transition ${selectedLevel === l ? 'bg-[var(--app-accent1)] text-white shadow' : 'text-gray-500 dark:text-[var(--app-text)] hover:text-gray-900'}`}
+                >{l}</button>
+              ))}
+            </div>
+
             <CustomDropdown
               value={listenTopic}
               onChange={setListenTopic}
               options={[{ value: '', label: _resolveTranslation(lang, 'اختر موضوعاً...', 'Pick a topic...') }, ...LISTEN_TOPICS.map(tp => ({ value: lang === 'ar' ? tp.ar : tp.en, label: lang === 'ar' ? tp.ar : tp.en }))]}
               theme={theme}
-              className="flex-1 w-full"
+              className="flex-1 w-full min-w-[150px]"
             />
 
             <div className="flex h-11 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
@@ -7881,7 +7854,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
               ))}
             </div>
 
-            {/* History & Favorite toggles for Listening */}
+            {/* History & Favorite toggles */}
             <button
               onClick={() => setShowHistoryPanel(v => !v)}
               className={`p-2.5 rounded-2xl transition-all border ${
@@ -7916,14 +7889,13 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
               {loading ? <Activity className="animate-spin w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
               {_resolveTranslation(lang, 'ولّد نصاً', 'Generate')}
             </button>
-            {/* UK/US accent toggle for listening */}
+            {/* UK/US accent toggle */}
             <div className="flex h-11 items-center gap-1 bg-gray-100 dark:bg-[var(--app-card)] rounded-2xl p-1 border border-gray-200 dark:border-[var(--app-border)]">
               <button onClick={() => setVoiceAccent('uk')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'uk' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><GBFlag style={{width:20,height:10,borderRadius:2}} /> UK</button>
               <button onClick={() => setVoiceAccent('us')} className={`px-4 h-full rounded-xl text-sm font-bold transition-all ${voiceAccent === 'us' ? 'glass-panel text-gray-800 dark:text-[var(--app-text)] shadow-sm' : 'text-gray-500 dark:text-[var(--app-accent1)] hover:text-gray-700'}`}><USFlag style={{width:20,height:10,borderRadius:2}} /> US</button>
             </div>
           </div>
         </div>
-      )}
 
       {/* ── Listening: passage + player ── */}
       {story && type === 'listening' && (
