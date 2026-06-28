@@ -2917,6 +2917,11 @@ function AppInner() {
           calendarProgress={calendarProgress}
           onCalendarUpdate={setCalendarProgressWrapped}
           onAvatarChange={(newAvatar) => setLocalAvatarWrapped(newAvatar)}
+          readingHistory={readingHistory}
+          listeningHistory={listeningHistory}
+          speakingHistory={speakingHistory}
+          writingHistory={writingHistory}
+          srsData={srsData}
           onOpenAuth={() => {
             setAuthModalMode('login');
             setIsAuthModalOpen(true);

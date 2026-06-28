@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   User, Mail, Calendar as CalendarIcon, Edit, Award, Trash2, LogOut,
-  ChevronLeft, ChevronRight, Zap, Globe, Upload, Camera, X
+  ChevronLeft, ChevronRight, Zap, Globe, Upload, Camera, X, Lightbulb
 } from 'lucide-react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { _resolveTranslation } from './translations.js';
 import { deleteAccount as fbDeleteAccount } from './insforge.jsx';
 
@@ -54,8 +55,8 @@ function fmtSecs(s) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ProfileDashboard({
-  user,
   token,
+  user,
   logout,
   updateProfile,
   completedCells,
@@ -69,6 +70,11 @@ export default function ProfileDashboard({
   onAvatarChange,
   calendarProgress,   // synced from cloud via App
   onCalendarUpdate,   // callback to push changes back to cloud
+  readingHistory,
+  listeningHistory,
+  speakingHistory,
+  writingHistory,
+  srsData
 }) {
   const isDark = theme === 'dark';
 
@@ -432,6 +438,42 @@ export default function ProfileDashboard({
   };
 
   // ─────────────────────────────────────────────────────────────────────────
+  //  SKILL BREAKDOWN & INSIGHTS
+  // ─────────────────────────────────────────────────────────────────────────
+  const radarData = useMemo(() => {
+    const vocabScore    = Math.min(100, (Object.keys(srsData || {}).length * 2) || 10);
+    const readingScore  = Math.min(100, ((readingHistory || []).length * 10) || 10);
+    const listeningScore= Math.min(100, ((listeningHistory || []).length * 10) || 10);
+    const speakingScore = Math.min(100, ((speakingHistory || []).length * 10) || 10);
+    const writingScore  = Math.min(100, ((writingHistory || []).length * 10) || 10);
+    const grammarScore  = Math.min(100, (Object.keys(completedCells || {}).length * 5) || 10);
+
+    return [
+      { subject: _resolveTranslation(lang, 'المفردات', 'Vocabulary'), A: vocabScore, fullMark: 100, raw: vocabScore, id: 'vocab' },
+      { subject: _resolveTranslation(lang, 'القواعد', 'Grammar'), A: grammarScore, fullMark: 100, raw: grammarScore, id: 'grammar' },
+      { subject: _resolveTranslation(lang, 'القراءة', 'Reading'), A: readingScore, fullMark: 100, raw: readingScore, id: 'reading' },
+      { subject: _resolveTranslation(lang, 'الاستماع', 'Listening'), A: listeningScore, fullMark: 100, raw: listeningScore, id: 'listening' },
+      { subject: _resolveTranslation(lang, 'التحدث', 'Speaking'), A: speakingScore, fullMark: 100, raw: speakingScore, id: 'speaking' },
+      { subject: _resolveTranslation(lang, 'الكتابة', 'Writing'), A: writingScore, fullMark: 100, raw: writingScore, id: 'writing' },
+    ];
+  }, [srsData, readingHistory, listeningHistory, speakingHistory, writingHistory, completedCells, lang]);
+
+  const skillInsights = useMemo(() => {
+    const sorted = [...radarData].sort((a, b) => a.raw - b.raw);
+    const lowest = sorted[0];
+    const highest = sorted[sorted.length - 1];
+
+    let positive = _resolveTranslation(lang, `أداؤك ممتاز في ${highest.subject}! استمر بهذا المجهود الرائع.`, `Your ${highest.subject} is excellent! Keep up the great work.`);
+    let recommendation = _resolveTranslation(lang, `يبدو أنك لم تتدرب على ${lowest.subject} كثيراً. جرب درساً جديداً اليوم!`, `You haven't practiced ${lowest.subject} much. Try a quick exercise today!`);
+
+    if (highest.raw < 20) {
+      positive = _resolveTranslation(lang, 'أنت في بداية رحلتك! كل تمرين يجعلك أفضل.', 'You are at the start of your journey! Every exercise makes you better.');
+    }
+
+    return { positive, recommendation };
+  }, [radarData, lang]);
+
+  // ─────────────────────────────────────────────────────────────────────────
   //  GUEST VIEW
   // ─────────────────────────────────────────────────────────────────────────
   if (!token) {
@@ -726,7 +768,50 @@ export default function ProfileDashboard({
         {/* ═══════════ RIGHT: Calendar + Streak ═══════════ */}
         <div className="lg:col-span-3 flex flex-col gap-6">
 
-          {/* Smart Calendar (Removed) */}
+          {/* Skill Breakdown */}
+          <div className="home-glass-card p-5 flex flex-col">
+            <h5 className="text-[11px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
+              {_resolveTranslation(lang, 'تحليل المهارات', 'Skill Breakdown')}
+            </h5>
+            <div className="w-full h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                  <PolarGrid stroke={isDark ? '#ffffff20' : '#00000020'} />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: isDark ? '#9ca3af' : '#6b7280', fontSize: 10, fontWeight: 'bold' }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  <Radar name="Skills" dataKey="A" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.5} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Learning Insights */}
+          <div className="home-glass-card p-5 flex flex-col gap-4">
+            <h5 className="text-[11px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
+              <Lightbulb size={14} className="text-yellow-400" />
+              {_resolveTranslation(lang, 'رؤى التعلم', 'Learning Insights')}
+            </h5>
+            
+            <div className="flex flex-col gap-3">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5">
+                  <Award size={12} />
+                </div>
+                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 leading-relaxed">
+                  {skillInsights.positive}
+                </p>
+              </div>
+              
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 shrink-0 mt-0.5">
+                  <Lightbulb size={12} />
+                </div>
+                <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 leading-relaxed">
+                  {skillInsights.recommendation}
+                </p>
+              </div>
+            </div>
+          </div>
 
           {/* Streak */}
           <div className="home-glass-card p-4 flex items-center gap-4 border-l-4 border-l-orange-500/50 hover:translate-x-1 transition-transform">
