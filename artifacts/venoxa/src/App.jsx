@@ -2482,18 +2482,6 @@ function AppInner() {
     }
   };
 
-  // ── Always-current refs for push/pull ──
-  // Long-lived effects (visibility handler, 5-min interval, beforeunload) are set up
-  // with [token] as their only dependency, so their closures go stale after login.
-  // pushChanges/pullChanges capture React state (listeningHistory, readingHistory, etc.)
-  // directly — not from localStorage — so a stale closure always sees the initial empty
-  // arrays, causing Firestore to be re-pulled on every tab switch in an endless loop.
-  // Calling through refs guarantees the latest closure is always used.
-  const pushChangesRef = useRef(() => {});
-  const pullChangesRef = useRef(() => {});
-  useEffect(() => { pushChangesRef.current = pushChanges; });
-  useEffect(() => { pullChangesRef.current = pullChanges; });
-
   // ── Load the last sync snapshot from localStorage on mount (for dirty detection) ──
   // NOTE: Do NOT call pullChanges() here — onAuthChange already calls it.
   // Calling it here too causes a double-pull race condition on startup.
@@ -2509,14 +2497,13 @@ function AppInner() {
   }, [token]);
 
   // ── Sync when tab visibility changes (critical for multi-device) ──
-  // Uses refs so the latest push/pull closure (with current state) is always called.
   useEffect(() => {
     if (!token) return;
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        pullChangesRef.current();
+        pullChanges();
       } else if (document.visibilityState === 'hidden') {
-        pushChangesRef.current();
+        pushChanges();
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -2524,28 +2511,50 @@ function AppInner() {
   }, [token]);
 
   // ── Periodic background sync every 5 minutes ──
-  // Also marks usageTime dirty so it gets synced periodically (not every second).
-  // Uses refs so the latest push/pull closure (with current state) is always called.
+  // Also marks usageTime dirty so it gets synced periodically (not every second)
   useEffect(() => {
     if (!token) return;
     const interval = setInterval(() => {
       markFieldDirty('usageTime'); // sync usage time every 5 mins, not every second
       if (dirtyFields.current.size > 0) {
-        pushChangesRef.current();
+        pushChanges();
       } else {
-        pullChangesRef.current();
+        pullChanges();
       }
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [token]);
 
   // ── Best-effort sync on tab close ──
-  // Uses pushChangesRef so the latest closure (with current state) is used.
   useEffect(() => {
     if (!token) return;
     const handleUnload = () => {
       try {
-        pushChangesRef.current();
+        const currentPayload = _gatherSyncPayload();
+        const dirty = detectDirtyFields(currentPayload);
+        if (dirty.size > 0) {
+          const delta = {};
+          for (const field of dirty) {
+            if (field === 'xp') {
+              delta.xp = currentPayload.xp;
+            } else if (field === 'calendarDays') {
+              delta.calendarDays = currentPayload.calendarDays;
+            } else if (field === 'customGlobalVocab') {
+              delta.customGlobalVocab = customGlobalVocab;
+            } else if (field === 'customPhrasalVocab') {
+              delta.customPhrasalVocab = customPhrasalVocab;
+            } else if (field === 'customIdiomsVocab') {
+              delta.customIdiomsVocab = customIdiomsVocab;
+            } else if (field === 'customIdiomsProperVocab') {
+              delta.customIdiomsProperVocab = customIdiomsProperVocab;
+            } else if (field === 'customLangeekVocab') {
+              delta.customLangeekVocab = customLangeekVocab;
+            } else if (currentPayload.hasOwnProperty(field)) {
+              delta[field] = currentPayload[field];
+            }
+          }
+          pushProgress(auth.currentUser?.uid, delta);
+        }
       } catch {}
     };
     window.addEventListener('beforeunload', handleUnload);
