@@ -501,13 +501,12 @@ export default function ProfileDashboard({
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-8 animate-fadeIn relative z-10 text-start" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
 
-        {/* ═══════════ LEFT: User Card + Achievements ═══════════ */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
+        {/* ═══════════ User Card + Achievements ═══════════ */}
 
           {/* User Card */}
-          <div className="home-glass-card p-6 flex flex-col items-center relative overflow-hidden group">
+          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col items-center relative overflow-hidden group">
             <div className="absolute -right-20 -top-20 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
             <button onClick={startEdit}
               className="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
@@ -573,7 +572,7 @@ export default function ProfileDashboard({
           </div>
 
           {/* Achievements */}
-          <div className="home-glass-card p-6 flex flex-col">
+          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
             <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">{t.achievements}</h4>
             <div className="flex items-center gap-2 mb-5">
               <div className="p-2 rounded-xl bg-yellow-500/10 text-yellow-500"><Award size={18} /></div>
@@ -603,13 +602,10 @@ export default function ProfileDashboard({
               </p>
             )}
           </div>
-        </div>
-
-        {/* ═══════════ CENTER: Usage Chart + Daily Goal + Overall Progress ═══════════ */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
+        {/* ═══════════ Usage Chart + Daily Goal + Overall Progress ═══════════ */}
 
           {/* ── Usage Time Chart ── */}
-          <div className="home-glass-card p-6 flex flex-col">
+          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
             {/* Header row */}
             <div className="flex items-center justify-between mb-1">
               <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{t.usageTime}</h4>
@@ -709,7 +705,7 @@ export default function ProfileDashboard({
           </div>
 
           {/* ── Daily Goal ── */}
-          <div className="home-glass-card p-6 flex flex-col">
+          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
             <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-5">{t.dailyGoal}</h4>
             <div className="flex items-center gap-6">
               <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
@@ -742,7 +738,7 @@ export default function ProfileDashboard({
           </div>
 
           {/* ── Overall Progress ── */}
-          <div className="home-glass-card p-6 flex flex-col">
+          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
             <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-6">{t.overallProgress}</h4>
             <div className="grid grid-cols-6 gap-1 bg-black/10 dark:bg-white/5 p-1 rounded-2xl border border-white/5 mb-4">
               {CEFR.map(lvl => (
@@ -763,13 +759,10 @@ export default function ProfileDashboard({
               )}
             </div>
           </div>
-        </div>
-
-        {/* ═══════════ RIGHT: Calendar + Streak ═══════════ */}
-        <div className="lg:col-span-3 flex flex-col gap-6">
+        {/* ═══════════ Calendar + Streak ═══════════ */}
 
           {/* Skill Breakdown */}
-          <div className="home-glass-card p-5 flex flex-col">
+          <div className="break-inside-avoid mb-6 home-glass-card p-5 flex flex-col">
             <h5 className="text-[11px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
               {_resolveTranslation(lang, 'تحليل المهارات', 'Skill Breakdown')}
             </h5>
@@ -786,7 +779,7 @@ export default function ProfileDashboard({
           </div>
 
           {/* Learning Insights */}
-          <div className="home-glass-card p-5 flex flex-col gap-4">
+          <div className="break-inside-avoid mb-6 home-glass-card p-5 flex flex-col gap-4">
             <h5 className="text-[11px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
               <Lightbulb size={14} className="text-yellow-400" />
               {_resolveTranslation(lang, 'رؤى التعلم', 'Learning Insights')}
@@ -814,7 +807,7 @@ export default function ProfileDashboard({
           </div>
 
           {/* Streak */}
-          <div className="home-glass-card p-4 flex items-center gap-4 border-l-4 border-l-orange-500/50 hover:translate-x-1 transition-transform">
+          <div className="break-inside-avoid mb-6 home-glass-card p-4 flex items-center gap-4 border-l-4 border-l-orange-500/50 hover:translate-x-1 transition-transform">
             <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
               <Zap size={20} fill="currentColor" />
             </div>
@@ -823,7 +816,6 @@ export default function ProfileDashboard({
               <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.streakTitle}</div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
