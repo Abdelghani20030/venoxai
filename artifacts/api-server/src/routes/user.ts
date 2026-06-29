@@ -211,6 +211,29 @@ router.post("/user/sync", authMiddleware, async (req: AuthRequest, res: Response
       studiedWords: mergedStudiedWords,
     };
 
+    const extraVocabFields = [
+      "customGlobalVocab", "customPhrasalVocab", "customIdiomsVocab", "customIdiomsProperVocab", "customLangeekVocab"
+    ];
+    for (const field of extraVocabFields) {
+      if (req.body[field] !== undefined) {
+        updateFields[field] = mergeArraysById(req.body[field], (user as any)[field], "word");
+      }
+    }
+
+    const extraHistoryFields = [
+      "translationHistory", "translationFavorites", "savedWords", "savedIdioms",
+      "toneRewriterFavorites", "toneRewriterHistory", "sentenceDiagrammerFavorites", "sentenceDiagrammerHistory",
+      "wordFamilyFavorites", "wordFamilyHistory", "collocationFavorites", "collocationHistory",
+      "etymologyFavorites", "etymologyHistory", "pronBookmarks", "pronCompleted", "testSessions",
+      "listeningHistory", "listeningFavorites", "readingHistory", "readingFavorites",
+      "speakingFavorites", "wordOfDayHistory", "idiomOfDayHistory"
+    ];
+    for (const field of extraHistoryFields) {
+      if (req.body[field] !== undefined) {
+        updateFields[field] = mergeArraysById(req.body[field], (user as any)[field], "id");
+      }
+    }
+
     if (avatar !== undefined) {
       updateFields.avatar = avatar;
     }
@@ -305,8 +328,33 @@ router.post("/user/sync-beacon", async (req: Request, res: Response) => {
       langeekSrsData: mergedLangeekSrsData,
       phrasalSrs: mergedPhrasalSrs, idiomsSrs: mergedIdiomsSrs,
       idiomsProperSrs: mergedIdiomsProperSrs,
+      idiomsProperSrs: mergedIdiomsProperSrs,
       planConfig: mergedPlanConfig, studiedWords: mergedStudiedWords
     };
+
+    const extraVocabFields = [
+      "customGlobalVocab", "customPhrasalVocab", "customIdiomsVocab", "customIdiomsProperVocab", "customLangeekVocab"
+    ];
+    for (const field of extraVocabFields) {
+      if ((syncData as any)[field] !== undefined) {
+        updateFields[field] = mergeArraysById((syncData as any)[field], (user as any)[field], "word");
+      }
+    }
+
+    const extraHistoryFields = [
+      "translationHistory", "translationFavorites", "savedWords", "savedIdioms",
+      "toneRewriterFavorites", "toneRewriterHistory", "sentenceDiagrammerFavorites", "sentenceDiagrammerHistory",
+      "wordFamilyFavorites", "wordFamilyHistory", "collocationFavorites", "collocationHistory",
+      "etymologyFavorites", "etymologyHistory", "pronBookmarks", "pronCompleted", "testSessions",
+      "listeningHistory", "listeningFavorites", "readingHistory", "readingFavorites",
+      "speakingFavorites", "wordOfDayHistory", "idiomOfDayHistory"
+    ];
+    for (const field of extraHistoryFields) {
+      if ((syncData as any)[field] !== undefined) {
+        updateFields[field] = mergeArraysById((syncData as any)[field], (user as any)[field], "id");
+      }
+    }
+
     if (avatar !== undefined) updateFields.avatar = avatar;
 
     await db.update(usersTable).set(updateFields).where(eq(usersTable.id, userId));

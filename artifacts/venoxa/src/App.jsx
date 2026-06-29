@@ -2092,22 +2092,44 @@ function AppInner() {
     const lVocab = JSON.parse(localStorage.getItem('venoxa_langeek_vocab')) || [];
     const sHistory = JSON.parse(localStorage.getItem('venoxa_speaking_history')) || [];
     const wHistory = JSON.parse(localStorage.getItem('venoxa_writing_history')) || [];
-    const srs = srsData;
-    const lSrs = langeekSrsData;
+    const srs = JSON.parse(localStorage.getItem('venoxa_srs_data')) || {};
+    const lSrs = JSON.parse(localStorage.getItem('venoxa_langeek_srs_data')) || {};
     // Additional SRS stores (previously local-only, now synced via InsForge)
-    const pSrs = phrasalSrs;
-    const iSrs = idiomsSrs;
-    const ipSrs = idiomsProperSrs;
+    const pSrs = JSON.parse(localStorage.getItem('venoxa_phrasal_srs')) || {};
+    const iSrs = JSON.parse(localStorage.getItem('venoxa_idioms_srs')) || {};
+    const ipSrs = JSON.parse(localStorage.getItem('venoxa_idioms_proper_srs')) || {};
     // Study plan config & studied words
     let planCfg = {};
     try { planCfg = JSON.parse(localStorage.getItem('venoxa-plan-v3')) || {}; } catch {}
     let studied = [];
     try { studied = JSON.parse(localStorage.getItem('studiedWords')) || []; } catch {}
 
-    const tHistory = translationHistory;
-    const tFavorites = translationFavorites;
-    const sWords = savedWords;
-    const sIdioms = savedIdioms;
+    const tHistory = JSON.parse(localStorage.getItem('venoxa_translation_history')) || [];
+    const tFavorites = JSON.parse(localStorage.getItem('venoxa_translation_favorites')) || [];
+    const sWords = JSON.parse(localStorage.getItem('venoxa_saved_words')) || [];
+    const sIdioms = JSON.parse(localStorage.getItem('venoxa_saved_idioms')) || [];
+    
+    // Explicitly read all these from localStorage instead of using stale state variables
+    const toneRewriterFavorites = JSON.parse(localStorage.getItem('venoxa_tone_rewriter_favorites')) || [];
+    const toneRewriterHistory = JSON.parse(localStorage.getItem('venoxa_tone_rewriter_history')) || [];
+    const sentenceDiagrammerFavorites = JSON.parse(localStorage.getItem('venoxa_sentence_diagrammer_favorites')) || [];
+    const sentenceDiagrammerHistory = JSON.parse(localStorage.getItem('venoxa_sentence_diagrammer_history')) || [];
+    const wordFamilyFavorites = JSON.parse(localStorage.getItem('venoxa_word_family_favorites')) || [];
+    const wordFamilyHistory = JSON.parse(localStorage.getItem('venoxa_word_family_history')) || [];
+    const collocationFavorites = JSON.parse(localStorage.getItem('venoxa_collocations_favorites')) || [];
+    const collocationHistory = JSON.parse(localStorage.getItem('venoxa_collocations_history')) || [];
+    const etymologyFavorites = JSON.parse(localStorage.getItem('venoxa_etymology_favorites')) || [];
+    const etymologyHistory = JSON.parse(localStorage.getItem('venoxa_etymology_history')) || [];
+    const pronBookmarks = JSON.parse(localStorage.getItem('venoxa_pron_bookmarks')) || [];
+    const pronCompleted = JSON.parse(localStorage.getItem('venoxa_pron_completed')) || [];
+    const testSessions = JSON.parse(localStorage.getItem('venoxa_test_sessions')) || [];
+    const listeningHistory = JSON.parse(localStorage.getItem('venoxa_listening_history')) || [];
+    const listeningFavorites = JSON.parse(localStorage.getItem('venoxa_listening_favorites')) || [];
+    const readingHistory = JSON.parse(localStorage.getItem('venoxa_reading_history')) || [];
+    const readingFavorites = JSON.parse(localStorage.getItem('venoxa_reading_favorites')) || [];
+    const speakingFavorites = JSON.parse(localStorage.getItem('venoxa_speaking_favorites')) || [];
+    const wordOfDayHistory = JSON.parse(localStorage.getItem('venoxa_word_of_day_history')) || [];
+    const idiomOfDayHistory = JSON.parse(localStorage.getItem('venoxa_idiom_of_day_history')) || [];
 
     return {
       xp: Object.values(cells).filter(v => v === 'done').length * 15,

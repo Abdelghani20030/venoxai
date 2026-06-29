@@ -51,6 +51,35 @@ const usersTable = pgTable("users", {
   writingHistory: jsonb("writing_history").$type<any[]>().default([]).notNull(),
   planConfig: jsonb("plan_config").$type<Record<string, any>>().default({}).notNull(),
   studiedWords: jsonb("studied_words").$type<string[]>().default([]).notNull(),
+  translationHistory: jsonb("translation_history").$type<any[]>().default([]).notNull(),
+  translationFavorites: jsonb("translation_favorites").$type<any[]>().default([]).notNull(),
+  savedWords: jsonb("saved_words").$type<any[]>().default([]).notNull(),
+  savedIdioms: jsonb("saved_idioms").$type<any[]>().default([]).notNull(),
+  toneRewriterFavorites: jsonb("tone_rewriter_favorites").$type<any[]>().default([]).notNull(),
+  toneRewriterHistory: jsonb("tone_rewriter_history").$type<any[]>().default([]).notNull(),
+  sentenceDiagrammerFavorites: jsonb("sentence_diagrammer_favorites").$type<any[]>().default([]).notNull(),
+  sentenceDiagrammerHistory: jsonb("sentence_diagrammer_history").$type<any[]>().default([]).notNull(),
+  wordFamilyFavorites: jsonb("word_family_favorites").$type<any[]>().default([]).notNull(),
+  wordFamilyHistory: jsonb("word_family_history").$type<any[]>().default([]).notNull(),
+  collocationFavorites: jsonb("collocation_favorites").$type<any[]>().default([]).notNull(),
+  collocationHistory: jsonb("collocation_history").$type<any[]>().default([]).notNull(),
+  etymologyFavorites: jsonb("etymology_favorites").$type<any[]>().default([]).notNull(),
+  etymologyHistory: jsonb("etymology_history").$type<any[]>().default([]).notNull(),
+  pronBookmarks: jsonb("pron_bookmarks").$type<any[]>().default([]).notNull(),
+  pronCompleted: jsonb("pron_completed").$type<any[]>().default([]).notNull(),
+  testSessions: jsonb("test_sessions").$type<any[]>().default([]).notNull(),
+  listeningHistory: jsonb("listening_history").$type<any[]>().default([]).notNull(),
+  listeningFavorites: jsonb("listening_favorites").$type<any[]>().default([]).notNull(),
+  readingHistory: jsonb("reading_history").$type<any[]>().default([]).notNull(),
+  readingFavorites: jsonb("reading_favorites").$type<any[]>().default([]).notNull(),
+  speakingFavorites: jsonb("speaking_favorites").$type<any[]>().default([]).notNull(),
+  wordOfDayHistory: jsonb("word_of_day_history").$type<any[]>().default([]).notNull(),
+  idiomOfDayHistory: jsonb("idiom_of_day_history").$type<any[]>().default([]).notNull(),
+  customGlobalVocab: jsonb("custom_global_vocab").$type<any[]>().default([]).notNull(),
+  customPhrasalVocab: jsonb("custom_phrasal_vocab").$type<any[]>().default([]).notNull(),
+  customIdiomsVocab: jsonb("custom_idioms_vocab").$type<any[]>().default([]).notNull(),
+  customIdiomsProperVocab: jsonb("custom_idioms_proper_vocab").$type<any[]>().default([]).notNull(),
+  customLangeekVocab: jsonb("custom_langeek_vocab").$type<any[]>().default([]).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -812,6 +841,29 @@ app.post("/api/user/sync", authMiddleware, async (req, res) => {
       idiomsProperSrs: mergedIdiomsProperSrs,
       planConfig: mergedPlanConfig, studiedWords: mergedStudiedWords
     };
+
+    const extraVocabFields = [
+      "customGlobalVocab", "customPhrasalVocab", "customIdiomsVocab", "customIdiomsProperVocab", "customLangeekVocab"
+    ];
+    for (const field of extraVocabFields) {
+      if (req.body[field] !== undefined) {
+        updateFields[field] = mergeArraysById(req.body[field], (user as any)[field], "word");
+      }
+    }
+
+    const extraHistoryFields = [
+      "translationHistory", "translationFavorites", "savedWords", "savedIdioms",
+      "toneRewriterFavorites", "toneRewriterHistory", "sentenceDiagrammerFavorites", "sentenceDiagrammerHistory",
+      "wordFamilyFavorites", "wordFamilyHistory", "collocationFavorites", "collocationHistory",
+      "etymologyFavorites", "etymologyHistory", "pronBookmarks", "pronCompleted", "testSessions",
+      "listeningHistory", "listeningFavorites", "readingHistory", "readingFavorites",
+      "speakingFavorites", "wordOfDayHistory", "idiomOfDayHistory"
+    ];
+    for (const field of extraHistoryFields) {
+      if (req.body[field] !== undefined) {
+        updateFields[field] = mergeArraysById(req.body[field], (user as any)[field], "id");
+      }
+    }
     if (avatar !== undefined) updateFields.avatar = avatar;
 
     const [updatedUser] = await db.update(usersTable).set(updateFields).where(eq(usersTable.id, userId)).returning();
@@ -903,8 +955,33 @@ app.post("/api/user/sync-beacon", async (req, res) => {
       langeekSrsData: mergedLangeekSrsData,
       phrasalSrs: mergedPhrasalSrs, idiomsSrs: mergedIdiomsSrs,
       idiomsProperSrs: mergedIdiomsProperSrs,
+      idiomsProperSrs: mergedIdiomsProperSrs,
       planConfig: mergedPlanConfig, studiedWords: mergedStudiedWords
     };
+
+    const extraVocabFields = [
+      "customGlobalVocab", "customPhrasalVocab", "customIdiomsVocab", "customIdiomsProperVocab", "customLangeekVocab"
+    ];
+    for (const field of extraVocabFields) {
+      if ((syncData as any)[field] !== undefined) {
+        updateFields[field] = mergeArraysById((syncData as any)[field], (user as any)[field], "word");
+      }
+    }
+
+    const extraHistoryFields = [
+      "translationHistory", "translationFavorites", "savedWords", "savedIdioms",
+      "toneRewriterFavorites", "toneRewriterHistory", "sentenceDiagrammerFavorites", "sentenceDiagrammerHistory",
+      "wordFamilyFavorites", "wordFamilyHistory", "collocationFavorites", "collocationHistory",
+      "etymologyFavorites", "etymologyHistory", "pronBookmarks", "pronCompleted", "testSessions",
+      "listeningHistory", "listeningFavorites", "readingHistory", "readingFavorites",
+      "speakingFavorites", "wordOfDayHistory", "idiomOfDayHistory"
+    ];
+    for (const field of extraHistoryFields) {
+      if ((syncData as any)[field] !== undefined) {
+        updateFields[field] = mergeArraysById((syncData as any)[field], (user as any)[field], "id");
+      }
+    }
+
     if (avatar !== undefined) updateFields.avatar = avatar;
 
     await db.update(usersTable).set(updateFields).where(eq(usersTable.id, userId));
