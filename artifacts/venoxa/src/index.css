@@ -917,3 +917,22 @@ html { scroll-behavior: smooth; }
     border: none !important;
   }
 }
+
+/* ══════════════════════════════════════════════
+   Glossy 3D Reflection for Rounded Icons
+   ══════════════════════════════════════════════ */
+.rounded-md:has(> svg.lucide:only-child),
+.rounded-lg:has(> svg.lucide:only-child),
+.rounded-xl:has(> svg.lucide:only-child),
+.rounded-2xl:has(> svg.lucide:only-child),
+.rounded-full:has(> svg.lucide:only-child) {
+  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.3) !important;
+}
+
+.dark .rounded-md:has(> svg.lucide:only-child),
+.dark .rounded-lg:has(> svg.lucide:only-child),
+.dark .rounded-xl:has(> svg.lucide:only-child),
+.dark .rounded-2xl:has(> svg.lucide:only-child),
+.dark .rounded-full:has(> svg.lucide:only-child) {
+  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.15) !important;
+}

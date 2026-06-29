@@ -80,7 +80,7 @@ export function Dashboard() {
         {/* Logo */}
         <div className="px-5 py-5 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-[#0E4AA4] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-[#0E4AA4] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.3)] flex items-center justify-center">
               <span className="text-white font-bold text-sm">V</span>
             </div>
             <div>
@@ -153,7 +153,7 @@ export function Dashboard() {
           <div className="grid grid-cols-4 gap-4">
             {STATS.map(({ icon: Icon, value, label, color, bg }) => (
               <div key={label} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-3`}>
+                <div className={`w-10 h-10 rounded-xl ${bg} shadow-[inset_1px_1px_2px_rgba(255,255,255,0.3)] flex items-center justify-center mb-3`}>
                   <Icon className={`w-5 h-5 ${color}`} />
                 </div>
                 <div className={`text-2xl font-bold ${color}`}>{value}</div>
@@ -167,7 +167,7 @@ export function Dashboard() {
             {/* Tip card */}
             <div className="bg-[#FFF3DC] rounded-2xl p-5 border border-[#FFD78A]/50">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-lg bg-[#FFD78A] flex items-center justify-center">
+                <div className="w-6 h-6 rounded-lg bg-[#FFD78A] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.3)] flex items-center justify-center">
                   <Star className="w-3.5 h-3.5 text-[#7a4a00]" />
                 </div>
                 <span className="text-xs font-bold text-[#7a4a00] uppercase tracking-wide">نصيحة ذكية</span>
@@ -184,7 +184,7 @@ export function Dashboard() {
             {/* Quote card */}
             <div className="bg-[#EBF0F7] rounded-2xl p-5 border border-[#0E4AA4]/10">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-lg bg-[#0E4AA4] flex items-center justify-center">
+                <div className="w-6 h-6 rounded-lg bg-[#0E4AA4] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.3)] flex items-center justify-center">
                   <TrendingUp className="w-3.5 h-3.5 text-white" />
                 </div>
                 <span className="text-xs font-bold text-[#0E4AA4] uppercase tracking-wide">إلهام اليوم</span>
@@ -216,7 +216,7 @@ export function Dashboard() {
                 key={title}
                 className={`${bg} rounded-2xl p-5 cursor-pointer hover:scale-[1.02] transition-transform duration-200 border border-white/60 shadow-sm`}
               >
-                <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>
+                <div className={`w-10 h-10 rounded-xl ${iconBg} shadow-[inset_1px_1px_2px_rgba(255,255,255,0.3)] flex items-center justify-center mb-4`}>
                   <Icon className={`w-5 h-5 ${iconColor}`} />
                 </div>
                 <div className={`text-[10px] font-bold uppercase tracking-widest ${textColor} opacity-70 mb-1`}>
