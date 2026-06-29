@@ -2114,9 +2114,9 @@ function AppInner() {
   };
 
   const updateProfile = async (updates) => {
-    if (!token) return;
+    if (!user?.uid) return;
     try {
-      const updated = await fbUpdateProfile(token, updates);
+      const updated = await fbUpdateProfile(user.uid, updates);
       setUser(updated);
       localStorage.setItem('venoxa_user', JSON.stringify(updated));
       if (updates.level) {

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   User, Mail, Calendar as CalendarIcon, Edit, Award, Trash2, LogOut,
-  ChevronLeft, ChevronRight, Zap, Globe, Upload, Camera, X, Lightbulb
+  ChevronLeft, ChevronRight, ChevronDown, Check, Zap, Globe, Upload, Camera, X, Lightbulb
 } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 import { _resolveTranslation } from './translations.js';
@@ -54,6 +54,40 @@ function fmtSecs(s) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+const GENDER_OPTS = ['Male', 'Female', 'Other'];
+
+function NativeLanguageDropdown({ value, onChange, options }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+  
+  useEffect(() => {
+    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
+    if (isOpen) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [isOpen]);
+
+  return (
+    <div className={`relative w-full ${isOpen ? 'z-[9999]' : 'z-auto'}`} ref={ref}>
+      <button type="button" onClick={() => setIsOpen(!isOpen)}
+        className={`w-full px-4 py-2.5 bg-black/20 border rounded-xl text-white text-sm font-semibold flex items-center justify-between transition-all duration-300 outline-none ${isOpen ? 'border-purple-500/50 ring-2 ring-purple-500/20' : 'border-white/10 hover:border-white/20'}`}>
+        <span className="truncate">{value || 'Arabic'}</span>
+        <ChevronDown size={14} className={`transition-transform duration-300 opacity-60 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-2 py-2 w-full max-h-[240px] overflow-y-auto rounded-xl shadow-2xl border border-white/10 custom-scrollbar" style={{ background: 'rgba(20, 20, 25, 0.95)', backdropFilter: 'blur(24px)' }}>
+          {options.map(o => (
+            <button key={o} type="button" onClick={() => { onChange(o); setIsOpen(false); }}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${value === o ? 'bg-purple-500/20 text-purple-400 font-bold' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}>
+              <span>{o}</span>
+              {value === o && <Check size={14} />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProfileDashboard({
   token,
   user,
@@ -921,12 +955,11 @@ export default function ProfileDashboard({
               {/* Native Language */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">{t.nativeLanguageLabel}</label>
-                <select value={editNativeLanguage} onChange={e => setEditNativeLanguage(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold [&>option]:bg-gray-900">
-                  {['Arabic', 'English', 'Spanish', 'French', 'German', 'Chinese', 'Japanese'].map(l => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
+                <NativeLanguageDropdown
+                  value={editNativeLanguage}
+                  onChange={setEditNativeLanguage}
+                  options={['Arabic', 'English', 'Spanish', 'French', 'German', 'Chinese', 'Japanese']}
+                />
               </div>
 
               <div className="flex gap-2 justify-end pt-4 border-t border-white/10">
