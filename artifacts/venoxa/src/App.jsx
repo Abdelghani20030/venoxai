@@ -1437,6 +1437,57 @@ const formatCountdown = (nextReview) => {
 };
 
 // --- MAIN APPLICATION COMPONENT ---
+// ── Dynamic Meaning Component ────────────────────────────────────────────────
+function DynamicMeaning({ word, defaultMeaning, nativeLanguage, className }) {
+  const isArabic = !nativeLanguage || nativeLanguage === 'Arabic' || nativeLanguage === 'ar';
+  
+  const [cachedMeaning, setCachedMeaning] = useState(() => {
+    if (isArabic) return defaultMeaning;
+    try {
+      const cache = JSON.parse(localStorage.getItem('venoxa_dynamic_vocab')) || {};
+      return cache[`${word}_${nativeLanguage}`] || null;
+    } catch { return null; }
+  });
+  const [loading, setLoading] = useState(!isArabic && !cachedMeaning);
+
+  useEffect(() => {
+    if (isArabic || cachedMeaning) return;
+    
+    let isMounted = true;
+    const fetchMeaning = async () => {
+      const prompt = nativeLanguage === 'English' 
+        ? `Provide a short, simple English definition for the English word/phrase: "${word}". Max 10 words. Output ONLY the definition.`
+        : `Translate the English word/phrase "${word}" to ${nativeLanguage}. Output ONLY the translation, nothing else.`;
+        
+      try {
+        const res = await fetchFromGemini(prompt, null, 50);
+        if (res && isMounted) {
+          let cleanRes = res.replace(/["']/g, '').trim();
+          if (cleanRes.includes('"error"')) cleanRes = defaultMeaning;
+          setCachedMeaning(cleanRes);
+          setLoading(false);
+          try {
+            const cache = JSON.parse(localStorage.getItem('venoxa_dynamic_vocab')) || {};
+            cache[`${word}_${nativeLanguage}`] = cleanRes;
+            localStorage.setItem('venoxa_dynamic_vocab', JSON.stringify(cache));
+          } catch(e) {}
+        }
+      } catch (e) {
+        if (isMounted) {
+          setCachedMeaning(defaultMeaning);
+          setLoading(false);
+        }
+      }
+    };
+    fetchMeaning();
+    return () => { isMounted = false; };
+  }, [word, nativeLanguage, isArabic, cachedMeaning, defaultMeaning]);
+
+  if (isArabic) return <span className={className}>{defaultMeaning}</span>;
+  if (loading) return <span className={`${className} animate-pulse opacity-50`}>...</span>;
+  return <span className={className}>{cachedMeaning || defaultMeaning}</span>;
+}
+
 function AppInner() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -6025,7 +6076,7 @@ function StudyPlan({
                     <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0 transition-colors ${isStudied ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400' : 'bg-fuchsia-100 dark:bg-[var(--app-accent2)]/10 text-[#FF0099] dark:text-[var(--app-accent2)]'}`}>{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <span className={`font-extrabold text-lg block leading-tight transition-colors ${isStudied ? 'text-green-700 dark:text-green-400 line-through decoration-green-400/60' : 'text-gray-900 dark:text-[var(--app-text)]'}`} dir="ltr">{safeRender(w?.word)}</span>
-                      {w?.meaning && <span className={`text-sm transition-colors ${isStudied ? 'text-green-600/70 dark:text-green-400/60' : 'text-gray-500 dark:text-[var(--app-text)]'}`}>{safeRender(w.meaning)}</span>}
+                      {w?.meaning && <DynamicMeaning word={w.word} defaultMeaning={w.meaning} nativeLanguage={user?.nativeLanguage} className={`text-sm transition-colors ${isStudied ? 'text-green-600/70 dark:text-green-400/60' : 'text-gray-500 dark:text-[var(--app-text)]'}`} />}
                     </div>
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all ${isStudied ? 'bg-green-500 text-white scale-110 shadow-md shadow-green-500/30' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/30'}`}>
                       <CheckCircle2 className="w-4 h-4" />
@@ -6318,7 +6369,7 @@ Rules:
     setLoadingContextStory(true);
     try {
       const wordsStr = hardWords.map(w => w.word).join(', ');
-      const prompt = `You are a creative writing teacher. Use ALL of these words: [${wordsStr}] in a single short, coherent, and interesting story in English. The story should be accessible for a ${userLevel} learner. After the story, explain the context of each word in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
+      const prompt = `You are a creative writing teacher. Use ALL of these words: [${wordsStr}] in a single short, coherent, and interesting story in English. The story should be accessible for a ${userLevel} learner. After the story, explain the context of each word in ${(user?.nativeLanguage || 'Arabic')}.`;
       await streamText(prompt, setContextStory);
     } catch (e) {
       setContextStory(t.storyError);
@@ -6385,7 +6436,7 @@ Rules:
                 <button onClick={() => playAudio('en-US', item.word)} className={`text-gray-500 hover:text-black dark:text-white dark:hover:text-blue-400 transition-colors ${isAr ? 'order-first' : 'order-last'}`}><Volume2 className="w-4 h-4" /></button>
                 <span className="truncate">{safeRender(item.word)}</span>
               </p>
-              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 opacity-70 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+              <DynamicMeaning word={item.word} defaultMeaning={item.meaning} nativeLanguage={user?.nativeLanguage} className={`block text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 opacity-70 ${isAr ? 'text-right' : 'text-left'}`} />
             </div>
             <div className="flex items-center gap-3 order-2">
               <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 dark:text-[var(--app-accent1)] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove word from SRS">
@@ -6478,7 +6529,7 @@ Rules:
             <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
             <p className="text-gray-600 dark:text-white text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
           </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
-            <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+            <DynamicMeaning word={card.word} defaultMeaning={card.meaning} nativeLanguage={user?.nativeLanguage} className="block text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl" />
             {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
             {card.synonyms && <div className="w-full bg-gray-100 dark:bg-transparent p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] text-sm text-gray-700 dark:text-[var(--app-text)]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-black dark:text-white">{safeRender(card.synonyms)}</span></div>}
 
@@ -6615,7 +6666,7 @@ function PhrasalVerbs({
     if (loadingAi || aiStory || !card) return;
     setLoadingAi(true);
     try {
-      const prompt = `You are a fun English teacher. Write a vivid, memorable 2-3 line story in English using the phrasal verb "${card.word}" (meaning: ${card.meaning}) to help a ${userLevel} learner remember it. Then add a brief ${_resolveTranslation(lang, 'Arabic', 'English')} note explaining how the phrasal verb was used.`;
+      const prompt = `You are a fun English teacher. Write a vivid, memorable 2-3 line story in English using the phrasal verb "${card.word}" (meaning: ${card.meaning}) to help a ${userLevel} learner remember it. Then add a brief ${(user?.nativeLanguage || 'Arabic')} note explaining how the phrasal verb was used.`;
       await streamText(prompt, setAiStory);
     } catch { setAiStory('Error generating story.'); } finally { setLoadingAi(false); }
   };
@@ -6668,7 +6719,7 @@ Rules:
                 <button onClick={() => playAudio(item.word)} className={`text-gray-500 hover:text-black dark:text-white transition-colors ${isAr ? 'order-first' : 'order-last'}`}><Volume2 className="w-4 h-4" /></button>
                 <span>{safeRender(item.word)}</span>
               </p>
-              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+              <DynamicMeaning word={item.word} defaultMeaning={item.meaning} nativeLanguage={user?.nativeLanguage} className={`block text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 ${isAr ? 'text-right' : 'text-left'}`} />
             </div>
             <div className="flex items-center gap-3 order-2">
               <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
@@ -6725,7 +6776,7 @@ Rules:
         <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
         <p className="text-gray-600 dark:text-[var(--app-accent1)] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
-        <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        <DynamicMeaning word={card.word} defaultMeaning={card.meaning} nativeLanguage={user?.nativeLanguage} className="block text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl" />
         {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
           {!aiStory && <button onClick={e => { e.stopPropagation(); generateStory(); }} disabled={loadingAi} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Lightbulb className="w-5 h-5 text-amber-400" /> {t.storyBtn}</>}</button>}
@@ -6901,7 +6952,7 @@ function IdiomsSlang({
     if (loadingAi || aiSentence || !card) return;
     setLoadingAi(true);
     try {
-      const prompt = `Create one natural, realistic English sentence using the idiom or slang expression "${card.word}" (which means: ${card.meaning}). The sentence should be suitable for a ${userLevel} learner. After the English sentence, add a short ${_resolveTranslation(lang, 'Arabic', 'English')} note explaining how the expression is used in context. Output the sentence first, then the note on a new line.`;
+      const prompt = `Create one natural, realistic English sentence using the idiom or slang expression "${card.word}" (which means: ${card.meaning}). The sentence should be suitable for a ${userLevel} learner. After the English sentence, add a short ${(user?.nativeLanguage || 'Arabic')} note explaining how the expression is used in context. Output the sentence first, then the note on a new line.`;
       await streamText(prompt, setAiSentence);
     } catch { setAiSentence('Error generating sentence.'); } finally { setLoadingAi(false); }
   };
@@ -6959,7 +7010,7 @@ Rules:
                 </p>
                 {item.topic && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#1E90FF]/10 dark:bg-[var(--app-accent2)]/10 text-[var(--app-accent1)] dark:text-[var(--app-accent2)] border border-[#1E90FF]/30 dark:border-purple-500/20">{safeRender(item.topic)}</span>}
               </div>
-              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+              <DynamicMeaning word={item.word} defaultMeaning={item.meaning} nativeLanguage={user?.nativeLanguage} className={`block text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 ${isAr ? 'text-right' : 'text-left'}`} />
             </div>
             <div className="flex items-center gap-3 order-2">
               <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
@@ -7027,7 +7078,7 @@ Rules:
         <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
         <p className="text-gray-600 dark:text-[var(--app-accent1)] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
-        <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        <DynamicMeaning word={card.word} defaultMeaning={card.meaning} nativeLanguage={user?.nativeLanguage} className="block text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl" />
         {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
           {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5 text-purple-400" /> {t.genSentenceBtn}</>}</button>}
@@ -7201,7 +7252,7 @@ function IdiomsProper({
     if (loadingAi || aiSentence || !card) return;
     setLoadingAi(true);
     try {
-      const prompt = `Create one natural, realistic English sentence using the idiom "${card.word}" (which means: ${card.meaning}). The sentence should be suitable for a ${userLevel} learner. After the English sentence, add a short ${_resolveTranslation(lang, 'Arabic', 'English')} note explaining how the idiom is used in context. Output the sentence first, then the note on a new line.`;
+      const prompt = `Create one natural, realistic English sentence using the idiom "${card.word}" (which means: ${card.meaning}). The sentence should be suitable for a ${userLevel} learner. After the English sentence, add a short ${(user?.nativeLanguage || 'Arabic')} note explaining how the idiom is used in context. Output the sentence first, then the note on a new line.`;
       await streamText(prompt, setAiSentence);
     } catch { setAiSentence('Error generating sentence.'); } finally { setLoadingAi(false); }
   };
@@ -7259,7 +7310,7 @@ Rules:
                 </p>
                 {item.topic && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#1E90FF]/10 dark:bg-[var(--app-accent2)]/10 text-[var(--app-accent1)] dark:text-[var(--app-accent2)] border border-[#1E90FF]/30 dark:border-purple-500/20">{safeRender(item.topic)}</span>}
               </div>
-              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+              <DynamicMeaning word={item.word} defaultMeaning={item.meaning} nativeLanguage={user?.nativeLanguage} className={`block text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 ${isAr ? 'text-right' : 'text-left'}`} />
             </div>
             <div className="flex items-center gap-3 order-2">
               <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
@@ -7327,7 +7378,7 @@ Rules:
         <h3 className="text-4xl md:text-6xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
         <p className="text-gray-600 dark:text-[var(--app-accent1)] text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-16 px-4">
-        <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        <DynamicMeaning word={card.word} defaultMeaning={card.meaning} nativeLanguage={user?.nativeLanguage} className="block text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl" />
         {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] w-full"><p className="text-lg text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
           {!aiSentence && <button onClick={e => { e.stopPropagation(); generateSentence(); }} disabled={loadingAi} className="flex-1 bg-gray-50 dark:bg-[var(--app-input-bg)] text-black dark:text-white border border-gray-200 dark:border-[var(--app-border)] px-6 py-3 rounded-2xl font-bold flex justify-center items-center gap-2 transition-all hover:scale-[1.02]">{loadingAi ? <Activity className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5 text-purple-400" /> {t.genSentenceBtn}</>}</button>}
@@ -7382,7 +7433,7 @@ function Grammar({
     setExplanation("");
     setLoading(true);
     try {
-      const prompt = `You are an expert English grammar teacher. Explain this grammar rule: "${rule}" for a ${levelLabel} level student.\nThe explanation MUST be in ${_resolveTranslation(lang, 'Arabic', 'English')}.\nFormat your response clearly:\n1. Brief explanation (2-3 sentences)\n2. Three distinct example sentences in English, each followed by its ${_resolveTranslation(lang, 'Arabic', 'English')} translation\n3. One common mistake to avoid`;
+      const prompt = `You are an expert English grammar teacher. Explain this grammar rule: "${rule}" for a ${levelLabel} level student.\nThe explanation MUST be in ${(user?.nativeLanguage || 'Arabic')}.\nFormat your response clearly:\n1. Brief explanation (2-3 sentences)\n2. Three distinct example sentences in English, each followed by its ${(user?.nativeLanguage || 'Arabic')} translation\n3. One common mistake to avoid`;
       await streamText(prompt, setExplanation);
     } catch {
       setExplanation(t.error);
@@ -8555,7 +8606,7 @@ function Writing({
 Text to analyze: "${text}"
 
 Respond with this exact JSON structure:
-{"score":"X/10","corrected_text":"fully corrected version here","grammar_errors":[{"word":"exact_word_as_written","correction":"fixed_version","explanation":"why in ${_resolveTranslation(lang, 'Arabic', 'English')}"}],"style_tips":[{"original":"phrase","better":"native alternative","tip":"why in ${_resolveTranslation(lang, 'Arabic', 'English')}"}],"overall":"2-3 sentences in ${_resolveTranslation(lang, 'Arabic', 'English')}"}
+{"score":"X/10","corrected_text":"fully corrected version here","grammar_errors":[{"word":"exact_word_as_written","correction":"fixed_version","explanation":"why in ${(user?.nativeLanguage || 'Arabic')}"}],"style_tips":[{"original":"phrase","better":"native alternative","tip":"why in ${(user?.nativeLanguage || 'Arabic')}"}],"overall":"2-3 sentences in ${(user?.nativeLanguage || 'Arabic')}"}
 
 Important: The "word" value must be copied EXACTLY from the input text. Find every single error, do not skip any.`;
 
@@ -9808,7 +9859,7 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
     try {
       const prompt = `Generate a realistic and challenging roleplay scenario in English for a student at level ${chatLevel}.
       Example: "You are returning a broken laptop to a store and the clerk is being difficult."
-      Provide the scenario in English and a short instruction in ${_resolveTranslation(lang, 'Arabic', 'English')}. Return text only.`;
+      Provide the scenario in English and a short instruction in ${(user?.nativeLanguage || 'Arabic')}. Return text only.`;
       const response = await fetchFromGemini(prompt, AI_KEY);
       const errJson = parseGeminiJSON(response);
       if (errJson && errJson.error) {
@@ -11902,7 +11953,7 @@ Rules:
     setLoadingContextStory(true);
     try {
       const wordsStr = hardWords.map(w => w.word).join(', ');
-      const prompt = `You are a creative writing teacher. Use ALL of these words: [${wordsStr}] in a single short, coherent, and interesting story in English. The story should be accessible for a ${userLevel} learner. After the story, explain the context of each word in ${_resolveTranslation(lang, 'Arabic', 'English')}.`;
+      const prompt = `You are a creative writing teacher. Use ALL of these words: [${wordsStr}] in a single short, coherent, and interesting story in English. The story should be accessible for a ${userLevel} learner. After the story, explain the context of each word in ${(user?.nativeLanguage || 'Arabic')}.`;
       await streamText(prompt, setContextStory);
     } catch (e) {
       setContextStory(t.storyError);
@@ -11971,7 +12022,7 @@ Rules:
                 <button onClick={() => playAudio('en-US', item.word)} className={`text-gray-500 hover:text-black dark:text-white dark:hover:text-blue-400 transition-colors ${isAr ? 'order-first' : 'order-last'}`}><Volume2 className="w-4 h-4" /></button>
                 <span className="truncate">{safeRender(item.word)}</span>
               </p>
-              <p className={`text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 opacity-70 ${isAr ? 'text-right' : 'text-left'}`}>{safeRender(item.meaning)}</p>
+              <DynamicMeaning word={item.word} defaultMeaning={item.meaning} nativeLanguage={user?.nativeLanguage} className={`block text-sm text-gray-600 dark:text-[var(--app-text)] mt-1 opacity-70 ${isAr ? 'text-right' : 'text-left'}`} />
             </div>
             <div className="flex items-center gap-3">
               <button onClick={() => resetWordProgress(item.word)} className="p-2 text-gray-400 dark:text-[var(--app-accent1)] hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all" title="Remove from SRS"><Trash2 className="w-4 h-4" /></button>
@@ -12086,7 +12137,7 @@ Rules:
         <h3 className="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-6" dir="ltr">{safeRender(card.word)}</h3>
         <p className="text-gray-600 dark:text-white text-sm mt-8 animate-pulse bg-gray-100 dark:bg-[var(--app-card)]/30 py-2 px-6 rounded-full inline-block border border-gray-200">{t.clickToShow}</p>
       </div> : <div className="text-center space-y-6 animate-fadeIn w-full flex flex-col items-center pt-24 px-4">
-        <h3 className="text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl">{safeRender(card.meaning)}</h3>
+        <DynamicMeaning word={card.word} defaultMeaning={card.meaning} nativeLanguage={user?.nativeLanguage} className="block text-2xl md:text-3xl font-bold text-black dark:text-white leading-normal max-w-2xl" />
         {card.example && <div className="bg-gray-50 dark:bg-transparent p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] mt-4 w-full relative"><p className="text-lg md:text-xl text-gray-800 dark:text-[var(--app-text)] font-medium" dir="ltr">"{safeRender(card.example)}"</p></div>}
         {card.synonyms && <div className="w-full bg-gray-100 dark:bg-transparent p-4 rounded-2xl border border-gray-200 dark:border-[var(--app-border)] text-sm text-gray-700 dark:text-[var(--app-text)]" dir="ltr"><span className="font-bold text-gray-500 mr-2">{t.synonyms}</span> <span className="text-black dark:text-white">{safeRender(card.synonyms)}</span></div>}
 

@@ -101,6 +101,7 @@ export default function ProfileDashboard({
     dobLabel:       _resolveTranslation(lang, 'تاريخ الميلاد', 'Birth Date'),
     genderLabel:    _resolveTranslation(lang, 'الجنس', 'Gender'),
     languagesLabel: _resolveTranslation(lang, 'اللغات التي تدرسها', 'Languages you study'),
+    nativeLanguageLabel: _resolveTranslation(lang, 'اللغة الأم (للترجمة)', 'Native Language (for translations)'),
     male:           _resolveTranslation(lang, 'ذكر', 'Male'),
     female:         _resolveTranslation(lang, 'أنثى', 'Female'),
     other:          _resolveTranslation(lang, 'آخر', 'Other'),
@@ -380,6 +381,7 @@ export default function ProfileDashboard({
   const [editDob,     setEditDob]     = useState('');
   const [editGender,  setEditGender]  = useState('');
   const [editLangs,   setEditLangs]   = useState('');
+  const [editNativeLanguage, setEditNativeLanguage] = useState('Arabic');
   const [avatarDraft, setAvatarDraft] = useState(''); // base64 preview inside modal
   const fileRef = useRef(null);
 
@@ -390,6 +392,7 @@ export default function ProfileDashboard({
     setEditDob(user?.dob || '');
     setEditGender(user?.gender || 'Male');
     setEditLangs(user?.languages ? user.languages.join(', ') : '');
+    setEditNativeLanguage(user?.nativeLanguage || 'Arabic');
     setAvatarDraft(localAvatar || user?.avatar || '');
     setIsEditing(true);
   };
@@ -420,6 +423,7 @@ export default function ProfileDashboard({
       dob:       editDob,
       gender:    editGender,
       languages: langsArr,
+      nativeLanguage: editNativeLanguage,
       avatar:    avatarDraft || undefined,
     });
     setIsEditing(false);
@@ -556,6 +560,10 @@ export default function ProfileDashboard({
                     <span key={l} className="px-2 py-0.5 text-[11px] rounded bg-purple-500/15 text-purple-400 font-bold">{l}</span>
                   ))}
                 </div>
+              </div>
+              <div className="flex justify-between items-center gap-2 flex-wrap">
+                <span className="flex items-center gap-2 shrink-0"><Globe size={14} className="opacity-60" />{t.nativeLanguageLabel}</span>
+                <span className="text-black dark:text-white font-bold">{user?.nativeLanguage || 'Arabic'}</span>
               </div>
             </div>
 
@@ -908,6 +916,17 @@ export default function ProfileDashboard({
                 <input type="text" placeholder="e.g. English, Arabic" value={editLangs} onChange={e => setEditLangs(e.target.value)}
                   className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold" />
                 <span className="text-[10px] font-semibold text-gray-500 block">Comma-separated.</span>
+              </div>
+
+              {/* Native Language */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">{t.nativeLanguageLabel}</label>
+                <select value={editNativeLanguage} onChange={e => setEditNativeLanguage(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold [&>option]:bg-gray-900">
+                  {['Arabic', 'English', 'Spanish', 'French', 'German', 'Chinese', 'Japanese'].map(l => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex gap-2 justify-end pt-4 border-t border-white/10">
