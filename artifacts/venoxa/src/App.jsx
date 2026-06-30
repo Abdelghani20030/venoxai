@@ -1483,9 +1483,9 @@ function DynamicMeaning({ word, defaultMeaning, nativeLanguage, className }) {
     return () => { isMounted = false; };
   }, [word, nativeLanguage, isArabic, cachedMeaning, defaultMeaning]);
 
-  if (isArabic) return <span className={className}>{defaultMeaning}</span>;
+  if (isArabic) return <span className={className}>{safeRender(defaultMeaning)}</span>;
   if (loading) return <span className={`${className} animate-pulse opacity-50`}>...</span>;
-  return <span className={className}>{cachedMeaning || defaultMeaning}</span>;
+  return <span className={className}>{safeRender(cachedMeaning || defaultMeaning)}</span>;
 }
 
 function AppInner() {
