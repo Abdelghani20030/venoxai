@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User, Mail, Calendar as CalendarIcon, Edit, Award, Trash2, LogOut,
   ChevronLeft, ChevronRight, ChevronDown, Check, Zap, Globe, Upload, Camera, X, Lightbulb
@@ -58,23 +59,55 @@ const GENDER_OPTS = ['Male', 'Female', 'Other'];
 
 function NativeLanguageDropdown({ value, onChange, options }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState({});
   const ref = useRef(null);
   
   useEffect(() => {
-    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
+    const handleClick = (e) => {
+      // If clicking inside the button or the portal menu, do nothing.
+      // We will attach an ID to the portal to check clicks.
+      if (ref.current && ref.current.contains(e.target)) return;
+      if (document.getElementById('native-lang-menu')?.contains(e.target)) return;
+      setIsOpen(false);
+    };
     if (isOpen) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen]);
 
+  const handleOpen = () => {
+    if (!isOpen && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setMenuStyle({
+        position: 'fixed',
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 999999
+      });
+    }
+    setIsOpen(!isOpen);
+  };
+
+  useEffect(() => {
+    if (isOpen && ref.current) {
+      const handleScroll = () => {
+        const rect = ref.current.getBoundingClientRect();
+        setMenuStyle(prev => ({ ...prev, top: rect.bottom + 8, left: rect.left, width: rect.width }));
+      };
+      window.addEventListener('scroll', handleScroll, true);
+      return () => window.removeEventListener('scroll', handleScroll, true);
+    }
+  }, [isOpen]);
+
   return (
-    <div className={`relative w-full ${isOpen ? 'z-[9999]' : 'z-auto'}`} ref={ref}>
-      <button type="button" onClick={() => setIsOpen(!isOpen)}
+    <div className="relative w-full" ref={ref}>
+      <button type="button" onClick={handleOpen}
         className={`w-full px-4 py-2.5 bg-black/20 border rounded-xl text-white text-sm font-semibold flex items-center justify-between transition-all duration-300 outline-none ${isOpen ? 'border-purple-500/50 ring-2 ring-purple-500/20' : 'border-white/10 hover:border-white/20'}`}>
         <span className="truncate">{value || 'Arabic'}</span>
         <ChevronDown size={14} className={`transition-transform duration-300 opacity-60 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 py-2 w-full max-h-[240px] overflow-y-auto rounded-xl shadow-2xl border border-white/10 custom-scrollbar" style={{ background: 'rgba(20, 20, 25, 0.95)', backdropFilter: 'blur(24px)' }}>
+      {isOpen && typeof document !== 'undefined' && createPortal(
+        <div id="native-lang-menu" className="py-2 max-h-[240px] overflow-y-auto rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] border border-white/10 custom-scrollbar" style={{ ...menuStyle, background: 'rgba(20, 20, 25, 0.98)', backdropFilter: 'blur(24px)' }}>
           {options.map(o => (
             <button key={o} type="button" onClick={() => { onChange(o); setIsOpen(false); }}
               className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${value === o ? 'bg-purple-500/20 text-purple-400 font-bold' : 'text-gray-300 hover:bg-white/5 hover:text-white'}`}>
@@ -82,7 +115,8 @@ function NativeLanguageDropdown({ value, onChange, options }) {
               {value === o && <Check size={14} />}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

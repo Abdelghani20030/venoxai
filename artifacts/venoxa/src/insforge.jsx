@@ -47,6 +47,7 @@ function docToUser(uid, email, data = {}) {
     xp:                   data.xp                   || 0,
     streak:               data.streak               || 0,
     level:                data.level                || 'B2',
+    nativeLanguage:       data.nativeLanguage       || 'Arabic',
     dailyGoalMins:        data.dailyGoalMins        || 15,
     rank30Days:           data.rank30Days           || 29336,
     streakRank:           data.streakRank           || 601,
