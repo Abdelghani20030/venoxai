@@ -2872,7 +2872,8 @@ function AppInner() {
       setUserLevel: setUserLevelWrapped,
       AI_KEY: GEMINI_API_KEY,
       lang,
-      theme
+      theme,
+      user
     };
     switch (activeTab) {
       case 'dashboard':
@@ -6567,7 +6568,8 @@ function PhrasalVerbs({
   setPhrasalVocab,
   theme,
   phrasalSrs: srsData,
-  setPhrasalSrs: setSrsData
+  setPhrasalSrs: setSrsData,
+  user
 }) {
   const [mode, setMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
@@ -6807,7 +6809,8 @@ function IdiomsSlang({
   setIdiomsVocab,
   theme,
   idiomsSrs: srsData,
-  setIdiomsSrs: setSrsData
+  setIdiomsSrs: setSrsData,
+  user
 }) {
   const [mode, setMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
@@ -7109,7 +7112,8 @@ function IdiomsProper({
   setIdiomsProperVocab,
   theme,
   idiomsProperSrs: srsData,
-  setIdiomsProperSrs: setSrsData
+  setIdiomsProperSrs: setSrsData,
+  user
 }) {
   const [mode, setMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
@@ -11706,7 +11710,8 @@ function Langeek({
   setLangeekVocab,
   theme,
   langeekSrsData: srsData,
-  setLangeekSrsData: setSrsData
+  setLangeekSrsData: setSrsData,
+  user
 }) {
   const [vocabMode, setVocabMode] = useState('browse');
   const [listTab, setListTab] = useState('hard');
