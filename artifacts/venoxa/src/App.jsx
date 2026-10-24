@@ -2195,6 +2195,13 @@ function AppInner() {
     const dirty = new Set(dirtyFields.current);
     const snapshot = lastSyncSnapshot.current;
     
+    // If no baseline snapshot has been loaded yet (e.g. freshly opened device),
+    // do NOT treat empty local state as dirty against an uninitialized snapshot,
+    // which would cause Device 2 to overwrite Device 1's cloud data before pulling!
+    if (!snapshot || Object.keys(snapshot).length === 0) {
+      return dirty;
+    }
+    
     // completedCells / calendarDays
     if (JSON.stringify(currentPayload.completedCells) !== JSON.stringify(snapshot.completedCells)) {
       dirty.add('completedCells');
@@ -2234,7 +2241,7 @@ function AppInner() {
   };
 
   const pushChanges = async (force = false) => {
-    if (!token) return;
+    if (!token && !auth.currentUser) return;
     if (!isCloudProgressLoaded && !force) {
       console.log('pushChanges blocked: cloud progress not loaded yet');
       return;
@@ -2304,7 +2311,7 @@ function AppInner() {
   };
 
   const pullChanges = async (force = false) => {
-    if (!token) return;
+    if (!token && !auth.currentUser) return;
     if (isSyncing.current) {
       console.log('pullChanges blocked: another sync is already in progress');
       return;
@@ -3974,8 +3981,12 @@ function Dashboard({
   useEffect(() => {
     try {
       const cached = JSON.parse(localStorage.getItem('venoxa_word_of_day') || 'null');
-      if (cached?.data?.word) setWotd(cached.data);
+      if (cached?.data?.word) {
+        setWotd(cached.data);
+        return;
+      }
     } catch { /* ignore */ }
+    generateNewWotd();
   }, []);
 
   // Pick a quote on mount and cache by date; refresh picks a different random one
@@ -4068,37 +4079,65 @@ function Dashboard({
 
   const generateNewWotd = async () => {
     setLoadingWotdNew(true);
+    const today = `${new Date().getFullYear()}-${new Date().getMonth() + 1}-${new Date().getDate()}`;
+    
+    // 1. Try our high-quality AI backend first (same prompt style as WordOfTheDay.jsx)
     try {
-      // Pick a word the user hasn't seen yet (exclude current wotd)
+      const avoid = wotd?.word ? `Do not use '${wotd.word}'.` : '';
+      const prompt = `You are a vocabulary curator for an advanced English learner. Pick ONE sophisticated word (B2-C2). ${avoid}
+Return ONLY valid JSON (no markdown):
+{"word":"word","ipa":"/ipa/","partOfSpeech":"noun/verb/adj","definition":"clear 1-sentence definition","definitionAr":"ترجمة عربية للتعريف","example":"Natural example sentence.","exampleAr":"ترجمة عربية للجملة"}`;
+      const raw = await fetchFromGemini(prompt, null, 1000);
+      const parsedAi = parseGeminiJSON(raw);
+      if (parsedAi?.word && parsedAi?.definition) {
+        setWotd(parsedAi);
+        localStorage.setItem('venoxa_word_of_day', JSON.stringify({ date: today, timestamp: new Date().toISOString(), data: parsedAi }));
+        setLoadingWotdNew(false);
+        return;
+      }
+    } catch (aiErr) {
+      console.warn('WOTD AI fetch failed, using dictionary pool fallback:', aiErr);
+    }
+
+    // 2. Fallback: Curated word pool + dictionary API
+    try {
       const available = wotd?.word
         ? WORD_POOL.filter(w => w.toLowerCase() !== wotd.word.toLowerCase())
         : WORD_POOL;
       const word = available[Math.floor(Math.random() * available.length)];
 
-      // Free Dictionary API — no key, CORS-enabled, always works
-      const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`, { cache: 'no-store' });
-      if (!dictRes.ok) throw new Error('dict fail');
-      const dictData = await dictRes.json();
-      const entry = dictData[0];
-      const meaning = entry.meanings?.[0];
-      const definition = meaning?.definitions?.[0]?.definition || '';
-      const example = meaning?.definitions?.[0]?.example || '';
-      const partOfSpeech = meaning?.partOfSpeech || '';
-      const ipa = entry.phonetics?.find(p => p.text)?.text || entry.phonetic || '';
+      let parsed = {
+        word,
+        ipa: '',
+        partOfSpeech: 'vocabulary',
+        definition: 'An advanced English word to elevate your fluency.',
+        definitionAr: 'كلمة إنجليزية متقدمة لإثراء مفرداتك.',
+        example: `Using "${word}" in writing demonstrates advanced mastery.`
+      };
 
-      // Arabic definition via proxy (best-effort)
-      let definitionAr = '';
+      try {
+        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`, { cache: 'no-store' });
+        if (dictRes.ok) {
+          const dictData = await dictRes.json();
+          const entry = dictData[0];
+          const meaning = entry.meanings?.[0];
+          parsed.definition = meaning?.definitions?.[0]?.definition || parsed.definition;
+          parsed.example = meaning?.definitions?.[0]?.example || parsed.example;
+          parsed.partOfSpeech = meaning?.partOfSpeech || parsed.partOfSpeech;
+          parsed.ipa = entry.phonetics?.find(p => p.text)?.text || entry.phonetic || '';
+        }
+      } catch {}
+
       try {
         const arRaw = await fetchFromGemini(
-          `Translate this English word definition to Arabic, return ONLY the Arabic translation with no extra text:\n"${definition}"`,
+          `Translate this English word definition to Arabic, return ONLY the Arabic translation with no extra text:\n"${parsed.definition}"`,
           null, 200
         );
-        if (arRaw && !arRaw.includes('"error"')) definitionAr = arRaw.trim();
-      } catch { /* optional */ }
+        if (arRaw && !arRaw.includes('"error"')) parsed.definitionAr = arRaw.trim();
+      } catch {}
 
-      const parsed = { word, ipa, partOfSpeech, definition, definitionAr, example };
       setWotd(parsed);
-      localStorage.setItem('venoxa_word_of_day', JSON.stringify({ timestamp: new Date().toISOString(), data: parsed }));
+      localStorage.setItem('venoxa_word_of_day', JSON.stringify({ date: today, timestamp: new Date().toISOString(), data: parsed }));
     } catch (e) {
       console.error('WOTD error:', e);
     } finally {
