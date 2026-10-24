@@ -146,51 +146,6 @@ function authMiddleware(req, res, next) {
   next();
 }
 
-// ── Connection pool ──────────────────────────────────────────────────────────
-const pool = new Map<string, Promise<MsEdgeTTS>>();
-
-function prewarm(voice: string): Promise<MsEdgeTTS> {
-  const p = (async () => {
-    const tts = new MsEdgeTTS();
-    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-    return tts;
-  })();
-  pool.set(voice, p);
-  p.catch(() => pool.delete(voice));
-  return p;
-}
-
-// ── FIX: acquireConnection no longer overwrites the pool entry immediately.
-// It returns the existing (already-warm) connection and only schedules a
-// fresh replacement AFTER the current promise resolves — so the next request
-// finds a ready instance in the pool instead of a cold one every time.
-async function acquireConnection(voice: string): Promise<MsEdgeTTS> {
-  if (!pool.has(voice)) {
-    prewarm(voice);
-  }
-  const current = pool.get(voice)!;
-  // Pre-warm a replacement for the NEXT caller, but only after this one
-  // is fully connected (avoids overwriting an in-progress connection).
-  current.then((tts) => {
-    // Only replace if nothing else has already replaced it.
-    if (pool.get(voice) === current) {
-      prewarm(voice);
-    }
-  }).catch(() => {
-    // Connection failed — clear the stale entry so next call starts fresh.
-    if (pool.get(voice) === current) pool.delete(voice);
-  });
-  return current;
-}
-
-// Pre-warm all four accent/gender combinations used by the app.
-// This runs once when the function module is loaded (warm-start benefit).
-prewarm("en-GB-RyanNeural");
-prewarm("en-GB-SoniaNeural");
-prewarm("en-US-BrianMultilingualNeural");
-prewarm("en-US-AvaMultilingualNeural");
-
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -210,7 +165,6 @@ app.get("/api/debug", (_req, res) => {
     POLLINATIONS_API_KEY: !!(process.env.POLLINATIONS_API_KEY),
     GROQ_API_KEY:         !!(process.env.GROQ_API_KEY),
     NODE_ENV:             process.env.NODE_ENV,
-    pooledVoices:         Array.from(pool.keys()),
   });
 });
 
@@ -494,85 +448,47 @@ app.get("/api/groq-tts", async (req, res) => {
 });
 
 // ── GET /api/edge-tts ─────────────────────────────────────────────────────────
-// FIX: Stream audio chunks directly to the client instead of buffering the
-// entire MP3 first. The browser starts decoding and playing as soon as the
-// first chunk arrives, cutting perceived latency from ~3-5 s to near-instant.
-app.get('/api/edge-tts', async (req: Request, res: Response) => {
-  const text  = ((req.query.text  as string) ?? '').trim().slice(0, 1000);
-  const voice = (req.query.voice as string) ?? 'en-US-AvaMultilingualNeural';
-
-  if (!text) {
-    res.status(400).json({ error: 'text is required' });
-    return;
-  }
-
-  // Acquire a warm, pooled TTS connection (no cold WebSocket reconnect).
-  let tts: MsEdgeTTS;
-  try {
-    tts = await acquireConnection(voice);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[edge-tts] acquire failed:', msg);
-    if (!res.headersSent) res.status(502).json({ error: `Edge TTS failed: ${msg}` });
-    return;
-  }
-
-  // Stream headers — no Content-Length so we can start sending immediately.
-  res.setHeader('Content-Type',    'audio/mpeg');
-  res.setHeader('Cache-Control',   'public, max-age=86400, s-maxage=86400');
-  res.setHeader('X-Accel-Buffering', 'no');   // disable nginx/CDN buffering
-  res.setHeader('Transfer-Encoding', 'chunked');
-  res.status(200);
-
-  let resolved = false;
-  const done = () => {
-    if (resolved) return;
-    resolved = true;
-    if (!res.writableEnded) res.end();
-  };
-
-  // Hard deadline — if the TTS stream stalls, close cleanly.
-  const deadline = setTimeout(() => {
-    console.warn('[edge-tts] stream deadline reached');
-    done();
-  }, 20_000);
+// Fresh Microsoft connection per request (pooled sockets go stale on serverless).
+// Replies 200 only once real audio exists, so failures are visible to the client.
+app.get("/api/edge-tts", async (req: Request, res: Response) => {
+  const text  = String(req.query.text ?? "").trim().slice(0, 1000);
+  const voice = String(req.query.voice ?? "en-US-AvaMultilingualNeural");
+  if (!text) { res.status(400).json({ error: "text is required" }); return; }
 
   try {
+    const tts = new MsEdgeTTS();
+    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
     const { audioStream } = tts.toStream(text);
 
-    audioStream.on('data', (chunk: Buffer | Uint8Array) => {
-      if (res.writableEnded) return;
-      res.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const chunks: Buffer[] = [];
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Edge TTS timeout")), 15000);
+      audioStream.on("data", (c: Buffer | Uint8Array) => chunks.push(Buffer.from(c)));
+      audioStream.on("end",   () => { clearTimeout(timer); resolve(); });
+      audioStream.on("close", () => { clearTimeout(timer); resolve(); });
+      audioStream.on("error", (e: Error) => { clearTimeout(timer); reject(e); });
     });
+    try { tts.close(); } catch {}
 
-    audioStream.on('end',   () => { clearTimeout(deadline); done(); });
-    audioStream.on('close', () => { clearTimeout(deadline); done(); });
-    audioStream.on('error', (err: Error) => {
-      clearTimeout(deadline);
-      console.error('[edge-tts] stream error:', err.message);
-      done();
-    });
+    const audio = Buffer.concat(chunks);
+    if (audio.length < 1000) throw new Error("Edge TTS returned empty audio");
 
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Length", String(audio.length));
+    res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
+    res.end(audio);
   } catch (err: unknown) {
-    clearTimeout(deadline);
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[edge-tts] toStream failed:', msg);
-    // Headers already sent (status 200) — just close the connection.
-    done();
+    console.error("[edge-tts] failed:", msg);
+    if (!res.headersSent) res.status(502).json({ error: `Edge TTS failed: ${msg}` });
   }
 });
 
 app.post("/api/edge-tts",       (_req, res) => res.status(405).json({ error: "Use GET /api/edge-tts" }));
 app.post("/api/edge-tts-timed", (_req, res) => res.status(503).json({ error: "Edge TTS timed unavailable in serverless mode." }));
 
-// ── Warmup endpoint ───────────────────────────────────────────────────────────
-app.get('/api/edge-tts-warmup', (req: Request, res: Response) => {
-  const voice = typeof req.query?.voice === "string"
-    ? req.query.voice.trim()
-    : 'en-US-AvaMultilingualNeural';
-  prewarm(voice);
-  res.status(204).end();
-});
+// ── Warmup endpoint (no-op: connections are per-request now) ─────────────────
+app.get("/api/edge-tts-warmup", (_req: Request, res: Response) => { res.status(204).end(); });
 
 // ── GET /api/voices / POST /api/tts/stream (ElevenLabs) ──────────────────────
 app.get("/api/voices", async (_req, res) => {

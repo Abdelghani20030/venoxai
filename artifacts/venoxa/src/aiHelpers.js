@@ -247,16 +247,31 @@ export const speakEdge = async (text, accent = 'en-US', { noWait = false } = {})
   const edgeURL = `${BASE}api/edge-tts?${new URLSearchParams({ text: text.trim().slice(0, 800), voice })}`;
 
   const run = async () => {
-    try {
-      const { audio, promise } = _playAudioUrl(edgeURL);
+    const tryUrl = async (url) => {
+      const { audio, promise } = _playAudioUrl(url);
       _currentEdgeAudio = audio;
       audio.onended = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
-      audio.onerror = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
       await promise;
-    } catch {
-      // Silent failure.
+    };
+    const clean = text.trim().slice(0, 800);
+    try {
+      await tryUrl(edgeURL);
+    } catch (e1) {
+      if (e1?.message === 'aborted') return;
+      console.warn('[tts] Edge TTS failed, trying Gemini:', e1);
+      try {
+        await tryUrl(`${BASE}api/gemini-tts?${new URLSearchParams({ text: clean, voice: 'puck' })}`);
+      } catch (e2) {
+        if (e2?.message === 'aborted') return;
+        console.warn('[tts] Gemini TTS failed, using browser voice:', e2);
+        if ('speechSynthesis' in window) {
+          const u = new SpeechSynthesisUtterance(clean);
+          u.lang = accent === 'en-GB' ? 'en-GB' : 'en-US';
+          window.speechSynthesis.speak(u);
+        }
+      }
     } finally {
-      if (_currentEdgeAudio) _currentEdgeAudio = null;
+      _currentEdgeAudio = null;
     }
   };
 
