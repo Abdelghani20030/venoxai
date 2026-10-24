@@ -449,40 +449,107 @@ app.get("/api/groq-tts", async (req, res) => {
   } catch (err) { console.error("Groq TTS error:", err); res.status(502).json({ error: "Groq TTS failed" }); }
 });
 
+// ── Groq speech helper (used as the primary/fallback engine for /api/edge-tts) ─
+// Edge TTS is blocked from Vercel's IPs, so Groq (Orpheus) does the speaking.
+const EDGE_TO_GROQ = {
+  "en-US-BrianMultilingualNeural": "troy",  "en-GB-RyanNeural": "daniel",
+  "en-US-AvaMultilingualNeural":   "hannah", "en-GB-SoniaNeural": "diana",
+};
+function splitForGroq(text, max = 200) {
+  const parts = text.match(/[^.!?؟\n]+[.!?؟]*\s*/g) ?? [text];
+  const out = []; let cur = "";
+  for (const p of parts) {
+    if ((cur + p).length <= max) { cur += p; continue; }
+    if (cur.trim()) out.push(cur.trim());
+    let rest = p;
+    while (rest.length > max) {
+      let cut = rest.lastIndexOf(" ", max); if (cut < 40) cut = max;
+      out.push(rest.slice(0, cut).trim()); rest = rest.slice(cut);
+    }
+    cur = rest;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out.filter(Boolean).slice(0, 6);
+}
+function wavPcm(buf) { // returns { fmt: Buffer(first 12+fmt chunk), pcm: Buffer }
+  let o = 12, fmtChunk = null;
+  while (o + 8 <= buf.length) {
+    const id = buf.toString("ascii", o, o + 4); let size = buf.readUInt32LE(o + 4);
+    if (id === "fmt ") fmtChunk = buf.subarray(o + 8, o + 8 + size);
+    if (id === "data") { if (size > buf.length - o - 8) size = buf.length - o - 8; return { fmt: fmtChunk, pcm: buf.subarray(o + 8, o + 8 + size) }; }
+    o += 8 + size + (size % 2);
+  }
+  throw new Error("Bad WAV from Groq");
+}
+async function groqSpeak(text, groqVoice) {
+  if (!groqKey) throw new Error("GROQ_API_KEY not configured");
+  const pieces = splitForGroq(text);
+  const wavs = await Promise.all(pieces.map(async (piece) => {
+    const r = await fetch("https://api.groq.com/openai/v1/audio/speech", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
+      body: JSON.stringify({ input: piece, voice: groqVoice, model: "canopylabs/orpheus-v1-english", response_format: "wav" }),
+    });
+    if (!r.ok) throw new Error(`Groq ${r.status}: ${(await r.text()).slice(0, 150)}`);
+    return Buffer.from(await r.arrayBuffer());
+  }));
+  if (wavs.length === 1) return wavs[0];
+  const parsed = wavs.map(wavPcm);
+  const pcm = Buffer.concat(parsed.map((p) => p.pcm));
+  const fmt = parsed[0].fmt;
+  const header = Buffer.alloc(20 + fmt.length + 8);
+  header.write("RIFF", 0); header.writeUInt32LE(4 + 8 + fmt.length + 8 + pcm.length, 4);
+  header.write("WAVE", 8); header.write("fmt ", 12); header.writeUInt32LE(fmt.length, 16);
+  fmt.copy(header, 20); header.write("data", 20 + fmt.length); header.writeUInt32LE(pcm.length, 24 + fmt.length);
+  return Buffer.concat([header, pcm]);
+}
+
 // ── GET /api/edge-tts ─────────────────────────────────────────────────────────
-// Fresh Microsoft connection per request (pooled sockets go stale on serverless).
-// Replies 200 only once real audio exists, so failures are visible to the client.
+// Tries Microsoft Edge TTS first; if it fails (it is blocked on Vercel), falls
+// back to Groq on the server so every caller still gets playable audio.
+let edgeBlockedUntil = 0;
 app.get("/api/edge-tts", async (req: Request, res: Response) => {
   const text  = String(req.query.text ?? "").trim().slice(0, 1000);
   const voice = String(req.query.voice ?? "en-US-AvaMultilingualNeural");
   if (!text) { res.status(400).json({ error: "text is required" }); return; }
 
+  if (Date.now() > edgeBlockedUntil) {
+    try {
+      const tts = new MsEdgeTTS();
+      await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+      const { audioStream } = tts.toStream(text);
+      const chunks: Buffer[] = [];
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Edge TTS timeout")), 10000);
+        audioStream.on("data", (c: Buffer | Uint8Array) => chunks.push(Buffer.from(c)));
+        audioStream.on("end",   () => { clearTimeout(timer); resolve(); });
+        audioStream.on("close", () => { clearTimeout(timer); resolve(); });
+        audioStream.on("error", (e: Error) => { clearTimeout(timer); reject(e); });
+      });
+      try { tts.close(); } catch {}
+      const audio = Buffer.concat(chunks);
+      if (audio.length < 1000) throw new Error("Edge TTS returned empty audio");
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Content-Length", String(audio.length));
+      res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
+      res.end(audio);
+      return;
+    } catch (err: unknown) {
+      edgeBlockedUntil = Date.now() + 5 * 60 * 1000; // skip Edge for 5 min
+      console.error("[edge-tts] Edge failed, using Groq:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   try {
-    const tts = new MsEdgeTTS();
-    await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-    const { audioStream } = tts.toStream(text);
-
-    const chunks: Buffer[] = [];
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Edge TTS timeout")), 15000);
-      audioStream.on("data", (c: Buffer | Uint8Array) => chunks.push(Buffer.from(c)));
-      audioStream.on("end",   () => { clearTimeout(timer); resolve(); });
-      audioStream.on("close", () => { clearTimeout(timer); resolve(); });
-      audioStream.on("error", (e: Error) => { clearTimeout(timer); reject(e); });
-    });
-    try { tts.close(); } catch {}
-
-    const audio = Buffer.concat(chunks);
-    if (audio.length < 1000) throw new Error("Edge TTS returned empty audio");
-
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Content-Length", String(audio.length));
+    const wav = await groqSpeak(text, EDGE_TO_GROQ[voice] ?? "troy");
+    res.setHeader("Content-Type", "audio/wav");
+    res.setHeader("Content-Length", String(wav.length));
     res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
-    res.end(audio);
+    res.end(wav);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[edge-tts] failed:", msg);
-    if (!res.headersSent) res.status(502).json({ error: `Edge TTS failed: ${msg}` });
+    console.error("[edge-tts] Groq fallback failed:", msg);
+    if (!res.headersSent) res.status(502).json({ error: `TTS failed: ${msg}` });
   }
 });
 
