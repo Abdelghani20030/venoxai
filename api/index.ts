@@ -428,9 +428,11 @@ app.get("/api/gemini-tts", async (req, res) => {
 });
 
 // ── GET /api/groq-tts ─────────────────────────────────────────────────────────
+const GROQ_VOICES = ["autumn", "diana", "hannah", "austin", "daniel", "troy"];
 app.get("/api/groq-tts", async (req, res) => {
-  const text  = typeof req.query.text  === "string" ? req.query.text.trim()  : "";
-  const voice = typeof req.query.voice === "string" ? req.query.voice.trim() : "adam";
+  const text  = typeof req.query.text  === "string" ? req.query.text.trim().slice(0, 200) : ""; // Orpheus limit: 200 chars
+  const v     = typeof req.query.voice === "string" ? req.query.voice.trim().toLowerCase()  : "";
+  const voice = GROQ_VOICES.includes(v) ? v : "troy";
   if (!text)    { res.status(400).json({ error: "Missing 'text'" }); return; }
   if (!groqKey) { res.status(503).json({ error: "GROQ_API_KEY not configured" }); return; }
   try {
@@ -439,11 +441,11 @@ app.get("/api/groq-tts", async (req, res) => {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
       body: JSON.stringify({ input: text, voice, model: "canopylabs/orpheus-v1-english", response_format: "wav" }),
     });
-    if (!r.ok) throw new Error(`Groq TTS ${r.status}`);
+    if (!r.ok) { const e = await r.text(); console.error("Groq TTS", r.status, e.slice(0, 300)); res.status(502).json({ error: `Groq TTS ${r.status}: ${e.slice(0, 200)}` }); return; }
+    const buf = Buffer.from(await r.arrayBuffer());
     res.setHeader("Content-Type", "audio/wav");
     res.setHeader("Cache-Control", "public, max-age=86400, immutable");
-    const buf = await r.arrayBuffer();
-    res.end(Buffer.from(buf));
+    res.end(buf);
   } catch (err) { console.error("Groq TTS error:", err); res.status(502).json({ error: "Groq TTS failed" }); }
 });
 

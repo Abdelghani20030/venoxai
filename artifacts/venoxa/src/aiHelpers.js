@@ -258,7 +258,13 @@ export const speakEdge = async (text, accent = 'en-US', { noWait = false } = {})
       await tryUrl(edgeURL);
     } catch (e1) {
       if (e1?.message === 'aborted') return;
-      console.warn('[tts] Edge TTS failed, trying Gemini:', e1);
+      console.warn('[tts] Edge TTS failed, trying Groq:', e1);
+      const groqVoice = preferredGender === 'female' ? 'hannah' : 'troy';
+      try {
+        await tryUrl(`${BASE}api/groq-tts?${new URLSearchParams({ text: clean, voice: groqVoice })}`);
+      } catch (e1b) {
+      if (e1b?.message === 'aborted') return;
+      console.warn('[tts] Groq TTS failed, trying Gemini:', e1b);
       try {
         await tryUrl(`${BASE}api/gemini-tts?${new URLSearchParams({ text: clean, voice: 'puck' })}`);
       } catch (e2) {
@@ -269,6 +275,7 @@ export const speakEdge = async (text, accent = 'en-US', { noWait = false } = {})
           u.lang = accent === 'en-GB' ? 'en-GB' : 'en-US';
           window.speechSynthesis.speak(u);
         }
+      }
       }
     } finally {
       _currentEdgeAudio = null;
