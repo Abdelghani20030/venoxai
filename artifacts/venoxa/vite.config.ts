@@ -1,4 +1,3 @@
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
@@ -40,6 +39,19 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("react-dom") || id.includes("/react/") || id.includes("wouter")) return "react-vendor";
+          if (id.includes("@radix-ui")) return "radix";
+          if (id.includes("framer-motion")) return "motion";
+          if (id.includes("@tanstack")) return "query";
+          return "vendor";
+        },
+      },
+    },
   },
   server: {
     port,
