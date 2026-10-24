@@ -228,16 +228,16 @@ const orClient   = orKey     ? new OpenAI({
   defaultHeaders: { "HTTP-Referer": "https://venoxai.vercel.app", "X-Title": "Venoxa AI Platform" },
 }) : null;
 const dsClient   = deepseekKey ? new OpenAI({ apiKey: deepseekKey, baseURL: "https://api.deepseek.com" }) : null;
-const pollClient = pollKey      ? new OpenAI({ apiKey: pollKey,     baseURL: "https://gen.pollinations.ai" }) : null;
+const pollClient = pollKey      ? new OpenAI({ apiKey: pollKey,     baseURL: "https://gen.pollinations.ai/v1" }) : null;
 
 const OR_MODELS = [
-  "liquid/lfm-2.5-1.2b-instruct:free",
-  "openai/gpt-oss-20b:free",
-  "nvidia/nemotron-nano-9b-v2:free",
-  "meta-llama/llama-3.2-3b-instruct:free",
-  "google/gemma-4-26b-a4b-it:free",
-  "openai/gpt-oss-120b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "nvidia/nemotron-3.5-lightning:free",
+  "liquid/lfm-2.5-2.6b:free",
+  "thinkingmachines/inkling:free",
+  "poolside/laguna-s-2.1:free",
+  "poolside/laguna-xs-2.1:free",
+  "meta-llama/llama-3.2-3b-instruct",
+  "google/gemini-2.5-flash",
 ];
 
 function buildMessages(prompt) {
@@ -249,42 +249,62 @@ function buildMessages(prompt) {
 async function streamFromAI(prompt, onChunk, maxTokens = 512) {
   const messages = buildMessages(prompt);
 
-  // 1. Groq — fastest
+  // 1. Groq — ultra-fast
   if (groqClient) {
+    const groqModels = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"];
+    for (const model of groqModels) {
+      try {
+        const stream = await groqClient.chat.completions.create({
+          model, messages, max_tokens: maxTokens, stream: true,
+        });
+        for await (const chunk of stream) {
+          const d = chunk.choices[0]?.delta?.content;
+          if (d) onChunk(d);
+        }
+        return;
+      } catch (e) { console.warn(`Groq ${model} failed:`, e.message); }
+    }
+  }
+
+  // 2. Gemini
+  if (genAI) {
+    const geminiModels = ["gemini-flash-latest", "gemini-3.5-flash", "gemini-3.8-flash"];
+    const systemMsg = messages.find(m => m.role === "system");
+    const userMsg   = messages[messages.length - 1].content;
+    for (const modelName of geminiModels) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: systemMsg?.content,
+        });
+        const result = await model.generateContentStream({
+          contents: [{ role: "user", parts: [{ text: userMsg }] }],
+          generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
+        });
+        for await (const chunk of result.stream) {
+          const t = chunk.text();
+          if (t) onChunk(t);
+        }
+        return;
+      } catch (e) { console.warn(`Gemini ${modelName} failed:`, e.message); }
+    }
+  }
+
+  // 3. Pollinations
+  if (pollClient) {
     try {
-      const stream = await groqClient.chat.completions.create({
-        model: "llama-3.3-70b-versatile", messages, max_tokens: maxTokens, stream: true,
+      const stream = await pollClient.chat.completions.create({
+        model: "openai", messages, max_tokens: maxTokens, stream: true,
       });
       for await (const chunk of stream) {
         const d = chunk.choices[0]?.delta?.content;
         if (d) onChunk(d);
       }
       return;
-    } catch (e) { console.warn("Groq failed:", e.message); }
+    } catch (e) { console.warn("Pollinations failed:", e.message); }
   }
 
-  // 2. Gemini
-  if (genAI) {
-    try {
-      const systemMsg = messages.find(m => m.role === "system");
-      const userMsg   = messages[messages.length - 1].content;
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash",
-        systemInstruction: systemMsg?.content,
-      });
-      const result = await model.generateContentStream({
-        contents: [{ role: "user", parts: [{ text: userMsg }] }],
-        generationConfig: { maxOutputTokens: maxTokens, temperature: 0.7 },
-      });
-      for await (const chunk of result.stream) {
-        const t = chunk.text();
-        if (t) onChunk(t);
-      }
-      return;
-    } catch (e) { console.warn("Gemini failed:", e.message); }
-  }
-
-  // 3. OpenRouter — try each model
+  // 4. OpenRouter — try each model
   if (orClient) {
     for (const model of OR_MODELS) {
       try {
@@ -300,7 +320,7 @@ async function streamFromAI(prompt, onChunk, maxTokens = 512) {
     }
   }
 
-  // 4. DeepSeek
+  // 5. DeepSeek
   if (dsClient) {
     try {
       const stream = await dsClient.chat.completions.create({
@@ -312,20 +332,6 @@ async function streamFromAI(prompt, onChunk, maxTokens = 512) {
       }
       return;
     } catch (e) { console.warn("DeepSeek failed:", e.message); }
-  }
-
-  // 5. Pollinations
-  if (pollClient) {
-    try {
-      const stream = await pollClient.chat.completions.create({
-        model: "openai", messages, max_tokens: maxTokens, stream: true,
-      });
-      for await (const chunk of stream) {
-        const d = chunk.choices[0]?.delta?.content;
-        if (d) onChunk(d);
-      }
-      return;
-    } catch (e) { console.warn("Pollinations failed:", e.message); }
   }
 
   throw new Error("All AI providers failed or are unconfigured.");

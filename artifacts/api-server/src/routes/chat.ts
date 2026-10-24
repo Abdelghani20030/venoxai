@@ -45,15 +45,14 @@ function setCooldown(key: string, ms: number) {
 
 // ── OpenRouter ────────────────────────────────────────────────────────────────
 // Models ordered by speed: smallest/fastest first.
-// Verified valid on OpenRouter as of 2026-05 — rotated when one hits rate limits.
 const OR_MODELS = [
-  "liquid/lfm-2.5-1.2b-instruct:free",    // 1.2B — fastest
-  "openai/gpt-oss-20b:free",               // 20B — GPT-class, fast
-  "nvidia/nemotron-nano-9b-v2:free",       // 9B
-  "meta-llama/llama-3.2-3b-instruct:free", // 3B
-  "google/gemma-4-26b-a4b-it:free",        // 26B sparse MoE
-  "openai/gpt-oss-120b:free",              // 120B — high quality
-  "meta-llama/llama-3.3-70b-instruct:free",// 70B
+  "nvidia/nemotron-3.5-lightning:free",
+  "liquid/lfm-2.5-2.6b:free",
+  "thinkingmachines/inkling:free",
+  "poolside/laguna-s-2.1:free",
+  "poolside/laguna-xs-2.1:free",
+  "meta-llama/llama-3.2-3b-instruct",
+  "google/gemini-2.5-flash",
 ];
 
 const orKey = (process.env["OPENROUTER_API_KEY"] ?? "").trim();
@@ -86,7 +85,7 @@ const dsClient = deepseekKey ? new OpenAI({
 const pollKey = (process.env["POLLINATIONS_API_KEY"] ?? "").trim();
 const pollClient = pollKey ? new OpenAI({
   apiKey: pollKey,
-  baseURL: "https://gen.pollinations.ai",
+  baseURL: "https://gen.pollinations.ai/v1",
 }) : null;
 
 // ── Groq ────────────────────────────────────────────────────────────────────
@@ -162,33 +161,74 @@ async function streamFromAI(
   maxTokens = 512,
   log?: (msg: string) => void,
 ): Promise<void> {
-  // Try Groq first as requested (Incredible speed)
-  if (groqClient) {
-    try {
-      const messages = buildMessages(prompt);
-      const stream = await groqClient.chat.completions.create({
-        model: "llama-3.3-70b-versatile", // Top tier model on Groq
-        messages: messages.map(m => ({ role: m.role, content: m.content })),
-        max_tokens: maxTokens,
-        stream: true,
-      });
+  const messages = buildMessages(prompt);
 
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content || "";
-        if (delta) onChunk(delta);
+  // 1. Try Groq first (high speed)
+  if (groqClient) {
+    const groqModels = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"];
+    for (const model of groqModels) {
+      try {
+        const stream = await groqClient.chat.completions.create({
+          model,
+          messages: messages.map(m => ({ role: m.role, content: m.content })),
+          max_tokens: maxTokens,
+          stream: true,
+        });
+
+        for await (const chunk of stream) {
+          const delta = chunk.choices[0]?.delta?.content || "";
+          if (delta) onChunk(delta);
+        }
+        return;
+      } catch (err) {
+        log?.(`Groq model ${model} failed: ${err instanceof Error ? err.message : String(err)}`);
       }
-      return;
-    } catch (err) {
-      log?.(`Groq failed, falling back to Pollinations: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  // Try Pollinations second
+  // 2. Try Gemini
+  if (genAI) {
+    const geminiModels = ["gemini-flash-latest", "gemini-3.5-flash", "gemini-3.8-flash"];
+    const systemMsg = messages.find(m => m.role === 'system');
+    const userMsg = messages[messages.length - 1].content;
+
+    for (const modelName of geminiModels) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: systemMsg ? systemMsg.content : undefined,
+        });
+
+        const result = await model.generateContentStream({
+          contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+          generationConfig: {
+            maxOutputTokens: maxTokens,
+            temperature: 0.7,
+          },
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+          ] as any
+        });
+
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) onChunk(text);
+        }
+        return;
+      } catch (err) {
+        log?.(`Gemini model ${modelName} failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  // 3. Try Pollinations
   if (pollClient) {
     try {
-      const messages = buildMessages(prompt);
       const stream = await pollClient.chat.completions.create({
-        model: "openai", // Common generic model identifier for Pollinations
+        model: "openai",
         messages: messages.map(m => ({ role: m.role, content: m.content })),
         max_tokens: maxTokens,
         stream: true,
@@ -200,50 +240,13 @@ async function streamFromAI(
       }
       return;
     } catch (err) {
-      log?.(`Pollinations failed, falling back to Gemini: ${err instanceof Error ? err.message : String(err)}`);
+      log?.(`Pollinations failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  // Try Gemini second (extremely fast)
-  if (genAI) {
-    try {
-      const messages = buildMessages(prompt);
-      const systemMsg = messages.find(m => m.role === 'system');
-      const userMsg = messages[messages.length - 1].content;
-
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash",
-        systemInstruction: systemMsg ? systemMsg.content : undefined,
-      });
-
-      const result = await model.generateContentStream({
-        contents: [{ role: 'user', parts: [{ text: userMsg }] }],
-        generationConfig: {
-          maxOutputTokens: maxTokens,
-          temperature: 0.7,
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-        ] as any
-      });
-
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
-        if (text) onChunk(text);
-      }
-      return;
-    } catch (err) {
-      log?.(`Gemini failed, falling back to DeepSeek: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  // Try DeepSeek third
+  // 4. Try DeepSeek
   if (dsClient) {
     try {
-      const messages = buildMessages(prompt);
       const stream = await dsClient.chat.completions.create({
         model: "deepseek-chat",
         messages: messages.map(m => ({ role: m.role, content: m.content })),
@@ -257,11 +260,11 @@ async function streamFromAI(
       }
       return;
     } catch (err) {
-      log?.(`DeepSeek failed, falling back to OpenRouter: ${err instanceof Error ? err.message : String(err)}`);
+      log?.(`DeepSeek failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  // Fallback to OpenRouter
+  // 5. Fallback to OpenRouter
   await streamFromOpenRouter(prompt, onChunk, maxTokens, log);
 }
 
