@@ -1277,8 +1277,12 @@ app.get("/api/edge-tts", async (req: Request, res: Response) => {
     }
   }
 
-  // 2) Microsoft Edge read-aloud (free, no account) via the native v2 client
-  if (Date.now() > edgeBlockedUntil) {
+  // 2) Microsoft Edge read-aloud (free, no account) via the native v2 client.
+  //    Retries on fresh connections so a single hiccup never changes the voice.
+  //    Groq is NOT used here: mixing two different voices inside one reply
+  //    sounded bad. (Set ENABLE_GROQ_FALLBACK=1 in Vercel to re-enable it.)
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const audio = await edgeSynthesizeMp3(voice, text, 12000);
       res.setHeader("Content-Type", "audio/mpeg");
@@ -1287,12 +1291,18 @@ app.get("/api/edge-tts", async (req: Request, res: Response) => {
       res.end(audio);
       return;
     } catch (err: unknown) {
-      edgeBlockedUntil = Date.now() + 60 * 1000; // skip Edge for 1 min after a failure
-      console.error("[edge-tts] Edge failed, using Groq:", err instanceof Error ? err.message : String(err));
+      lastErr = err;
+      console.error(`[edge-tts] attempt ${attempt + 1} failed:`, err instanceof Error ? err.message : String(err));
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
     }
   }
 
-  // 3) Groq fallback
+  if (process.env.ENABLE_GROQ_FALLBACK !== "1") {
+    res.status(502).json({ error: `Edge TTS failed: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}` });
+    return;
+  }
+
+  // 3) Optional Groq fallback (off by default)
   try {
     const wav = await groqSpeak(text, EDGE_TO_GROQ[voice] ?? "troy");
     res.setHeader("Content-Type", "audio/wav");

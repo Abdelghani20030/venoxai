@@ -770,7 +770,36 @@ const stopAllAudio = () => {
   _currentTTSAudio = null;
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
 };
-// WAV (Groq) vs MP3 (Edge): label blobs correctly so Safari/iOS can decode them.
+// Limit parallel TTS downloads (Microsoft throttles bursts) and retry a failed
+// one, so every sentence of a reply comes from the SAME voice instead of a
+// random fallback voice.
+let _ttsActive = 0;
+const _ttsWaiters = [];
+const _fetchTTSBuf = async (url, timeoutMs = 25000) => {
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (_ttsActive >= 2) await new Promise(r => _ttsWaiters.push(r));
+    _ttsActive++;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal });
+      if (!r.ok) throw new Error(`TTS HTTP ${r.status}`);
+      const buf = await r.arrayBuffer();
+      if (buf.byteLength < 1000) throw new Error('empty audio');
+      return buf;
+    } catch (e) {
+      lastErr = e;
+    } finally {
+      clearTimeout(timer);
+      _ttsActive--;
+      const n = _ttsWaiters.shift(); if (n) n();
+    }
+    await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
+  }
+  throw lastErr;
+};
+// WAV vs MP3: label blobs correctly so Safari/iOS can decode them.
 const _sniffAudioType = (buf) => {
   try {
     const b = new Uint8Array(buf, 0, 4);
@@ -793,7 +822,7 @@ const _djb2 = s => {
   for (let i = 0; i < s.length; i++) h = Math.imul(h, 33) ^ s.charCodeAt(i);
   return (h >>> 0).toString(36);
 };
-const _audioCacheKey = (text, voiceId) => _djb2('v2:' + text.trim().toLowerCase() + '\x00' + voiceId);
+const _audioCacheKey = (text, voiceId) => _djb2('v3:' + text.trim().toLowerCase() + '\x00' + voiceId);
 // "v2:" prefix invalidates the IndexedDB cache in one shot: everything stored
 // there was synthesized by the old fallback engines (Google/Groq while the
 // Edge protocol was dead), and would otherwise replay robot voices for
@@ -1010,15 +1039,7 @@ const edgeTTSSpeak = async (text, gender = _voiceGender, voiceOverride, topLevel
     // ONE request: download the audio fully, THEN play it. (Previously the app
     // fired two identical requests — one for <audio>, one for the cache — which
     // doubled server/API load and caused random failures + silent playback.)
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 25000);
-    let buf;
-    try {
-      const r = await fetch(url, { signal: ctrl.signal });
-      if (!r.ok) throw new Error(`TTS HTTP ${r.status}`);
-      buf = await r.arrayBuffer();
-    } finally { clearTimeout(timer); }
-    if (!buf || buf.byteLength < 1000) throw new Error('empty audio');
+    const buf = await _fetchTTSBuf(url);
 
     _setCachedAudio(ck, buf);
     if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
@@ -1223,15 +1244,8 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID, inte
   if (!isArabic) {
     const ok = await edgeTTSSpeak(normalizedText, gender);
     if (ok) return;
-    // The server already tries Edge → Groq. If both failed, use the browser's
-    // built-in voice so the user hears SOMETHING. Safe now: edgeTTSSpeak only
-    // plays after a full download, so nothing can blend with a partial stream.
-    // Skipped if the user cancelled / navigated away in the meantime.
-    if (_ttsGen === _lastEdgeGen && 'speechSynthesis' in window) {
-      const u = new SpeechSynthesisUtterance(normalizedText);
-      u.lang = _voiceAccent === 'us' ? 'en-US' : 'en-GB';
-      window.speechSynthesis.speak(u);
-    }
+    // Edge already retried 3× on the server and 3× here; stay silent rather than
+    // switching to a different (robotic) voice in the middle of a reply.
     return;
   }
 
@@ -1287,17 +1301,11 @@ const fetchTTSBlob = async (text, gender, accent) => {
     const params = new URLSearchParams({ text: normalized, voice });
     const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
     const url = `${base}api/edge-tts?${params}`;
-    const edgeCtrl = new AbortController();
-    const edgeTimer = setTimeout(() => edgeCtrl.abort(), 15000);
     try {
-      const response = await fetch(url, { signal: edgeCtrl.signal });
-      clearTimeout(edgeTimer);
-      if (!response.ok) throw new Error('edge not ok');
-      const buf = await response.arrayBuffer();
-      if (buf.byteLength < 1000) throw new Error('empty audio');
+      const buf = await _fetchTTSBuf(url, 15000);
       _setCachedAudio(ck, buf);
       return new Blob([buf], { type: _sniffAudioType(buf) });
-    } catch { clearTimeout(edgeTimer); }
+    } catch { /* fall through */ }
   } catch { /* ignore */ }
 
   return null;
@@ -7877,10 +7885,7 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
       const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
       const voiceGenderKey = _voiceGender === 'female' ? 'female' : 'male';
       const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'][voiceGenderKey], rate: '+15%' });
-      const r = await fetch(`${base}api/edge-tts?${params}`);
-      if (!r.ok) return null;
-      const buf = await r.arrayBuffer();
-      if (buf.byteLength < 1000) return null;
+      const buf = await _fetchTTSBuf(`${base}api/edge-tts?${params}`, 40000);
       const url = URL.createObjectURL(new Blob([buf], { type: _sniffAudioType(buf) }));
       const audio = new Audio(url);
       audio.playbackRate = speed;
