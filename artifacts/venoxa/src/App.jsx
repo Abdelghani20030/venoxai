@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, ChevronUp, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, User, Lock, Mail, Heart } from 'lucide-react';
+import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, ChevronUp, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, User, Lock, Mail, Heart, TrendingUp } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import ProfileDashboard from './ProfileDashboard';
 import {
@@ -756,7 +756,11 @@ const _djb2 = s => {
   for (let i = 0; i < s.length; i++) h = Math.imul(h, 33) ^ s.charCodeAt(i);
   return (h >>> 0).toString(36);
 };
-const _audioCacheKey = (text, voiceId) => _djb2(text.trim().toLowerCase() + '\x00' + voiceId);
+const _audioCacheKey = (text, voiceId) => _djb2('v2:' + text.trim().toLowerCase() + '\x00' + voiceId);
+// "v2:" prefix invalidates the IndexedDB cache in one shot: everything stored
+// there was synthesized by the old fallback engines (Google/Groq while the
+// Edge protocol was dead), and would otherwise replay robot voices for
+// phrases the user already listened to.
 
 let _audioCacheDb = null;
 const _openAudioCache = () => {
@@ -863,11 +867,12 @@ let _ttsGen = 0;
 
 // Multilingual Neural voices are Microsoft's newest, most natural-sounding
 // generation — they sound conversational and human, much closer to ElevenLabs
-// quality than the older Neural voices. "BrianMultilingual" is the warm,
-// confident American male voice the user wants.
+// quality than the older Neural voices. Andrew is Azure's flagship American
+// male (the most natural-sounding male voice Microsoft ships), Ava the
+// flagship American female, Ryan/Sonia the flagship British pair.
 const EDGE_VOICES = {
   uk: { male: 'en-GB-RyanNeural', female: 'en-GB-SoniaNeural' },
-  us: { male: 'en-US-BrianMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
+  us: { male: 'en-US-AndrewMultilingualNeural', female: 'en-US-AvaMultilingualNeural' },
 };
 
 /**
@@ -877,6 +882,24 @@ const EDGE_VOICES = {
  */
 const withTimeout = (promise, ms) =>
   Promise.race([promise, new Promise(resolve => setTimeout(() => resolve(false), ms))]);
+
+/**
+ * _safePlay(audio)
+ * play() guarded against the benign Chrome/Edge race where a pending play()
+ * is interrupted by pause() (user re-taps play/pause, stale-audio guard, …).
+ * Resolves true when playback really started, false when the interruption was
+ * the expected benign abort, and rethrows real failures (network/decode/lock)
+ * so callers can react. Without this, a fast pause right after play surfaces
+ * as an unhandled rejection — the "play() request was interrupted" modal.
+ */
+const _safePlay = (audio) => Promise.resolve(audio.play())
+  .then(() => true)
+  .catch((err) => {
+    const name = (err && err.name) || '';
+    const msg = String((err && err.message) || err || '');
+    if (name === 'AbortError' || /interrupted|paused|pause\(\)/i.test(msg)) return false;
+    throw err;
+  });
 
 /**
  * edgeTTSSpeak(text, gender, voiceOverride, topLevelCacheKey?)
@@ -1248,7 +1271,7 @@ const _streamAudioResponse = async (response) => {
     _currentTTSAudio = audio;
     audio.onended = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
     audio.onerror = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
-    await audio.play();
+    await _safePlay(audio);
     return audio;
   }
 
@@ -1260,7 +1283,7 @@ const _streamAudioResponse = async (response) => {
   audio.onerror = () => { URL.revokeObjectURL(url); if (_currentTTSAudio === audio) _currentTTSAudio = null; };
 
   // Begin playback immediately — browser starts as soon as enough data buffers
-  const playPromise = audio.play();
+  const playPromise = _safePlay(audio);
 
   await new Promise(resolve => ms.addEventListener('sourceopen', resolve, { once: true }));
   const sb = ms.addSourceBuffer(STREAM_MIME);
@@ -3077,8 +3100,8 @@ function AppInner() {
       dir={_resolveTranslation(lang, 'rtl', 'ltr')}
       style={{
         background: theme === 'dark'
-          ? '#050816'
-          : '#eef0ff',
+          ? '#0A0A0E'
+          : '#F7F9FC',
       }}
     >
       {/* ── Background ── */}
@@ -3910,21 +3933,30 @@ function Dashboard({
   streakData
 }) {
   const isDark = theme === 'dark';
+  const isRTL = lang === 'ar';
   const t = {
     welcome: _resolveTranslation(lang, 'أهلاً بك في', 'Welcome to'),
+    userGreeting: _resolveTranslation(lang, `أهلاً بك في Venoxa! 👋`, `Welcome to Venoxa! 👋`),
+    currentLevel: _resolveTranslation(lang, 'مستواك الحالي:', 'Current Level:'),
+    createPlanBtn: _resolveTranslation(lang, 'إنشاء الخطة والمستوى', 'Create Plan & Level'),
     desc: _resolveTranslation(lang, 'شريكك الذكي في تعلم اللغات. ابدأ رحلتك التعليمية اليوم بذكاء وكفاءة.', 'Your intelligent language learning partner. Start your journey today with AI-powered efficiency.'),
     levelLabel: _resolveTranslation(lang, `المستوى الحالي: ${userLevel}`, `Current Level: ${userLevel}`),
     createPlan: _resolveTranslation(lang, 'إنشاء خطة دراسية', 'Create Study Plan'),
-    learningPaths: _resolveTranslation(lang, 'مسارات التعلم الموصى بها', 'Recommended Learning Paths'),
+    learningPaths: _resolveTranslation(lang, 'مسارات التعلم الأساسية', 'Core Learning Paths'),
     quoteTitle: _resolveTranslation(lang, 'إلهام اليوم', 'Today\'s Inspiration'),
     wotdTitle: _resolveTranslation(lang, 'كلمة اليوم', 'Word of the Day'),
     wotdMore:  _resolveTranslation(lang, 'اعرف أكثر', 'Learn more'),
+    smartTip: _resolveTranslation(lang, 'نصيحة ذكية', 'Smart Tip'),
+    tipText: _resolveTranslation(lang, 'مارس جملة جديدة كل يوم لتعزيز ثقتك.', 'Practice one new phrase every day to boost your confidence.'),
+    tipSubtext: _resolveTranslation(lang, 'استخدم تطبيق تبادل اللغة لزيادة ثقتك.', 'Use language exchange apps to increase your confidence.'),
+    viewAll: _resolveTranslation(lang, 'عرض الكل', 'View All'),
+    weeklyProgress: _resolveTranslation(lang, 'تقدم الأسبوع الحالي', 'Current Week Progress'),
+    weekOf: _resolveTranslation(lang, `الأسبوع ${currentWeek || 1} من ${planMeta?.totalWeeks || 36}`, `Week ${currentWeek || 1} of ${planMeta?.totalWeeks || 36}`),
     paths: [
-      { id: 'plan', title: _resolveTranslation(lang, 'خطة المذاكرة', 'Study Plan'), desc: _resolveTranslation(lang, 'جدول مخصص لتعلم المهارات الأربع', 'Custom schedule for the 4 skills'), icon: Calendar, paletteIndex: 0 },
-      { id: 'vocab', title: _resolveTranslation(lang, 'المفردات', 'Vocabulary'), desc: _resolveTranslation(lang, 'بناء حصيلة لغوية قوية بالذكاء الاصطناعي', 'Build strong vocabulary with AI'), icon: BookOpen, paletteIndex: 1 },
-      { id: 'grammar', title: _resolveTranslation(lang, 'القواعد', 'Grammar'), desc: _resolveTranslation(lang, 'فهم أعمق لهياكل اللغة وقواعدها', 'Deepen your understanding of grammar'), icon: Brain, paletteIndex: 2 },
-      { id: 'speaking', title: _resolveTranslation(lang, 'المحادثة', 'Speaking'), desc: _resolveTranslation(lang, 'تدرب على النطق بطلاقة مع الذكاء الاصطناعي', 'Practice fluent speech with AI'), icon: MessageSquare, paletteIndex: 3 },
-      { id: 'listening', title: _resolveTranslation(lang, 'الاستماع', 'Listening'), desc: _resolveTranslation(lang, 'تحسين فهمك للغة المنطوقة', 'Improve your listening comprehension'), icon: Headphones, paletteIndex: 4 },
+      { id: 'speaking', title: _resolveTranslation(lang, 'تحدي التحدث', 'Speaking Challenge'), subtitle: _resolveTranslation(lang, 'محادثات ذكاء اصطناعي', 'AI Conversations'), desc: _resolveTranslation(lang, 'تدرب على محادثات واقعية وحسّن طلاقتك مع مواقف متنوعة.', 'Practice realistic conversations and improve fluency with diverse scenarios.'), icon: MessageSquare, bg: 'bg-[#C8EFE8] dark:bg-emerald-500/15 dark:border-emerald-400/20', iconBg: 'bg-[#6ECEC0] dark:bg-emerald-600', iconColor: 'text-white', textColor: 'text-[#0a5c52] dark:text-emerald-300' },
+      { id: 'listening', title: _resolveTranslation(lang, 'تقوية الاستماع', 'Listening Practice'), subtitle: _resolveTranslation(lang, 'تدريب الأذن', 'Ear Training'), desc: _resolveTranslation(lang, 'مصادر بودكاست ممتازة حسب مستواك لتنمية مهارات الإدراك السمعي.', 'Excellent podcast sources by level to develop auditory comprehension skills.'), icon: Headphones, bg: 'bg-[#FFE4B2] dark:bg-amber-500/15 dark:border-amber-400/20', iconBg: 'bg-[#FFB347] dark:bg-amber-600', iconColor: 'text-white', textColor: 'text-[#7a4a00] dark:text-amber-300' },
+      { id: 'writing', title: _resolveTranslation(lang, 'تحسين الكتابة', 'Writing Improvement'), subtitle: _resolveTranslation(lang, 'تصحيح بالذكاء الاصطناعي', 'AI Correction'), desc: _resolveTranslation(lang, 'اكتب نصوصاً وسيقوم الذكاء الاصطناعي بتصحيحها وتوضيح الفرق بين لغة الأجانب.', 'Write texts and AI will correct them showing differences from native usage.'), icon: PenTool, bg: 'bg-[#E8D5F5] dark:bg-purple-500/15 dark:border-purple-400/20', iconBg: 'bg-[#B57BEA] dark:bg-purple-600', iconColor: 'text-white', textColor: 'text-[#5a2d82] dark:text-purple-300' },
+      { id: 'reading', title: _resolveTranslation(lang, 'القراءة الذكية', 'Smart Reading'), subtitle: _resolveTranslation(lang, 'فهم المقروء', 'Reading Comprehension'), desc: _resolveTranslation(lang, 'نصوص حقيقية من مصادر متنوعة مع مساعدة AI لشرح المفردات والسياق.', 'Real texts from diverse sources with AI help explaining vocabulary and context.'), icon: BookOpen, bg: 'bg-[#FFD5D5] dark:bg-rose-500/15 dark:border-rose-400/20', iconBg: 'bg-[#FF7B7B] dark:bg-rose-600', iconColor: 'text-white', textColor: 'text-[#8b2020] dark:text-rose-300' },
     ]
   };
 
@@ -4196,181 +4228,178 @@ Return ONLY valid JSON (no markdown):
     });
   };
 
-  return <div className="space-y-6 lg:space-y-10 animate-fadeIn" onMouseMove={handleMouseMove}>
-    {/* ── Minimal Hero ── */}
-    <div className="home-glass-hero relative px-6 sm:px-10 py-10 sm:py-14 text-center group overflow-hidden">
-      {/* Mouse follow glow effect */}
-      <div 
-        className="pointer-events-none absolute -inset-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0"
-        style={{
-          background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, ${isDark ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)'}, transparent 40%)`
-        }}
-      />
-      
-      <div className="relative z-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs font-semibold tracking-wide uppercase transition-colors"
-          style={{
-            background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-            color: isDark ? '#A1A1AA' : '#6B7280',
-            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
-          }}>
-          {t.levelLabel}
-        </div>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 tracking-tight text-black dark:text-white">
-          {t.welcome} <span className="text-purple-400">Venoxa</span>
-        </h2>
-        <p className="text-base lg:text-lg mb-4 max-w-2xl mx-auto leading-relaxed text-gray-600 dark:text-[#B0B0C0]">
-          {t.desc}
+  return <div className="space-y-6 animate-fadeIn">
+    {/* ── Top Header ── */}
+    <div className="flex items-center justify-between">
+      <div>
+        <h1 className="text-lg font-bold text-[#0A0A0A] dark:text-white">{t.userGreeting}</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {t.currentLevel} <span className="font-bold text-[#0E4AA4] dark:text-blue-400">{userLevel}</span>
         </p>
-        <div className="flex items-center justify-center gap-4">
-          <button onClick={() => setTab('plan')}
-            className="px-6 py-2.5 rounded-2xl font-semibold text-black dark:text-white transition-all hover:scale-[1.02] hover:bg-[var(--app-accent1)]/10 hover:border-[var(--app-accent1)]/40 active:scale-95 border border-black/10 dark:border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.15)]"
-            style={{
-              background: theme === 'dark' ? 'rgba(10, 10, 10, 0.25)' : 'rgba(255, 255, 255, 0.18)',
-              backdropFilter: 'blur(48px) saturate(200%)',
-              WebkitBackdropFilter: 'blur(48px) saturate(200%)',
-            }}
-          >
-            {t.createPlan}
-          </button>
+      </div>
+      <button onClick={() => setTab('plan')}
+        className="bg-[#0E4AA4] hover:bg-[#0c3d8a] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2 shadow-sm"
+      >
+        <Calendar className="w-4 h-4" />
+        {t.createPlanBtn}
+      </button>
+    </div>
+
+    {/* ── Stats row ── */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-5 border border-gray-100 dark:border-white/10 shadow-sm">
+        <div className="w-10 h-10 rounded-xl bg-[#EBF0F7] dark:bg-blue-500/10 flex items-center justify-center mb-3">
+          <Zap className="w-5 h-5 text-[#0E4AA4] dark:text-blue-400" />
         </div>
+        <div className="text-2xl font-bold text-[#0E4AA4] dark:text-blue-400">{userLevel}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{t.currentLevel.replace(':','')}</div>
+      </div>
+      <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-5 border border-gray-100 dark:border-white/10 shadow-sm">
+        <div className="w-10 h-10 rounded-xl bg-[#FFF3DC] dark:bg-orange-500/10 flex items-center justify-center mb-3">
+          <Target className="w-5 h-5 text-[#7a4a00] dark:text-orange-400" />
+        </div>
+        <div className="text-2xl font-bold text-[#7a4a00] dark:text-orange-400">{planMeta?.targetLevel || 'C2'}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{_resolveTranslation(lang, 'الهدف المستهدف', 'Target Level')}</div>
+      </div>
+      <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-5 border border-gray-100 dark:border-white/10 shadow-sm">
+        <div className="w-10 h-10 rounded-xl bg-[#C8EFE8] dark:bg-emerald-500/10 flex items-center justify-center mb-3">
+          <Clock className="w-5 h-5 text-[#0a5c52] dark:text-emerald-400" />
+        </div>
+        <div className="text-2xl font-bold text-[#0a5c52] dark:text-emerald-400">{Math.max(1, (planMeta?.totalWeeks || 36) - (currentWeek || 1))}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{_resolveTranslation(lang, 'أسبوعاً متبقياً', 'Weeks Remaining')}</div>
+      </div>
+      <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-5 border border-gray-100 dark:border-white/10 shadow-sm">
+        <div className="w-10 h-10 rounded-xl bg-[#E8D5F5] dark:bg-purple-500/10 flex items-center justify-center mb-3">
+          <Award className="w-5 h-5 text-[#5a2d82] dark:text-purple-400" />
+        </div>
+        <div className="text-2xl font-bold text-[#5a2d82] dark:text-purple-400">{stats.progress}%</div>
+        <div className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{_resolveTranslation(lang, 'نسبة إنجاز الخطة', 'Plan Completion')}</div>
       </div>
     </div>
 
-    {/* ── Quick Stats / Engagement ── */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-      <StreakWidget streak={stats.streak} lang={lang} isDark={isDark} theme={theme} />
-      <XPWidget xp={stats.xp} lang={lang} isDark={isDark} theme={theme} />
-      <ProgressWidget progress={stats.progress} lang={lang} isDark={isDark} theme={theme} />
-      <GoalWidget pct={stats.dailyGoalPct} lang={lang} isDark={isDark} theme={theme} />
-    </div>
-
-    {/* ── Quote + Tip ── */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div 
-        className="home-glass-card card-shine relative group p-6 sm:p-8 transition-all duration-400 hover:-translate-y-1"
-      >
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-2xl bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]">
-            <Sparkles className="w-4 h-4" />
+    {/* ── Tip + Quote row ── */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Tip card */}
+      <div className="bg-[#FFF3DC] dark:bg-orange-500/10 rounded-2xl p-5 border border-[#FFD78A]/50 dark:border-orange-500/30">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6 h-6 rounded-lg bg-[#FFD78A] dark:bg-orange-500 flex items-center justify-center">
+            <Star className="w-3.5 h-3.5 text-[#7a4a00] dark:text-white" />
           </div>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t.quoteTitle}</h3>
+          <span className="text-xs font-bold text-[#7a4a00] dark:text-orange-400 uppercase tracking-wide">{t.smartTip}</span>
+          <span className="text-xs bg-[#FFD78A] dark:bg-orange-500/30 text-[#7a4a00] dark:text-orange-400 font-bold px-2 py-0.5 rounded-full">{userLevel}</span>
+        </div>
+        <p className="text-sm font-semibold text-[#0A0A0A] dark:text-white leading-relaxed">
+          {t.tipText}
+        </p>
+        <p className="text-xs text-[#7a4a00] dark:text-orange-400/80 mt-2">
+          {t.tipSubtext}
+        </p>
+      </div>
+
+      {/* Quote card */}
+      <div className="bg-[#EBF0F7] dark:bg-blue-500/10 rounded-2xl p-5 border border-[#0E4AA4]/10 dark:border-blue-500/30">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6 h-6 rounded-lg bg-[#0E4AA4] dark:bg-blue-500 flex items-center justify-center">
+            <TrendingUp className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="text-xs font-bold text-[#0E4AA4] dark:text-blue-400 uppercase tracking-wide">{t.quoteTitle}</span>
           <button
             onClick={refreshQuote}
             disabled={loadingQuote}
+            className="mr-auto p-1 rounded-lg hover:bg-[#0E4AA4]/10 dark:hover:bg-blue-500/20 transition-colors"
             title={lang === 'ar' ? 'اقتباس جديد' : 'New quote'}
-            className="ml-auto w-7 h-7 flex items-center justify-center rounded-xl text-gray-400 hover:text-[var(--app-accent1)] hover:bg-[var(--app-accent1)]/10 transition-all active:rotate-180 transition-transform duration-300"
           >
-            <RotateCcw className={`w-3.5 h-3.5 transition-transform duration-500 ${loadingQuote ? 'animate-spin' : ''}`} />
+            <RotateCcw className={`w-3 h-3 text-[#0E4AA4] dark:text-blue-400 ${loadingQuote ? 'animate-spin' : ''}`} />
           </button>
         </div>
-        <div className="space-y-3 text-start rtl:text-right">
-            <p className="text-xl font-bold text-gray-900 dark:text-white leading-relaxed" dir="ltr">
-              “{safeRender(insight?.quote)}”
-            </p>
-            {insight?.author && (
-              <p className="text-xs font-bold tracking-widest uppercase text-[var(--app-accent1)]" dir="ltr">
-                — {insight.author}
-              </p>
-            )}
-            <p className="text-sm font-medium text-gray-500 dark:text-[#B0B0C0] pt-1 border-t border-black/5 dark:border-white/8">
-              {safeRender(insight?.translated_quote)}
-            </p>
-          </div>
-      </div>
-      {/* ── Word of the Day mini-card ── */}
-      <div
-        className="home-glass-card card-shine relative group p-6 sm:p-8 transition-all duration-400 hover:-translate-y-1 flex flex-col gap-4"
-      >
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-2xl bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]">
-            <BookMarked className="w-4 h-4" />
-          </div>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{t.wotdTitle}</h3>
-          {wotd?.partOfSpeech && (
-            <span className="text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-md bg-[var(--app-accent2)]/15 text-[var(--app-accent2)]">
-              {wotd.partOfSpeech}
-            </span>
-          )}
-          <button
-            onClick={generateNewWotd}
-            disabled={loadingWotdNew}
-            title={lang === 'ar' ? 'كلمة جديدة' : 'New word'}
-            className="ml-auto w-7 h-7 flex items-center justify-center rounded-xl text-gray-400 hover:text-[var(--app-accent1)] hover:bg-[var(--app-accent1)]/10 transition-all disabled:opacity-40"
-          >
-            <RotateCcw className={`w-3.5 h-3.5 ${loadingWotdNew ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-
-        {loadingWotdNew ? (
-          <div className="h-24 flex items-center justify-center">
-            <Activity className="w-5 h-5 text-[var(--app-accent1)] animate-spin" />
-          </div>
-        ) : wotd ? (
-          <>
-            {/* Word + IPA */}
-            <div dir="ltr">
-              <div className="text-3xl font-extrabold text-gray-900 dark:text-white leading-tight">
-                {wotd.word}
-              </div>
-              {wotd.ipa && (
-                <div className="text-xs font-mono font-bold text-gray-400 dark:text-gray-500 mt-0.5">
-                  {wotd.ipa}
-                </div>
-              )}
-            </div>
-
-            {/* Definition */}
-            {wotd.definition && (
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-relaxed" dir="ltr">
-                {wotd.definition}
-              </p>
-            )}
-            {wotd.definitionAr && (
-              <p className="text-sm font-medium text-[var(--app-accent1)]/85" dir="rtl">
-                {wotd.definitionAr}
-              </p>
-            )}
-
-            {/* Buttons row */}
-            <div className="mt-auto flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => setTab('word-of-day')}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold transition-all bg-[var(--app-accent1)] text-white hover:opacity-90 active:scale-95 shadow-sm"
-              >
-                {t.wotdMore} →
-              </button>
-            </div>
-          </>
-        ) : (
-          /* No cache yet — show generate button */
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-gray-500 dark:text-gray-400" dir="auto">
-              {lang === 'ar'
-                ? 'اضغط على زر التحديث لتوليد كلمة اليوم.'
-                : 'Hit the refresh button above to generate your Word of the Day, or open the full tool below.'}
-            </p>
-            <button
-              onClick={() => setTab('word-of-day')}
-              className="self-start flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold transition-all bg-[var(--app-accent1)] text-white hover:opacity-90 active:scale-95 shadow-sm"
-            >
-              {t.wotdMore} →
-            </button>
-          </div>
+        <p className="text-sm font-semibold text-[#0A0A0A] dark:text-white leading-relaxed" dir="ltr">
+          "{safeRender(insight?.quote)}"
+        </p>
+        {insight?.author && (
+          <p className="text-xs text-[#0E4AA4] dark:text-blue-400 mt-2" dir="ltr">
+            — {insight.author}
+          </p>
         )}
       </div>
     </div>
 
-    {/* ── LanGeek Staggered Learning Paths ── */}
-    <div>
-      <h3 className="text-base sm:text-lg font-bold text-[#0A0A0A] dark:text-[var(--app-text)] mb-5 flex items-center gap-2">
-        <Activity className="w-5 h-5 text-gray-700 dark:text-white" /> {t.learningPaths}
-      </h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-        {t.paths.map((path, i) => (
-          <DashboardCard key={path.id} {...path} index={i} isDark={isDark} onClick={() => setTab(path.id)} />
-        ))}
+    {/* Section heading */}
+    <div className="flex items-center justify-between">
+      <h2 className="text-base font-bold text-[#0A0A0A] dark:text-white flex items-center gap-2">
+        <Activity className="w-4 h-4 text-[#0E4AA4] dark:text-blue-400" />
+        {t.learningPaths}
+      </h2>
+      <button className="text-sm text-[#0E4AA4] dark:text-blue-400 font-medium hover:underline">
+        {t.viewAll}
+      </button>
+    </div>
+
+    {/* Feature cards grid */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {t.paths.map((path) => {
+        const Icon = path.icon;
+        return (
+          <div
+            key={path.id}
+            onClick={() => setTab(path.id)}
+            className={`${path.bg} border border-white/60 rounded-2xl p-5 cursor-pointer hover:scale-[1.02] transition-transform duration-200 shadow-sm`}
+          >
+            <div className={`w-10 h-10 rounded-xl ${path.iconBg} shadow-sm flex items-center justify-center mb-4`}>
+              <Icon className={`w-5 h-5 ${path.iconColor}`} />
+            </div>
+            <div className={`text-[10px] font-bold uppercase tracking-widest ${path.textColor} mb-1`}>
+              {path.subtitle}
+            </div>
+            <h3 className={`font-bold text-sm ${path.textColor} mb-2`}>{path.title}</h3>
+            <p className={`text-xs ${path.textColor} leading-relaxed`}>{path.desc}</p>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* Weekly progress bar */}
+    <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-bold text-sm text-[#0A0A0A] dark:text-white">{t.weeklyProgress}</h3>
+        <span className="text-xs text-gray-400 dark:text-gray-400">{t.weekOf}</span>
+      </div>
+      <div className="flex items-center gap-4 mb-3">
+        <div className="flex-1 bg-[#F7F9FC] dark:bg-white/5 rounded-full h-3">
+          <div className="bg-[#0E4AA4] dark:bg-blue-500 h-3 rounded-full" style={{ width: `${Math.min(100, ((currentWeek || 1) / (planMeta?.totalWeeks || 36)) * 100)}%` }} />
+        </div>
+        <span className="text-sm font-bold text-[#0E4AA4] dark:text-blue-400">{Math.round(Math.min(100, ((currentWeek || 1) / (planMeta?.totalWeeks || 36)) * 100))}%</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-[#F7F9FC] dark:bg-white/5 rounded-xl p-3">
+          <div className="text-xs text-gray-400 dark:text-gray-400 mb-1">{_resolveTranslation(lang, 'المفردات', 'Vocabulary')}</div>
+          <div className="flex items-end gap-1">
+            <span className="font-bold text-sm text-[#0A0A0A] dark:text-white">{Math.min((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 4, (planMeta?.totalWords || 2000))}</span>
+            <span className="text-xs text-gray-400 dark:text-gray-400 mb-0.5">/ {planMeta?.totalWords || 2000}</span>
+          </div>
+          <div className="mt-2 bg-white dark:bg-white/10 rounded-full h-1.5">
+            <div className="bg-[#6ECEC0] h-1.5 rounded-full" style={{ width: `${Math.min(100, ((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 4 / (planMeta?.totalWords || 2000)) * 100)}%` }} />
+          </div>
+        </div>
+        <div className="bg-[#F7F9FC] dark:bg-white/5 rounded-xl p-3">
+          <div className="text-xs text-gray-400 dark:text-gray-400 mb-1">{_resolveTranslation(lang, 'القواعد', 'Grammar')}</div>
+          <div className="flex items-end gap-1">
+            <span className="font-bold text-sm text-[#0A0A0A] dark:text-white">{Math.min((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.5, (planMeta?.totalRules || 252))}</span>
+            <span className="text-xs text-gray-400 dark:text-gray-400 mb-0.5">/ {planMeta?.totalRules || 252}</span>
+          </div>
+          <div className="mt-2 bg-white dark:bg-white/10 rounded-full h-1.5">
+            <div className="bg-[#FFB347] h-1.5 rounded-full" style={{ width: `${Math.min(100, ((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.5 / (planMeta?.totalRules || 252)) * 100)}%` }} />
+          </div>
+        </div>
+        <div className="bg-[#F7F9FC] dark:bg-white/5 rounded-xl p-3">
+          <div className="text-xs text-gray-400 dark:text-gray-400 mb-1">{_resolveTranslation(lang, 'ساعات الدراسة', 'Study Hours')}</div>
+          <div className="flex items-end gap-1">
+            <span className="font-bold text-sm text-[#0A0A0A] dark:text-white">{Math.round((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.3)}h</span>
+            <span className="text-xs text-gray-400 dark:text-gray-400 mb-0.5">/ {Math.round((planMeta?.totalWeeks || 36) * 10.5)}h</span>
+          </div>
+          <div className="mt-2 bg-white dark:bg-white/10 rounded-full h-1.5">
+            <div className="bg-[#B57BEA] h-1.5 rounded-full" style={{ width: `${Math.min(100, ((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.3 / ((planMeta?.totalWeeks || 36) * 10.5)) * 100)}%` }} />
+          </div>
+        </div>
       </div>
     </div>
   </div>;
@@ -7707,36 +7736,44 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
     }
     if (audioState === 'paused' && audioRef.current) {
       audioRef.current.playbackRate = playbackSpeed;
-      audioRef.current.play();
+      // User may tap pause again immediately, aborting this pending play —
+      // _safePlay swallows that benign interruption instead of erroring.
+      void _safePlay(audioRef.current);
       setAudioState('playing');
       return;
     }
     setAudioState('loading');
     stopAudio();
-    const result = await fetchAudioEl(story, playbackSpeed);
-    if (result) {
-      const { audio, url } = result;
-      audioBlobUrlRef.current = url;
-      audio.onended = () => { URL.revokeObjectURL(url); audioBlobUrlRef.current = null; setAudioState('idle'); };
-      audio.onerror = () => setAudioState('idle');
-      audioRef.current = audio;
-      await audio.play();
-      setAudioState('playing');
-    } else {
-      // Edge TTS direct fallback (in case fetchAudioEl construction fails)
-      window.speechSynthesis?.cancel();
-      const ok = await edgeTTSSpeak(story, _voiceGender);
-      if (ok) {
-        setAudioState('playing');
-        if (_currentTTSAudio) {
-          _currentTTSAudio.playbackRate = playbackSpeed;
-          _currentTTSAudio.onended = () => setAudioState('idle');
-        }
+    try {
+      const result = await fetchAudioEl(story, playbackSpeed);
+      if (result) {
+        const { audio, url } = result;
+        audioBlobUrlRef.current = url;
+        audio.onended = () => { URL.revokeObjectURL(url); audioBlobUrlRef.current = null; setAudioState('idle'); };
+        audio.onerror = () => setAudioState('idle');
+        audioRef.current = audio;
+        const started = await _safePlay(audio);
+        setAudioState(started ? 'playing' : 'idle');
       } else {
-        // All engines failed — reset silently, do NOT use browser TTS
-        // (it would produce robotic voice that can't be stopped cleanly)
-        setAudioState('idle');
+        // Edge TTS direct fallback (in case fetchAudioEl construction fails)
+        window.speechSynthesis?.cancel();
+        const ok = await edgeTTSSpeak(story, _voiceGender);
+        if (ok) {
+          setAudioState('playing');
+          if (_currentTTSAudio) {
+            _currentTTSAudio.playbackRate = playbackSpeed;
+            _currentTTSAudio.onended = () => setAudioState('idle');
+          }
+        } else {
+          // All engines failed — reset silently, do NOT use browser TTS
+          // (it would produce robotic voice that can't be stopped cleanly)
+          setAudioState('idle');
+        }
       }
+    } catch (err) {
+      // Network/decode failures must never surface as runtime-error modals.
+      console.warn('[Venoxa] Passage playback failed:', err?.message || err);
+      setAudioState('idle');
     }
   };
 
@@ -7821,26 +7858,31 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
   const playDictSentence = async (text) => {
     if (dictAudioRef.current) { dictAudioRef.current.pause(); dictAudioRef.current = null; }
     setDictAudioState('loading');
-    const result = await fetchAudioEl(text, 0.85);
-    if (result) {
-      const { audio, url } = result;
-      audio.onended = () => { URL.revokeObjectURL(url); setDictAudioState('idle'); };
-      dictAudioRef.current = audio;
-      await audio.play();
-      setDictAudioState('playing');
-    } else {
-      window.speechSynthesis?.cancel();
-      const ok = await edgeTTSSpeak(text, _voiceGender);
-      if (ok) {
-        setDictAudioState('playing');
-        if (_currentTTSAudio) {
-          _currentTTSAudio.playbackRate = 0.85;
-          _currentTTSAudio.onended = () => setDictAudioState('idle');
-        }
+    try {
+      const result = await fetchAudioEl(text, 0.85);
+      if (result) {
+        const { audio, url } = result;
+        audio.onended = () => { URL.revokeObjectURL(url); setDictAudioState('idle'); };
+        dictAudioRef.current = audio;
+        const started = await _safePlay(audio);
+        setDictAudioState(started ? 'playing' : 'idle');
       } else {
-        // All engines failed — reset silently, no browser TTS fallback
-        setDictAudioState('idle');
+        window.speechSynthesis?.cancel();
+        const ok = await edgeTTSSpeak(text, _voiceGender);
+        if (ok) {
+          setDictAudioState('playing');
+          if (_currentTTSAudio) {
+            _currentTTSAudio.playbackRate = 0.85;
+            _currentTTSAudio.onended = () => setDictAudioState('idle');
+          }
+        } else {
+          // All engines failed — reset silently, no browser TTS fallback
+          setDictAudioState('idle');
+        }
       }
+    } catch (err) {
+      console.warn('[Venoxa] Dictation playback failed:', err?.message || err);
+      setDictAudioState('idle');
     }
   };
 
