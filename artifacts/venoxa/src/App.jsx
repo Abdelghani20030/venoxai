@@ -742,6 +742,32 @@ const normalizeTTSText = (raw) => raw
   .replace(/\s+/g, ' ')
   .trim();
 
+// --- COPY TO CLIPBOARD (works on http, iOS Safari and older browsers too) ---
+const copyToClipboard = async (text) => {
+  const value = String(text ?? '');
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch { /* fall through to legacy method */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, value.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+};
+
 // --- GLOBAL AUDIO REGISTRY ---
 // Every `new Audio()` in the app is tracked so stopAllAudio() can silence ALL of
 // them (page changes, unmounts) no matter which component created the element.
@@ -9211,7 +9237,7 @@ Important: The "word" value must be copied EXACTLY from the input text. Find eve
             <CheckCircle2 className="w-4 h-4" /> {t.corrected}
           </h3>
           <p className="text-lg text-gray-900 dark:text-white leading-relaxed" dir="ltr">{safeRender(feedback.corrected_text)}</p>
-          <button onClick={() => { navigator.clipboard?.writeText(feedback.corrected_text || ''); }}
+          <button onClick={() => { copyToClipboard(feedback.corrected_text || ''); }}
             className="mt-4 flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-[var(--app-accent1)] transition-colors">
             <Copy className="w-3.5 h-3.5" /> Copy corrected text
           </button>
@@ -9333,6 +9359,7 @@ function Speaking({
   const transcriptScrollRef = useRef(null);
   const recognitionRef = useRef(null);
   const unmountedRef = useRef(false);
+  const [copiedMsgId, setCopiedMsgId] = useState(null);
   const ttsQueueRef = useRef([]); // Stores { text, msgId } objects
   const prefetchCacheRef = useRef(new Map());
   const isTtsPlayingRef = useRef(false);
@@ -10489,8 +10516,17 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
                     <button onClick={() => speakText(msg.text)} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-[var(--app-card)] text-gray-400 hover:text-black dark:hover:text-white transition-colors">
                       <Volume2 className="w-4.5 h-4.5" />
                     </button>
-                    <button className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-[var(--app-card)] text-gray-400 hover:text-black dark:hover:text-white transition-colors">
-                      <Copy className="w-4.5 h-4.5" />
+                    <button
+                      title="Copy"
+                      onClick={async () => {
+                        const ok = await copyToClipboard(safeRender(msg.text));
+                        if (ok) {
+                          setCopiedMsgId(msg.id);
+                          setTimeout(() => setCopiedMsgId(cur => (cur === msg.id ? null : cur)), 1500);
+                        }
+                      }}
+                      className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-[var(--app-card)] text-gray-400 hover:text-black dark:hover:text-white transition-colors">
+                      {copiedMsgId === msg.id ? <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" /> : <Copy className="w-4.5 h-4.5" />}
                     </button>
                   </div>
                 )}
