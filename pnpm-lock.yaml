@@ -110,13 +110,16 @@ importers:
         version: 2.1.0(debug@4.4.3)
       openai:
         specifier: ^6.35.0
-        version: 6.35.0(ws@8.20.1)(zod@4.3.6)
+        version: 6.35.0(ws@8.22.0)(zod@4.3.6)
       pg:
         specifier: ^8.21.0
         version: 8.21.0
       serverless-http:
         specifier: ^4.0.0
         version: 4.0.0
+      ws:
+        specifier: ^8.22.0
+        version: 8.22.0
     devDependencies:
       prettier:
         specifier: ^3.8.1
@@ -6896,11 +6899,6 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
-
-  openai@6.35.0(ws@8.20.1)(zod@4.3.6):
-    optionalDependencies:
-      ws: 8.20.1
-      zod: 4.3.6
 
   openai@6.35.0(ws@8.22.0)(zod@4.3.6):
     optionalDependencies:
