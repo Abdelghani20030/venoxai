@@ -742,6 +742,43 @@ const normalizeTTSText = (raw) => raw
   .replace(/\s+/g, ' ')
   .trim();
 
+// --- GLOBAL AUDIO REGISTRY ---
+// Every `new Audio()` in the app is tracked so stopAllAudio() can silence ALL of
+// them (page changes, unmounts) no matter which component created the element.
+const _liveAudios = new Set();
+if (typeof window !== 'undefined' && !window.__venoxaAudioPatched) {
+  window.__venoxaAudioPatched = true;
+  const NativeAudio = window.Audio;
+  const PatchedAudio = function (...args) {
+    const a = new NativeAudio(...args);
+    _liveAudios.add(a);
+    const drop = () => _liveAudios.delete(a);
+    a.addEventListener('ended', drop);
+    a.addEventListener('error', drop);
+    return a;
+  };
+  PatchedAudio.prototype = NativeAudio.prototype;
+  window.Audio = PatchedAudio;
+}
+const stopAllAudio = () => {
+  _ttsGen++; // invalidate any in-flight TTS chain so it never starts playing later
+  _liveAudios.forEach(a => {
+    try { a.pause(); a.removeAttribute('src'); a.load(); } catch { /* ignore */ }
+  });
+  _liveAudios.clear();
+  try { document.querySelectorAll('audio').forEach(a => { try { a.pause(); } catch { } }); } catch { }
+  _currentTTSAudio = null;
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+};
+// WAV (Groq) vs MP3 (Edge): label blobs correctly so Safari/iOS can decode them.
+const _sniffAudioType = (buf) => {
+  try {
+    const b = new Uint8Array(buf, 0, 4);
+    if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return 'audio/wav';
+  } catch { }
+  return 'audio/mpeg';
+};
+
 // --- AUDIO CACHE (IndexedDB) ---
 // Stores synthesised audio as ArrayBuffers keyed by {text}|{voiceId} hash.
 // A vocabulary app repeats the same words hundreds of times — caching them
@@ -813,7 +850,7 @@ const _setCachedAudio = async (key, arrayBuf) => {
 };
 
 const _playCachedAudio = async (arrayBuf) => {
-  const blob = new Blob([arrayBuf], { type: 'audio/mpeg' });
+  const blob = new Blob([arrayBuf], { type: _sniffAudioType(arrayBuf) });
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   _currentTTSAudio = audio;
@@ -825,6 +862,7 @@ const _playCachedAudio = async (arrayBuf) => {
     };
     audio.onended = finish;
     audio.onerror = finish;
+    audio.onpause = finish;
     audio.play().catch(finish);
   });
 };
@@ -908,8 +946,10 @@ const _safePlay = (audio) => Promise.resolve(audio.play())
  * cache on every future call — no network round-trip needed.
  * Returns true on success, false on failure (so caller can fall back).
  */
+let _lastEdgeGen = 0;
 const edgeTTSSpeak = async (text, gender = _voiceGender, voiceOverride, topLevelCacheKey) => {
   const myGen = ++_ttsGen; // snapshot generation for this speak chain
+  _lastEdgeGen = myGen;
   const accent = _voiceAccent === 'us' ? 'us' : 'uk';
   const genderKey = (gender || _voiceGender) === 'female' ? 'female' : 'male';
 
@@ -967,33 +1007,47 @@ const edgeTTSSpeak = async (text, gender = _voiceGender, voiceOverride, topLevel
     const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
     const url = `${base}api/edge-tts?${params}`;
 
-    const audio = new Audio(url);
+    // ONE request: download the audio fully, THEN play it. (Previously the app
+    // fired two identical requests — one for <audio>, one for the cache — which
+    // doubled server/API load and caused random failures + silent playback.)
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    let buf;
+    try {
+      const r = await fetch(url, { signal: ctrl.signal });
+      if (!r.ok) throw new Error(`TTS HTTP ${r.status}`);
+      buf = await r.arrayBuffer();
+    } finally { clearTimeout(timer); }
+    if (!buf || buf.byteLength < 1000) throw new Error('empty audio');
+
+    _setCachedAudio(ck, buf);
+    if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
+
+    // Cancelled / superseded (user navigated away or started something else)
+    if (_ttsGen !== myGen) return false;
+
+    const blobUrl = URL.createObjectURL(new Blob([buf], { type: _sniffAudioType(buf) }));
+    const audio = new Audio(blobUrl);
     audio.preload = 'auto';
     _currentTTSAudio = audio;
-
     const wait = new Promise((resolve) => {
-      audio.onended = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
-      audio.onerror = () => { if (_currentTTSAudio === audio) _currentTTSAudio = null; resolve(); };
+      const done = () => {
+        URL.revokeObjectURL(blobUrl);
+        if (_currentTTSAudio === audio) _currentTTSAudio = null;
+        resolve();
+      };
+      audio.onended = done;
+      audio.onerror = done;
+      audio.onpause = done;
     });
 
-    // Background cache fill — non-blocking, so playback starts immediately
-    fetch(url)
-      .then(r => (r.ok ? r.arrayBuffer() : null))
-      .then(buf => {
-        if (!buf) return;
-        _setCachedAudio(ck, buf);
-        if (topLevelCacheKey && topLevelCacheKey !== ck) _setCachedAudio(topLevelCacheKey, buf);
-      })
-      .catch(() => { });
-
-    if (_ttsGen !== myGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
-    await audio.play();
-    if (_ttsGen !== myGen) { audio.pause(); try { audio.src = ''; } catch {} return false; }
+    const started = await _safePlay(audio);
+    if (!started || _ttsGen !== myGen) { audio.pause(); try { audio.removeAttribute('src'); } catch { } return false; }
     _lastTTSEngine = 'edge';
     await wait;
     return true;
   } catch (err) {
-    console.warn('[Venoxa] Edge TTS failed:', err.message);
+    console.warn('[Venoxa] TTS failed:', err?.message || err);
     return false;
   }
 };
@@ -1169,11 +1223,15 @@ const elevenLabsSpeak = async (text, voiceId = DEFAULT_ELEVENLABS_VOICE_ID, inte
   if (!isArabic) {
     const ok = await edgeTTSSpeak(normalizedText, gender);
     if (ok) return;
-    // VERCEL FIX: Do NOT fall back to browser speechSynthesis for English.
-    // On Vercel, if Edge TTS fails (network error, cold-start timeout) and we
-    // let speechSynthesis fire, the browser's robotic voice blends with any
-    // partial Edge TTS audio that's still loading — causing the "two voices"
-    // problem. Silence is better than a blended robotic mess.
+    // The server already tries Edge → Groq. If both failed, use the browser's
+    // built-in voice so the user hears SOMETHING. Safe now: edgeTTSSpeak only
+    // plays after a full download, so nothing can blend with a partial stream.
+    // Skipped if the user cancelled / navigated away in the meantime.
+    if (_ttsGen === _lastEdgeGen && 'speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(normalizedText);
+      u.lang = _voiceAccent === 'us' ? 'en-US' : 'en-GB';
+      window.speechSynthesis.speak(u);
+    }
     return;
   }
 
@@ -1199,7 +1257,7 @@ const fetchTTSBlob = async (text, gender, accent) => {
 
   // Try local cache first — instant, no network
   const cached = await _getCachedAudio(ck);
-  if (cached) return new Blob([cached], { type: 'audio/mpeg' });
+  if (cached) return new Blob([cached], { type: _sniffAudioType(cached) });
 
   // VERCEL FIX: Skip Groq (4s timeout blocks the auto-read queue on Vercel).
   // Go straight to Edge TTS which is the only reliable engine on Vercel.
@@ -1236,8 +1294,9 @@ const fetchTTSBlob = async (text, gender, accent) => {
       clearTimeout(edgeTimer);
       if (!response.ok) throw new Error('edge not ok');
       const buf = await response.arrayBuffer();
+      if (buf.byteLength < 1000) throw new Error('empty audio');
       _setCachedAudio(ck, buf);
-      return new Blob([buf], { type: 'audio/mpeg' });
+      return new Blob([buf], { type: _sniffAudioType(buf) });
     } catch { clearTimeout(edgeTimer); }
   } catch { /* ignore */ }
 
@@ -1311,6 +1370,7 @@ const _streamAudioResponse = async (response) => {
  * Stops any in-progress ElevenLabs audio playback.
  */
 const cancelTTS = () => {
+  _ttsGen++; // abandon any TTS chain that is still downloading
   if (_currentTTSAudio) {
     _currentTTSAudio.pause();
     _currentTTSAudio = null;
@@ -1462,6 +1522,9 @@ const formatCountdown = (nextReview) => {
 // --- MAIN APPLICATION COMPONENT ---
 function AppInner() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  // Silence all audio the moment the user switches section.
+  useEffect(() => { stopAllAudio(); }, [activeTab]);
+  useEffect(() => () => stopAllAudio(), []);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -1584,12 +1647,22 @@ function AppInner() {
   const [isCloudProgressLoaded, setIsCloudProgressLoaded] = useState(false);
 
   // ── Dirty Fields Tracker & State Setters Rebuild ──
-  const dirtyFields = useRef(new Set());
+  // Dirty marks are PERSISTED: if the tab is closed / the phone kills the page
+  // before a push finishes, the unsynced change is still known on next launch
+  // (previously it was lost and the next pull overwrote it with the cloud copy).
+  const _DIRTY_KEY = 'venoxa_dirty_fields';
+  const dirtyFields = useRef(new Set((() => {
+    try { return JSON.parse(localStorage.getItem('venoxa_dirty_fields')) || []; } catch { return []; }
+  })()));
   const blockDirtyTracking = useRef(false);
+  const _persistDirty = () => {
+    try { localStorage.setItem(_DIRTY_KEY, JSON.stringify([...dirtyFields.current])); } catch { }
+  };
 
   const markFieldDirty = (fieldName) => {
     if (blockDirtyTracking.current) return;
     dirtyFields.current.add(fieldName);
+    _persistDirty();
   };
 
   const mergeByWord = (base = [], override = []) => {
@@ -2081,6 +2154,8 @@ function AppInner() {
     await fbLogout();
     setToken(null);
     setUser(null);
+    dirtyFields.current.clear();
+    localStorage.removeItem('venoxa_dirty_fields');
     localStorage.removeItem('venoxa_token');
     localStorage.removeItem('venoxa_user');
   };
@@ -2145,7 +2220,7 @@ function AppInner() {
     const etymologyHistory = JSON.parse(localStorage.getItem('venoxa_etymology_history')) || [];
     const pronBookmarks = JSON.parse(localStorage.getItem('venoxa_pron_bookmarks')) || [];
     const pronCompleted = JSON.parse(localStorage.getItem('venoxa_pron_completed')) || [];
-    const testSessions = JSON.parse(localStorage.getItem('venoxa_test_sessions')) || [];
+    const testSessions = JSON.parse(localStorage.getItem('venoxa-test-sessions')) || [];
     const listeningHistory = JSON.parse(localStorage.getItem('venoxa_listening_history')) || [];
     const listeningFavorites = JSON.parse(localStorage.getItem('venoxa_listening_favorites')) || [];
     const readingHistory = JSON.parse(localStorage.getItem('venoxa_reading_history')) || [];
@@ -2191,6 +2266,7 @@ function AppInner() {
       etymologyHistory,
       pronBookmarks,
       pronCompleted,
+      testSessions,
       listeningHistory,
       listeningFavorites,
       readingHistory,
@@ -2260,8 +2336,82 @@ function AppInner() {
       dirty.add('cellDates');
     }
 
+    // Every other synced list/object (saved words, histories, favorites, SRS…):
+    // anything that differs from the last-synced copy is a pending local change,
+    // even if its dirty mark was lost (page reload, crash, phone killed the tab).
+    const SKIP = new Set(['xp', 'achievements', 'usageTime', 'completedCells', 'calendarDays',
+      'level', 'streak', 'avatar', 'calendarProgress', 'cellDates', '_local']);
+    for (const key of Object.keys(currentPayload)) {
+      if (SKIP.has(key) || !Object.prototype.hasOwnProperty.call(snapshot, key)) continue;
+      if (JSON.stringify(currentPayload[key]) !== JSON.stringify(snapshot[key])) dirty.add(key);
+    }
+
     return dirty;
   };
+
+  // 3-way merge of a synced list: keeps items added on the other device and
+  // honours deletions made on either device (base = last synced copy).
+  const _itemKey = (it) => {
+    if (it && typeof it === 'object') {
+      for (const k of ['id', 'word', 'idiom', 'date', 'timestamp']) {
+        if (it[k] != null) return k + ':' + String(it[k]).toLowerCase();
+      }
+    }
+    return 'j:' + JSON.stringify(it);
+  };
+  const _merge3 = (base, local, remote) => {
+    base = Array.isArray(base) ? base : [];
+    local = Array.isArray(local) ? local : [];
+    remote = Array.isArray(remote) ? remote : [];
+    const baseMap = new Map(base.map(it => [_itemKey(it), JSON.stringify(it)]));
+    const localKeys = new Set(local.map(_itemKey));
+    const remoteKeys = new Set(remote.map(_itemKey));
+    const out = [];
+    const seen = new Set();
+    for (const it of local) {
+      const k = _itemKey(it);
+      // deleted on the other device and untouched here → drop it
+      if (baseMap.has(k) && !remoteKeys.has(k) && baseMap.get(k) === JSON.stringify(it)) continue;
+      if (!seen.has(k)) { seen.add(k); out.push(it); }
+    }
+    for (const it of remote) {
+      const k = _itemKey(it);
+      if (seen.has(k)) continue;
+      if (baseMap.has(k) && !localKeys.has(k)) continue; // deleted here
+      seen.add(k); out.push(it);
+    }
+    return out;
+  };
+  const ARRAY_SYNC_FIELDS = {
+    speakingHistory: [setSpeakingHistory, 'venoxa_speaking_history'],
+    writingHistory: [setWritingHistory, 'venoxa_writing_history'],
+    translationHistory: [setTranslationHistory, 'venoxa_translation_history'],
+    translationFavorites: [setTranslationFavorites, 'venoxa_translation_favorites'],
+    savedWords: [setSavedWords, 'venoxa_saved_words'],
+    savedIdioms: [setSavedIdioms, 'venoxa_saved_idioms'],
+    toneRewriterFavorites: [setToneRewriterFavorites, 'venoxa_tone_rewriter_favorites'],
+    toneRewriterHistory: [setToneRewriterHistory, 'venoxa_tone_rewriter_history'],
+    sentenceDiagrammerFavorites: [setSentenceDiagrammerFavorites, 'venoxa_sentence_diagrammer_favorites'],
+    sentenceDiagrammerHistory: [setSentenceDiagrammerHistory, 'venoxa_sentence_diagrammer_history'],
+    wordFamilyFavorites: [setWordFamilyFavorites, 'venoxa_word_family_favorites'],
+    wordFamilyHistory: [setWordFamilyHistory, 'venoxa_word_family_history'],
+    collocationFavorites: [setCollocationFavorites, 'venoxa_collocations_favorites'],
+    collocationHistory: [setCollocationHistory, 'venoxa_collocations_history'],
+    etymologyFavorites: [setEtymologyFavorites, 'venoxa_etymology_favorites'],
+    etymologyHistory: [setEtymologyHistory, 'venoxa_etymology_history'],
+    pronBookmarks: [setPronBookmarks, 'venoxa_pron_bookmarks'],
+    pronCompleted: [setPronCompleted, 'venoxa_pron_completed'],
+    testSessions: [setTestSessions, 'venoxa-test-sessions'],
+    listeningHistory: [setListeningHistory, 'venoxa_listening_history'],
+    listeningFavorites: [setListeningFavorites, 'venoxa_listening_favorites'],
+    readingHistory: [setReadingHistory, 'venoxa_reading_history'],
+    readingFavorites: [setReadingFavorites, 'venoxa_reading_favorites'],
+    speakingFavorites: [setSpeakingFavorites, 'venoxa_speaking_favorites'],
+    wordOfDayHistory: [setWordOfDayHistory, 'venoxa_word_of_day_history'],
+    idiomOfDayHistory: [setIdiomOfDayHistory, 'venoxa_idiom_of_day_history'],
+  };
+  const pushRetryRef = useRef(null);
+  const pushChangesRef = useRef(null);
 
   const pushChanges = async (force = false) => {
     if (!token && !auth.currentUser) return;
@@ -2270,7 +2420,9 @@ function AppInner() {
       return;
     }
     if (isSyncing.current) {
-      console.log('pushChanges blocked: another sync is already in progress');
+      // Don't silently drop the push — try again shortly.
+      if (pushRetryRef.current) clearTimeout(pushRetryRef.current);
+      pushRetryRef.current = setTimeout(() => pushChangesRef.current && pushChangesRef.current(force), 3000);
       return;
     }
 
@@ -2287,6 +2439,26 @@ function AppInner() {
     setSyncStatus('syncing');
 
     try {
+      // Merge lists with the cloud copy first, so a stale device can't wipe
+      // words/history that the other device added in the meantime.
+      const arrDirty = [...dirty].filter(f => ARRAY_SYNC_FIELDS[f]);
+      const uid0 = auth.currentUser?.uid;
+      if (arrDirty.length && uid0) {
+        const remoteDoc = await pullProgress(uid0);
+        if (remoteDoc) {
+          for (const f of arrDirty) {
+            const local = currentPayload[f] || [];
+            const merged = _merge3(lastSyncSnapshot.current[f], local, remoteDoc[f] || []);
+            if (JSON.stringify(merged) !== JSON.stringify(local)) {
+              const [setter, storageKey] = ARRAY_SYNC_FIELDS[f];
+              setter(merged);
+              localStorage.setItem(storageKey, JSON.stringify(merged));
+              currentPayload[f] = merged;
+            }
+          }
+        }
+      }
+
       const delta = {};
       for (const field of dirty) {
         if (field === 'xp') {
@@ -2316,6 +2488,7 @@ function AppInner() {
         );
         dirtyFields.current.delete(field);
       }
+      _persistDirty();
 
       localStorage.setItem('venoxa_last_sync_snapshot', JSON.stringify(lastSyncSnapshot.current));
 
@@ -2332,6 +2505,8 @@ function AppInner() {
       isSyncing.current = false;
     }
   };
+
+  pushChangesRef.current = pushChanges;
 
   const pullChanges = async (force = false) => {
     if (!token && !auth.currentUser) return;
@@ -2363,7 +2538,23 @@ function AppInner() {
         if (remoteVal !== undefined) {
           const localStr = JSON.stringify(localVal);
           const remoteStr = JSON.stringify(remoteVal);
-          
+
+          // Already identical → just record the baseline used for change detection.
+          if (localStr === remoteStr) {
+            if (localVal !== undefined) lastSyncSnapshot.current[field] = JSON.parse(remoteStr);
+            return;
+          }
+
+          // Cloud copy is EMPTY but this device has data it never synced → it is
+          // unsynced local work, not a deletion. Keep it and push it up.
+          const _isEmpty = (v) => v == null || (Array.isArray(v) ? v.length === 0 : (typeof v === 'object' && Object.keys(v).length === 0));
+          const _hasBaseline = Object.prototype.hasOwnProperty.call(lastSyncSnapshot.current, field);
+          if (localVal !== undefined && !_hasBaseline && _isEmpty(remoteVal) && !_isEmpty(localVal)) {
+            dirtyFields.current.add(field);
+            _persistDirty();
+            return;
+          }
+
           if (localStr !== remoteStr) {
             console.log(`pullChanges: Field '${field}' updated from remote.`);
             if (field === 'customGlobalVocab') {
@@ -2553,13 +2744,21 @@ function AppInner() {
     if (!token) return;
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        pullChanges();
+        // push anything pending first, then fetch what the other device changed
+        Promise.resolve(dirtyFields.current.size > 0 && pushChangesRef.current ? pushChangesRef.current() : null)
+          .catch(() => { })
+          .finally(() => pullChanges());
       } else if (document.visibilityState === 'hidden') {
-        pushChanges();
+        pushChangesRef.current && pushChangesRef.current();
       }
     };
+    const handleOnline = () => { pushChangesRef.current && pushChangesRef.current(); };
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', handleOnline);
+    };
   }, [token]);
 
   // ── Periodic background sync every 5 minutes ──
@@ -2569,7 +2768,7 @@ function AppInner() {
     const interval = setInterval(() => {
       markFieldDirty('usageTime'); // sync usage time every 5 mins, not every second
       if (dirtyFields.current.size > 0) {
-        pushChanges();
+        pushChangesRef.current && pushChangesRef.current();
       } else {
         pullChanges();
       }
@@ -7678,7 +7877,11 @@ function ListeningReading({ type, AI_KEY, userLevel, lang, theme, history = [], 
       const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
       const voiceGenderKey = _voiceGender === 'female' ? 'female' : 'male';
       const params = new URLSearchParams({ text: text.slice(0, 2500), voice: EDGE_VOICES[_voiceAccent === 'us' ? 'us' : 'uk'][voiceGenderKey], rate: '+15%' });
-      const url = `${base}api/edge-tts?${params}`;
+      const r = await fetch(`${base}api/edge-tts?${params}`);
+      if (!r.ok) return null;
+      const buf = await r.arrayBuffer();
+      if (buf.byteLength < 1000) return null;
+      const url = URL.createObjectURL(new Blob([buf], { type: _sniffAudioType(buf) }));
       const audio = new Audio(url);
       audio.playbackRate = speed;
       return { audio, url };
@@ -9124,6 +9327,7 @@ function Speaking({
   const chatEndRef = useRef(null);
   const transcriptScrollRef = useRef(null);
   const recognitionRef = useRef(null);
+  const unmountedRef = useRef(false);
   const ttsQueueRef = useRef([]); // Stores { text, msgId } objects
   const prefetchCacheRef = useRef(new Map());
   const isTtsPlayingRef = useRef(false);
@@ -9192,6 +9396,7 @@ function Speaking({
     const initialCallMode = isCallModeRef.current;
     isTtsPlayingRef.current = true;
     while (ttsQueueRef.current.length > 0) {
+      if (unmountedRef.current) break;
       if (initialCallMode && !isCallModeRef.current) {
         break;
       }
@@ -9254,6 +9459,7 @@ function Speaking({
       prefetchCacheRef.current.delete(text);
     }
     isTtsPlayingRef.current = false;
+    if (unmountedRef.current) return;
     // --- AUTO-MIC: Restart recording after AI finishes speaking ---
     if (isCallModeRef.current && micAutoModeRef.current && !isRecordingRef.current) {
       setTimeout(() => {
@@ -9263,6 +9469,7 @@ function Speaking({
   };
 
   const queueSpeech = (text, msgId = null) => {
+    if (unmountedRef.current) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     // PRE-FETCH: Start synthesis IMMEDIATELY
@@ -9332,13 +9539,20 @@ function Speaking({
   useEffect(() => { liveUserTranscriptRef.current = liveUserTranscript; }, [liveUserTranscript]);
   useEffect(() => { inputRef.current = input; }, [input]);
   useEffect(() => {
+    unmountedRef.current = false;
     return () => {
+      unmountedRef.current = true;
+      ttsQueueRef.current = [];
+      prefetchCacheRef.current.clear();
+      isCallModeRef.current = false;
+      wantRecordingRef.current = false;
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
       }
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try { recognitionRef.current.stop(); } catch { }
       }
+      if (callAudioRef.current) { try { callAudioRef.current.pause(); } catch { } callAudioRef.current = null; }
       cancelTTS();
     };
   }, []);

@@ -452,7 +452,7 @@ app.get("/api/groq-tts", async (req, res) => {
 // ── Groq speech helper (used as the primary/fallback engine for /api/edge-tts) ─
 // Edge TTS is blocked from Vercel's IPs, so Groq (Orpheus) does the speaking.
 const EDGE_TO_GROQ = {
-  "en-US-BrianMultilingualNeural": "troy",  "en-GB-RyanNeural": "daniel",
+  "en-US-BrianMultilingualNeural": "troy", "en-US-AndrewMultilingualNeural": "austin",  "en-GB-RyanNeural": "daniel",
   "en-US-AvaMultilingualNeural":   "hannah", "en-GB-SoniaNeural": "diana",
 };
 function splitForGroq(text, max = 200) {
@@ -469,7 +469,7 @@ function splitForGroq(text, max = 200) {
     cur = rest;
   }
   if (cur.trim()) out.push(cur.trim());
-  return out.filter(Boolean).slice(0, 6);
+  return out.filter(Boolean).slice(0, 12);
 }
 function wavPcm(buf) { // returns { fmt: Buffer(first 12+fmt chunk), pcm: Buffer }
   let o = 12, fmtChunk = null;
@@ -484,14 +484,28 @@ function wavPcm(buf) { // returns { fmt: Buffer(first 12+fmt chunk), pcm: Buffer
 async function groqSpeak(text, groqVoice) {
   if (!groqKey) throw new Error("GROQ_API_KEY not configured");
   const pieces = splitForGroq(text);
-  const wavs = await Promise.all(pieces.map(async (piece) => {
-    const r = await fetch("https://api.groq.com/openai/v1/audio/speech", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
-      body: JSON.stringify({ input: piece, voice: groqVoice, model: "canopylabs/orpheus-v1-english", response_format: "wav" }),
-    });
-    if (!r.ok) throw new Error(`Groq ${r.status}: ${(await r.text()).slice(0, 150)}`);
-    return Buffer.from(await r.arrayBuffer());
+  const fetchPiece = async (piece) => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await fetch("https://api.groq.com/openai/v1/audio/speech", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
+        body: JSON.stringify({ input: piece, voice: groqVoice, model: "canopylabs/orpheus-v1-english", response_format: "wav" }),
+      });
+      if (r.ok) return Buffer.from(await r.arrayBuffer());
+      // Rate-limited / transient error → wait and retry (this was a cause of "sometimes no audio")
+      if ((r.status === 429 || r.status >= 500) && attempt < 2) {
+        const ra = Number(r.headers.get("retry-after"));
+        await new Promise((res) => setTimeout(res, Math.min(4000, ra > 0 ? ra * 1000 : 700 * (attempt + 1))));
+        continue;
+      }
+      throw new Error(`Groq ${r.status}: ${(await r.text()).slice(0, 150)}`);
+    }
+  };
+  // At most 3 requests in flight at once, order preserved.
+  const wavs = new Array(pieces.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(3, pieces.length) }, async () => {
+    while (next < pieces.length) { const i = next++; wavs[i] = await fetchPiece(pieces[i]); }
   }));
   if (wavs.length === 1) return wavs[0];
   const parsed = wavs.map(wavPcm);
@@ -509,7 +523,7 @@ async function groqSpeak(text, groqVoice) {
 // back to Groq on the server so every caller still gets playable audio.
 let edgeBlockedUntil = 0;
 app.get("/api/edge-tts", async (req: Request, res: Response) => {
-  const text  = String(req.query.text ?? "").trim().slice(0, 1000);
+  const text  = String(req.query.text ?? "").trim().slice(0, 2500);
   const voice = String(req.query.voice ?? "en-US-AvaMultilingualNeural");
   if (!text) { res.status(400).json({ error: "text is required" }); return; }
 
