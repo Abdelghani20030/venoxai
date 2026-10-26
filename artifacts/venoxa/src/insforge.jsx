@@ -537,12 +537,7 @@ export async function loadAllVocabFromStorage() {
       (uploaded.idiomsVocab && uploaded.idiomsVocab.length > 0) ||
       (uploaded.langeekVocab && uploaded.langeekVocab.length > 0);
 
-    // Probe the legacy Storage fallback at most once per browser — re-probing on every
-    // login only produces CORS/404 console noise when the files aren't there.
-    let storageVocabAlreadyChecked = false;
-    try { storageVocabAlreadyChecked = localStorage.getItem('venoxa_storage_vocab_checked') === '1'; } catch { }
-
-    if (!hasCustomVocabInFirestore && !storageVocabAlreadyChecked) {
+    if (!hasCustomVocabInFirestore) {
       console.log('No custom vocabs in Firestore; checking Firebase Storage fallback...');
       const sections = ['global', 'phrasal', 'slang', 'idioms', 'langeek'];
       const parsers = {
@@ -562,9 +557,6 @@ export async function loadAllVocabFromStorage() {
       uploaded.slangVocab = results[2].value ? parsers.slang(results[2].value)   : null;
       uploaded.idiomsVocab = results[3].value ? parsers.idioms(results[3].value)  : null;
       uploaded.langeekVocab = results[4].value ? parsers.langeek(results[4].value) : null;
-
-      // Mark the one-time legacy probe as done, result or not.
-      try { localStorage.setItem('venoxa_storage_vocab_checked', '1'); } catch { }
 
       // Automatically migrate downloaded Storage CSV data to Firestore!
       const migrationDelta = {};

@@ -2061,7 +2061,6 @@ function AppInner() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
-  const [syncErrorMsg, setSyncErrorMsg] = useState('');
   const syncStatusTimerRef = useRef(null);
   const latestLocalRef = useRef({});
 
