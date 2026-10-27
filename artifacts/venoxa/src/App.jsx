@@ -2136,6 +2136,9 @@ function AppInner() {
     try {
       const result = await fbRegister(fields);
       if (!result.success) return result;
+      // Supabase: new accounts confirm via 6-digit email code — don't log
+      // the account/progress in until AuthModal's verify step completes.
+      if (result.needsVerification) return result;
       const { token: jwt, user: userData } = result;
       setToken(jwt);
       setUser(userData);
@@ -3910,11 +3913,13 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [flash, setFlash] = useState(''); // survives mode changes (verify notice)
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setError('');
     setSuccess('');
+    if (mode !== 'verify') setFlash('');
   }, [mode]);
 
   if (!isOpen) return null;
@@ -3923,6 +3928,7 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
     e.preventDefault();
     setError('');
     setSuccess('');
+    setFlash('');
     setLoading(true);
     let res;
     if (mode === 'login') {
@@ -3940,7 +3946,11 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
     }
     setLoading(false);
     if (res && res.success) {
-      if (mode !== 'forgot_password') {
+      if (res.needsVerification) {
+        // Supabase email confirmation — route to the OTP screen
+        setFlash(_resolveTranslation(lang, 'أدخل رمز التحقق المرسل إلى بريدك الإلكتروني', 'Enter the verification code sent to your email'));
+        setMode('verify');
+      } else if (mode !== 'forgot_password') {
         onClose();
         setEmail('');
         setPassword('');
@@ -4019,9 +4029,9 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
           </div>
         )}
 
-        {success && (
+        {(success || flash) && (
           <div className="p-3 text-xs font-semibold text-emerald-500 bg-emerald-500/10 rounded-xl border border-emerald-500/20 animate-fadeIn">
-            {success}
+            {flash || success}
           </div>
         )}
 

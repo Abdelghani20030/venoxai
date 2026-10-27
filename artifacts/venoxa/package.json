@@ -75,7 +75,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "firebase": "catalog:",
+    "@supabase/supabase-js": "^2.49.0",
     "liquid-glass-react": "^1.1.1"
   }
 }

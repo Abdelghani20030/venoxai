@@ -1,36 +1,33 @@
-// artifacts/venoxa/src/insforge.js
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  sendEmailVerification,
-  sendPasswordResetEmail,
-  deleteUser as fbDeleteUser,
-} from 'firebase/auth';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  onSnapshot,
-} from 'firebase/firestore';
-import {
-  ref,
-  uploadString,
-  getDownloadURL,
-  getMetadata,
-} from 'firebase/storage';
-import { app, storage } from './firebase-config.js';
+// artifacts/venoxa/src/insforge.jsx
+//
+// Venoxa cloud-sync service layer — now powered by Supabase
+// (auth + `users` table + Supabase Storage) instead of Firebase.
+//
+// The export surface is identical to the previous Firebase version, so
+// App.jsx / ProfileDashboard.jsx keep working unchanged:
+//
+//   Auth:    onAuthChange, login, register, logout, verifyEmail, resendVerification,
+//            sendPasswordReset, deleteAccount, auth (currentUser shim)
+//   Sync:    syncProgress, pullProgress, pushProgress, syncBeacon, subscribeToProgress
+//   Vocab:   uploadVocabCSV, downloadVocabCSV, loadAllVocabFromStorage
+//
+// Data model (one Postgres row mirrors the old Firestore document):
+//   users(id uuid pk → auth.users, email, data jsonb, created_at, updated_at)
+// every words/progress/history field lives inside the `data` JSONB column.
+
+import { supabase, VOCAB_BUCKET } from './supabase-config.js';
 import { loadBundledVocab } from './vocabData.js';
 
-export const auth = getAuth(app);
-const db = getFirestore(app);
-export const insforge = { auth, db };
+export const insforge = { auth: supabase.auth, db: supabase };
+
+// ─── Session cache (sync access for the auth.currentUser shim) ──────────────
+
+let _session = null;
+
+function trackSession(session) { _session = session; }
+
+// Keep _session fresh (getSession resolves instantly from local storage)
+supabase.auth.getSession().then(({ data }) => trackSession(data.session)).catch(() => {});
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -129,32 +126,146 @@ function mergeSrsObjects(local = {}, remote = {}) {
   return merged;
 }
 
+// ─── Postgres row access (mirrors the Firestore doc operations) ──────────────
+
+const USERS_TABLE = 'users';
+
+async function readRow(uid) {
+  const { data, error } = await supabase
+    .from(USERS_TABLE)
+    .select('id, email, data')
+    .eq('id', uid)
+    .maybeSingle();
+  if (error) throw error;
+  return data; // { id, email, data } | null
+}
+
+/** Reads a row and returns its `data` document, or a fresh {} for new users. */
+async function readDoc(uid) {
+  try {
+    const row = await readRow(uid);
+    return { doc: row?.data || {}, email: row?.email || '' };
+  } catch (err) {
+    console.warn('readDoc failed, using empty document', err);
+    return { doc: {}, email: '' };
+  }
+}
+
+async function writeDoc(uid, email, docData) {
+  const row = {
+    id: uid,
+    email: email || null,
+    data: JSON.parse(JSON.stringify(docData)),
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabase
+    .from(USERS_TABLE)
+    .upsert(row, { onConflict: 'id' });
+  if (error) throw error;
+}
+
+/** Merges `partial` into the row's `data` (read-modify-write, like updateDoc). */
+async function patchDoc(uid, partial) {
+  const { doc: current, email } = await readDoc(uid);
+  const merged = { ...current, ...partial };
+  await writeDoc(uid, email || _session?.user?.email || '', merged);
+  return merged;
+}
+
+const withTimeout = (promise, ms) => new Promise((resolve, reject) => {
+  const t = setTimeout(() => reject(new Error(
+    `Supabase operation timed out after ${ms}ms. You might be offline or blocked by a firewall.`)), ms);
+  promise.then(resolve, reject).finally(() => clearTimeout(t));
+});
+
+/** Maps raw Supabase auth errors onto the app's expected messages. */
+function normalizeAuthError(error) {
+  const msg = error?.message || 'Authentication failed';
+  if (/not confirmed|confirmed_email|confirm.*email/i.test(msg)) {
+    return Object.assign(error instanceof Error ? error : new Error(msg), {
+      message: 'Verification required — check your inbox for the 6-digit code.',
+    });
+  }
+  return error;
+}
+
+// ─── auth.currentUser shim (Firebase-compatible sync reads) ─────────────────
+
+export const auth = {
+  get currentUser() {
+    if (!_session?.user) return null;
+    const user = _session.user;
+    return {
+      uid: user.id,
+      email: user.email || '',
+      getIdToken: async () => {
+        // Supabase auto-refreshes; re-read the session for the freshest token
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data.session) trackSession(data.session);
+        } catch { /* use cached */ }
+        return _session?.access_token || null;
+      },
+    };
+  },
+};
+
 // ─── Auth State ───────────────────────────────────────────────────────────────
 
 export function onAuthChange(callback) {
-  return onAuthStateChanged(auth, async (firebaseUser) => {
-    if (!firebaseUser) {
+  let active = true;
+  let lastEmittedUid = Symbol('none');
+
+  const emit = async (session) => {
+    if (!active) return;
+    const u = session?.user;
+    if (!u) {
+      if (lastEmittedUid !== null) {
+        lastEmittedUid = null;
+        callback(null);
+      }
+      return;
+    }
+    if (u.id === lastEmittedUid) return; // dedupe INITIAL_SESSION/live echo
+    lastEmittedUid = u.id;
+    try {
+      const { doc } = await readDoc(u.id);
+      if (active) callback(docToUser(u.id, u.email || '', doc));
+    } catch {
+      if (active) callback(docToUser(u.id, u.email || ''));
+    }
+  };
+
+  supabase.auth.getSession()
+    .then(({ data }) => { trackSession(data.session); return emit(data.session); })
+    .catch(() => {});
+
+  const { data: sub } = supabase.auth.onAuthStateChange((evt, session) => {
+    trackSession(session);
+    if (evt === 'SIGNED_OUT') {
+      lastEmittedUid = Symbol('none');
       callback(null);
       return;
     }
-    try {
-      const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
-      const data = snap.exists() ? snap.data() : {};
-      callback(docToUser(firebaseUser.uid, firebaseUser.email, data));
-    } catch {
-      callback(docToUser(firebaseUser.uid, firebaseUser.email));
-    }
+    // Re-emit on explicit sign-in/verification even for the same user id
+    if (evt === 'SIGNED_IN' || evt === 'USER_UPDATED') lastEmittedUid = Symbol('none');
+    emit(session);
   });
+
+  return () => { active = false; sub.subscription.unsubscribe(); };
 }
 
 // ─── Auth Actions ─────────────────────────────────────────────────────────────
 
 export async function login(email, password) {
-  const cred = await signInWithEmailAndPassword(auth, email, password);
-  const snap = await getDoc(doc(db, 'users', cred.user.uid));
-  const data = snap.exists() ? snap.data() : {};
-  const user = docToUser(cred.user.uid, cred.user.email, data);
-  const token = await cred.user.getIdToken();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw normalizeAuthError(error);
+  trackSession(data.session);
+
+  const u = data.user;
+  const { doc } = await readDoc(u.id);
+  const user = docToUser(u.id, u.email || '', doc);
+  const token = data.session?.access_token || '';
   return { success: true, token, user };
 }
 
@@ -167,69 +278,106 @@ export async function register(fields = {}) {
     gender   = '',
   } = typeof fields === 'object' ? fields : { email: fields };
 
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
-  const userData = docToUser(cred.user.uid, cred.user.email, { username, dob, gender });
-  await setDoc(doc(db, 'users', cred.user.uid), {
-    ...userData,
-    createdAt: serverTimestamp(),
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    // Persisted to auth.users.raw_user_meta_data; the DB trigger copies these
+    // into the new users.data row so profile survives email confirmation.
+    options: { data: { username, dob, gender } },
   });
-  await sendEmailVerification(cred.user);
-  // Return the shape App.jsx expects: { success, token, user }
-  const token = await cred.user.getIdToken();
-  return { success: true, token, user: userData };
+  if (error) throw normalizeAuthError(error);
+
+  const u = data.user;
+  if (data.session) {
+    // Email confirmation disabled in Supabase → user is immediately usable.
+    trackSession(data.session);
+    const userData = docToUser(u.id, u.email || '', { username, dob, gender });
+    try { await patchDoc(u.id, { username, dob, gender }); } catch { /* best effort */ }
+    const token = data.session?.access_token || '';
+    return { success: true, token, user: userData };
+  }
+
+  // Email confirmation required — a 6-digit code email is on its way.
+  // App.jsx shows the "verify" screen (mode === 'verify') and calls
+  // verifyEmail(email, code) when the user submits it.
+  return { success: true, needsVerification: true };
 }
 
 export async function logout() {
-  await signOut(auth);
+  await supabase.auth.signOut();
+  trackSession(null);
 }
 
-export async function verifyEmail() {
-  const user = auth.currentUser;
-  if (user) await sendEmailVerification(user);
+/**
+ * Verify the 6-digit signup code. Signature kept compatible with the
+ * Firebase version, but now actually uses (email, code) as App.jsx expects.
+ */
+export async function verifyEmail(email, code) {
+  if (!email || !code) throw new Error('Email and verification code are required');
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token: String(code).trim(),
+    type: 'email',
+  });
+  if (error) throw normalizeAuthError(error);
+  trackSession(data.session);
+
+  const u = data.user;
+  const { doc } = await readDoc(u.id);
+  const user = docToUser(u.id, u.email || '', doc);
+  const token = data.session?.access_token || '';
+  return { success: true, token, user };
 }
 
-export async function resendVerification() {
-  const user = auth.currentUser;
-  if (user) await sendEmailVerification(user);
+export async function resendVerification(email) {
+  if (!email) throw new Error('Email is required');
+  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  if (error) throw normalizeAuthError(error);
+  return { success: true };
 }
 
 export async function sendPasswordReset(email) {
   if (!email) throw new Error('Email is required');
-  await sendPasswordResetEmail(auth, email);
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) throw normalizeAuthError(error);
   return { success: true };
 }
 
 export async function deleteAccount() {
-  const user = auth.currentUser;
-  if (!user) throw new Error('No user signed in');
-  try {
-    await deleteDoc(doc(db, 'users', user.uid));
-  } catch { /* best effort */ }
-  await fbDeleteUser(user);
+  const session = _session;
+  if (!session?.user) throw new Error('No user signed in');
+  // SECURITY DEFINER RPC from supabase-schema.sql — deletes the auth user;
+  // the FK cascade removes the users row and storage objects go with it.
+  const { error } = await supabase.rpc('delete_own_account');
+  if (error) throw error;
+  await supabase.auth.signOut();
+  trackSession(null);
+  return { success: true };
 }
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
-export async function updateProfile(uid, updates = {}) {
-  if (!uid) throw new Error('uid required');
-  const ref = doc(db, 'users', uid);
-  await updateDoc(ref, { ...updates, updatedAt: serverTimestamp() });
-  const snap = await getDoc(ref);
-  return docToUser(uid, snap.data()?.email || '', snap.data() || {});
+export async function updateProfile(uidOrToken, updates = {}) {
+  // App.jsx passes the session token (JWT) as the first arg — resolve the
+  // real uid from the signed-in Supabase user (RLS already enforces ownership).
+  const session = _session;
+  if (!session?.user) throw new Error('No user signed in');
+  const uid = session.user.id;
+  const merged = await patchDoc(uid, { ...updates, updatedAt: new Date().toISOString() });
+  return docToUser(uid, session.user.email || '', merged);
 }
 
 // ─── Progress Sync ────────────────────────────────────────────────────────────
 
 export async function syncProgress(_tokenOrUid, localData = {}) {
-  // App.jsx passes the Firebase ID token (JWT) as the first arg — NOT the uid.
-  // Always resolve the real uid from the currently signed-in user.
-  const uid = auth.currentUser?.uid;
+  // App.jsx passes the session token (JWT) as the first arg — NOT the uid.
+  // Always resolve the real uid from the current Supabase session.
+  const session = _session;
+  const uid = session?.user?.id;
   if (!uid) return localData;
 
   try {
-    const ref = doc(db, 'users', uid);
-    const snap = await getDoc(ref);
-    const remote = snap.exists() ? snap.data() : {};
+    const { doc: remote, email } = await readDoc(uid);
 
     // Merge array fields (local wins on conflicts by id)
     const arrayFields = [
@@ -273,9 +421,14 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
       merged.planConfig = localData.planConfig;
     }
 
-    const safeMerged = JSON.parse(JSON.stringify(merged));
-    await setDoc(ref, { ...safeMerged, updatedAt: serverTimestamp() }, { merge: true });
-    return docToUser(uid, auth.currentUser?.email || remote.email || '', merged);
+    try {
+      await writeDoc(uid, session.user.email || email || '', merged);
+    } catch (err) {
+      // New users may race the signup trigger — retry once after creating the row
+      console.warn('syncProgress upsert failed, retrying', err);
+      await writeDoc(uid, session.user.email || email || '', merged);
+    }
+    return docToUser(uid, session.user?.email || email || '', merged);
   } catch (err) {
     console.warn('syncProgress failed, using local data', err);
     return localData;
@@ -284,112 +437,102 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
 
 export async function pullProgress(uid) {
   if (!uid) return null;
-  const withTimeout = (promise, ms) => new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`pullProgress timed out after ${ms}ms`)), ms);
-    promise.then(resolve).catch(reject).finally(() => clearTimeout(t));
-  });
   try {
-    const ref = doc(db, 'users', uid);
-    const snap = await withTimeout(getDoc(ref), 10000);
-    if (snap.exists()) {
-      return docToUser(uid, auth.currentUser?.email || snap.data().email || '', snap.data());
-    }
+    const session = _session;
+    if (!session?.user || session.user.id !== uid) return null;
+    const { doc, email } = await withTimeout(readDoc(uid), 10000);
+    return docToUser(uid, session.user?.email || email || '', doc);
   } catch (err) {
     console.warn('pullProgress failed', err);
+    return null;
   }
-  return null;
 }
 
 export async function pushProgress(uid, delta) {
   if (!uid) return;
-  const withTimeout = (promise, ms) => {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`Firebase operation timed out after ${ms}ms. You might be offline or blocked by a firewall.`)), ms);
-      promise.then(resolve).catch(reject).finally(() => clearTimeout(timer));
-    });
-  };
-
+  if (!_session?.user || _session.user.id !== uid) return;
   const safeDelta = JSON.parse(JSON.stringify(delta));
   try {
-    const ref = doc(db, 'users', uid);
-    await withTimeout(updateDoc(ref, {
-      ...safeDelta,
-      updatedAt: serverTimestamp()
-    }), 10000);
-  } catch (err) {
-    console.warn('pushProgress updateDoc failed, attempting setDoc with merge', err);
-    try {
-      const ref = doc(db, 'users', uid);
-      await withTimeout(setDoc(ref, {
-        ...safeDelta,
-        updatedAt: serverTimestamp()
-      }, { merge: true }), 10000);
-    } catch (e) {
-      console.error('pushProgress completely failed', e);
-      throw e;
-    }
+    await withTimeout(patchDoc(uid, { ...safeDelta, updatedAt: new Date().toISOString() }), 10000);
+  } catch (e) {
+    console.error('pushProgress completely failed', e);
+    throw e;
   }
 }
 
+/**
+ * Fires on page unload.
+ * The old version POSTed to /api/sync-beacon (a route no running server
+ * exposed, so it 404'd silently). Now we PATCH the user's row directly via
+ * the SQL helper merge_beacon_data() from supabase-schema.sql. The fetch uses
+ * keepalive:true so it survives the tab closing — the modern sendBeacon.
+ */
 export function syncBeacon(_tokenOrUid, localData = {}) {
-  // Fires on page unload. Resolve uid from auth — the passed arg is a JWT token.
-  const uid = auth.currentUser?.uid;
-  if (!uid) return;
+  const session = _session;
+  if (!session?.user?.id) return;
   try {
-    const payload = JSON.stringify({
-      uid,
-      xp:           localData.xp           || 0,
-      streak:       localData.streak        || 0,
-      usageTime:    localData.usageTime     || {},
-      calendarDays: localData.calendarDays  || [],
-    });
-    navigator.sendBeacon('/api/sync-beacon', new Blob([payload], { type: 'application/json' }));
+    const payload = {
+      p_data: {
+        xp:           localData.xp           || 0,
+        streak:       localData.streak       || 0,
+        usageTime:    localData.usageTime    || {},
+        calendarDays: localData.calendarDays || [],
+      },
+    };
+    fetch(`${supabase.supabaseUrl}/rest/v1/rpc/merge_beacon_data`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        apikey: supabase.supabaseKey,
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'params=single-object',
+      },
+      body: JSON.stringify(payload),
+    }).catch(() => { /* best effort */ });
   } catch { /* best effort */ }
 }
 
 export function subscribeToProgress(uid, callback) {
   if (!uid) return () => {};
-  const ref = doc(db, 'users', uid);
-  return onSnapshot(ref, (snap) => {
-    if (snap.exists()) {
-      callback(docToUser(uid, snap.data().email || '', snap.data()));
-    } else {
-      callback(docToUser(uid, auth.currentUser?.email || '', {}));
-    }
-  }, (err) => {
-    console.warn('subscribeToProgress error:', err);
-  });
+  const channel = supabase
+    .channel(`venoxa-progress-${uid}`)
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: USERS_TABLE, filter: `id=eq.${uid}` },
+      (payload) => {
+        const row = payload.new;
+        if (row) callback(docToUser(uid, row.email || '', row.data || {}));
+      })
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
 }
 
 // ─── Cloud Vocabulary Storage ─────────────────────────────────────────────────
-// Each vocabulary section's CSV is stored in Firebase Storage at:
+// Each vocabulary section's CSV is stored in Supabase Storage at:
 //   users/{uid}/vocab/{section}.csv
 // Sections: 'global' | 'phrasal' | 'slang' | 'idioms' | 'langeek'
 
 export async function uploadVocabCSV(section, csvText) {
-  const uid = auth.currentUser?.uid;
-  if (!uid || !csvText) return;
-  const path = `users/${uid}/vocab/${section}.csv`;
-  const storageRef = ref(storage, path);
-  await uploadString(storageRef, csvText, 'raw', {
-    contentType: 'text/csv',
-  });
+  const session = _session;
+  if (!session?.user?.id || !csvText) return;
+  const path = `users/${session.user.id}/vocab/${section}.csv`;
+  const blob = new Blob([csvText], { type: 'text/csv' });
+  const { error } = await supabase.storage
+    .from(VOCAB_BUCKET)
+    .upload(path, blob, { contentType: 'text/csv', upsert: true });
+  if (error) throw error;
 }
 
 export async function downloadVocabCSV(section) {
-  const uid = auth.currentUser?.uid;
-  if (!uid) return null;
+  const session = _session;
+  if (!session?.user?.id) return null;
   try {
-    const path = `users/${uid}/vocab/${section}.csv`;
-    const storageRef = ref(storage, path);
-    // Check file exists before downloading
-    await getMetadata(storageRef);
-    const url = await getDownloadURL(storageRef);
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    return await res.text();
+    const path = `users/${session.user.id}/vocab/${section}.csv`;
+    const { data, error } = await supabase.storage.from(VOCAB_BUCKET).download(path);
+    if (error || !data) return null; // file doesn't exist yet — not an error
+    return await data.text();
   } catch {
-    return null; // file doesn't exist yet — not an error
+    return null;
   }
 }
 
@@ -498,13 +641,14 @@ function _parseCSVLine(line, sep = ',') {
 
 /**
  * Called on startup or login. Loads core default CSVs from the public folder,
- * checks Firebase Storage for custom user uploads, and merges them.
+ * checks Supabase Storage for custom user uploads, and merges them.
  */
 export async function loadAllVocabFromStorage() {
   // ── 1. Load default bundled data ──
   const bundled = await loadBundledVocab();
 
-  const uid = auth.currentUser?.uid;
+  const session = _session;
+  const uid = session?.user?.id;
   let uploaded = {
     globalVocab:  null,
     phrasalVocab: null,
@@ -515,30 +659,26 @@ export async function loadAllVocabFromStorage() {
 
   if (uid) {
     try {
-      const ref = doc(db, 'users', uid);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const data = snap.data();
-        uploaded.globalVocab = data.customGlobalVocab || null;
-        uploaded.phrasalVocab = data.customPhrasalVocab || null;
-        uploaded.slangVocab = data.customIdiomsVocab || null;       // maps to slangVocab / idiomsVocab key in App.jsx
-        uploaded.idiomsVocab = data.customIdiomsProperVocab || null;  // maps to idiomsVocab / idiomsProperVocab key in App.jsx
-        uploaded.langeekVocab = data.customLangeekVocab || null;
-      }
+      const { doc } = await readDoc(uid);
+      uploaded.globalVocab  = doc.customGlobalVocab       || null;
+      uploaded.phrasalVocab = doc.customPhrasalVocab      || null;
+      uploaded.slangVocab   = doc.customIdiomsVocab       || null;       // maps to slangVocab / idiomsVocab key in App.jsx
+      uploaded.idiomsVocab  = doc.customIdiomsProperVocab || null;       // maps to idiomsVocab / idiomsProperVocab key in App.jsx
+      uploaded.langeekVocab = doc.customLangeekVocab      || null;
     } catch (err) {
-      console.warn('Failed to load custom vocab from Firestore', err);
+      console.warn('Failed to load custom vocab from the users table', err);
     }
 
-    // Fallback to Firebase Storage if Firestore has no custom vocab data
-    const hasCustomVocabInFirestore =
+    // Fallback to Supabase Storage if the users table has no custom vocab data
+    const hasCustomVocabInDb =
       (uploaded.globalVocab && uploaded.globalVocab.length > 0) ||
       (uploaded.phrasalVocab && uploaded.phrasalVocab.length > 0) ||
       (uploaded.slangVocab && uploaded.slangVocab.length > 0) ||
       (uploaded.idiomsVocab && uploaded.idiomsVocab.length > 0) ||
       (uploaded.langeekVocab && uploaded.langeekVocab.length > 0);
 
-    if (!hasCustomVocabInFirestore) {
-      console.log('No custom vocabs in Firestore; checking Firebase Storage fallback...');
+    if (!hasCustomVocabInDb) {
+      console.log('No custom vocabs in the users table; checking Supabase Storage fallback...');
       const sections = ['global', 'phrasal', 'slang', 'idioms', 'langeek'];
       const parsers = {
         global:  _parseGlobalCSV,
@@ -552,13 +692,13 @@ export async function loadAllVocabFromStorage() {
         sections.map(s => downloadVocabCSV(s))
       );
 
-      uploaded.globalVocab = results[0].value ? parsers.global(results[0].value)  : null;
+      uploaded.globalVocab  = results[0].value ? parsers.global(results[0].value)  : null;
       uploaded.phrasalVocab = results[1].value ? parsers.phrasal(results[1].value) : null;
-      uploaded.slangVocab = results[2].value ? parsers.slang(results[2].value)   : null;
-      uploaded.idiomsVocab = results[3].value ? parsers.idioms(results[3].value)  : null;
+      uploaded.slangVocab   = results[2].value ? parsers.slang(results[2].value)   : null;
+      uploaded.idiomsVocab  = results[3].value ? parsers.idioms(results[3].value)  : null;
       uploaded.langeekVocab = results[4].value ? parsers.langeek(results[4].value) : null;
 
-      // Automatically migrate downloaded Storage CSV data to Firestore!
+      // Automatically migrate downloaded Storage CSV data into the users table!
       const migrationDelta = {};
       if (uploaded.globalVocab && uploaded.globalVocab.length > 0) migrationDelta.customGlobalVocab = uploaded.globalVocab;
       if (uploaded.phrasalVocab && uploaded.phrasalVocab.length > 0) migrationDelta.customPhrasalVocab = uploaded.phrasalVocab;
@@ -568,11 +708,10 @@ export async function loadAllVocabFromStorage() {
 
       if (Object.keys(migrationDelta).length > 0) {
         try {
-          const ref = doc(db, 'users', uid);
-          await updateDoc(ref, migrationDelta);
-          console.log('Migrated custom vocabs from Firebase Storage to Firestore successfully.');
+          await patchDoc(uid, migrationDelta);
+          console.log('Migrated custom vocabs from Supabase Storage to the users table successfully.');
         } catch (err) {
-          console.warn('Migration of custom vocabs to Firestore failed', err);
+          console.warn('Migration of custom vocabs to the users table failed', err);
         }
       }
     }
@@ -595,4 +734,4 @@ export async function loadAllVocabFromStorage() {
     idiomsVocab:  mergeByWord(bundled.idiomsVocab,  uploaded.idiomsVocab),
     langeekVocab: mergeByWord(bundled.langeekVocab, uploaded.langeekVocab),
   };
-}
+}
