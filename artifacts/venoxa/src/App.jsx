@@ -4085,13 +4085,14 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
                   {t.resendText}
                 </button>
               </div>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 required
-                maxLength={6}
+                inputMode="numeric"
+                maxLength={8}
                 placeholder="123456"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                 className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold text-center tracking-widest"
               />
             </div>
