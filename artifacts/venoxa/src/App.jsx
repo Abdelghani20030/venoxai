@@ -5038,6 +5038,7 @@ function StudyPlan({
   // isEditing: show the configuration form even when a plan already exists
   const [isEditing, setIsEditing] = useState(false);
   const [isPrintMode, setIsPrintMode] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const userPickedWeekRef = useRef(false);
   const [vocabModal, setVocabModal] = useState(null);
   const [grammarModal, setGrammarModal] = useState(null);
@@ -5572,19 +5573,120 @@ function StudyPlan({
   };
   const handlePrint = () => {
     // Show the print container via React state, then print once it renders
+    if (!planData) return;
     setIsPrintMode(true);
-    // Wait for React to render the print layout, then trigger print
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        window.print();
-        // After print dialog closes, restore normal view
-        const handleAfterPrint = () => {
-          setIsPrintMode(false);
-          window.removeEventListener('afterprint', handleAfterPrint);
-        };
-        window.addEventListener('afterprint', handleAfterPrint);
-      }, 100);
-    });
+    // Wait until every week page is actually mounted in the DOM (a fixed timer
+    // can fire while React is still sitting on a large render → blank pages).
+    const started = Date.now();
+    let printed = false;
+    const doPrint = () => {
+      if (printed) return;
+      printed = true;
+      window.print();
+      // After print dialog closes, restore normal view
+      const handleAfterPrint = () => {
+        setIsPrintMode(false);
+        window.removeEventListener('afterprint', handleAfterPrint);
+      };
+      window.addEventListener('afterprint', handleAfterPrint);
+    };
+    const tryPrint = () => {
+      const mounted = document.querySelectorAll('.print-layout-container .print-week-page').length;
+      if (mounted >= planData.totalWeeks) {
+        // Note: document.fonts.ready can park forever in throttled/embedded
+        // browsers, so race it against a timer and print anyway.
+        Promise.race([
+          Promise.resolve(document.fonts && document.fonts.ready),
+          new Promise(r => setTimeout(r, 2500))
+        ]).then(doPrint, doPrint);
+      } else if (Date.now() - started > 3000) {
+        doPrint(); // safety net: print whatever managed to render
+      } else {
+        requestAnimationFrame(tryPrint);
+      }
+    };
+    requestAnimationFrame(tryPrint);
+  };
+  // Generates a real .pdf file (works on phones too, where the print→"Save as
+  // PDF" route either isn't offered or produces unreadable output). Each week
+  // of the print layout is rasterized and placed on its own A4 landscape page.
+  const handleDownloadPdf = async () => {
+    if (!planData || pdfBusy) return;
+    setPdfBusy(true);
+    let captureStyle = null;
+    let container = null;
+    let prevContainerCss = null;
+    const html = document.documentElement;
+    const wasDark = html.classList.contains('dark');
+    try {
+      // 1) Mount every week inside the hidden print container
+      setIsPrintMode(true);
+      const deadline = Date.now() + 5000;
+      for (;;) {
+        const mounted = document.querySelectorAll('.print-layout-container .print-week-page').length;
+        if (mounted >= planData.totalWeeks || Date.now() > deadline) break;
+        // setTimeout instead of rAF: rAF can starve in throttled webviews
+        await new Promise(r => setTimeout(r, 60));
+      }
+      container = document.querySelector('.print-layout-container');
+      if (!container) throw new Error('print container not mounted');
+      // document.fonts.ready parks forever in some embedded browsers — race it
+      await Promise.race([
+        Promise.resolve(document.fonts && document.fonts.ready),
+        new Promise(r => setTimeout(r, 2500))
+      ]);
+      const hardEnd = Date.now() + 150000; // whole-run watchdog
+
+      // 2) Temporarily restyle for a clean capture: force the print-visibility
+      //    rules on (they only exist inside @media print), switch to light
+      //    theme colors, and pin the container to a fixed desktop-like width
+      //    so phone users don't get a squeezed, horizontally-scrolled layout.
+      captureStyle = document.createElement('style');
+      captureStyle.id = 'venoxa-pdf-capture-style';
+      captureStyle.textContent = `
+        .print-layout-container { display: block !important; }
+        .print-screen-only, [class~="print:hidden"] { display: none !important; }
+      `;
+      document.head.appendChild(captureStyle);
+      if (wasDark) html.classList.remove('dark');
+      prevContainerCss = container.style.cssText;
+      container.style.cssText = 'display:block !important; position:fixed !important; left:-2100px !important; top:0 !important; width:1240px !important; margin:0 !important; direction:rtl;';
+
+      // 3) Rasterize each week and assemble the PDF
+      const { jsPDF } = await import('jspdf');
+      const html2canvas = (await import('html2canvas-pro')).default;
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+      const pages = Array.from(container.querySelectorAll('.print-week-page'));
+      const MARGIN = 10, PAGE_W = 297, PAGE_H = 210;
+      for (let i = 0; i < pages.length; i++) {
+        if (Date.now() > hardEnd) throw new Error('PDF generation timed out');
+        const canvas = await Promise.race([
+          html2canvas(pages[i], {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            logging: false
+          }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('week raster timed out')), 30000))
+        ]);
+        const img = canvas.toDataURL('image/jpeg', 0.9);
+        const w = PAGE_W - MARGIN * 2;
+        const h = Math.min(w * (canvas.height / canvas.width), PAGE_H - MARGIN);
+        if (i > 0) pdf.addPage('a4', 'landscape');
+        pdf.addImage(img, 'JPEG', MARGIN, MARGIN / 2, w, h, undefined, 'FAST');
+        canvas.width = 0; canvas.height = 0; // free memory immediately (mobile)
+      }
+      pdf.save(`venoxa-study-plan-${userLevel}-to-${targetLevel}.pdf`);
+    } catch (err) {
+      console.error('PDF export failed', err);
+      alert(_resolveTranslation(lang, 'تعذر إنشاء ملف PDF. استخدم زر "طباعة كل الأسابيع" واحفظ النتيجة كـ PDF من نافذة الطباعة.', 'Could not generate the PDF file. Use "Print All Weeks" and choose "Save as PDF" in the print window instead.'));
+    } finally {
+      if (captureStyle && captureStyle.parentNode) captureStyle.parentNode.removeChild(captureStyle);
+      if (container && prevContainerCss !== null) container.style.cssText = prevContainerCss;
+      if (wasDark) html.classList.add('dark');
+      setIsPrintMode(false);
+      setPdfBusy(false);
+    }
   };
   const formatTime = mins => {
     const h = Math.floor(mins / 60);
@@ -6124,10 +6226,13 @@ function StudyPlan({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={handleDownloadPdf} disabled={pdfBusy || !planData} className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-xl shadow-sm disabled:opacity-60 disabled:cursor-wait">
+            <FileText className="w-4 h-4" /> {pdfBusy ? _resolveTranslation(lang, 'جاري إنشاء PDF...', 'Generating PDF...') : _resolveTranslation(lang, 'تحميل PDF', 'Download PDF')}
+          </button>
           <button onClick={exportCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-xl shadow-sm">
             <Archive className="w-4 h-4" /> {t.exportCsv}
           </button>
-          <button onClick={handlePrint} className="bg-[var(--app-accent1)] hover:bg-[var(--app-hover)] hover:text-black text-white dark:text-black flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-xl shadow-sm">
+          <button onClick={handlePrint} className="bg-emerald-600/80 hover:bg-emerald-700 text-white flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-xl shadow-sm" title={_resolveTranslation(lang, 'افتح نافذة الطباعة (يمكنك حفظها كـ PDF من المتصفح)', 'Open the browser print window (you can save it as PDF from there)')}>
             <Printer className="w-4 h-4" /> {t.exportPdf}
           </button>
           <button onClick={() => setIsEditing(prev => !prev)} className={`flex items-center gap-2 text-sm font-bold transition-colors px-4 py-2 rounded-xl ${isEditing ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-[var(--app-surface)]'}`}>

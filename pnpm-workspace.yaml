@@ -87,6 +87,7 @@ allowBuilds:
   '@firebase/util': true
   '@google/genai': true
   bcrypt: false
+  core-js: false
   esbuild: true
   msedge-tts: true
   protobufjs: true

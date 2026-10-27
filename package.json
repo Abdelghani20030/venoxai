@@ -11,6 +11,7 @@
   },
   "private": true,
   "devDependencies": {
+    "pdfjs-dist": "^6.4.299",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2"
   },
