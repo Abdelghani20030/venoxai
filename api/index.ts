@@ -9,6 +9,7 @@ import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pgTable, serial, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { eq } from "drizzle-orm";
+import { registerLevelTestRoutes } from "../artifacts/api-server/src/lib/level-test-api";
 
 // ── Database setup (inline for Vercel serverless) ────────────────────────────
 const dbUrl = (process.env.DATABASE_URL ?? "").trim();
@@ -86,12 +87,14 @@ const usersTable = pgTable("users", {
 // Lazy DB pool — only created if DATABASE_URL is configured
 let _pool: pg.Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
+function getPool() {
+  if (!dbUrl) return null;
+  if (!_pool) _pool = new pg.Pool({ connectionString: dbUrl });
+  return _pool;
+}
 function getDb() {
   if (!dbUrl) return null;
-  if (!_pool) {
-    _pool = new pg.Pool({ connectionString: dbUrl });
-    _db = drizzle(_pool, { schema: { usersTable } });
-  }
+  _db = drizzle(getPool(), { schema: { usersTable } });
   return _db;
 }
 
@@ -1745,5 +1748,12 @@ app.post("/api/user/sync-beacon", async (req, res) => {
     res.status(500).end();
   }
 });
+
+// ── Venoxa Level Test — server-side adaptive test + certificates ─────────────
+// Mounted after middleware; the whole route group self-verifies Supabase
+// JWTs, rate-limits and only talks to the DB via getPool().
+if (dbUrl) {
+  registerLevelTestRoutes(app, { pool: getPool });
+}
 
 export default app;

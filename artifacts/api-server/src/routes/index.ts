@@ -11,6 +11,7 @@ import kokoroTtsRouter from "./kokoro-tts"; // Kokoro TTS — /api/kokoro-tts
 import groqTtsRouter from "./groq-tts"; // Groq TTS — /api/groq-tts
 import authRouter from "./auth";
 import userRouter from "./user";
+import levelTestRouter from "./level-test"; // Venoxa Level Test — /api/level-test/*
 
 const router: IRouter = Router();
 
@@ -25,5 +26,6 @@ router.use(kokoroTtsRouter);
 router.use(groqTtsRouter);
 router.use(authRouter);
 router.use(userRouter);
+router.use(levelTestRouter);
 
 export default router;

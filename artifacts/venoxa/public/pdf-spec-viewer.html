@@ -13,7 +13,7 @@
 <script type="module">
   const pdfjsLib = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.min.mjs");
   pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.8.69/build/pdf.worker.min.mjs";
-  const doc = await pdfjsLib.getDocument({ url: "/level-test-preview.pdf" }).promise;
+  const doc = await pdfjsLib.getDocument({ url: new URLSearchParams(location.search).get("pdf") || "/level-test-preview.pdf" }).promise;
   const scale = parseFloat(new URLSearchParams(location.search).get("scale") || "2");
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p);
