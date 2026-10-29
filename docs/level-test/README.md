@@ -216,6 +216,10 @@ one-play audio. See `docs/level-test/verification.md`.
 ## Known limitations
 
 - Item bank is incomplete (101 items: A1 40, A2 39, B1 22; B2/C1/C2 0).
+- The 101-item bank was generated before the stricter frame/target dedupe was
+  added; several A1 grammar items repeat a “usually ____” routine frame. The
+  next generation run uses the stricter prompts and dedupe, and teacher review
+  should replace any remaining formulaic items.
 - No live end-to-end run against Supabase yet because the migration/seed have
   not been applied by the project owner.
 - C1/C2 items must be teacher-reviewed before launch.

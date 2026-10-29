@@ -49,7 +49,11 @@ Verified:
   URL, and English-only labels.
 - Names are sanitized to Latin characters; Arabic names fall back to
   “Venoxa Learner”.
+- Long names are shrunk to fit on one line instead of wrapping into the score
+  row.
 - Certificate title matches the preview: “Certificate of English Level”.
+- Smoke-rendered the real `renderCertificate` function with a sample B1 result:
+  4,524-byte PDF, header `%PDF-1.7`, tail `%%EOF`, QR code embedded.
 
 ## Plan-PDF (separate feature)
 
