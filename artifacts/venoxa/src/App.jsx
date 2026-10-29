@@ -152,6 +152,7 @@ import MinimalPairs from './MinimalPairs';
 import WordFamilyExplorer from './WordFamilyExplorer';
 import CollocationFinder from './CollocationFinder';
 import EtymologyExplorer from './EtymologyExplorer';
+import LevelTest from './LevelTest';
 import WordOfTheDay from './WordOfTheDay';
 import IdiomOfTheDay from './IdiomOfTheDay';
 import LiquidGlass from 'liquid-glass-react';
@@ -1555,7 +1556,13 @@ const formatCountdown = (nextReview) => {
 
 // --- MAIN APPLICATION COMPONENT ---
 function AppInner() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      return window.location.hash.startsWith('#/verify/') ? 'level-test' : 'dashboard';
+    } catch {
+      return 'dashboard';
+    }
+  });
   // Silence all audio the moment the user switches section.
   useEffect(() => { stopAllAudio(); }, [activeTab]);
   useEffect(() => () => stopAllAudio(), []);
@@ -2061,6 +2068,7 @@ function AppInner() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState('login');
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'error'
+  const [syncErrorMsg, setSyncErrorMsg] = useState('');
   const syncStatusTimerRef = useRef(null);
   const latestLocalRef = useRef({});
 
@@ -2238,6 +2246,8 @@ function AppInner() {
     try { planCfg = JSON.parse(localStorage.getItem('venoxa-plan-v3')) || {}; } catch {}
     let studied = [];
     try { studied = JSON.parse(localStorage.getItem('studiedWords')) || []; } catch {}
+    let levelTestRecord = null;
+    try { levelTestRecord = JSON.parse(localStorage.getItem('venoxa_level_test_result')) || null; } catch {}
 
     const tHistory = JSON.parse(localStorage.getItem('venoxa_translation_history')) || [];
     const tFavorites = JSON.parse(localStorage.getItem('venoxa_translation_favorites')) || [];
@@ -2267,9 +2277,10 @@ function AppInner() {
     const idiomOfDayHistory = JSON.parse(localStorage.getItem('venoxa_idiom_of_day_history')) || [];
 
     return {
-      xp: Object.values(cells).filter(v => v === 'done').length * 15,
+      xp: Object.values(cells).filter(v => v === 'done').length * 15 + (levelTestRecord?.xpAwarded || 0),
       streak: localStreak.current,
       level: localLevel,
+      levelTest: levelTestRecord,
       completedCells: cells,
       usageTime,
       calendarDays: Object.keys(cells).filter(k => k.length >= 10),
@@ -2530,6 +2541,7 @@ function AppInner() {
       localStorage.setItem('venoxa_last_sync_snapshot', JSON.stringify(lastSyncSnapshot.current));
 
       setSyncStatus('synced');
+      setSyncErrorMsg('');
       if (syncStatusTimerRef.current) clearTimeout(syncStatusTimerRef.current);
       syncStatusTimerRef.current = setTimeout(() => setSyncStatus('idle'), 3000);
     } catch (err) {
@@ -2663,6 +2675,7 @@ function AppInner() {
 
       applyRemoteIfSafe('calendarProgress', setCalendarProgress, 'venoxa_calendar_progress', false, true);
       applyRemoteIfSafe('cellDates', setCellDates, 'venoxa_cell_dates', false, true);
+      applyRemoteIfSafe('levelTest', setLevelTest, 'venoxa_level_test_result', false, true);
 
       if (!dirtyFields.current.has('completedCells') && remote.completedCells) {
         const localCells = JSON.parse(localStorage.getItem('venoxa_completed_cells')) || {};
@@ -2853,6 +2866,11 @@ function AppInner() {
     try {
       const raw = localStorage.getItem('venoxa-plan-v3');
       return raw ? JSON.parse(raw)?.planMeta || null : null;
+    } catch { return null; }
+  });
+  const [levelTest, setLevelTest] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('venoxa_level_test_result')) || null;
     } catch { return null; }
   });
   // Blocks cloud sync from re-applying a planMeta after the user intentionally resets
@@ -3081,6 +3099,43 @@ function AppInner() {
   useEffect(() => {
     localStorage.setItem('userLevel', userLevel);
   }, [userLevel]);
+  const handleLevelTestComplete = (record) => {
+    if (!record) return;
+    setLevelTest(record);
+    try {
+      localStorage.setItem('venoxa_level_test_result', JSON.stringify(record));
+    } catch {}
+    markFieldDirty('levelTest');
+    if (record.level) setUserLevelWrapped(record.level);
+    // The XP widget adds a one-off bonus for the stored level-test result.
+    markFieldDirty('xp');
+    recordActivity();
+  };
+
+  const handleApplyLevelTestPlan = (level) => {
+    const clean = String(level || '').toUpperCase().slice(0, 2);
+    if (!['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(clean)) return;
+    if (!planMeta) {
+      setActiveTab('plan');
+      return;
+    }
+    const message = _resolveTranslation(
+      lang,
+      `هل تريد تحديث مستوى بداية خطة الدراسة إلى ${clean}؟`,
+      `Update your Study Plan starting level to ${clean}?`,
+    );
+    if (!window.confirm(message)) return;
+    const next = { ...planMeta, userLevel: clean };
+    setPlanMeta(next);
+    try {
+      const raw = localStorage.getItem('venoxa-plan-v3');
+      const local = raw ? JSON.parse(raw) : {};
+      localStorage.setItem('venoxa-plan-v3', JSON.stringify({ ...local, planMeta: next }));
+    } catch {}
+    markFieldDirty('planConfig');
+    setActiveTab('plan');
+  };
+
   const renderContent = () => {
     const props = {
       userLevel,
@@ -3091,7 +3146,7 @@ function AppInner() {
     };
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} />;
+        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} levelTest={levelTest} />;
       case 'plan':
         return <StudyPlan 
           {...props} 
@@ -3127,6 +3182,20 @@ function AppInner() {
         return <Writing {...props} writingHistory={writingHistory} setWritingHistory={setWritingHistoryWrapped} />;
       case 'speaking':
         return <Speaking {...props} speakingHistory={speakingHistory} setSpeakingHistory={setSpeakingHistoryWrapped} favorites={speakingFavorites} setFavorites={setSpeakingFavoritesWrapped} />;
+      case 'level-test':
+        return <LevelTest
+          lang={lang}
+          theme={theme}
+          userLevel={userLevel}
+          levelTest={levelTest}
+          onComplete={handleLevelTestComplete}
+          onApplyPlan={handleApplyLevelTestPlan}
+          onOpenAuth={() => {
+            setAuthModalMode('login');
+            setIsAuthModalOpen(true);
+          }}
+          onGoHome={() => setActiveTab('dashboard')}
+        />;
       case 'listening':
         return <ListeningReading type="listening" {...props} history={listeningHistory} setHistory={setListeningHistoryWrapped} favorites={listeningFavorites} setFavorites={setListeningFavoritesWrapped} />;
       case 'reading':
@@ -3227,13 +3296,15 @@ function AppInner() {
           speakingHistory={speakingHistory}
           writingHistory={writingHistory}
           srsData={srsData}
+          levelTest={levelTest}
+          onOpenLevelTest={() => setActiveTab('level-test')}
           onOpenAuth={() => {
             setAuthModalMode('login');
             setIsAuthModalOpen(true);
           }}
         />;
       default:
-        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} />;
+        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} levelTest={levelTest} />;
     }
   };
   // ── Persistent Timer State (survives section changes) ──
@@ -3292,6 +3363,7 @@ function AppInner() {
       label: _resolveTranslation(lang, 'المهارات', 'Skills'),
       icon: Layers,
       items: [
+        { id: 'level-test', label: _resolveTranslation(lang, 'اختبار المستوى', 'Level Test'), icon: Award },
         { id: 'listening', label: _resolveTranslation(lang, 'الاستماع', 'Listening'), icon: Headphones },
         { id: 'reading', label: _resolveTranslation(lang, 'القراءة (AI)', 'Reading (AI)'), icon: Brain },
         { id: 'speaking', label: _resolveTranslation(lang, 'المحادثة والاتصال', 'Speaking (Call)'), icon: MessageSquare },
@@ -4174,7 +4246,8 @@ function Dashboard({
   completedCells,
   cellDates,
   currentWeek,
-  streakData
+  streakData,
+  levelTest
 }) {
   const isDark = theme === 'dark';
   const isRTL = lang === 'ar';
@@ -4426,7 +4499,7 @@ Return ONLY valid JSON (no markdown):
   // --- Smart Stats Calculation ---
   const stats = useMemo(() => {
     const doneCells = Object.values(completedCells || {}).filter(v => v === 'done').length;
-    const xp = doneCells * 15; // 15 XP per task
+    const xp = doneCells * 15 + (levelTest?.xpAwarded || 0); // 15 XP per task + level-test bonus
     
     let progress = 0;
     if (planMeta && planMeta.totalWeeks) {
@@ -4460,7 +4533,7 @@ Return ONLY valid JSON (no markdown):
     const dailyGoalPct = Math.min(100, Math.round((todayDone / 6) * 100)) || 0;
 
     return { xp, progress, dailyGoalPct, streak: streakData.current };
-  }, [completedCells, cellDates, planMeta, currentWeek, streakData]);
+  }, [completedCells, cellDates, planMeta, currentWeek, streakData, levelTest]);
 
   // Mouse follow glow state
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });

@@ -29,7 +29,7 @@ import {
   EDGE_WSS_URL,
   EDGE_SEC_GEC_VERSION,
   EDGE_USER_AGENT,
-} from "./edge-drm";
+} from "./edge-drm.ts";
 
 /** Raised when the handshake is 403 but a server Date header was available. */
 class SkewAdjustmentNeeded extends Error {

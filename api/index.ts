@@ -9,7 +9,7 @@ import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pgTable, serial, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { eq } from "drizzle-orm";
-import { registerLevelTestRoutes } from "../artifacts/api-server/src/lib/level-test-api";
+import { createLevelTestRouter } from "../lib/level-test-server";
 
 // ── Database setup (inline for Vercel serverless) ────────────────────────────
 const dbUrl = (process.env.DATABASE_URL ?? "").trim();
@@ -87,15 +87,23 @@ const usersTable = pgTable("users", {
 // Lazy DB pool — only created if DATABASE_URL is configured
 let _pool: pg.Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
-function getPool() {
-  if (!dbUrl) return null;
-  if (!_pool) _pool = new pg.Pool({ connectionString: dbUrl });
-  return _pool;
-}
 function getDb() {
   if (!dbUrl) return null;
-  _db = drizzle(getPool(), { schema: { usersTable } });
+  if (!_pool) {
+    _pool = new pg.Pool({ connectionString: dbUrl });
+    _db = drizzle(_pool, { schema: { usersTable } });
+  }
   return _db;
+}
+
+// Pool for the level-test router (shared implementation in lib/).
+function getLevelTestPool(): pg.Pool | null {
+  if (!dbUrl) return null;
+  if (!_pool) {
+    _pool = new pg.Pool({ connectionString: dbUrl });
+    _db = drizzle(_pool, { schema: { usersTable } });
+  }
+  return _pool;
 }
 
 // ── Crypto helpers (inline for Vercel) ───────────────────────────────────────
@@ -153,6 +161,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Venoxa Level Test — adaptive CEFR placement test.
+// Same router as artifacts/api-server; auth is verified against Supabase.
+const levelTestPool = getLevelTestPool();
+if (levelTestPool) {
+  app.use(
+    "/api/level-test",
+    createLevelTestRouter({
+      pool: levelTestPool,
+      allowDraft: process.env.LEVEL_TEST_ALLOW_DRAFT === "1",
+      appBaseUrl: process.env.LEVEL_TEST_VERIFY_BASE_URL,
+    }),
+  );
+}
 
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get("/api/healthz", (_req, res) => {
@@ -1748,12 +1770,5 @@ app.post("/api/user/sync-beacon", async (req, res) => {
     res.status(500).end();
   }
 });
-
-// ── Venoxa Level Test — server-side adaptive test + certificates ─────────────
-// Mounted after middleware; the whole route group self-verifies Supabase
-// JWTs, rate-limits and only talks to the DB via getPool().
-if (dbUrl) {
-  registerLevelTestRoutes(app, { pool: getPool });
-}
 
 export default app;

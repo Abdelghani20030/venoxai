@@ -74,7 +74,9 @@ export default function ProfileDashboard({
   listeningHistory,
   speakingHistory,
   writingHistory,
-  srsData
+  srsData,
+  levelTest,
+  onOpenLevelTest
 }) {
   const isDark = theme === 'dark';
 
@@ -602,6 +604,47 @@ export default function ProfileDashboard({
               </p>
             )}
           </div>
+
+          {/* Level Test result */}
+          {levelTest?.level && (
+            <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
+              <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                {_resolveTranslation(lang, 'اختبار المستوى', 'Level Test')}
+              </h4>
+              <div className="flex items-center gap-3">
+                <div className="h-16 w-16 shrink-0 rounded-2xl bg-[#0E4AA4] text-white flex items-center justify-center text-2xl font-black">
+                  {levelTest.level}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-lg font-black text-black dark:text-white">
+                    {levelTest.score} / 100
+                  </div>
+                  <div className="text-[11px] font-semibold text-gray-500">
+                    {_resolveTranslation(lang, 'متوافق مع CEFR', 'Aligned to CEFR')}
+                  </div>
+                  <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
+                    {levelTest.date
+                      ? new Date(levelTest.date).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', {
+                          day: '2-digit', month: 'short', year: 'numeric',
+                        })
+                      : ''}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                <Award size={15} />
+                {_resolveTranslation(lang, 'إنجاز: مستكشف المستويات', 'Achievement: Level Explorer')}
+              </div>
+              {onOpenLevelTest && (
+                <button
+                  onClick={onOpenLevelTest}
+                  className="mt-4 w-full rounded-xl border border-black/10 dark:border-white/10 py-2.5 text-xs font-black text-[#0E4AA4] dark:text-blue-400 hover:bg-white/5 transition-all"
+                >
+                  {_resolveTranslation(lang, 'عرض الاختبار أو إعادة المحاولة', 'View test or retake')}
+                </button>
+              )}
+            </div>
+          )}
         {/* ═══════════ Usage Chart + Daily Goal + Overall Progress ═══════════ */}
 
           {/* ── Usage Time Chart ── */}

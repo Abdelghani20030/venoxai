@@ -5,10 +5,7 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "leveltest:test": "tsx src/level-test/engine.test.ts",
-    "leveltest:simulate": "tsx src/level-test/simulate.ts",
-    "leveltest:generate": "tsx src/level-test/generate-items.ts"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",

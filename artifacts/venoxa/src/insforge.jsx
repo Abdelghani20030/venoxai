@@ -51,6 +51,7 @@ function docToUser(uid, email, data = {}) {
     usageTime:            data.usageTime            || {},
     calendarDays:         data.calendarDays         || [],
     achievements:         data.achievements         || [],
+    levelTest:            data.levelTest            || null,
 
     srsData:              data.srsData              || {},
     langeekSrsData:       data.langeekSrsData       || {},
@@ -414,6 +415,7 @@ export async function syncProgress(_tokenOrUid, localData = {}) {
     if (localData.level)    merged.level    = localData.level;
     if (localData.avatar)   merged.avatar   = localData.avatar;
     if (localData.username) merged.username = localData.username;
+    if (localData.levelTest) merged.levelTest = localData.levelTest;
     if (localData.completedCells && Object.keys(localData.completedCells).length > 0) {
       merged.completedCells = { ...(remote.completedCells || {}), ...localData.completedCells };
     }
