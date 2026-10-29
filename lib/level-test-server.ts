@@ -548,7 +548,7 @@ function wrapLines(text: string, font: { widthOfTextAtSize: (t: string, s: numbe
   return lines;
 }
 
-async function renderCertificate(row: ResultRow, verifyUrl: string): Promise<Uint8Array> {
+export async function renderCertificate(row: ResultRow, verifyUrl: string): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([842, 595]); // A4 landscape
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
@@ -581,9 +581,13 @@ async function renderCertificate(row: ResultRow, verifyUrl: string): Promise<Uin
   page.drawText('This certifies that', {
     x: 70, y: 410, size: 11, font: italic, color: MUTED,
   });
+  // Shrink long names instead of wrapping into the level/score row below.
+  let nameSize = 25;
+  while (nameSize > 12 && bold.widthOfTextAtSize(nameSafe, nameSize) > 500) {
+    nameSize -= 1;
+  }
   page.drawText(nameSafe, {
-    x: 70, y: 372, size: 25, font: bold, color: INK,
-    maxWidth: 500,
+    x: 70, y: 372, size: nameSize, font: bold, color: INK,
   });
 
   const levelLabel = `CEFR ${row.level}`;
