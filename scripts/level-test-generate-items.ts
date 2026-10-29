@@ -19,8 +19,10 @@
  *     (rewrites passage_order + seed SQL/report from an existing bank, no API calls)
  *
  * Env:
- *   OPENROUTER_API_KEY (or OPENROUTER_API_KEYY)  — required
- *   LEVEL_TEST_GEN_MODEL      default google/gemini-2.5-pro
+ *   LEVEL_TEST_GEN_PROVIDER  openrouter (default) | gemini | deepseek | groq
+ *   OPENROUTER_API_KEY (or OPENROUTER_API_KEYY)  — required for OpenRouter
+ *   GEMINI_API_KEY / DEEPSEEK_API_KEY / GROQ_API_KEY — required for those providers
+ *   LEVEL_TEST_GEN_MODEL      model id for the selected provider
  *   LEVEL_TEST_GEN_CONCURRENCY default 2
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -37,13 +39,40 @@ import {
 
 /* ── configuration ───────────────────────────────────────────────────────── */
 
-const API_KEY = (
-  process.env.OPENROUTER_API_KEY ??
-  process.env.OPENROUTER_API_KEYY ??
-  ''
-).trim();
-const MODEL = (process.env.LEVEL_TEST_GEN_MODEL ?? 'google/gemini-2.5-pro').trim();
-const BASE_URL = (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/$/, '');
+type Provider = 'openrouter' | 'gemini' | 'deepseek' | 'groq';
+
+const PROVIDER = (process.env.LEVEL_TEST_GEN_PROVIDER ?? 'openrouter').trim().toLowerCase() as Provider;
+
+const PROVIDER_CONFIG: Record<Provider, { key: string; baseUrl: string; model: string }> = {
+  openrouter: {
+    key: (process.env.OPENROUTER_API_KEY ?? process.env.OPENROUTER_API_KEYY ?? '').trim(),
+    baseUrl: (process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1').replace(/\/$/, ''),
+    model: 'google/gemini-2.5-pro',
+  },
+  gemini: {
+    key: (process.env.GEMINI_API_KEY ?? '').trim(),
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    model: 'gemini-3.8-flash',
+  },
+  deepseek: {
+    key: (process.env.DEEPSEEK_API_KEY ?? '').trim(),
+    baseUrl: 'https://api.deepseek.com',
+    model: 'deepseek-flash',
+  },
+  groq: {
+    key: (process.env.GROQ_API_KEY ?? '').trim(),
+    baseUrl: 'https://api.groq.com/openai/v1',
+    model: 'openai/gpt-oss-120b',
+  },
+};
+
+if (!(PROVIDER in PROVIDER_CONFIG)) {
+  throw new Error(`Unknown LEVEL_TEST_GEN_PROVIDER="${PROVIDER}" (use openrouter, gemini, deepseek, or groq)`);
+}
+
+const API_KEY = PROVIDER_CONFIG[PROVIDER].key;
+const MODEL = (process.env.LEVEL_TEST_GEN_MODEL ?? PROVIDER_CONFIG[PROVIDER].model).trim();
+const BASE_URL = PROVIDER_CONFIG[PROVIDER].baseUrl;
 const CONCURRENCY = Math.max(1, Number(process.env.LEVEL_TEST_GEN_CONCURRENCY ?? 2));
 const REQUEST_TIMEOUT_MS = 180_000;
 
@@ -67,6 +96,8 @@ interface CliOptions {
   fromJson: string | null;
   /** Keep the existing output bank and append newly generated items. */
   merge: boolean;
+  /** With --merge, generate only the missing items per level/type. */
+  topUp: boolean;
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -80,6 +111,7 @@ function parseArgs(argv: string[]): CliOptions {
     report: 'docs/level-test/item-bank-report.md',
     fromJson: null,
     merge: false,
+    topUp: false,
   };
   for (const arg of argv.slice(2)) {
     const [key, raw] = arg.replace(/^--/, '').split('=');
@@ -110,6 +142,8 @@ function parseArgs(argv: string[]): CliOptions {
       options.fromJson = value;
     } else if (key === 'merge') {
       options.merge = true;
+    } else if (key === 'top-up') {
+      options.topUp = true;
     } else if (key !== '') {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -160,6 +194,7 @@ interface PassageRecord {
 
 interface Bank {
   model: string;
+  modelHistory?: string[];
   generatedAt: string;
   passages: PassageRecord[];
   items: ItemRecord[];
@@ -175,17 +210,23 @@ interface ChatMessage {
 
 async function chatJson(messages: ChatMessage[], label: string): Promise<unknown> {
   if (!API_KEY) {
-    throw new Error(
-      'OPENROUTER_API_KEY (or OPENROUTER_API_KEYY) is missing. Add it to .env before running the generator.',
-    );
+    const keyName =
+      PROVIDER === 'openrouter'
+        ? 'OPENROUTER_API_KEY (or OPENROUTER_API_KEYY)'
+        : `${PROVIDER.toUpperCase()}_API_KEY`;
+    throw new Error(`${keyName} is missing. Add it to .env before running the generator.`);
   }
-  const body = {
+  const body: Record<string, unknown> = {
     model: MODEL,
     messages,
     temperature: 0.7,
     max_tokens: 8000,
-    response_format: { type: 'json_object' },
   };
+  // Gemini's OpenAI-compatible layer and the other providers all accept JSON
+  // mode, but Gemini rejects unknown response_format variants on some models.
+  if (PROVIDER !== 'gemini') {
+    body.response_format = { type: 'json_object' };
+  }
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     const controller = new AbortController();
@@ -196,8 +237,12 @@ async function chatJson(messages: ChatMessage[], label: string): Promise<unknown
         headers: {
           Authorization: `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://venoxa.ai',
-          'X-Title': 'Venoxa Level Test generator',
+          ...(PROVIDER === 'openrouter'
+            ? {
+                'HTTP-Referer': 'https://venoxa.ai',
+                'X-Title': 'Venoxa Level Test generator',
+              }
+            : {}),
         },
         body: JSON.stringify(body),
         signal: controller.signal,
@@ -205,7 +250,7 @@ async function chatJson(messages: ChatMessage[], label: string): Promise<unknown
       const text = await response.text();
       if (!response.ok) {
         const retryable = response.status === 429 || response.status >= 500;
-        const message = `OpenRouter ${response.status}: ${text.slice(0, 300)}`;
+        const message = `${PROVIDER} ${response.status}: ${text.slice(0, 300)}`;
         if (retryable && attempt < 3) {
           console.warn(`[gen] ${label}: ${message} — retry ${attempt + 1}/3`);
           await new Promise((r) => setTimeout(r, 2000 * attempt));
@@ -217,7 +262,7 @@ async function chatJson(messages: ChatMessage[], label: string): Promise<unknown
         choices?: Array<{ message?: { content?: string } }>;
       };
       const content = parsed.choices?.[0]?.message?.content;
-      if (!content) throw new Error('OpenRouter returned no message content');
+      if (!content) throw new Error(`${PROVIDER} returned no message content`);
       return parseJsonLoose(content);
     } catch (error) {
       if (attempt < 3) {
@@ -406,6 +451,10 @@ function validateQuestion(
   }
   if (context.type === 'grammar' && !/_{3,}/.test(stem)) {
     reject('grammar-missing-blank');
+    return null;
+  }
+  if (context.type === 'grammar' && (stem.match(/_{3,}/g)?.length ?? 0) !== 1) {
+    reject('grammar-blank-count');
     return null;
   }
   if (context.type === 'vocab') {
@@ -1006,14 +1055,19 @@ async function main(): Promise<void> {
   }
 
   if (!API_KEY) {
-    console.error('Missing OPENROUTER_API_KEY (or OPENROUTER_API_KEYY). Add it to .env and retry.');
+    const keyName =
+      PROVIDER === 'openrouter'
+        ? 'OPENROUTER_API_KEY (or OPENROUTER_API_KEYY)'
+        : `${PROVIDER.toUpperCase()}_API_KEY`;
+    console.error(`Missing ${keyName}. Add it to .env and retry.`);
     process.exit(1);
   }
-  console.log(`[gen] model=${MODEL} levels=${options.levels.join(',')} types=${options.types.join(',')}`);
+  console.log(`[gen] provider=${PROVIDER} model=${MODEL} levels=${options.levels.join(',')} types=${options.types.join(',')}`);
   console.log(`[gen] concurrency=${CONCURRENCY} verify=${options.verify}`);
 
   const bank: Bank = {
     model: MODEL,
+    modelHistory: [MODEL],
     generatedAt: new Date().toISOString(),
     passages: [],
     items: [],
@@ -1029,7 +1083,9 @@ async function main(): Promise<void> {
       console.warn(`[gen] --merge requested but ${existingPath} does not exist; starting a new bank.`);
     } else {
       const existing = JSON.parse(readFileSync(existingPath, 'utf8')) as Bank;
+      const previousModels = existing.modelHistory ?? (existing.model ? [existing.model] : []);
       bank.model = MODEL;
+      bank.modelHistory = Array.from(new Set([...previousModels, MODEL]));
       bank.generatedAt = new Date().toISOString();
       bank.passages = existing.passages ?? [];
       bank.items = existing.items ?? [];

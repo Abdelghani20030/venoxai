@@ -1,0 +1,50 @@
+{
+  "model": "openai/gpt-oss-120b",
+  "generatedAt": "2026-10-29T09:19:33.337Z",
+  "passages": [],
+  "items": [
+    {
+      "id": "lt_b2_grammar_0001",
+      "type": "grammar",
+      "cefrTag": "B2",
+      "difficultyB": 0.5,
+      "stem": "If the weather had been colder, the tourists ____ to stay indoors rather than exploring the market.",
+      "options": [
+        "would have chosen",
+        "would choose",
+        "could have chosen",
+        "should have chosen"
+      ],
+      "correctIndex": 0,
+      "passageId": null,
+      "passageOrder": null,
+      "audioScript": null,
+      "explanation": "The conditional perfect requires the modal 'would' + have + past participle, so 'would have chosen' is correct. 'Would choose' is present conditional, 'could have chosen' changes the meaning, and 'should have chosen' implies obligation, not a hypothetical result.",
+      "source": "ai",
+      "reviewed": false,
+      "status": "draft"
+    },
+    {
+      "id": "lt_b2_grammar_0002",
+      "type": "grammar",
+      "cefrTag": "B2",
+      "difficultyB": 0.5,
+      "stem": "There ____ a growing number of studies that suggest regular exercise improves mental health more ____ occasional jogging.",
+      "options": [
+        "is",
+        "were",
+        "are",
+        "has"
+      ],
+      "correctIndex": 2,
+      "passageId": null,
+      "passageOrder": null,
+      "audioScript": null,
+      "explanation": "Existential 'there' takes a plural verb when the subject is plural ('a growing number of studies'), so 'are' is correct. 'Is' would be singular, 'were' is past plural, and 'has' is incorrect for the plural subject.",
+      "source": "ai",
+      "reviewed": false,
+      "status": "draft"
+    }
+  ],
+  "rejected": {}
+}
