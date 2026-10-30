@@ -453,7 +453,11 @@ export default function LevelTest({
         return;
       }
       if (!response.ok) {
-        setError(data?.message || data?.error || T('تعذر بدء الاختبار.', 'Could not start the test.'));
+        if (data?.error === 'internal_error' && (!data?.message || data.message === 'internal_error')) {
+          setError(T('خطأ في قاعدة بيانات الاختبار: الجداول غير موجودة. يرجى تشغيل ملفات التهيئة في Supabase.', 'Database setup required: level test tables (lt_*) have not been created in Supabase yet. Please run migrations/level-test.sql.'));
+        } else {
+          setError(data?.message || data?.error || T('تعذر بدء الاختبار.', 'Could not start the test.'));
+        }
         return;
       }
       if (data?.done) {

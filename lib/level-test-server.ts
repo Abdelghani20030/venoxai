@@ -1333,7 +1333,16 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
 
   router.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
     logger('unhandled error', error);
-    if (!res.headersSent) res.status(500).json({ error: 'internal_error' });
+    const msg = error instanceof Error ? error.message : String(error);
+    let message = 'An unexpected error occurred. Please try again.';
+    if (msg.includes('lt_sessions') || msg.includes('lt_items') || msg.includes('does not exist')) {
+      message = 'Level test database tables not found. Please run migrations/level-test.sql and migrations/level-test-seed.sql in your Supabase SQL Editor.';
+    } else if (msg.includes('connection') || msg.includes('connect')) {
+      message = 'Database connection failed. Please verify your DATABASE_URL.';
+    }
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'internal_error', message, details: msg });
+    }
   });
 
   return router;

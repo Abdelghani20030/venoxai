@@ -87,10 +87,19 @@ const usersTable = pgTable("users", {
 // Lazy DB pool — only created if DATABASE_URL is configured
 let _pool: pg.Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
+
+function createPgPool(connectionString: string): pg.Pool {
+  const needsSsl = /sslmode=require|supabase|neon|pooler|aws|postgres:/i.test(connectionString);
+  return new pg.Pool({
+    connectionString,
+    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+  });
+}
+
 function getDb() {
   if (!dbUrl) return null;
   if (!_pool) {
-    _pool = new pg.Pool({ connectionString: dbUrl });
+    _pool = createPgPool(dbUrl);
     _db = drizzle(_pool, { schema: { usersTable } });
   }
   return _db;
@@ -100,7 +109,7 @@ function getDb() {
 function getLevelTestPool(): pg.Pool | null {
   if (!dbUrl) return null;
   if (!_pool) {
-    _pool = new pg.Pool({ connectionString: dbUrl });
+    _pool = createPgPool(dbUrl);
     _db = drizzle(_pool, { schema: { usersTable } });
   }
   return _pool;
