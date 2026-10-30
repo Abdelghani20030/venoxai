@@ -306,6 +306,22 @@ async function loadSession(client: Pool | PoolClient, sessionId: string, userId:
   return result.rows[0] ?? null;
 }
 
+/**
+ * lt_sessions.user_id / lt_results.user_id reference public.users(id). That row
+ * is normally created by the on_auth_user_created trigger, but accounts that
+ * pre-date the trigger (or whose sync never ran) have none, and the insert then
+ * fails with a foreign-key violation. Create the row on demand; a no-op when it
+ * already exists.
+ */
+async function ensureUserRow(client: Pool | PoolClient, user: AuthUser): Promise<void> {
+  await client.query(
+    `insert into public.users (id, email)
+     values ($1, $2)
+     on conflict (id) do nothing`,
+    [user.id, user.email],
+  );
+}
+
 async function getProfileName(client: Pool | PoolClient, userId: string, email: string | null): Promise<string> {
   try {
     const result = await client.query<{ name: string | null }>(
@@ -745,7 +761,7 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
           order = shuffledOrder();
           await pool.query(
             `update lt_sessions
-                set option_orders = option_orders || jsonb_build_object($2, $3::jsonb)
+                set option_orders = option_orders || jsonb_build_object($2::text, $3::jsonb)
               where id = $1`,
             [active.id, item.id, JSON.stringify(order)],
           );
@@ -795,7 +811,7 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
           await pool.query(
             `update lt_sessions
                 set current_item_id = $2, active_passage_id = $3,
-                    option_orders = option_orders || jsonb_build_object($2, $4::jsonb)
+                    option_orders = option_orders || jsonb_build_object($2::text, $4::jsonb)
               where id = $1`,
             [active.id, item.id, picked.passageId, JSON.stringify(order)],
           );
@@ -868,6 +884,8 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
         return;
       }
       const order = shuffledOrder();
+
+      await ensureUserRow(pool, user);
 
       const created = await pool.query<SessionRow>(
         `insert into lt_sessions
@@ -1334,10 +1352,13 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
   router.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
     logger('unhandled error', error);
     const msg = error instanceof Error ? error.message : String(error);
+    const lower = msg.toLowerCase();
     let message = 'An unexpected error occurred. Please try again.';
-    if (msg.includes('lt_sessions') || msg.includes('lt_items') || msg.includes('does not exist')) {
+    if (lower.includes('foreign key')) {
+      message = 'Your account profile is not set up yet. Please sign out and sign in again, then retry.';
+    } else if (lower.includes('lt_sessions') || lower.includes('lt_items') || lower.includes('does not exist')) {
       message = 'Level test database tables not found. Please run migrations/level-test.sql and migrations/level-test-seed.sql in your Supabase SQL Editor.';
-    } else if (msg.includes('connection') || msg.includes('connect')) {
+    } else if (lower.includes('connection') || lower.includes('connect') || lower.includes('timeout') || lower.includes('tenant or user not found') || lower.includes('password authentication')) {
       message = 'Database connection failed. Please verify your DATABASE_URL.';
     }
     if (!res.headersSent) {
