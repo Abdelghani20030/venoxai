@@ -5,7 +5,8 @@
   "outputDirectory": "artifacts/venoxa/dist/public",
   "functions": {
     "api/index.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "lib/**"
     }
   },
   "rewrites": [

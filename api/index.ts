@@ -9,7 +9,7 @@ import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pgTable, serial, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { eq } from "drizzle-orm";
-import { createLevelTestRouter } from "../lib/level-test-server";
+import { createLevelTestRouter } from "../lib/level-test-server.ts";
 
 // ── Database setup (inline for Vercel serverless) ────────────────────────────
 const dbUrl = (process.env.DATABASE_URL ?? "").trim();
@@ -164,16 +164,20 @@ app.use(express.urlencoded({ extended: true }));
 
 // Venoxa Level Test — adaptive CEFR placement test.
 // Same router as artifacts/api-server; auth is verified against Supabase.
-const levelTestPool = getLevelTestPool();
-if (levelTestPool) {
-  app.use(
-    "/api/level-test",
-    createLevelTestRouter({
-      pool: levelTestPool,
-      allowDraft: process.env.LEVEL_TEST_ALLOW_DRAFT === "1",
-      appBaseUrl: process.env.LEVEL_TEST_VERIFY_BASE_URL,
-    }),
-  );
+try {
+  const levelTestPool = getLevelTestPool();
+  if (levelTestPool) {
+    app.use(
+      "/api/level-test",
+      createLevelTestRouter({
+        pool: levelTestPool,
+        allowDraft: process.env.LEVEL_TEST_ALLOW_DRAFT === "1",
+        appBaseUrl: process.env.LEVEL_TEST_VERIFY_BASE_URL,
+      }),
+    );
+  }
+} catch (err) {
+  console.warn("Could not initialize level-test router:", err);
 }
 
 // ── Health ────────────────────────────────────────────────────────────────────

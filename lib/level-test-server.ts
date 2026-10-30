@@ -33,7 +33,7 @@ import {
   type EngineItem,
   type ItemType,
   type ScoredResponse,
-} from './level-test-engine';
+} from './level-test-engine.ts';
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Public types / deps
