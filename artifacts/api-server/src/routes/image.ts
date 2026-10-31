@@ -4,10 +4,9 @@ import { Router, type IRouter, type Request, type Response } from "express";
 const router: IRouter = Router();
 
 // ─── Hugging Face Inference API helper ────────────────────────────────────────
-// Uses FLUX.1-schnell via Hugging Face Router endpoint.
+// Uses FLUX.1-schnell via Hugging Face Router / Inference endpoint.
 // Requires HF_TOKEN in environment (free from https://huggingface.co/settings/tokens).
 const HF_MODEL = "black-forest-labs/FLUX.1-schnell";
-const HF_API_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
 
 async function generateWithHuggingFace(
   prompt: string,
@@ -18,40 +17,48 @@ async function generateWithHuggingFace(
 ): Promise<Buffer | null> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 45000);
-  try {
-    const response = await fetch(HF_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "image/jpeg",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          width,
-          height,
-          seed,
-          num_inference_steps: 4,
+
+  const endpoints = [
+    `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`,
+    `https://api-inference.huggingface.co/models/${HF_MODEL}`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "image/jpeg, image/png",
+          "Content-Type": "application/json",
         },
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            width,
+            height,
+            seed,
+            num_inference_steps: 4,
+          },
+        }),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      console.warn(`[image] HF router returned ${response.status}: ${body.slice(0, 200)}`);
-      return null;
+      if (response.ok) {
+        clearTimeout(timeoutId);
+        const buf = Buffer.from(await response.arrayBuffer());
+        if (buf.length > 1024) return buf;
+      } else {
+        const body = await response.text().catch(() => "");
+        console.warn(`[image] HF ${endpoint} returned ${response.status}: ${body.slice(0, 160)}`);
+      }
+    } catch (err) {
+      console.warn(`[image] HF ${endpoint} error:`, (err as Error).message);
     }
-
-    const buf = Buffer.from(await response.arrayBuffer());
-    return buf.length > 1024 ? buf : null;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    console.warn("[image] HF request failed:", (err as Error).message);
-    return null;
   }
+
+  clearTimeout(timeoutId);
+  return null;
 }
 
 // ─── Pollinations.ai (Pollen Key & Free Fallback) ──────────────────────────────

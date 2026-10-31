@@ -227,6 +227,7 @@ app.get("/api/healthz/db", async (_req, res) => {
 // ── Debug — reports which API keys are configured ─────────────────────────────
 app.get("/api/debug", (_req, res) => {
   res.json({
+    HF_TOKEN:             !!(process.env.HF_TOKEN),
     OPENROUTER_API_KEY:   !!(process.env.OPENROUTER_API_KEY),
     GEMINI_API_KEY:       !!(process.env.GEMINI_API_KEY),
     DEEPSEEK_API_KEY:     !!(process.env.DEEPSEEK_API_KEY),
@@ -426,26 +427,148 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+// ─── Hugging Face Inference API helper ────────────────────────────────────────
+const HF_MODEL = "black-forest-labs/FLUX.1-schnell";
+
+async function generateWithHuggingFace(
+  prompt: string,
+  width: number,
+  height: number,
+  seed: number,
+  token: string,
+): Promise<Buffer | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+  // Try router endpoint, then legacy api-inference endpoint
+  const endpoints = [
+    `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`,
+    `https://api-inference.huggingface.co/models/${HF_MODEL}`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "image/jpeg, image/png",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: prompt,
+          parameters: {
+            width,
+            height,
+            seed,
+            num_inference_steps: 4,
+          },
+        }),
+        signal: controller.signal,
+      });
+
+      if (response.ok) {
+        clearTimeout(timeoutId);
+        const buf = Buffer.from(await response.arrayBuffer());
+        if (buf.length > 1024) return buf;
+      } else {
+        const body = await response.text().catch(() => "");
+        console.warn(`[image] HF ${endpoint} returned ${response.status}: ${body.slice(0, 160)}`);
+      }
+    } catch (err) {
+      console.warn(`[image] HF ${endpoint} error:`, (err as Error).message);
+    }
+  }
+
+  clearTimeout(timeoutId);
+  return null;
+}
+
+// ─── Pollinations.ai (Pollen Key & Free Fallback) ──────────────────────────────
+async function generateWithPollinations(
+  prompt: string,
+  width: number,
+  height: number,
+  seed: number,
+  pollKey: string,
+): Promise<{ buf: Buffer; contentType: string } | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  // If a pollen key is available, use the authenticated gen.pollinations.ai endpoint (unthrottled)
+  const pollUrl = pollKey
+    ? `https://gen.pollinations.ai/image/${encodeURIComponent(prompt)}?width=${width}&height=${height}&model=flux&seed=${seed}&key=${encodeURIComponent(pollKey)}`
+    : `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux`;
+
+  const headers: Record<string, string> = {};
+  if (pollKey) {
+    headers["Authorization"] = `Bearer ${pollKey}`;
+  }
+
+  try {
+    const response = await fetch(pollUrl, { headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      console.warn(`[image] Pollinations returned ${response.status}: ${errText.slice(0, 160)}`);
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const buf = Buffer.from(await response.arrayBuffer());
+    return buf.length > 1024 ? { buf, contentType } : null;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    console.warn("[image] Pollinations request failed:", (err as Error).message);
+    return null;
+  }
+}
+
 // ── GET /api/image ────────────────────────────────────────────────────────────
 app.get("/api/image", async (req, res) => {
   const prompt = typeof req.query.prompt === "string" ? req.query.prompt.trim() : "";
-  if (!prompt) { res.status(400).json({ error: "Missing 'prompt'" }); return; }
-  const seed   = req.query.seed   ?? String(Math.floor(Math.random() * 1e6));
-  const model  = req.query.model  ?? "flux";
-  const width  = req.query.width  ?? "640";
-  const height = req.query.height ?? "420";
-  const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=${model}`;
-  try {
-    const r = await fetch(pollUrl, { signal: AbortSignal.timeout(25000) });
-    if (!r.ok) throw new Error(`Pollinations ${r.status}`);
-    res.setHeader("Content-Type", r.headers.get("content-type") || "image/jpeg");
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    const buf = await r.arrayBuffer();
-    res.end(Buffer.from(buf));
-  } catch (err) {
-    console.warn("Image proxy failed, redirecting:", err.message);
-    res.redirect(pollUrl);
+  if (!prompt) {
+    res.status(400).json({ error: "Missing 'prompt' query parameter." });
+    return;
   }
+
+  const seedStr = typeof req.query.seed === "string" ? req.query.seed : String(Math.floor(Math.random() * 1_000_000));
+  const seed = parseInt(seedStr, 10) || Math.floor(Math.random() * 1_000_000);
+  const widthStr = typeof req.query.width === "string" ? req.query.width : "512";
+  const heightStr = typeof req.query.height === "string" ? req.query.height : "512";
+  const width = Math.min(Math.max(parseInt(widthStr, 10) || 512, 256), 1024);
+  const height = Math.min(Math.max(parseInt(heightStr, 10) || 512, 256), 1024);
+
+  const hfToken = process.env.HF_TOKEN?.trim() || "";
+  const pollKey = process.env.POLLINATIONS_API_KEY?.trim() || "";
+
+  // 1. Try Hugging Face if HF_TOKEN is provided
+  if (hfToken) {
+    const buf = await generateWithHuggingFace(prompt, width, height, seed, hfToken);
+    if (buf) {
+      res.setHeader("Content-Type", "image/jpeg");
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.setHeader("X-Image-Source", "huggingface");
+      res.end(buf);
+      return;
+    }
+    console.warn("[image] HF failed, falling back to Pollinations...");
+  }
+
+  // 2. Pollinations (uses key if available — zero rate limit)
+  const pollResult = await generateWithPollinations(prompt, width, height, seed, pollKey);
+  if (pollResult) {
+    res.setHeader("Content-Type", pollResult.contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("X-Image-Source", pollKey ? "pollinations-authenticated" : "pollinations-free");
+    res.end(pollResult.buf);
+    return;
+  }
+
+  // 3. Fallback: direct redirect
+  const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux`;
+  res.redirect(fallbackUrl);
 });
 
 // ── GET /api/config ───────────────────────────────────────────────────────────
