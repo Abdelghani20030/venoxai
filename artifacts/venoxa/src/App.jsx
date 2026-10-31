@@ -5112,6 +5112,9 @@ function StudyPlan({
   const [isEditing, setIsEditing] = useState(false);
   const [isPrintMode, setIsPrintMode] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  // {done, total} while the PDF raster loop runs — renders a full-screen progress
+  // overlay so the silent ~2s-per-week export never looks like a frozen page.
+  const [pdfProgress, setPdfProgress] = useState(null);
   const userPickedWeekRef = useRef(false);
   const [vocabModal, setVocabModal] = useState(null);
   const [grammarModal, setGrammarModal] = useState(null);
@@ -5658,10 +5661,17 @@ function StudyPlan({
       window.print();
       // After print dialog closes, restore normal view
       const handleAfterPrint = () => {
+        clearTimeout(fallbackTimer);
         setIsPrintMode(false);
         window.removeEventListener('afterprint', handleAfterPrint);
       };
       window.addEventListener('afterprint', handleAfterPrint);
+      // Safety net: some embedded browsers no-op window.print() and never fire
+      // afterprint — without this the page stays blank in print mode forever.
+      const fallbackTimer = setTimeout(() => {
+        setIsPrintMode(false);
+        window.removeEventListener('afterprint', handleAfterPrint);
+      }, 10000);
     };
     const tryPrint = () => {
       const mounted = document.querySelectorAll('.print-layout-container .print-week-page').length;
@@ -5686,6 +5696,7 @@ function StudyPlan({
   const handleDownloadPdf = async () => {
     if (!planData || pdfBusy) return;
     setPdfBusy(true);
+    setPdfProgress({ done: 0, total: planData.totalWeeks });
     let captureStyle = null;
     let container = null;
     let prevContainerCss = null;
@@ -5730,6 +5741,7 @@ function StudyPlan({
       const html2canvas = (await import('html2canvas-pro')).default;
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
       const pages = Array.from(container.querySelectorAll('.print-week-page'));
+      setPdfProgress({ done: 0, total: pages.length });
       const MARGIN = 10, PAGE_W = 297, PAGE_H = 210;
       for (let i = 0; i < pages.length; i++) {
         if (Date.now() > hardEnd) throw new Error('PDF generation timed out');
@@ -5748,6 +5760,7 @@ function StudyPlan({
         if (i > 0) pdf.addPage('a4', 'landscape');
         pdf.addImage(img, 'JPEG', MARGIN, MARGIN / 2, w, h, undefined, 'FAST');
         canvas.width = 0; canvas.height = 0; // free memory immediately (mobile)
+        setPdfProgress({ done: i + 1, total: pages.length });
       }
       pdf.save(`venoxa-study-plan-${userLevel}-to-${targetLevel}.pdf`);
     } catch (err) {
@@ -5758,6 +5771,7 @@ function StudyPlan({
       if (container && prevContainerCss !== null) container.style.cssText = prevContainerCss;
       if (wasDark) html.classList.add('dark');
       setIsPrintMode(false);
+      setPdfProgress(null);
       setPdfBusy(false);
     }
   };
@@ -6476,6 +6490,22 @@ function StudyPlan({
               />
             </div>
           ))}
+        </div>
+      )}
+      {/* PDF export overlay: full-screen feedback while the silent raster loop
+          runs (~2 s per week). Previously the page just went blank here, which
+          looked broken, so users reloaded and the export never finished. */}
+      {pdfProgress && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-white/95 dark:bg-[#0f172a]/95">
+          <div className="text-center px-6">
+            <div className="w-10 h-10 border-4 border-[var(--app-accent1)] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="mt-4 font-bold text-gray-800 dark:text-[var(--app-text)]">
+              {_resolveTranslation(lang, 'جاري إنشاء ملف PDF...', 'Generating PDF file...')}
+            </p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {_resolveTranslation(lang, `الأسبوع ${pdfProgress.done} من ${pdfProgress.total} — قد يستغرق ذلك حتى دقيقة أو دقيقتين. لا تغلق الصفحة.`, `Week ${pdfProgress.done} of ${pdfProgress.total} — this can take up to a minute or two. Keep this tab open.`)}
+            </p>
+          </div>
         </div>
       )}
       {vocabModal && ReactDOM.createPortal(
