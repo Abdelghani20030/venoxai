@@ -1,6 +1,10 @@
 import pg from 'pg';
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is not set. Export it (or run from the repo root with a root .env) before using this script - never hard-code credentials here.');
+  process.exit(1);
+}
 const { Pool } = pg;
-const pool = new Pool({ connectionString: 'postgresql://neondb_owner:npg_7JIMWvRZw4xU@ep-quiet-unit-apsq0z80-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require' });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const r = await pool.query(`SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'last_active'`);
 console.log('last_active column:', JSON.stringify(r.rows[0], null, 2));
@@ -17,6 +21,10 @@ try {
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { pgTable, serial, text, integer, timestamp, jsonb } from 'drizzle-orm/pg-core';
 import { eq } from 'drizzle-orm';
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is not set. Export it (or run from the repo root with a root .env) before using this script - never hard-code credentials here.');
+  process.exit(1);
+}
 
 const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),

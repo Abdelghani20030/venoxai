@@ -7,11 +7,14 @@ import { fileURLToPath } from "node:url";
 
 (function loadDotEnv() {
   const here = dirname(fileURLToPath(import.meta.url));
+  // Prefer the workspace root .env first (this file runs from dist/), then
+  // walk down towards the package folder. First file found wins; keys already
+  // present in the environment are never overwritten below.
   const candidates = [
-    resolve(here, ".env"),
-    resolve(here, "..", ".env"),
-    resolve(here, "..", "..", ".env"),
     resolve(here, "..", "..", "..", ".env"),
+    resolve(here, "..", "..", ".env"),
+    resolve(here, "..", ".env"),
+    resolve(here, ".env"),
     resolve(process.cwd(), ".env"),
   ];
 
@@ -31,7 +34,12 @@ import { fileURLToPath } from "node:url";
         const value = trimmed.slice(eqIdx + 1).trim().replace(/^["'](.*)["']$/, '$1'); // Strip quotes
         
         if (key) {
-          process.env[key] = value;
+          // Do not overwrite values that are already set in the environment
+          // (matching dotenv's default): a stale package-level .env must not
+          // shadow the real one provided by the launcher/CI/Vercel.
+          if (process.env[key] === undefined) {
+            process.env[key] = value;
+          }
         }
       }
       console.log(`[env] Successfully loaded from: ${envPath}`);

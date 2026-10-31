@@ -34,6 +34,7 @@ import {
   type ItemType,
   type ScoredResponse,
 } from './level-test-engine.ts';
+import { describeDbError } from './pg-pool.ts';
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Public types / deps
@@ -1358,8 +1359,11 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
       message = 'Your account profile is not set up yet. Please sign out and sign in again, then retry.';
     } else if (lower.includes('lt_sessions') || lower.includes('lt_items') || lower.includes('does not exist')) {
       message = 'Level test database tables not found. Please run migrations/level-test.sql and migrations/level-test-seed.sql in your Supabase SQL Editor.';
-    } else if (lower.includes('connection') || lower.includes('connect') || lower.includes('timeout') || lower.includes('tenant or user not found') || lower.includes('password authentication')) {
-      message = 'Database connection failed. Please verify your DATABASE_URL.';
+    } else {
+      // classifyDbError: turn raw connection failures into a specific, safe
+      // message (wrong pooler username / password / TLS / DNS / network).
+      const described = describeDbError(error);
+      if (described) message = described.message;
     }
     if (!res.headersSent) {
       res.status(500).json({ error: 'internal_error', message, details: msg });

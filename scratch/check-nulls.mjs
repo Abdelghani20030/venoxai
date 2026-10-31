@@ -1,8 +1,12 @@
 import pg from 'pg';
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is not set. Export it (or run from the repo root with a root .env) before using this script - never hard-code credentials here.');
+  process.exit(1);
+}
 const { Pool } = pg;
 
 const pool = new Pool({
-  connectionString: 'postgresql://neondb_owner:npg_7JIMWvRZw4xU@ep-quiet-unit-apsq0z80-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require',
+  connectionString: process.env.DATABASE_URL,
 });
 
 try {

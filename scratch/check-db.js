@@ -1,7 +1,11 @@
 import pg from 'pg';
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is not set. Export it (or run from the repo root with a root .env) before using this script - never hard-code credentials here.');
+  process.exit(1);
+}
 
 const { Client } = pg;
-const connectionString = "postgresql://postgres:67be7881350307660879f1851cca91e4@6hphx37v.us-east.database.insforge.app:5432/insforge?sslmode=require";
+const connectionString = process.env.DATABASE_URL;
 
 async function main() {
   const client = new Client({ connectionString });

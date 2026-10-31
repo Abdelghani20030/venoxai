@@ -16,9 +16,8 @@
  *   LEVEL_TEST_AUDIO_VOICE           default en-US-AriaNeural
  *   LEVEL_TEST_AUDIO_CONCURRENCY     default 2
  */
-import { Pool } from 'pg';
-
 import { edgeSynthesizeMp3 } from '../artifacts/api-server/src/routes/edge-ws.ts';
+import { createPgPool } from '../lib/pg-pool.ts';
 
 const DB_URL = (process.env.DATABASE_URL ?? '').trim();
 const VOICE = (process.env.LEVEL_TEST_AUDIO_VOICE ?? 'en-US-AriaNeural').trim();
@@ -50,7 +49,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const pool = new Pool({ connectionString: DB_URL });
+  // Shared pool factory: handles TLS for remote hosts (Supabase pooler
+  // requires SSL; a bare Pool() would connect unencrypted and be refused).
+  const pool = createPgPool(DB_URL);
   const client = await pool.connect();
   try {
     const result = await client.query<ListeningItem>(

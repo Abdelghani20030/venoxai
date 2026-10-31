@@ -10,8 +10,9 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { pgTable, serial, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { eq } from "drizzle-orm";
 import { createLevelTestRouter } from "../lib/level-test-server.ts";
+import { createPgPool, describeDbError } from "../lib/pg-pool.ts";
 
-// ── Database setup (inline for Vercel serverless) ────────────────────────────
+// Lazy DB pool — only created if DATABASE_URL is configured
 const dbUrl = (process.env.DATABASE_URL ?? "").trim();
 const JWT_SECRET = process.env.JWT_SECRET || "venoxa-default-fallback-secret-key-2026-secure-hashing";
 
@@ -88,14 +89,6 @@ const usersTable = pgTable("users", {
 let _pool: pg.Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
 
-function createPgPool(connectionString: string): pg.Pool {
-  const needsSsl = /sslmode=require|supabase|neon|pooler|aws|postgres:/i.test(connectionString);
-  return new pg.Pool({
-    connectionString,
-    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
-  });
-}
-
 function getDb() {
   if (!dbUrl) return null;
   if (!_pool) {
@@ -113,6 +106,35 @@ function getLevelTestPool(): pg.Pool | null {
     _db = drizzle(_pool, { schema: { usersTable } });
   }
   return _pool;
+}
+
+// Shared DB connectivity probe — never returns any connection details.
+async function runDbHealthCheck(): Promise<{ body: Record<string, unknown>; status: number }> {
+  if (!dbUrl) {
+    return { status: 500, body: { ok: false, kind: "config", message: "DATABASE_URL is not set." } };
+  }
+  const pool = getLevelTestPool();
+  if (!pool) {
+    return { status: 500, body: { ok: false, kind: "config", message: "DATABASE_URL is not set." } };
+  }
+  try {
+    await pool.query("select 1");
+    return { status: 200, body: { ok: true } };
+  } catch (error) {
+    const described = describeDbError(error);
+    console.error(
+      "[healthz/db] database check failed:",
+      error instanceof Error ? error.message : error,
+      described?.kind ?? "",
+    );
+    if (described) {
+      return { status: 500, body: { ok: false, kind: described.kind, message: described.message } };
+    }
+    return {
+      status: 500,
+      body: { ok: false, kind: "unknown", message: "Database check failed. See server logs." },
+    };
+  }
 }
 
 // ── Crypto helpers (inline for Vercel) ───────────────────────────────────────
@@ -192,6 +214,14 @@ try {
 // ── Health ────────────────────────────────────────────────────────────────────
 app.get("/api/healthz", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+// GET /api/healthz/db — live `select 1` against the configured database.
+// Reports the *kind* of failure (config/pooler_username/password/ssl/dns/
+// network/unknown) but never the connection string itself.
+app.get("/api/healthz/db", async (_req, res) => {
+  const { body, status } = await runDbHealthCheck();
+  res.status(status).json(body);
 });
 
 // ── Debug — reports which API keys are configured ─────────────────────────────

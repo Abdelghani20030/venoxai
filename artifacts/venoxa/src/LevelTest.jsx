@@ -153,6 +153,9 @@ export default function LevelTest({
   const [view, setView] = useState('start');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // DEBUG(level-test): raw server error details while diagnosing start failures.
+  // Set in startTest only; remove this together with its two render sites.
+  const [errorDetails, setErrorDetails] = useState('');
   const [notice, setNotice] = useState('');
 
   const [latest, setLatest] = useState(() => levelTest || readStoredResult());
@@ -436,6 +439,7 @@ export default function LevelTest({
     }
     setBusy(true);
     setError('');
+    setErrorDetails('');
     setNotice('');
     setCooldown(null);
     try {
@@ -453,6 +457,9 @@ export default function LevelTest({
         return;
       }
       if (!response.ok) {
+        // DEBUG(level-test): keep the raw cause visible while debugging. Remove
+        // setErrorDetails/errorDetails once the start failure is fixed.
+        setErrorDetails(typeof data?.details === 'string' ? data.details : '');
         if (data?.error === 'internal_error' && (!data?.message || data.message === 'internal_error')) {
           setError(T('خطأ في قاعدة بيانات الاختبار: الجداول غير موجودة. يرجى تشغيل ملفات التهيئة في Supabase.', 'Database setup required: level test tables (lt_*) have not been created in Supabase yet. Please run migrations/level-test.sql.'));
         } else {
@@ -481,6 +488,7 @@ export default function LevelTest({
       }
       if (data.resumed) setNotice(T('تمت استئناف جلستك.', 'Your session was resumed.'));
     } catch {
+      setErrorDetails('');
       setError(T('تعذر الاتصال بالخادم.', 'Could not reach the server.'));
     } finally {
       setBusy(false);
@@ -570,12 +578,19 @@ export default function LevelTest({
     if (!item?.audioUrl || playsLeft <= 0 || playing) return;
     const audio = audioRef.current;
     if (!audio) return;
-    setPlaysLeft(0);
     setAudioFailed(false);
     setPlaying(true);
     try {
+      if (audioFailed) {
+        // A previous preload error left the element in an error state; refetch
+        // the (still signed) URL before playing again.
+        audio.src = item.audioUrl;
+        audio.load();
+      }
       audio.currentTime = 0;
       await audio.play();
+      // The one allowed play is only consumed when playback actually starts.
+      setPlaysLeft(0);
     } catch {
       setPlaying(false);
       setAudioFailed(true);
@@ -1154,8 +1169,16 @@ export default function LevelTest({
         {error && (
           <div className="mb-4 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
             <AlertCircle size={15} className="mt-0.5 shrink-0" />
-            <span className="flex-1">{error}</span>
-            <button type="button" onClick={() => setError('')} className="shrink-0 opacity-60 hover:opacity-100">
+            <span className="flex-1">
+              {error}
+              {/* DEBUG(level-test): server error details — remove alongside errorDetails */}
+              {errorDetails && (
+                <span className="mt-1 block max-w-full break-all text-[10px] font-normal opacity-70">
+                  {errorDetails}
+                </span>
+              )}
+            </span>
+            <button type="button" onClick={() => { setError(''); setErrorDetails(''); }} className="shrink-0 opacity-60 hover:opacity-100">
               <X size={14} />
             </button>
           </div>
@@ -1211,7 +1234,7 @@ export default function LevelTest({
                   <button
                     type="button"
                     onClick={playAudio}
-                    disabled={playsLeft <= 0 || playing || audioFailed}
+                    disabled={playsLeft <= 0 || playing}
                     className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white transition ${
                       playsLeft <= 0 || playing || audioFailed
                         ? 'cursor-not-allowed bg-slate-300 dark:bg-white/10'
@@ -1548,7 +1571,15 @@ export default function LevelTest({
             {error && (
               <div className="mt-4 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
                 <AlertCircle size={15} className="mt-0.5 shrink-0" />
-                <span className="flex-1">{error}</span>
+                <span className="flex-1">
+                  {error}
+                  {/* DEBUG(level-test): server error details — remove alongside errorDetails */}
+                  {errorDetails && (
+                    <span className="mt-1 block max-w-full break-all text-[10px] font-normal opacity-70">
+                      {errorDetails}
+                    </span>
+                  )}
+                </span>
               </div>
             )}
           </div>

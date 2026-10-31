@@ -4,8 +4,8 @@
 --  These 3 SRS stores were previously local-only (never synced).
 --  Now they sync along with srsData and langeekSrsData.
 --  
---  Run this SQL against your PostgreSQL database:
---    DATABASE_URL=postgresql://postgres:67be7881350307660879f1851cca91e4@6hphx37v.us-east.database.insforge.app:5432/insforge?sslmode=require
+--  Run this SQL against your PostgreSQL database, e.g.:
+--    $env:DATABASE_URL   (set from your own environment — never hard-code it here)
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- Add phrasal SRS data column

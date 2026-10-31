@@ -1,8 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema";
-
-const { Pool } = pg;
+import { createPgPool } from "../../pg-pool.ts";
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -10,7 +9,9 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Shared pool factory (lib/pg-pool.ts): normalizes sslmode params out of the
+// URL and applies the right TLS settings for remote hosts.
+export const pool = createPgPool(process.env.DATABASE_URL);
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
