@@ -5719,8 +5719,6 @@ function StudyPlan({
         Promise.resolve(document.fonts && document.fonts.ready),
         new Promise(r => setTimeout(r, 2500))
       ]);
-      const hardEnd = Date.now() + 150000; // whole-run watchdog
-
       // 2) Temporarily restyle for a clean capture: force the print-visibility
       //    rules on (they only exist inside @media print), switch to light
       //    theme colors, and pin the container to a fixed desktop-like width
@@ -5742,12 +5740,20 @@ function StudyPlan({
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
       const pages = Array.from(container.querySelectorAll('.print-week-page'));
       setPdfProgress({ done: 0, total: pages.length });
+      // Raster quality vs speed: scale 2 keeps text crisp on typical plans;
+      // very long ones (25+ weeks) drop to 1.4 so the run doesn't take minutes.
+      // Speed scales with pixel area, so this makes the worst cases ~2x faster.
+      const rasterScale = pages.length > 24 ? 1.4 : 2;
+      // Whole-run watchdog: per-page rasters race their own 30 s timeout, so
+      // this only guards cumulative slowness. Long plans (25+ weeks) take
+      // several minutes of real rendering — a flat 150 s cap killed them.
+      const hardEnd = Date.now() + pages.length * 25000 + 60000;
       const MARGIN = 10, PAGE_W = 297, PAGE_H = 210;
       for (let i = 0; i < pages.length; i++) {
         if (Date.now() > hardEnd) throw new Error('PDF generation timed out');
         const canvas = await Promise.race([
           html2canvas(pages[i], {
-            scale: 2,
+            scale: rasterScale,
             backgroundColor: '#ffffff',
             useCORS: true,
             logging: false
@@ -6494,9 +6500,11 @@ function StudyPlan({
       )}
       {/* PDF export overlay: full-screen feedback while the silent raster loop
           runs (~2 s per week). Previously the page just went blank here, which
-          looked broken, so users reloaded and the export never finished. */}
-      {pdfProgress && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-white/95 dark:bg-[#0f172a]/95">
+          looked broken, so users reloaded and the export never finished.
+          Portaled to <body>: nested under the plan's blur/radius container the
+          fixed overlay used to get clipped to a small card, hiding the counter. */}
+      {pdfProgress && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white/95 dark:bg-[#0f172a]/95">
           <div className="text-center px-6">
             <div className="w-10 h-10 border-4 border-[var(--app-accent1)] border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="mt-4 font-bold text-gray-800 dark:text-[var(--app-text)]">
@@ -6506,7 +6514,8 @@ function StudyPlan({
               {_resolveTranslation(lang, `الأسبوع ${pdfProgress.done} من ${pdfProgress.total} — قد يستغرق ذلك حتى دقيقة أو دقيقتين. لا تغلق الصفحة.`, `Week ${pdfProgress.done} of ${pdfProgress.total} — this can take up to a minute or two. Keep this tab open.`)}
             </p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {vocabModal && ReactDOM.createPortal(
         <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden`} onClick={() => setVocabModal(null)}>
