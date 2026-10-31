@@ -5696,7 +5696,7 @@ function StudyPlan({
   const handleDownloadPdf = async () => {
     if (!planData || pdfBusy) return;
     setPdfBusy(true);
-    setPdfProgress({ done: 0, total: planData.totalWeeks });
+    setPdfProgress({ done: 0, total: planData.totalWeeks, dark: document.documentElement.classList.contains('dark') });
     let captureStyle = null;
     let container = null;
     let prevContainerCss = null;
@@ -5728,18 +5728,64 @@ function StudyPlan({
       captureStyle.textContent = `
         .print-layout-container { display: block !important; }
         .print-screen-only, [class~="print:hidden"] { display: none !important; }
+        /* Hide all scrollbars during PDF capture so they don't appear in the raster */
+        .print-layout-container * {
+          scrollbar-width: none !important;
+          -ms-overflow-style: none !important;
+        }
+        .print-layout-container *::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+        /* Expand overflow wrappers so the table isn't clipped by a scroll container */
+        .print-layout-container .overflow-x-auto,
+        .print-layout-container [class*="overflow-x-auto"],
+        .print-layout-container [class*="overflow-x"] {
+          overflow: visible !important;
+        }
       `;
       document.head.appendChild(captureStyle);
       if (wasDark) html.classList.remove('dark');
       prevContainerCss = container.style.cssText;
-      container.style.cssText = 'display:block !important; position:fixed !important; left:-2100px !important; top:0 !important; width:1240px !important; margin:0 !important; direction:rtl;';
+      // Direction must follow the UI language: the plan table's first column is
+      // Activity, so RTL puts it on the right (Arabic) and LTR on the left
+      // (English). Pinning rtl unconditionally mirrored English exports.
+      const pdfDir = lang === 'ar' ? 'rtl' : 'ltr';
+      container.style.cssText = `display:block !important; position:fixed !important; left:-2100px !important; top:0 !important; width:1240px !important; margin:0 !important; direction:${pdfDir};`;
 
       // 3) Rasterize each week and assemble the PDF
       const { jsPDF } = await import('jspdf');
       const html2canvas = (await import('html2canvas-pro')).default;
+      // Arabic shaping: html2canvas re-draws text glyph-by-glyph, which destroys
+      // Arabic contextual forms ("الأسبوع" rasterizes as isolated glyphs and
+      // dots/ligatures vanish). foreignObjectRendering delegates painting to the
+      // browser inside <svg><foreignObject>, which preserves native Arabic shaping.
+      // We always enable it for Arabic — modern Chromium-based browsers and Firefox
+      // all support it correctly. A blank-canvas fallback retries without FO if
+      // an older/restricted engine fails to produce any visible pixels.
+      const useFO = lang === 'ar';
+
+      // onclone: strip scrollbars and expand overflow wrappers in the cloned
+      // document so neither horizontal nor vertical scrollbar tracks appear in
+      // the raster. html2canvas-pro clones the live DOM before rendering, so
+      // mutations here don't affect the real page.
+      const onclone = (_clonedDoc, clonedEl) => {
+        // Inject a <style> that hides all scrollbars in the cloned tree
+        const s = _clonedDoc.createElement('style');
+        s.textContent = `
+          * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+          *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+          /* Expand the table scroll wrapper so the full table is rasterized without clipping */
+          .plan-table-wrapper { overflow: visible !important; }
+          .plan-table-wrapper > div { overflow: visible !important; }
+        `;
+        _clonedDoc.head.appendChild(s);
+      };
+
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
       const pages = Array.from(container.querySelectorAll('.print-week-page'));
-      setPdfProgress({ done: 0, total: pages.length });
+      setPdfProgress({ done: 0, total: pages.length, dark: wasDark });
       // Raster quality: scale 2 → 2480 px per 1240 px-wide page ≈ 230 DPI on the
       // A4 output. A 1.4 scale made long plans faster but the text visibly
       // pixelated; the size-aware watchdog below makes crisp exports safe.
@@ -5751,22 +5797,38 @@ function StudyPlan({
       const MARGIN = 10, PAGE_W = 297, PAGE_H = 210;
       for (let i = 0; i < pages.length; i++) {
         if (Date.now() > hardEnd) throw new Error('PDF generation timed out');
-        const canvas = await Promise.race([
-          html2canvas(pages[i], {
-            scale: rasterScale,
-            backgroundColor: '#ffffff',
-            useCORS: true,
-            logging: false
-          }),
+        const h2cOpts = {
+          scale: rasterScale,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          logging: false,
+          onclone,
+          foreignObjectRendering: useFO,
+        };
+        let canvas = await Promise.race([
+          html2canvas(pages[i], h2cOpts),
           new Promise((_, rej) => setTimeout(() => rej(new Error('week raster timed out')), 30000))
         ]);
+        // Fallback: if foreignObjectRendering produced a blank canvas (all transparent
+        // pixels), retry without it — some restricted webviews block SVG FO raster.
+        if (useFO) {
+          const px = canvas.getContext('2d').getImageData(0, 0, Math.min(canvas.width, 100), Math.min(canvas.height, 100)).data;
+          const hasPixels = Array.from(px).some((v, idx) => idx % 4 === 3 && v > 16);
+          if (!hasPixels) {
+            canvas.width = 0; canvas.height = 0;
+            canvas = await Promise.race([
+              html2canvas(pages[i], { ...h2cOpts, foreignObjectRendering: false }),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('week raster timed out')), 30000))
+            ]);
+          }
+        }
         const img = canvas.toDataURL('image/jpeg', 0.9);
         const w = PAGE_W - MARGIN * 2;
         const h = Math.min(w * (canvas.height / canvas.width), PAGE_H - MARGIN);
         if (i > 0) pdf.addPage('a4', 'landscape');
         pdf.addImage(img, 'JPEG', MARGIN, MARGIN / 2, w, h, undefined, 'FAST');
         canvas.width = 0; canvas.height = 0; // free memory immediately (mobile)
-        setPdfProgress({ done: i + 1, total: pages.length });
+        setPdfProgress({ done: i + 1, total: pages.length, dark: wasDark });
       }
       pdf.save(`venoxa-study-plan-${userLevel}-to-${targetLevel}.pdf`);
     } catch (err) {
@@ -6501,16 +6563,22 @@ function StudyPlan({
       {/* PDF export overlay: full-screen feedback while the silent raster loop
           runs (~2 s per week). Previously the page just went blank here, which
           looked broken, so users reloaded and the export never finished.
-          Portaled to <body>: nested under the plan's blur/radius container the
-          fixed overlay used to get clipped to a small card, hiding the counter. */}
+          Portaled to <body> and FULLY OPAQUE: the capture flips the page to
+          light theme behind it for rasterization, and a translucent overlay
+          used to show that flip through as white "artifacts" in dark mode.
+          The bg is locked to pdfProgress.dark (the theme at click time) rather
+          than the live .dark class, since the capture toggles that class. */}
       {pdfProgress && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-white/95 dark:bg-[#0f172a]/95">
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center"
+          style={{ background: pdfProgress.dark ? '#0f172a' : '#ffffff' }}
+        >
           <div className="text-center px-6">
             <div className="w-10 h-10 border-4 border-[var(--app-accent1)] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="mt-4 font-bold text-gray-800 dark:text-[var(--app-text)]">
+            <p className="mt-4 font-bold" style={{ color: pdfProgress.dark ? '#e2e8f0' : '#1f2937' }}>
               {_resolveTranslation(lang, 'جاري إنشاء ملف PDF...', 'Generating PDF file...')}
             </p>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-sm" style={{ color: pdfProgress.dark ? '#94a3b8' : '#6b7280' }}>
               {_resolveTranslation(lang, `الأسبوع ${pdfProgress.done} من ${pdfProgress.total} — قد يستغرق ذلك حتى دقيقة أو دقيقتين. لا تغلق الصفحة.`, `Week ${pdfProgress.done} of ${pdfProgress.total} — this can take up to a minute or two. Keep this tab open.`)}
             </p>
           </div>
@@ -6809,35 +6877,37 @@ function Vocabulary({
     if (loadingImage || cardImage || !card) return;
     setLoadingImage(true);
     try {
-      // Step 1: ask the AI for a concrete, single-scene visual description that conveys the word's meaning.
-      const briefPrompt = `You are a visual director. For the English word "${card.word}" (which means: ${card.meaning || 'see context'}), describe a SINGLE, concrete, photorealistic scene that captures the LITERAL meaning. 
-Rules:
-1. One subject, one action.
-2. NO abstract concepts, NO metaphors unless they are very visual.
-3. NO text, NO letters, NO symbols.
-4. Describe colors, lighting, and composition.
-5. Output ONLY a 15-word English description.`;
+      // Step 1: ask the AI for a conceptually precise scene using the LanGeek flashcard playbook.
+      const briefPrompt = `You are a master educational vocabulary illustrator like LanGeek.
+For the word "${card.word}" (Meaning: "${card.meaning || 'see context'}", Example: "${card.example || ''}"), design a visual scene that makes the meaning 100% obvious to a language learner without guessing.
+
+LanGeek Illustration Techniques:
+- If the word is a status, negative, or relational concept (like "unmarried", "single", "alone", "absent", "opposite"):
+  Use a side-by-side visual contrast: on one side show the opposite/counterpart (e.g. for "unmarried", a happy couple holding a red heart); on the other side show the target subject standing alone with a subtle indicator arrow pointing to them.
+- If the word is an action (verb): show a character performing the unmistakable, expressive action.
+- If the word is an adjective or emotion: show clear, unmistakable visual cues.
+- Keep the composition simple and focused on the characters/concept. No background furniture or room clutter.
+- Output ONLY a concise 15-20 word visual description in English.`;
       let visual = '';
       try {
         const raw = await fetchFromGemini(briefPrompt, AI_KEY);
         const errJson = parseGeminiJSON(raw);
         if (!errJson || !errJson.error) {
           visual = String(raw || '').trim().split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
-          // Strip surrounding quotes if the model wrapped them.
           visual = visual.replace(/^["'`]+|["'`]+$/g, '').trim();
         }
       } catch (_) {/* fall through to default */ }
       if (!visual) {
-        visual = `A high-quality photorealistic professional photograph visually representing the concept of "${card.word}"`;
+        visual = `a person demonstrating the concept of "${card.word}"`;
       }
-      const finalPrompt = `${visual}. Cinematic lighting, 8k resolution, highly detailed, professional photography, masterpiece, sharp focus, no text, no watermark.`;
+      const visualClean = visual.replace(/[^\x00-\x7F]/g, "").trim();
+      const finalPrompt = `A simple clean colored sketch illustration, hand-drawn outline with soft pastel watercolor shading, LangGeek educational vocabulary flashcard style, ${visualClean}, clean white background, friendly, minimalist, clear visual meaning, no text, no letters, no watermark.`;
       const seed = Math.floor(Math.random() * 1_000_000);
-      // Use a free, no-key image service (no quota) so this works without a paid Imagen key.
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(finalPrompt)}&width=640&height=420&seed=${seed}`);
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(finalPrompt)}&width=512&height=512&seed=${seed}`);
     } catch (err) {
       console.error("Image generation error", err);
-      const fallback = `Photorealistic image showing the meaning of the English word ${card.word} (${card.meaning || ''}), no text, no letters.`;
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(fallback)}&width=640&height=420`);
+      const fallback = `A simple clean colored sketch illustration, hand-drawn outline with soft pastel shading, LangGeek educational flashcard style, ${card.word}, clean white background, no text, no letters.`;
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(fallback)}&width=512&height=512`);
     } finally {
       setLoadingImage(false);
     }
@@ -7019,8 +7089,8 @@ Rules:
 
             {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
             {aiStory && <div className={`bg-gray-50 dark:bg-[var(--app-card)] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
-            {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
-            {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+            {loadingImage && <div className="w-full h-48 flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
+            {cardImage && !loadingImage && <div className="w-full flex items-center justify-center mt-4" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-auto h-auto max-h-[320px] max-w-full object-contain rounded-2xl" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
           </div>}
         </div>
 
@@ -7160,19 +7230,22 @@ function PhrasalVerbs({
     if (loadingImage || cardImage || !card) return;
     setLoadingImage(true);
     try {
-      const briefPrompt = `You are a visual director. For the phrasal verb "${card.word}" (${card.meaning}), describe a SINGLE, concrete, photorealistic scene that captures the LITERAL meaning. 
+      const briefPrompt = `You are an educational illustrator creating LangGeek-style flashcard art. For the phrasal verb "${card.word}" (${card.meaning}), describe a SINGLE, clear, simple scene showing a person performing this action in 10-15 words.
 Rules:
-1. One subject, one action.
-2. NO abstract concepts, NO text, NO letters.
-3. Describe colors, lighting, and composition.
-4. Output ONLY a 15-word English description.`;
+1. One person, one clear action.
+2. Clean, relatable, instantly recognizable for a language learner.
+3. NO text, NO letters, NO symbols.
+4. Output ONLY the short English scene description.`;
       let visual = '';
       try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw || '').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g, '').trim() || ''; } catch { }
-      if (!visual) visual = `A scene showing the phrasal verb "${card.word}"`;
-      const visualClean = (visual + ' Photorealistic, natural lighting, no text.').replace(/[^\x00-\x7F]/g, "");
+      if (!visual) visual = `a person performing the action of "${card.word}"`;
+      const visualClean = visual.replace(/[^\x00-\x7F]/g, "").trim();
+      const finalPrompt = `A simple clean colored sketch illustration, hand-drawn outline with soft pastel watercolor shading, LangGeek educational vocabulary flashcard style, ${visualClean}, clean white background, friendly, minimalist, clear visual meaning, no text, no letters, no watermark.`;
       const seed = Math.floor(Math.random() * 1_000_000);
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
-    } catch { setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Phrasal verb ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`); } finally { setLoadingImage(false); }
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(finalPrompt)}&width=512&height=512&seed=${seed}`);
+    } catch {
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`A simple clean colored sketch illustration, LangGeek style, phrasal verb ${card?.word}, clean white background, no text`.replace(/[^\x00-\x7F]/g, ""))}&width=512&height=512`);
+    } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
     <div className="flex flex-col sm:flex-row glass-panel p-1.5 rounded-2xl w-full max-w-2xl mx-auto mb-8 border border-gray-200 dark:border-[var(--app-border)] shadow-sm transition-colors">
@@ -7263,8 +7336,8 @@ Rules:
         </div>
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiStory && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-orange-500 p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiStory)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {loadingImage && <div className="w-full h-48 flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
+        {cardImage && !loadingImage && <div className="w-full flex items-center justify-center mt-4" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-auto h-auto max-h-[320px] max-w-full object-contain rounded-2xl" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -7446,20 +7519,21 @@ function IdiomsSlang({
     if (loadingImage || cardImage || !card) return;
     setLoadingImage(true);
     try {
-      const briefPrompt = `You are a visual director. For the idiom "${card.word}" (${card.meaning}), describe a SINGLE, concrete, photorealistic scene that captures the LITERAL or most iconic visual representation. 
+      const briefPrompt = `You are an educational illustrator creating LangGeek-style flashcard art. For the English idiom "${card.word}" (${card.meaning}), describe a SINGLE, clear, simple scene that playfully illustrates this idiom in 10-15 words.
 Rules:
-1. One subject, one action.
-2. NO text, NO letters, NO symbols.
-3. Describe colors, lighting, and composition.
-4. Output ONLY a 15-word English description.`;
+1. One clear subject, one clear action.
+2. Clean, recognizable, educational for language learners.
+3. NO text, NO letters, NO symbols.
+4. Output ONLY the short English scene description.`;
       let visual = '';
       try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw || '').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g, '').trim() || ''; } catch { }
-      if (!visual) visual = `A scene showing the meaning of "${card.word}"`;
+      if (!visual) visual = `a scene illustrating "${card.word}"`;
       const seed = Math.floor(Math.random() * 1_000_000);
-      const visualClean = (visual + ' Photorealistic, natural lighting, no text.').replace(/[^\x00-\x7F]/g, "");
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
+      const visualClean = visual.replace(/[^\x00-\x7F]/g, "").trim();
+      const finalPrompt = `A simple clean colored sketch illustration, hand-drawn outline with soft pastel watercolor shading, LangGeek educational vocabulary flashcard style, ${visualClean}, clean white background, friendly, minimalist, clear visual meaning, no text, no letters, no watermark.`;
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(finalPrompt)}&width=512&height=512&seed=${seed}`);
     } catch {
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Illustration ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`);
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`A simple clean colored sketch illustration, LangGeek style, idiom ${card?.word}, clean white background, no text`.replace(/[^\x00-\x7F]/g, ""))}&width=512&height=512`);
     } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
@@ -7565,8 +7639,8 @@ Rules:
         </div>
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiSentence && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {loadingImage && <div className="w-full h-48 flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
+        {cardImage && !loadingImage && <div className="w-full flex items-center justify-center mt-4" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-auto h-auto max-h-[320px] max-w-full object-contain rounded-2xl" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -7746,20 +7820,21 @@ function IdiomsProper({
     if (loadingImage || cardImage || !card) return;
     setLoadingImage(true);
     try {
-      const briefPrompt = `You are a visual director. For the idiom "${card.word}" (${card.meaning}), describe a SINGLE, concrete, photorealistic scene that captures the LITERAL or most iconic visual representation. 
+      const briefPrompt = `You are an educational illustrator creating LangGeek-style flashcard art. For the English idiom "${card.word}" (${card.meaning}), describe a SINGLE, clear, simple scene that playfully illustrates this idiom in 10-15 words.
 Rules:
-1. One subject, one action.
-2. NO text, NO letters, NO symbols.
-3. Describe colors, lighting, and composition.
-4. Output ONLY a 15-word English description.`;
+1. One clear subject, one clear action.
+2. Clean, recognizable, educational for language learners.
+3. NO text, NO letters, NO symbols.
+4. Output ONLY the short English scene description.`;
       let visual = '';
       try { const raw = await fetchFromGemini(briefPrompt, AI_KEY); const ej = parseGeminiJSON(raw); if (!ej?.error) visual = String(raw || '').trim().split('\n')[0]?.replace(/^["'`]+|["'`]+$/g, '').trim() || ''; } catch { }
-      if (!visual) visual = `A scene showing the meaning of "${card.word}"`;
+      if (!visual) visual = `a scene illustrating "${card.word}"`;
       const seed = Math.floor(Math.random() * 1_000_000);
-      const visualClean = (visual + ' Photorealistic, natural lighting, no text.').replace(/[^\x00-\x7F]/g, "");
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(visualClean)}&width=640&height=420&seed=${seed}`);
+      const visualClean = visual.replace(/[^\x00-\x7F]/g, "").trim();
+      const finalPrompt = `A simple clean colored sketch illustration, hand-drawn outline with soft pastel watercolor shading, LangGeek educational vocabulary flashcard style, ${visualClean}, clean white background, friendly, minimalist, clear visual meaning, no text, no letters, no watermark.`;
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(finalPrompt)}&width=512&height=512&seed=${seed}`);
     } catch {
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`Illustration ${card?.word}`.replace(/[^\x00-\x7F]/g, ""))}&width=640&height=420`);
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(`A simple clean colored sketch illustration, LangGeek style, idiom ${card?.word}, clean white background, no text`.replace(/[^\x00-\x7F]/g, ""))}&width=512&height=512`);
     } finally { setLoadingImage(false); }
   };
   return <div className="w-full space-y-5 lg:space-y-6 animate-fadeIn">
@@ -7865,8 +7940,8 @@ Rules:
         </div>
         {collocationData && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-teal-500 p-5 rounded-2xl w-full text-left mt-2" onClick={e => e.stopPropagation()}><div className="font-mono text-gray-800 dark:text-[var(--app-text)] text-sm leading-relaxed" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(collocationData)}</div></div>}
         {aiSentence && <div className="bg-gray-50 dark:bg-[var(--app-card)] border-l-4 border-[#1E90FF] p-5 rounded-2xl w-full text-left mt-4" onClick={e => e.stopPropagation()}><div className="prose prose-purple dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{ whiteSpace: 'pre-wrap' }}>{safeRender(aiSentence)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] animate-bounce" /></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
+        {loadingImage && <div className="w-full h-48 flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-[var(--app-accent1)] mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
+        {cardImage && !loadingImage && <div className="w-full flex items-center justify-center mt-4" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-auto h-auto max-h-[320px] max-w-full object-contain rounded-2xl" onError={e => { e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found'; }} /></div>}
       </div>}
     </div>}
     {showMeaning && card && mode !== 'lists' && <div className="grid grid-cols-5 gap-2 md:gap-3 animate-fadeIn pt-4" onClick={e => e.stopPropagation()}>
@@ -12429,34 +12504,32 @@ function Langeek({
     if (loadingImage || cardImage || !card) return;
     setLoadingImage(true);
     try {
-      // Step 1: ask the AI for a concrete, single-scene visual description that conveys the word's meaning.
-      const briefPrompt = `You are a visual director. For the word "${card.word}", describe a SINGLE, concrete, photorealistic scene that captures the LITERAL meaning. 
+      const briefPrompt = `You are an educational illustrator creating LangGeek-style vocabulary flashcard art. For the English word "${card.word}" (${card.meaning || 'see context'}), describe a SINGLE, clear, simple scene or character action in 10-15 words.
 Rules:
-1. One subject, one action.
-2. NO abstract concepts, NO text, NO letters.
-3. Describe colors, lighting, and composition.
-4. Output ONLY a 15-word English description.`;
+1. One subject, one clear action (or one iconic object).
+2. Clean, relatable, instantly recognizable for a language learner.
+3. NO text, NO letters, NO symbols, NO abstract metaphors.
+4. Output ONLY the short English scene description.`;
       let visual = '';
       try {
         const raw = await fetchFromGemini(briefPrompt, AI_KEY);
         const errJson = parseGeminiJSON(raw);
         if (!errJson || !errJson.error) {
           visual = String(raw || '').trim().split('\n').map(s => s.trim()).filter(Boolean)[0] || '';
-          // Strip surrounding quotes if the model wrapped them.
           visual = visual.replace(/^["'`]+|["'`]+$/g, '').trim();
         }
       } catch (_) {/* fall through to default */ }
       if (!visual) {
-        visual = `A photorealistic everyday scene that visually represents the English word "${card.word}"`;
+        visual = `a person demonstrating the concept of "${card.word}"`;
       }
-      const finalPrompt = `${visual} Photorealistic, natural lighting, clean composition, ultra detailed, no text, no letters, no captions, no watermark.`.replace(/[^\x00-\x7F]/g, "");
+      const visualClean = visual.replace(/[^\x00-\x7F]/g, "").trim();
+      const finalPrompt = `A simple clean colored sketch illustration, hand-drawn outline with soft pastel watercolor shading, LangGeek educational vocabulary flashcard style, ${visualClean}, clean white background, friendly, minimalist, clear visual meaning, no text, no letters, no watermark.`;
       const seed = Math.floor(Math.random() * 1_000_000);
-      // Use image.pollinations.ai/prompt/ with flux model for better quality and reliability.
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(finalPrompt)}&width=640&height=420&seed=${seed}`);
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(finalPrompt)}&width=512&height=512&seed=${seed}`);
     } catch (err) {
       console.error("Image generation error", err);
-      const fallback = `Photorealistic image showing the meaning of the English word ${card.word}, no text, no letters.`;
-      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(fallback)}&width=640&height=420`);
+      const fallback = `A simple clean colored sketch illustration, hand-drawn outline with soft pastel shading, LangGeek educational flashcard style, ${card.word}, clean white background, no text, no letters.`;
+      setCardImage(`${import.meta.env.BASE_URL}api/image?prompt=${encodeURIComponent(fallback)}&width=512&height=512`);
     } finally {
       setLoadingImage(false);
     }
@@ -12664,8 +12737,8 @@ Rules:
         {aiStory && <div className={`bg-gray-50 dark:bg-[var(--app-card)] border-${_resolveTranslation(lang, 'r', 'l')}-4 border-orange-500 p-5 rounded-2xl w-full ${_resolveTranslation(lang, 'text-right', 'text-left')} mt-4`} onClick={e => e.stopPropagation()}><div className="prose prose-orange dark:prose-invert max-w-none text-gray-800 dark:text-[var(--app-text)] text-sm" style={{
           whiteSpace: 'pre-wrap'
         }}>{safeRender(aiStory)}</div></div>}
-        {loadingImage && <div className="w-full h-48 bg-gray-50 dark:bg-[var(--app-card)] rounded-2xl flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
-        {cardImage && !loadingImage && <div className="w-full mt-4 rounded-2xl overflow-hidden border border-gray-200 dark:border-[var(--app-border)] shadow-sm relative bg-gray-50 dark:bg-[var(--app-card)]" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-full h-auto max-h-[350px] object-cover" onError={e => {
+        {loadingImage && <div className="w-full h-48 flex flex-col items-center justify-center mt-4 animate-pulse"><ImageIcon className="w-8 h-8 text-black dark:text-white mb-2 animate-bounce" /><span className="text-sm text-black dark:text-white font-bold">{t.loading}</span></div>}
+        {cardImage && !loadingImage && <div className="w-full flex items-center justify-center mt-4" onClick={e => e.stopPropagation()}><img src={cardImage} alt={card?.word} className="w-auto h-auto max-h-[320px] max-w-full object-contain rounded-2xl" onError={e => {
           e.target.src = 'https://placehold.co/600x400/1a1a1e/4b5563/png?text=Image+Not+Found';
         }} /></div>}
       </div>}
