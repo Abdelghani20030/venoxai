@@ -5740,10 +5740,10 @@ function StudyPlan({
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
       const pages = Array.from(container.querySelectorAll('.print-week-page'));
       setPdfProgress({ done: 0, total: pages.length });
-      // Raster quality vs speed: scale 2 keeps text crisp on typical plans;
-      // very long ones (25+ weeks) drop to 1.4 so the run doesn't take minutes.
-      // Speed scales with pixel area, so this makes the worst cases ~2x faster.
-      const rasterScale = pages.length > 24 ? 1.4 : 2;
+      // Raster quality: scale 2 → 2480 px per 1240 px-wide page ≈ 230 DPI on the
+      // A4 output. A 1.4 scale made long plans faster but the text visibly
+      // pixelated; the size-aware watchdog below makes crisp exports safe.
+      const rasterScale = 2;
       // Whole-run watchdog: per-page rasters race their own 30 s timeout, so
       // this only guards cumulative slowness. Long plans (25+ weeks) take
       // several minutes of real rendering — a flat 150 s cap killed them.
