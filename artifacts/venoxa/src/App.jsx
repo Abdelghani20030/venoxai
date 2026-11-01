@@ -21,6 +21,7 @@ import {
   loadAllVocabFromStorage,
   subscribeToProgress as _subscribeToProgress_unused,
   pullProgress,
+  pullProgressFields,
   pushProgress,
 } from './insforge.jsx';
 import { loadBundledVocab } from './vocabData.js';
@@ -2487,12 +2488,14 @@ function AppInner() {
     setSyncStatus('syncing');
 
     try {
-      // Merge lists with the cloud copy first, so a stale device can't wipe
-      // words/history that the other device added in the meantime.
-      const arrDirty = [...dirty].filter(f => ARRAY_SYNC_FIELDS[f]);
-      const uid0 = auth.currentUser?.uid;
-      if (arrDirty.length && uid0) {
-        const remoteDoc = await pullProgress(uid0);
+    // Merge lists with the cloud copy first, so a stale device can't wipe
+    // words/history that the other device added in the meantime. Per-field
+    // pull: the arrays merge against ONLY the fields being pushed, never the
+    // whole (potentially multi-MB) document.
+    const arrDirty = [...dirty].filter(f => ARRAY_SYNC_FIELDS[f]);
+    const uid0 = auth.currentUser?.uid;
+    if (arrDirty.length && uid0) {
+      const remoteDoc = await pullProgressFields(uid0, arrDirty);
         if (remoteDoc) {
           for (const f of arrDirty) {
             const local = currentPayload[f] || [];
@@ -5744,6 +5747,14 @@ function StudyPlan({
         .print-layout-container [class*="overflow-x"] {
           overflow: visible !important;
         }
+        /* The foreignObject/SVG re-layout uses a fallback font whose glyph
+           metrics differ from the live page's webfonts, so truncate boxes
+           sized against the real font clip labels to "است..." in the raster.
+           Let them render in full during capture. */
+        .print-layout-container .truncate {
+          overflow: visible !important;
+          text-overflow: clip !important;
+        }
       `;
       document.head.appendChild(captureStyle);
       if (wasDark) html.classList.remove('dark');
@@ -5805,15 +5816,29 @@ function StudyPlan({
           onclone,
           foreignObjectRendering: useFO,
         };
+        const pageEl = pages[i];
+        // html2canvas-pro's foreignObject path only paints when the crop window
+        // is explicitly anchored: without x/y/width/height it returns a 0×0
+        // canvas for offscreen elements (the print container lives at
+        // left:-2100px), which used to crash the blank-check below instead of
+        // triggering its fallback. The baseline path needs no crop.
+        const cropOpts = useFO
+          ? { x: 0, y: 0, width: pageEl.offsetWidth, height: pageEl.offsetHeight }
+          : {};
         let canvas = await Promise.race([
-          html2canvas(pages[i], h2cOpts),
+          html2canvas(pageEl, { ...h2cOpts, ...cropOpts }),
           new Promise((_, rej) => setTimeout(() => rej(new Error('week raster timed out')), 30000))
         ]);
-        // Fallback: if foreignObjectRendering produced a blank canvas (all transparent
-        // pixels), retry without it — some restricted webviews block SVG FO raster.
+        // Fallback: if foreignObjectRendering produced an empty canvas, retry
+        // without it — some restricted webviews block SVG foreignObject raster.
         if (useFO) {
-          const px = canvas.getContext('2d').getImageData(0, 0, Math.min(canvas.width, 100), Math.min(canvas.height, 100)).data;
-          const hasPixels = Array.from(px).some((v, idx) => idx % 4 === 3 && v > 16);
+          let hasPixels = canvas.width > 0 && canvas.height > 0; // 0×0 can't be read by getImageData
+          if (hasPixels) {
+            try {
+              const px = canvas.getContext('2d').getImageData(0, 0, Math.min(canvas.width, 100), Math.min(canvas.height, 100)).data;
+              hasPixels = Array.from(px).some((v, idx) => idx % 4 === 3 && v > 16);
+            } catch { /* tainted canvas in some engines — keep the raster as-is */ }
+          }
           if (!hasPixels) {
             canvas.width = 0; canvas.height = 0;
             canvas = await Promise.race([

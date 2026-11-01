@@ -86,6 +86,33 @@ begin
 end;
 $$;
 
+-- ── 4b. Field-level pull: read only the requested top-level fields ────────
+-- Invoked by pullProgressFields() as supabase.rpc('pull_user_fields',
+-- { p_fields }). Reading only dirty fields keeps list merges off the
+-- multi-MB full-document download that blow the 10 s push timeout.
+create or replace function public.pull_user_fields(p_fields text[])
+returns jsonb
+language plpgsql
+security invoker
+as $$
+declare
+  d       jsonb;
+  out_obj jsonb := '{}'::jsonb;
+  f       text;
+begin
+  select data into d from public.users where id = auth.uid();
+  if d is null then
+    return out_obj;
+  end if;
+  for f in select unnest(p_fields) loop
+    if d ? f then
+      out_obj := out_obj || jsonb_build_object(f, d -> f);
+    end if;
+  end loop;
+  return out_obj;
+end;
+$$;
+
 -- ── 5. Account self-deletion (DELETE / ProfileDashboard) ──────────────────
 -- Supabase doesn't allow clients to delete their own auth record directly,
 -- so this SECURITY DEFINER function does it once the owner calls it.

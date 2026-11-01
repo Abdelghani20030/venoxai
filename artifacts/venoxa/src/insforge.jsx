@@ -450,15 +450,54 @@ export async function pullProgress(uid) {
   }
 }
 
+/**
+ * Reads ONLY the requested top-level fields of the caller's data document
+ * via the pull_user_fields() RPC. The full-document pullProgress() drags
+ * every history/vocab array over the wire (~2 MB for active users) and was
+ * the main reason pushes blew the 10 s timeout; per-field pulls stay tiny.
+ * Returns {} on failure so callers fall back to local-only merge.
+ */
+export async function pullProgressFields(uid, fields = []) {
+  if (!uid || !fields.length) return {};
+  if (!_session?.user || _session.user.id !== uid) return {};
+  try {
+    const { data, error } = await withTimeout(
+      supabase.rpc('pull_user_fields', { p_fields: fields }),
+      10000,
+    );
+    if (error) throw error;
+    return data || {};
+  } catch (err) {
+    console.warn('pullProgressFields failed', err);
+    return {};
+  }
+}
+
 export async function pushProgress(uid, delta) {
   if (!uid) return;
   if (!_session?.user || _session.user.id !== uid) return;
   const safeDelta = JSON.parse(JSON.stringify(delta));
+  if (!safeDelta || Object.keys(safeDelta).length === 0) return;
   try {
-    await withTimeout(patchDoc(uid, { ...safeDelta, updatedAt: new Date().toISOString() }), 10000);
+    // Server-side shallow merge: the write scales with the DELTA (a few KB),
+    // not with the whole data document. merge_beacon_data() runs
+    // `update users set data = data || p_data` on the caller's own row
+    // (RLS-checked). The old read-modify-write here streamed the ENTIRE
+    // document twice per push (~2 MB up + down), blowing the 10 s cap.
+    await withTimeout(
+      supabase.rpc('merge_beacon_data', { p_data: safeDelta }),
+      10000,
+    );
   } catch (e) {
-    console.error('pushProgress completely failed', e);
-    throw e;
+    console.error('pushProgress merge rpc failed', e);
+    try {
+      // Fallback for databases that lack merge_beacon_data — the classic
+      // read-modify-write (streams the full document, slower).
+      await withTimeout(patchDoc(uid, safeDelta), 10000);
+    } catch (e2) {
+      console.error('pushProgress completely failed', e2);
+      throw e2;
+    }
   }
 }
 
