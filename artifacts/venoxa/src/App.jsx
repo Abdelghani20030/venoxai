@@ -28,6 +28,78 @@ import { loadBundledVocab } from './vocabData.js';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Quota-safe localStorage caches
+//  The last-sync snapshot and the user cache used to duplicate every synced
+//  field (multi-MB vocab/history arrays), pushing the origin past the ~5 MB
+//  localStorage quota and killing the sync loop with QuotaExceededError.
+//  Heavy caches are now gzip-compressed via CompressionStream (~10x smaller
+//  for repetitive JSON) with a plain JSON fallback, and quota failures
+//  degrade to a console warn instead of throwing inside the sync cycle.
+// ─────────────────────────────────────────────────────────────────────────────
+const LSGZ_PREFIX = 'v1gz:';
+
+async function lsSetCompressed(key, value) {
+  const text = JSON.stringify(value);
+  const tryPlain = () => {
+    try {
+      localStorage.setItem(key, text);
+    } catch (e) {
+      console.warn(`${key}: cache write skipped (storage quota)`, e?.name || e);
+    }
+  };
+  if (typeof CompressionStream === 'undefined') return tryPlain();
+  try {
+    const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+    const buf     = new Uint8Array(await new Response(stream).arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < buf.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+    }
+    localStorage.setItem(key, LSGZ_PREFIX + btoa(bin));
+  } catch (e) {
+    console.warn(`${key}: gzip cache failed, storing plain`, e?.name || e);
+    tryPlain();
+  }
+}
+
+async function lsGetCompressed(key) {
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+  if (raw.startsWith(LSGZ_PREFIX)) {
+    try {
+      const bin   = atob(raw.slice(LSGZ_PREFIX.length));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      return JSON.parse(await new Response(stream).text());
+    } catch (e) {
+      console.warn(`${key}: gzip read failed`, e?.name || e);
+      return null;
+    }
+  }
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+// Only identity/profile basics are cached for boot flash prevention — progress
+// arrays hydrate from their own storage keys and the cloud right after auth,
+// so caching the full user document here just duplicated megabytes.
+const USER_CACHE_FIELDS = ['uid', 'email', 'username', 'avatar', 'dob', 'gender', 'languages', 'plan', 'xp', 'streak', 'level', 'dailyGoalMins', 'levelTest'];
+
+function cacheLightUser(userData) {
+  if (!userData) return;
+  const light = {};
+  for (const k of USER_CACHE_FIELDS) {
+    if (userData[k] !== undefined) light[k] = userData[k];
+  }
+  try {
+    localStorage.setItem('venoxa_user', JSON.stringify(light));
+  } catch (e) {
+    console.warn('venoxa_user: light cache skipped (storage quota)', e?.name || e);
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  SECRET KEY GATE — change this to whatever key you want
 // ─────────────────────────────────────────────────────────────────────────────
 const SECRET_KEY = 'VENOXA-2025';
@@ -2079,7 +2151,7 @@ function AppInner() {
       if (validatedUser) {
         // Update user state immediately with validated user data from Firestore
         setUser(validatedUser);
-        localStorage.setItem('venoxa_user', JSON.stringify(validatedUser));
+        cacheLightUser(validatedUser);
 
         const storedToken = localStorage.getItem('venoxa_token') || await auth.currentUser?.getIdToken();
         if (storedToken) {
@@ -2132,7 +2204,7 @@ function AppInner() {
       setToken(jwt);
       setUser(userData);
       localStorage.setItem('venoxa_token', jwt);
-      localStorage.setItem('venoxa_user', JSON.stringify(userData));
+      cacheLightUser(userData);
       setIsCloudProgressLoaded(true);
       await syncProgress(jwt, userData, null, true);
       return { success: true };
@@ -2152,7 +2224,7 @@ function AppInner() {
       setToken(jwt);
       setUser(userData);
       localStorage.setItem('venoxa_token', jwt);
-      localStorage.setItem('venoxa_user', JSON.stringify(userData));
+      cacheLightUser(userData);
       setIsCloudProgressLoaded(true);
       await syncProgress(jwt, userData, null, true);
       return { success: true };
@@ -2169,7 +2241,7 @@ function AppInner() {
       setToken(jwt);
       setUser(userData);
       localStorage.setItem('venoxa_token', jwt);
-      localStorage.setItem('venoxa_user', JSON.stringify(userData));
+      cacheLightUser(userData);
       setIsCloudProgressLoaded(true);
       await syncProgress(jwt, userData, null, true);
       return { success: true };
@@ -2211,7 +2283,7 @@ function AppInner() {
     try {
       const updated = await fbUpdateProfile(token, updates);
       setUser(updated);
-      localStorage.setItem('venoxa_user', JSON.stringify(updated));
+      cacheLightUser(updated);
       if (updates.level) {
         setUserLevel(updates.level);
         localStorage.setItem('userLevel', updates.level);
@@ -2541,7 +2613,7 @@ function AppInner() {
       }
       _persistDirty();
 
-      localStorage.setItem('venoxa_last_sync_snapshot', JSON.stringify(lastSyncSnapshot.current));
+      await lsSetCompressed('venoxa_last_sync_snapshot', lastSyncSnapshot.current);
 
       setSyncStatus('synced');
       setSyncErrorMsg('');
@@ -2751,10 +2823,10 @@ function AppInner() {
           xp: remote.xp || 0,
         };
         setUser(lightProfile);
-        localStorage.setItem('venoxa_user', JSON.stringify(lightProfile));
+        cacheLightUser(lightProfile);
       }
 
-      localStorage.setItem('venoxa_last_sync_snapshot', JSON.stringify(lastSyncSnapshot.current));
+      await lsSetCompressed('venoxa_last_sync_snapshot', lastSyncSnapshot.current);
     } catch (err) {
       console.warn('pullChanges failed:', err);
     } finally {
@@ -2783,12 +2855,13 @@ function AppInner() {
   // Calling it here too causes a double-pull race condition on startup.
   useEffect(() => {
     if (token) {
-      try {
-        const savedSnapshot = localStorage.getItem('venoxa_last_sync_snapshot');
-        if (savedSnapshot) {
-          lastSyncSnapshot.current = JSON.parse(savedSnapshot);
+      let live = true;
+      lsGetCompressed('venoxa_last_sync_snapshot').then((snap) => {
+        if (live && snap && typeof snap === 'object') {
+          lastSyncSnapshot.current = snap;
         }
-      } catch {}
+      }).catch(() => {});
+      return () => { live = false; };
     }
   }, [token]);
 
