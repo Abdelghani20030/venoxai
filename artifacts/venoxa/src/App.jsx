@@ -6804,13 +6804,41 @@ function Vocabulary({
     reader.readAsText(file);
   };
   const filteredVocabList = useMemo(() => {
-    return globalVocab.filter(item => {
+    const q = searchQuery.trim().toLowerCase();
+    const list = globalVocab.filter(item => {
       const matchesLevel = levelFilter === 'All' || item.level?.toUpperCase().includes(levelFilter.toUpperCase());
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch = item.word.toLowerCase().includes(searchLower) || item.meaning && item.meaning.toLowerCase().includes(searchLower);
-      return matchesLevel && matchesSearch;
+      if (!matchesLevel) return false;
+      if (!q) return true;
+      const wordLower = (item.word || '').toLowerCase();
+      const meaningLower = (item.meaning || '').toLowerCase();
+      return wordLower.includes(q) || meaningLower.includes(q);
+    });
+
+    if (!q) return list;
+
+    return list.slice().sort((a, b) => {
+      const aWord = (a.word || '').toLowerCase();
+      const bWord = (b.word || '').toLowerCase();
+
+      const aExact = aWord === q ? 0 : 1;
+      const bExact = bWord === q ? 0 : 1;
+      if (aExact !== bExact) return aExact - bExact;
+
+      const aStarts = aWord.startsWith(q) ? 0 : 1;
+      const bStarts = bWord.startsWith(q) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+
+      const aWordHas = aWord.includes(q) ? 0 : 1;
+      const bWordHas = bWord.includes(q) ? 0 : 1;
+      if (aWordHas !== bWordHas) return aWordHas - bWordHas;
+
+      return 0;
     });
   }, [globalVocab, levelFilter, searchQuery]);
+
+  useEffect(() => {
+    setActiveWordIndex(0);
+  }, [searchQuery, levelFilter]);
   const safeIndex = activeWordIndex < filteredVocabList.length ? activeWordIndex : 0;
   const card = vocabMode === 'review' ? dueCards[0] : filteredVocabList[safeIndex];
   useEffect(() => { setAiStory(''); setCardImage(null); setCollocationData(''); }, [card?.word]);
@@ -7194,7 +7222,34 @@ function PhrasalVerbs({
     };
     reader.readAsText(file);
   };
-  const filteredList = useMemo(() => { const s = searchQuery.toLowerCase(); return phrasalVocab.filter(item => item.word.toLowerCase().includes(s) || (item.meaning && item.meaning.toLowerCase().includes(s))); }, [phrasalVocab, searchQuery]);
+  const filteredList = useMemo(() => {
+    const s = searchQuery.trim().toLowerCase();
+    const list = phrasalVocab.filter(item => {
+      if (!s) return true;
+      const wordLower = (item.word || '').toLowerCase();
+      const meaningLower = (item.meaning || '').toLowerCase();
+      return wordLower.includes(s) || meaningLower.includes(s);
+    });
+    if (!s) return list;
+    return list.slice().sort((a, b) => {
+      const aWord = (a.word || '').toLowerCase();
+      const bWord = (b.word || '').toLowerCase();
+      const aExact = aWord === s ? 0 : 1;
+      const bExact = bWord === s ? 0 : 1;
+      if (aExact !== bExact) return aExact - bExact;
+      const aStarts = aWord.startsWith(s) ? 0 : 1;
+      const bStarts = bWord.startsWith(s) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      const aWordHas = aWord.includes(s) ? 0 : 1;
+      const bWordHas = bWord.includes(s) ? 0 : 1;
+      if (aWordHas !== bWordHas) return aWordHas - bWordHas;
+      return 0;
+    });
+  }, [phrasalVocab, searchQuery]);
+
+  useEffect(() => {
+    setActiveWordIndex(0);
+  }, [searchQuery]);
   const safeIndex = activeWordIndex < filteredList.length ? activeWordIndex : 0;
   const card = mode === 'review' ? dueCards[0] : filteredList[safeIndex];
   useEffect(() => { setCollocationData(''); setCardImage(null); setAiStory(''); }, [card?.word]);
@@ -7476,13 +7531,35 @@ function IdiomsSlang({
   };
 
   const filteredList = useMemo(() => {
-    const s = searchQuery.toLowerCase();
-    return idiomsVocab.filter(item => {
+    const s = searchQuery.trim().toLowerCase();
+    const list = idiomsVocab.filter(item => {
       const matchesTopic = topicFilter === 'All' || item.topic === topicFilter;
-      const matchesSearch = item.word.toLowerCase().includes(s) || (item.meaning && item.meaning.toLowerCase().includes(s));
-      return matchesTopic && matchesSearch;
+      if (!matchesTopic) return false;
+      if (!s) return true;
+      const wordLower = (item.word || '').toLowerCase();
+      const meaningLower = (item.meaning || '').toLowerCase();
+      return wordLower.includes(s) || meaningLower.includes(s);
+    });
+    if (!s) return list;
+    return list.slice().sort((a, b) => {
+      const aWord = (a.word || '').toLowerCase();
+      const bWord = (b.word || '').toLowerCase();
+      const aExact = aWord === s ? 0 : 1;
+      const bExact = bWord === s ? 0 : 1;
+      if (aExact !== bExact) return aExact - bExact;
+      const aStarts = aWord.startsWith(s) ? 0 : 1;
+      const bStarts = bWord.startsWith(s) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      const aWordHas = aWord.includes(s) ? 0 : 1;
+      const bWordHas = bWord.includes(s) ? 0 : 1;
+      if (aWordHas !== bWordHas) return aWordHas - bWordHas;
+      return 0;
     });
   }, [idiomsVocab, searchQuery, topicFilter]);
+
+  useEffect(() => {
+    setActiveWordIndex(0);
+  }, [searchQuery, topicFilter]);
 
   const safeIndex = activeWordIndex < filteredList.length ? activeWordIndex : 0;
   const card = mode === 'review' ? dueCards[0] : filteredList[safeIndex];
@@ -7777,13 +7854,35 @@ function IdiomsProper({
   };
 
   const filteredList = useMemo(() => {
-    const s = searchQuery.toLowerCase();
-    return idiomsProperVocab.filter(item => {
+    const s = searchQuery.trim().toLowerCase();
+    const list = idiomsProperVocab.filter(item => {
       const matchesTopic = topicFilter === 'All' || item.topic === topicFilter;
-      const matchesSearch = item.word.toLowerCase().includes(s) || (item.meaning && item.meaning.toLowerCase().includes(s));
-      return matchesTopic && matchesSearch;
+      if (!matchesTopic) return false;
+      if (!s) return true;
+      const wordLower = (item.word || '').toLowerCase();
+      const meaningLower = (item.meaning || '').toLowerCase();
+      return wordLower.includes(s) || meaningLower.includes(s);
+    });
+    if (!s) return list;
+    return list.slice().sort((a, b) => {
+      const aWord = (a.word || '').toLowerCase();
+      const bWord = (b.word || '').toLowerCase();
+      const aExact = aWord === s ? 0 : 1;
+      const bExact = bWord === s ? 0 : 1;
+      if (aExact !== bExact) return aExact - bExact;
+      const aStarts = aWord.startsWith(s) ? 0 : 1;
+      const bStarts = bWord.startsWith(s) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      const aWordHas = aWord.includes(s) ? 0 : 1;
+      const bWordHas = bWord.includes(s) ? 0 : 1;
+      if (aWordHas !== bWordHas) return aWordHas - bWordHas;
+      return 0;
     });
   }, [idiomsProperVocab, searchQuery, topicFilter]);
+
+  useEffect(() => {
+    setActiveWordIndex(0);
+  }, [searchQuery, topicFilter]);
 
   const safeIndex = activeWordIndex < filteredList.length ? activeWordIndex : 0;
   const card = mode === 'review' ? dueCards[0] : filteredList[safeIndex];
@@ -12430,14 +12529,43 @@ function Langeek({
     reader.readAsText(file);
   };
   const filteredVocabList = useMemo(() => {
-    return langeekVocab.filter(item => {
+    const q = searchQuery.trim().toLowerCase();
+    const list = langeekVocab.filter(item => {
       const matchesLevel = levelFilter === 'All' || item.level?.toUpperCase().includes(levelFilter.toUpperCase());
       const matchesCategory = categoryFilter === 'All' || item.category?.toUpperCase() === categoryFilter.toUpperCase();
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch = item.word.toLowerCase().includes(searchLower) || item.meaning && item.meaning.toLowerCase().includes(searchLower);
-      return matchesLevel && matchesCategory && matchesSearch;
+      if (!matchesLevel || !matchesCategory) return false;
+      if (!q) return true;
+      const wordLower = (item.word || '').toLowerCase();
+      const meaningLower = (item.meaning || '').toLowerCase();
+      return wordLower.includes(q) || meaningLower.includes(q);
+    });
+
+    if (!q) return list;
+
+    // Prioritize results so exact word matches and prefix matches show first!
+    return list.slice().sort((a, b) => {
+      const aWord = (a.word || '').toLowerCase();
+      const bWord = (b.word || '').toLowerCase();
+
+      const aExact = aWord === q ? 0 : 1;
+      const bExact = bWord === q ? 0 : 1;
+      if (aExact !== bExact) return aExact - bExact;
+
+      const aStarts = aWord.startsWith(q) ? 0 : 1;
+      const bStarts = bWord.startsWith(q) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+
+      const aWordHas = aWord.includes(q) ? 0 : 1;
+      const bWordHas = bWord.includes(q) ? 0 : 1;
+      if (aWordHas !== bWordHas) return aWordHas - bWordHas;
+
+      return 0;
     });
   }, [langeekVocab, levelFilter, categoryFilter, searchQuery]);
+
+  useEffect(() => {
+    setActiveWordIndex(0);
+  }, [searchQuery, levelFilter, categoryFilter]);
   const safeIndex = activeWordIndex < filteredVocabList.length ? activeWordIndex : 0;
   const card = vocabMode === 'review' ? dueCards[0] : filteredVocabList[safeIndex];
   useEffect(() => { setAiStory(''); setCardImage(null); setCollocationData(''); }, [card?.word]);
