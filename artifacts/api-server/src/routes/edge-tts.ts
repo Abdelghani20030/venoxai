@@ -443,59 +443,67 @@ async function getAudioAny(
   if (pending) return pending;
 
   const promise = (async () => {
-    // 1. Edge TTS — best quality when the WS endpoint accepts us (breaker skips dead stretches)
-    if (!edgeBlocked()) {
+    // 1. Edge TTS — best quality when the WS endpoint accepts us; retry up to 3 times
+    let lastEdgeErr: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const buf = await edgeSynthesize(voice, input);
         edgeRecordSuccess();
         const value = { buf, type: "audio/mpeg", engine: "microsoft-edge" };
         cachePut(key, value);
-        log({ voice, len: input.length, bytes: buf.length, engine: value.engine }, "TTS via Edge");
+        log({ voice, len: input.length, bytes: buf.length, engine: value.engine, attempt: attempt + 1 }, "TTS via Edge");
         return value;
       } catch (edgeErr) {
-        edgeRecordFailure();
+        lastEdgeErr = edgeErr;
         log(
-          { err: edgeErr instanceof Error ? edgeErr.message : String(edgeErr), voice },
-          "Edge TTS unavailable, trying Groq",
+          { err: edgeErr instanceof Error ? edgeErr.message : String(edgeErr), voice, attempt: attempt + 1 },
+          "Edge TTS attempt failed",
         );
+        await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
       }
     }
+    edgeRecordFailure(lastEdgeErr);
 
-    // 2. Groq Orpheus — free tier; premium English + Arabic voices when quota is available
-    try {
-      const buf = await groqSynthesize(input, voice);
-      const value = { buf, type: "audio/wav", engine: "groq-orpheus" };
-      cachePut(key, value);
-      log({ voice, len: input.length, bytes: buf.length, engine: value.engine }, "TTS via Groq");
-      return value;
-    } catch (groqErr) {
-      log({ err: groqErr instanceof Error ? groqErr.message : String(groqErr), voice }, "Groq TTS unavailable, trying Google");
-    }
-
-    // 2b. Gemini TTS — studio voices; only for long readings where the
-    // extra 2-3 s is worth the quality jump over the translate voice.
-    if (input.length > 140) {
+    // Only fall back to Groq/Google if explicitly enabled in the environment.
+    // Changing voice engines mid-conversation causes confusing mid-phrase speaker switches.
+    if (process.env.ENABLE_GROQ_FALLBACK === "1") {
+      // 2. Groq Orpheus — free tier; premium English + Arabic voices when quota is available
       try {
-        const buf = await geminiSynthesize(input, voice);
-        const value = { buf, type: "audio/wav", engine: "gemini-tts" };
+        const buf = await groqSynthesize(input, voice);
+        const value = { buf, type: "audio/wav", engine: "groq-orpheus" };
         cachePut(key, value);
-        log({ voice, len: input.length, bytes: buf.length, engine: value.engine }, "TTS via Gemini");
+        log({ voice, len: input.length, bytes: buf.length, engine: value.engine }, "TTS via Groq");
         return value;
-      } catch (gemErr) {
-        log({ err: gemErr instanceof Error ? gemErr.message : String(gemErr), voice }, "Gemini TTS unavailable, trying Google");
+      } catch (groqErr) {
+        log({ err: groqErr instanceof Error ? groqErr.message : String(groqErr), voice }, "Groq TTS unavailable, trying Google");
+      }
+
+      // 2b. Gemini TTS — studio voices; only for long readings
+      if (input.length > 140) {
+        try {
+          const buf = await geminiSynthesize(input, voice);
+          const value = { buf, type: "audio/wav", engine: "gemini-tts" };
+          cachePut(key, value);
+          log({ voice, len: input.length, bytes: buf.length, engine: value.engine }, "TTS via Gemini");
+          return value;
+        } catch (gemErr) {
+          log({ err: gemErr instanceof Error ? gemErr.message : String(gemErr), voice }, "Gemini TTS unavailable, trying Google");
+        }
+      }
+
+      // 3. Google Translate TTS — keyless last resort
+      try {
+        const buf = await googleSynthesize(input, voice);
+        const value = { buf, type: "audio/mpeg", engine: "google-translate" };
+        cachePut(key, value);
+        log({ voice, len: input.length, bytes: buf.length, engine: value.engine }, "TTS via Google");
+        return value;
+      } catch (gErr) {
+        throw new Error(`All TTS engines failed: ${gErr instanceof Error ? gErr.message : String(gErr)}`);
       }
     }
 
-    // 3. Google Translate TTS — keyless last resort
-    try {
-      const buf = await googleSynthesize(input, voice);
-      const value = { buf, type: "audio/mpeg", engine: "google-translate" };
-      cachePut(key, value);
-      log({ voice, len: input.length, bytes: buf.length, engine: value.engine }, "TTS via Google");
-      return value;
-    } catch (gErr) {
-      throw new Error(`All TTS engines failed: ${gErr instanceof Error ? gErr.message : String(gErr)}`);
-    }
+    throw new Error(`Edge TTS failed after 3 attempts: ${lastEdgeErr instanceof Error ? lastEdgeErr.message : String(lastEdgeErr)}`);
   })();
 
   inflight.set(key, promise);

@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>English Proficiency Certificate - Venoxa AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       CERTIFICATE STYLES - A4 LANDSCAPE (297mm x 210mm)
+       ========================================================================== */
+    :root {
+      --primary-navy: #1E1B4B;
+      --gradient-accent: linear-gradient(135deg, #6D28D9 0%, #2563EB 100%);
+      --soft-gray: #E5E7EB;
+      --text-muted: #6B7280;
+      --card-bg: #F9FAFB;
+      --white: #FFFFFF;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #F3F4F6;
+      color: var(--primary-navy);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 12px;
+      min-height: 100vh;
+    }
+
+    /* Print toolbar (hidden when printing) */
+    .no-print-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .btn {
+      background: var(--gradient-accent);
+      color: #fff;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(109, 40, 217, 0.25);
+      transition: transform 0.15s ease, opacity 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    /* Certificate A4 Sheet */
+    .certificate-sheet {
+      width: 297mm;
+      height: 210mm;
+      background-color: var(--white);
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 14mm 16mm 12mm 16mm;
+    }
+
+    /* Top decorative gradient bar */
+    .certificate-sheet::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: var(--gradient-accent);
+    }
+
+    /* Subtle decorative border around page */
+    .cert-border-frame {
+      position: absolute;
+      inset: 8mm;
+      border: 1px solid rgba(109, 40, 217, 0.12);
+      border-radius: 12px;
+      pointer-events: none;
+    }
+
+    /* 1. HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--gradient-accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+      letter-spacing: -0.5px;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    }
+
+    .brand-name {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: var(--primary-navy);
+    }
+
+    .cert-id-url {
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+    }
+
+    /* 2. TITLE BLOCK */
+    .title-block {
+      text-align: center;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cert-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: #6D28D9;
+      margin-bottom: 4px;
+    }
+
+    .candidate-name {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      color: var(--primary-navy);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .completion-subtext {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* 3. MAIN RESULT PANEL */
+    .main-result-wrapper {
+      display: flex;
+      justify-content: center;
+      margin: 6px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .main-result-card {
+      background: var(--gradient-accent);
+      color: #fff;
+      padding: 12px 42px;
+      border-radius: 18px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.22);
+      min-width: 250px;
+    }
+
+    .big-score {
+      font-size: 38px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.5px;
+    }
+
+    .level-label {
+      font-size: 13.5px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-top: 4px;
+      opacity: 0.95;
+    }
+
+    /* 4. SCORE SCALE BAR */
+    .scale-section {
+      width: 100%;
+      position: relative;
+      z-index: 1;
+      margin: 4px 0 2px;
+    }
+
+    .scale-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+
+    .scale-bar-container {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      align-items: flex-end;
+      position: relative;
+    }
+
+    .scale-segment {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .segment-range {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      transition: color 0.2s;
+    }
+
+    .segment-block {
+      width: 100%;
+      height: 14px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .segment-cefr {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-top: 5px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* Specific segment colors (light lavender to deep blue) */
+    .seg-0 .segment-block { background-color: #EDE9FE; }
+    .seg-1 .segment-block { background-color: #DDD6FE; }
+    .seg-2 .segment-block { background-color: #C4B5FD; }
+    .seg-3 .segment-block { background-color: #A78BFA; }
+    .seg-4 .segment-block { background-color: #60A5FA; }
+    .seg-5 .segment-block { background-color: #3B82F6; }
+    .seg-6 .segment-block { background-color: #1D4ED8; }
+
+    /* Highlighted segment */
+    .scale-segment.highlighted .segment-block {
+      height: 20px;
+      background: var(--gradient-accent);
+      box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
+      border-radius: 5px;
+    }
+
+    .scale-segment.highlighted .segment-range {
+      color: #6D28D9;
+      font-weight: 800;
+      font-size: 10.5px;
+    }
+
+    .scale-segment.highlighted .segment-cefr {
+      color: var(--primary-navy);
+      font-weight: 800;
+      font-size: 10.5px;
+    }
+
+    /* Pin / Marker above highlighted segment */
+    .pin-marker {
+      position: absolute;
+      top: -12px;
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid #6D28D9;
+      display: none;
+    }
+    .scale-segment.highlighted .pin-marker {
+      display: block;
+    }
+
+    /* 5. EXPLANATION TEXT */
+    .explanation-text {
+      text-align: center;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      max-width: 780px;
+      margin: 4px auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* 6. SKILL BREAKDOWN */
+    .skills-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 4px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .skill-card {
+      background: var(--card-bg);
+      border: 1px solid var(--soft-gray);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .skill-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 2px;
+    }
+
+    .skill-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--primary-navy);
+    }
+
+    .skill-score-num {
+      font-size: 15px;
+      font-weight: 900;
+      color: #2563EB;
+    }
+
+    .skill-cefr-text {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .skill-progress-track {
+      width: 100%;
+      height: 4px;
+      background-color: var(--soft-gray);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .skill-progress-fill {
+      height: 100%;
+      background: var(--gradient-accent);
+      border-radius: 9999px;
+      transition: width 0.3s ease;
+    }
+
+    .summary-row {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--primary-navy);
+      background: rgba(109, 40, 217, 0.04);
+      padding: 5px 12px;
+      border-radius: 8px;
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .summary-row span {
+      color: #2563EB;
+      font-weight: 800;
+    }
+
+    /* 7. FOOTER */
+    .footer-divider {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(109, 40, 217, 0.25), transparent);
+      margin-top: 6px;
+      margin-bottom: 6px;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 600;
+      position: relative;
+      z-index: 1;
+    }
+
+    .footer-url {
+      font-family: monospace;
+      color: #4B5563;
+    }
+
+    /* ==========================================================================
+       MEDIA PRINT
+       ========================================================================== */
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+
+    @media print {
+      body {
+        background-color: #fff;
+        padding: 0;
+        margin: 0;
+      }
+      .no-print-bar {
+        display: none !important;
+      }
+      .certificate-sheet {
+        box-shadow: none;
+        width: 297mm;
+        height: 210mm;
+        page-break-after: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Screen-only print toolbar -->
+  <div class="no-print-bar">
+    <button class="btn" onclick="window.print()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print Certificate (PDF)
+    </button>
+  </div>
+
+  <!-- A4 Landscape Certificate Sheet -->
+  <div class="certificate-sheet" id="certificateSheet">
+    <div class="cert-border-frame"></div>
+
+    <!-- 1. HEADER -->
+    <header class="header">
+      <div class="logo-box">
+        <div class="logo-badge" id="logoBadge">V</div>
+        <div class="brand-name" id="brandName">Venoxa AI</div>
+      </div>
+      <div class="cert-id-url" id="certIdUrl">cert.example.com/VX-2025-883921</div>
+    </header>
+
+    <!-- 2. TITLE BLOCK -->
+    <div class="title-block">
+      <div class="cert-label">English Certificate</div>
+      <h1 class="candidate-name" id="candidateName">ABDELGHANI NOUAYTI</h1>
+      <p class="completion-subtext">has successfully completed the English Level Test and has earned level:</p>
+    </div>
+
+    <!-- 3. MAIN RESULT PANEL -->
+    <div class="main-result-wrapper">
+      <div class="main-result-card">
+        <div class="big-score" id="mainScore">41/100</div>
+        <div class="level-label" id="mainLevel">B1 Intermediate</div>
+      </div>
+    </div>
+
+    <!-- 4. SCORE SCALE BAR -->
+    <div class="scale-section">
+      <div class="scale-title">Understanding the results</div>
+      <div class="scale-bar-container" id="scaleContainer">
+        <!-- Rendered dynamically from CEFR_SCALE -->
+      </div>
+    </div>
+
+    <!-- 5. EXPLANATION TEXT -->
+    <p class="explanation-text" id="explanationText">
+      The achieved level is 41/100 on the score scale and B1 Intermediate according to the Common European Framework of Reference (CEFR). The overall score is calculated as an average of the skill section scores.
+    </p>
+
+    <!-- 6. SKILL BREAKDOWN -->
+    <div>
+      <div class="skills-grid" id="skillsGrid">
+        <!-- Rendered dynamically from skills config -->
+      </div>
+      <div class="summary-row" id="summaryRow">
+        Reading: 33 &nbsp;|&nbsp; Listening: 36 &nbsp;|&nbsp; Writing: 45 &nbsp;|&nbsp; Speaking: 50 &nbsp;→&nbsp; <span>41/100, B1 Intermediate</span>
+      </div>
+    </div>
+
+    <!-- 7. FOOTER -->
+    <div>
+      <div class="footer-divider"></div>
+      <footer class="footer">
+        <div id="footerDate">Awarded on: 11 Dec 2025</div>
+        <div class="footer-url" id="footerUrl">cert.example.com/VX-2025-883921</div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. CERTIFICATE CONFIGURATION DATA (Stored in ONE JS/JSON Object at the top)
+       All values, scores, candidate name, date, and URLs can be easily edited here.
+       ========================================================================== */
+    const CERTIFICATE_DATA = {
+      brandName: "Venoxa AI",
+      candidateName: "ABDELGHANI NOUAYTI",
+      certificateId: "VX-2025-883921",
+      certificateUrl: "cert.example.com/VX-2025-883921",
+      awardedDate: "11 Dec 2025",
+      overallScore: 41,
+      overallLevel: "B1 Intermediate",
+      skills: {
+        reading:   { name: "Reading",   level: "A2 Elementary",         score: 33 },
+        listening: { name: "Listening", level: "A2 Elementary",         score: 36 },
+        writing:   { name: "Writing",   level: "B1 Intermediate",       score: 45 },
+        speaking:  { name: "Speaking",  level: "B1 Intermediate",       score: 50 }
+      }
+    };
+
+    /* CEFR 7-segment Scale Definition */
+    const CEFR_SCALE = [
+      { min: 0,  max: 20,  cefr: "A0", title: "Novice" },
+      { min: 21, max: 30,  cefr: "A1", title: "Beginner" },
+      { min: 31, max: 40,  cefr: "A2", title: "Elementary" },
+      { min: 41, max: 50,  cefr: "B1", title: "Intermediate" },
+      { min: 51, max: 60,  cefr: "B2", title: "Upper Intermediate" },
+      { min: 61, max: 70,  cefr: "C1", title: "Advanced" },
+      { min: 71, max: 100, cefr: "C2", title: "Proficient" }
+    ];
+
+    /* ==========================================================================
+       2. AUTOMATIC RENDERING LOGIC
+       ========================================================================== */
+    function renderCertificate(data) {
+      // 1. Header & Brand
+      document.getElementById("brandName").textContent = data.brandName;
+      document.getElementById("logoBadge").textContent = data.brandName.charAt(0);
+      document.getElementById("certIdUrl").textContent = data.certificateUrl;
+
+      // 2. Title Block
+      document.getElementById("candidateName").textContent = data.candidateName;
+
+      // 3. Main Result Panel
+      document.getElementById("mainScore").textContent = `${data.overallScore}/100`;
+      document.getElementById("mainLevel").textContent = data.overallLevel;
+
+      // 4. Render 7-Segment Scale & Automatically Pin Highlighted Segment
+      const scaleContainer = document.getElementById("scaleContainer");
+      scaleContainer.innerHTML = "";
+
+      CEFR_SCALE.forEach((seg, index) => {
+        const isHighlighted = (data.overallScore >= seg.min && data.overallScore <= seg.max);
+        
+        const segEl = document.createElement("div");
+        segEl.className = `scale-segment seg-${index} ${isHighlighted ? "highlighted" : ""}`;
+        
+        segEl.innerHTML = `
+          <div class="pin-marker"></div>
+          <div class="segment-range">${seg.min}-${seg.max}</div>
+          <div class="segment-block"></div>
+          <div class="segment-cefr">${seg.cefr} ${seg.title}</div>
+        `;
+        scaleContainer.appendChild(segEl);
+      });
+
+      // 5. Explanation Text
+      document.getElementById("explanationText").textContent =
+        `The achieved level is ${data.overallScore}/100 on the score scale and ${data.overallLevel} according to the Common European Framework of Reference (CEFR). The overall score is calculated as an average of the skill section scores.`;
+
+      // 6. Skill Breakdown Cards & Progress Bars
+      const skillsGrid = document.getElementById("skillsGrid");
+      skillsGrid.innerHTML = "";
+      const skillKeys = Object.keys(data.skills);
+
+      skillKeys.forEach(k => {
+        const s = data.skills[k];
+        const card = document.createElement("div");
+        card.className = "skill-card";
+        card.innerHTML = `
+          <div>
+            <div class="skill-card-top">
+              <span class="skill-title">${s.name}</span>
+              <span class="skill-score-num">${s.score}</span>
+            </div>
+            <div class="skill-cefr-text">${s.level}</div>
+          </div>
+          <div class="skill-progress-track">
+            <div class="skill-progress-fill" style="width: ${Math.max(0, Math.min(100, s.score))}%"></div>
+          </div>
+        `;
+        skillsGrid.appendChild(card);
+      });
+
+      // Summary row
+      const summaryParts = skillKeys.map(k => `${data.skills[k].score}`).join("  |  ");
+      document.getElementById("summaryRow").innerHTML =
+        `${summaryParts} &nbsp;→&nbsp; <span>${data.overallScore}/100, ${data.overallLevel}</span>`;
+
+      // 7. Footer
+      document.getElementById("footerDate").textContent = `Awarded on: ${data.awardedDate}`;
+      document.getElementById("footerUrl").textContent = data.certificateUrl;
+    }
+
+    // Initialize certificate on load
+    document.addEventListener("DOMContentLoaded", () => {
+      renderCertificate(CERTIFICATE_DATA);
+    });
+  </script>
+</body>
+</html>
