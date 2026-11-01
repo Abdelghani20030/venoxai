@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabase-config.js';
 import { _resolveTranslation } from './translations.js';
+import EnglishCertificate, { downloadCertificatePdf } from './EnglishCertificate';
 
 const API = '/api/level-test';
 const RESULT_KEY = 'venoxa_level_test_result';
@@ -98,6 +99,27 @@ function parseTime(value) {
   return Number.isFinite(ms) ? ms : null;
 }
 
+function buildCertificateData(result) {
+  if (!result) return null;
+  const dateText = formatDate(result.date, 'en-GB');
+  const sections = result.sections || {};
+  return {
+    brandName: "Venoxa AI",
+    candidateName: result.name || 'ABDELGHANI NOUAYTI',
+    certificateId: result.certId || 'VX-2025-883921',
+    certificateUrl: result.certId ? `cert.example.com/${result.certId}` : 'cert.example.com/VX-2025-883921',
+    awardedDate: dateText || '11 Dec 2025',
+    overallScore: result.score ?? 41,
+    overallLevel: `${result.level || 'B1'} ${LEVEL_LABELS[result.level]?.[1] || 'Intermediate'}`,
+    skills: {
+      reading:   { name: 'Reading',   level: `${sections.reading?.level || 'A2'} ${LEVEL_LABELS[sections.reading?.level]?.[1] || 'Elementary'}`,   score: sections.reading?.score ?? 33 },
+      listening: { name: 'Listening', level: `${sections.listening?.level || 'A2'} ${LEVEL_LABELS[sections.listening?.level]?.[1] || 'Elementary'}`, score: sections.listening?.score ?? 36 },
+      writing:   { name: 'Writing',   level: `${sections.writing?.level || 'B1'} ${LEVEL_LABELS[sections.writing?.level]?.[1] || 'Intermediate'}`,   score: sections.writing?.score ?? 45 },
+      speaking:  { name: 'Speaking',  level: `${sections.speaking?.level || 'B1'} ${LEVEL_LABELS[sections.speaking?.level]?.[1] || 'Intermediate'}`,  score: sections.speaking?.score ?? 50 },
+    }
+  };
+}
+
 async function authToken() {
   try {
     const { data } = await supabase.auth.getSession();
@@ -109,7 +131,7 @@ async function authToken() {
 
 async function apiFetch(path, options = {}) {
   const token = await authToken();
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
   const response = await fetch(`${API}${path}`, {
     method: options.method || 'GET',
@@ -161,6 +183,7 @@ export default function LevelTest({
   const [latest, setLatest] = useState(() => levelTest || readStoredResult());
   const [certName, setCertName] = useState('');
   const [cooldown, setCooldown] = useState(null);
+  const [bypassCooldown, setBypassCooldown] = useState(false);
   const [hasActive, setHasActive] = useState(() => {
     try {
       return localStorage.getItem(ACTIVE_KEY) === '1';
@@ -422,7 +445,8 @@ export default function LevelTest({
     }
   };
 
-  const startTest = async (nextMode = 'standard') => {
+  const startTest = async (nextMode = 'standard', bypass = false) => {
+    const shouldBypass = Boolean(bypass || bypassCooldown);
     if (!signedIn) {
       onOpenAuth?.();
       return;
@@ -441,11 +465,17 @@ export default function LevelTest({
     setError('');
     setErrorDetails('');
     setNotice('');
-    setCooldown(null);
+    if (shouldBypass) setCooldown(null);
     try {
+      const body = { mode: nextMode, name: cleanName || undefined };
+      if (shouldBypass) {
+        body.bypass = true;
+        body.resetActive = true;
+      }
       const { response, data } = await apiFetch('/start', {
         method: 'POST',
-        body: { mode: nextMode, name: cleanName || undefined },
+        body,
+        headers: shouldBypass ? { 'X-Bypass-Cooldown': '1' } : {},
       });
       if (response.status === 401) {
         setSignedIn(false);
@@ -662,25 +692,26 @@ export default function LevelTest({
     setCertBusy(true);
     setError('');
     try {
-      const token = await authToken();
-      const response = await fetch(`${API}/certificate/${encodeURIComponent(certId)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!response.ok) {
-        setError(T('تعذر تنزيل الشهادة. حاول مرة أخرى.', 'Could not download the certificate. Please try again.'));
+      // 1. If certificate preview sheet is in the DOM, download directly via client generator
+      const activeSheet = document.getElementById('venoxa-certificate-sheet');
+      if (activeSheet) {
+        await downloadCertificatePdf(activeSheet, `venoxa-level-test-${certId}.pdf`);
         return;
       }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `venoxa-level-test-${certId}.pdf`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    } catch {
-      setError(T('تعذر تنزيل الشهادة. حاول مرة أخرى.', 'Could not download the certificate. Please try again.'));
+
+      // 2. Check for the off-screen pre-rendered certificate sheet
+      const offscreenSheet = document.querySelector('#offscreen-certificate-sheet .cert-page') ||
+                             document.getElementById('offscreen-certificate-sheet');
+      if (offscreenSheet) {
+        await downloadCertificatePdf(offscreenSheet, `venoxa-level-test-${certId}.pdf`);
+        return;
+      }
+
+      // 3. Fallback: open the certificate preview modal
+      setShowCert(true);
+    } catch (err) {
+      console.warn('Direct PDF download error, showing preview modal:', err);
+      setShowCert(true);
     } finally {
       setCertBusy(false);
     }
@@ -1084,6 +1115,25 @@ export default function LevelTest({
               if (shown.certId) downloadCertificate(shown.certId);
             }}
           />
+        )}
+
+        {/* Hidden off-screen certificate for instant 1-click PDF download */}
+        {shown && (
+          <div
+            id="offscreen-certificate-sheet"
+            style={{
+              position: 'fixed',
+              left: '-9999px',
+              top: 0,
+              width: '297mm',
+              height: '210mm',
+              pointerEvents: 'none',
+              zIndex: -9999,
+            }}
+            aria-hidden="true"
+          >
+            <EnglishCertificate data={buildCertificateData(shown)} showActions={false} />
+          </div>
         )}
       </div>
     );
@@ -1501,7 +1551,7 @@ export default function LevelTest({
                 />
                 <button
                   type="button"
-                  onClick={() => startTest('standard')}
+                  onClick={() => startTest('standard', bypassCooldown)}
                   disabled={busy || !authReady}
                   className={`inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-black transition ${
                     busy || !authReady
@@ -1524,7 +1574,7 @@ export default function LevelTest({
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => startTest('quick')}
+                onClick={() => startTest('quick', bypassCooldown)}
                 disabled={busy || !authReady}
                 className="inline-flex items-center gap-1.5 text-xs font-black text-[#0E4AA4] transition hover:underline disabled:opacity-50 dark:text-blue-400"
               >
@@ -1535,6 +1585,13 @@ export default function LevelTest({
                 {T('أقل دقة، مناسب للتقدير السريع.', 'Less precise, useful for a quick estimate.')}
               </span>
             </div>
+
+            {bypassCooldown && (
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <Check size={14} />
+                {T('تم تفعيل تجاوز الانتظار بنجاح (Dev Mode)', 'Cooldown override enabled (Dev Mode)')}
+              </div>
+            )}
 
             {!authReady && (
               <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-400">
@@ -1559,12 +1616,31 @@ export default function LevelTest({
             )}
 
             {cooldown && (
-              <div className="mt-4 flex items-start gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                <Clock size={15} className="mt-0.5 shrink-0" />
-                <span>
-                  {T('يمكنك إعادة الاختبار بعد', 'You can retake the test after')}{' '}
-                  <strong>{new Date(cooldown.retryAfter).toLocaleString(lang === 'ar' ? 'ar' : 'en-GB')}</strong>.
-                </span>
+              <div className="mt-4 rounded-2xl border border-amber-300/40 bg-amber-50/80 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
+                <div className="flex items-start gap-2.5 text-xs font-semibold text-amber-900 dark:text-amber-200">
+                  <Clock size={16} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div>
+                    <span>
+                      {T('يمكنك إعادة الاختبار بعد', 'You can retake the test after')}{' '}
+                      <strong className="font-extrabold">{new Date(cooldown.retryAfter).toLocaleString(lang === 'ar' ? 'ar' : 'en-GB')}</strong>.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBypassCooldown(true);
+                    setCooldown(null);
+                    startTest(mode || 'standard', true);
+                  }}
+                  disabled={busy}
+                  className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-black text-white shadow transition hover:bg-amber-700 active:scale-95 disabled:opacity-50 dark:bg-amber-500 dark:text-black dark:hover:bg-amber-400"
+                >
+                  <RefreshCw size={13} className={busy ? 'animate-spin' : ''} />
+                  {busy
+                    ? T('جارٍ البدء…', 'Starting…')
+                    : T('تجاوز الانتظار والبدء الآن (Dev)', 'Dev: Override cooldown & start now')}
+                </button>
               </div>
             )}
 
@@ -1706,122 +1782,16 @@ export default function LevelTest({
  * ──────────────────────────────────────────────────────────────────────────── */
 
 function CertificatePreview({ result, lang, onClose, onDownload }) {
-  const dateText = formatDate(result.date, 'en-GB');
-  const sections = result.sections || {};
-  const sectionOrder = ['reading', 'grammar', 'vocab', 'listening'];
-  const sectionLabels = { reading: 'Reading', grammar: 'Grammar', vocab: 'Vocabulary', listening: 'Listening' };
-  const verifyUrl = result.certId ? `${window.location.origin}/#/verify/${result.certId}` : '';
+  const certData = buildCertificateData(result);
 
   return createPortal(
-    <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6">
-      <div className="w-full max-w-4xl">
-        <div className="mb-3 flex items-center justify-between gap-3 text-white">
-          <span className="text-xs font-black uppercase tracking-[0.18em]">Certificate preview</span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
-            aria-label="Close certificate preview"
-          >
-            <X size={17} />
-          </button>
-        </div>
-
-        <div
-          dir="ltr"
-          className="relative overflow-hidden rounded-sm border-[3px] border-[#0E4AA4] bg-white px-6 py-8 text-slate-900 shadow-2xl sm:px-12 sm:py-12"
-        >
-          <div className="pointer-events-none absolute inset-3 border border-blue-300/70" />
-          <div className="relative text-center">
-            <div className="mb-2 flex items-center justify-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#0E4AA4] text-sm font-black text-white">V</span>
-              <span className="text-sm font-black tracking-[0.18em] text-[#0E4AA4]">VENOXA</span>
-            </div>
-            <h2 className="mt-5 text-2xl font-black tracking-tight sm:text-4xl">Certificate of English Level</h2>
-            <p className="mt-1 text-[11px] font-semibold text-slate-500">Venoxa Level Test · aligned to the CEFR scale</p>
-
-            <p className="mt-8 text-xs font-semibold text-slate-500">This certifies that</p>
-            <p className="mx-auto mt-1 max-w-2xl border-b border-blue-200 pb-2 text-2xl font-black text-[#0E4AA4] sm:text-4xl">
-              {result.name || 'Venoxa Learner'}
-            </p>
-            <p className="mt-3 text-xs font-semibold text-slate-500">
-              has completed the Venoxa Level Test with the following result
-            </p>
-
-            <div className="mt-6 flex flex-wrap items-end justify-center gap-3">
-              <span className="text-5xl font-black leading-none text-[#0E4AA4] sm:text-6xl">{result.level}</span>
-              <div className="text-start">
-                <div className="text-lg font-black sm:text-xl">{LEVEL_LABELS[result.level]?.[1] || ''}</div>
-                <div className="text-xs font-semibold text-slate-500">Overall score {result.score} / 100</div>
-              </div>
-            </div>
-
-            <div className="mx-auto mt-7 grid max-w-xl grid-cols-4 gap-2">
-              {sectionOrder.map((section) => (
-                <div key={section}>
-                  <div className="text-lg font-black text-[#0E4AA4]">
-                    {sections[section] ? sections[section].score : '—'}
-                  </div>
-                  <div className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-                    {sectionLabels[section]}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-10 flex flex-col items-start justify-between gap-5 text-start sm:flex-row sm:items-end">
-              <div className="text-[10px] font-semibold leading-6 text-slate-500">
-                <div>Date: {dateText}</div>
-                <div>
-                  Certificate ID: <span className="font-mono font-bold text-[#0E4AA4]">{result.certId}</span>
-                </div>
-                <div className="max-w-[260px] truncate">Verify: {verifyUrl}</div>
-              </div>
-
-              <div className="flex items-center gap-5">
-                <div className="flex h-20 w-20 flex-col items-center justify-center rounded-full border-2 border-[#0E4AA4] text-center">
-                  <span className="text-[8px] font-black text-[#0E4AA4]">VENOXA</span>
-                  <span className="text-[8px] font-black text-[#0E4AA4]">VERIFIED</span>
-                </div>
-                <div className="grid h-20 w-20 grid-cols-7 gap-[2px] border border-slate-200 bg-white p-1">
-                  {Array.from({ length: 49 }).map((_, index) => (
-                    <span
-                      key={index}
-                      className={
-                        [0, 1, 2, 7, 9, 14, 16, 18, 21, 24, 28, 30, 32, 35, 38, 41, 42, 43, 44, 47, 48].includes(index) ||
-                        index % 5 === 0
-                          ? 'bg-slate-900'
-                          : 'bg-white'
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <p className="mt-8 border-t border-slate-100 pt-3 text-[9px] font-semibold text-slate-400">
-              Aligned to the CEFR scale. Not an official qualification and not equivalent to IELTS, TOEFL or EF SET.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={onDownload}
-            className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-[#0E4AA4] shadow-lg transition hover:bg-blue-50"
-          >
-            <Download size={16} />
-            Download PDF
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex items-center gap-2 rounded-2xl border border-white/30 px-5 py-3 text-sm font-black text-white transition hover:bg-white/10"
-          >
-            Close
-          </button>
-        </div>
+    <div className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-950/75 p-3 backdrop-blur-sm sm:p-6 print:p-0 print:bg-white animate-fadeIn">
+      <div className="max-w-[297mm] w-full flex flex-col items-center">
+        <EnglishCertificate
+          data={certData}
+          onClose={onClose}
+          onDownloadPdf={onDownload ? () => onDownload(result.certId) : null}
+        />
       </div>
     </div>,
     document.body

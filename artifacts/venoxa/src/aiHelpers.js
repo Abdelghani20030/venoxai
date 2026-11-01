@@ -226,19 +226,39 @@ export const setToolsAccent = (accent) => {
  *   accent:  'en-US' (default) | 'en-GB'
  *   options.noWait: if true, starts playback and returns immediately.
  *
- * NOTE: The Gemini TTS fallback race has been intentionally removed —
- * it was causing audio to play twice (Edge + Gemini simultaneously).
+ * LATEST-WINS guarantee: every call bumps a generation counter and aborts
+ * the previous call's whole chain (its pending HTTP request *and* its
+ * playing audio). The old code only cancelled audio that had already
+ * started playing, so rapid clicks queued two different words back-to-back
+ * and both were spoken. The Groq/Gemini fallbacks were also removed: they
+ * synthesise with different voices ('troy'/'hannah'/'puck'), so a failed
+ * Edge request let a SECOND accent play after the user explicitly picked
+ * one. Fallback is now the browser's speechSynthesis with the same accent.
  */
-export const speakEdge = async (text, accent = 'en-US', { noWait = false } = {}) => {
-  if (!text?.trim()) return;
+let _speakEdgeGen = 0;
+let _speakEdgeAbort = null;
 
-  // Cancel whatever is currently playing.
+const _cancelEdgeSpeech = () => {
   if (_currentEdgeAudio) {
     _currentEdgeAudio.pause();
     try { _currentEdgeAudio.src = ''; } catch {}
     _currentEdgeAudio = null;
   }
+  if (_speakEdgeAbort) {
+    try { _speakEdgeAbort.abort(); } catch {}
+    _speakEdgeAbort = null;
+  }
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+};
+
+export const speakEdge = async (text, accent = 'en-US', { noWait = false } = {}) => {
+  if (!text?.trim()) return;
+
+  const gen = ++_speakEdgeGen;
+  _cancelEdgeSpeech();
+  const signalSrc = new AbortController();
+  _speakEdgeAbort = signalSrc;
+  const signal = signalSrc.signal;
 
   const preferredGender = (typeof localStorage !== 'undefined' && localStorage.getItem('venoxa_voice_gender')) || 'male';
   const voiceAccentKey = accent === 'en-GB' ? 'en-GB' : 'en-US';
@@ -247,38 +267,46 @@ export const speakEdge = async (text, accent = 'en-US', { noWait = false } = {})
   const edgeURL = `${BASE}api/edge-tts?${new URLSearchParams({ text: text.trim().slice(0, 800), voice })}`;
 
   const run = async () => {
-    const tryUrl = async (url) => {
-      const { audio, promise } = _playAudioUrl(url);
-      _currentEdgeAudio = audio;
-      audio.onended = () => { if (_currentEdgeAudio === audio) _currentEdgeAudio = null; };
-      await promise;
-    };
-    const clean = text.trim().slice(0, 800);
+    let audioStarted = false;
     try {
-      await tryUrl(edgeURL);
-    } catch (e1) {
-      if (e1?.message === 'aborted') return;
-      console.warn('[tts] Edge TTS failed, trying Groq:', e1);
-      const groqVoice = preferredGender === 'female' ? 'hannah' : 'troy';
-      try {
-        await tryUrl(`${BASE}api/groq-tts?${new URLSearchParams({ text: clean, voice: groqVoice })}`);
-      } catch (e1b) {
-      if (e1b?.message === 'aborted') return;
-      console.warn('[tts] Groq TTS failed, trying Gemini:', e1b);
-      try {
-        await tryUrl(`${BASE}api/gemini-tts?${new URLSearchParams({ text: clean, voice: 'puck' })}`);
-      } catch (e2) {
-        if (e2?.message === 'aborted') return;
-        console.warn('[tts] Gemini TTS failed, using browser voice:', e2);
-        if ('speechSynthesis' in window) {
-          const u = new SpeechSynthesisUtterance(clean);
-          u.lang = accent === 'en-GB' ? 'en-GB' : 'en-US';
-          window.speechSynthesis.speak(u);
-        }
-      }
+      const res = await fetch(edgeURL, { signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength < 500) throw new Error('empty audio');
+      if (gen !== _speakEdgeGen || signal.aborted) return;
+
+      const blob = new Blob([buf], { type: 'audio/mpeg' });
+      const blobUrl = URL.createObjectURL(blob);
+      const audio = new Audio(blobUrl);
+      _currentEdgeAudio = audio;
+      audioStarted = true;
+
+      await new Promise((resolve, reject) => {
+        const cleanup = () => {
+          URL.revokeObjectURL(blobUrl);
+          if (_currentEdgeAudio === audio) _currentEdgeAudio = null;
+        };
+        audio.onended = () => { cleanup(); resolve(); };
+        audio.onerror = () => { cleanup(); reject(new Error('audio playback error')); };
+        audio.onpause = () => { cleanup(); resolve(); };
+        audio.play().catch(err => { cleanup(); reject(err); });
+      });
+    } catch (e) {
+      if (e?.name === 'AbortError' || e?.message === 'aborted' || gen !== _speakEdgeGen) return;
+      // If audio already played or attempted, never double-speak with browser voice
+      if (audioStarted) return;
+      console.warn('[tts] Edge TTS failed, using browser voice (same accent):', e);
+      if ('speechSynthesis' in window && gen === _speakEdgeGen) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text.trim().slice(0, 800));
+        u.lang = voiceAccentKey;
+        const voices = window.speechSynthesis.getVoices();
+        const matchVoice = voices.find(v => (voiceAccentKey === 'en-GB' ? /en(-|_)?gb|uk|british/i : /en(-|_)?us|us|american/i).test(v.lang || v.name));
+        if (matchVoice) u.voice = matchVoice;
+        window.speechSynthesis.speak(u);
       }
     } finally {
-      _currentEdgeAudio = null;
+      if (gen === _speakEdgeGen && !audioStarted) _currentEdgeAudio = null;
     }
   };
 

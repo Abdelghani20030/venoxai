@@ -42,6 +42,15 @@ body {
 }
 
 :root {
+  /* ── Motion tokens (mirror src/motion.js values) ── */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-linear: linear;
+  --dur-fast:    0.15s;
+  --dur-normal:  0.30s;
+  --dur-enter:   0.35s;
+  --dur-exit:    0.15s;
+
   /* User Defined Palette */
   --app-bg: #0A0A0E;
   --app-surface: #0F0F13;
@@ -117,6 +126,62 @@ body {
 .card-shine {
   position: relative;
   overflow: hidden;
+}
+
+.card-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  pointer-events: none;
+  z-index: 2;
+  transition: left 0.75s var(--ease-out);
+}
+
+.dark .card-shine::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+}
+
+.card-shine:hover::before {
+  left: 150%;
+}
+
+@keyframes flameFlicker {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: drop-shadow(0 0 2px rgba(249, 115, 22, 0.4));
+  }
+  25% {
+    transform: scale(1.06) rotate(-2deg);
+    filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.7));
+  }
+  50% {
+    transform: scale(0.97) rotate(1deg);
+    filter: drop-shadow(0 0 3px rgba(249, 115, 22, 0.5));
+  }
+  75% {
+    transform: scale(1.04) rotate(-1deg);
+    filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.8));
+  }
+}
+
+.streak-flame {
+  animation: flameFlicker 2.4s ease-in-out infinite;
+  transform-origin: bottom center;
 }
 
 /* ── Blob animations (call mode) ── */
@@ -711,22 +776,27 @@ nav button {
   transform: translateZ(0); /* force GPU layer */
 }
 
-/* ── Buttons: lift + press, transform+opacity only ── */
+/* ── Buttons & Clickable cards: lift + press, transform+opacity only ── */
 button,
 a,
-[role="button"] {
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-              opacity   0.15s ease;
+[role="button"],
+.cursor-pointer {
+  transition: transform var(--dur-fast) var(--ease-spring),
+              opacity   var(--dur-fast) ease,
+              box-shadow var(--dur-fast) ease;
 }
 
 button:hover,
-[role="button"]:hover {
+[role="button"]:hover,
+a:hover {
   transform: translateZ(0) translateY(-2px);
 }
 
 button:active,
-[role="button"]:active {
-  transform: translateZ(0) scale(0.96);
+[role="button"]:active,
+a:active,
+.cursor-pointer:active {
+  transform: translateZ(0) scale(0.97);
   transition-duration: 0.08s;
 }
 
@@ -735,8 +805,8 @@ aside a,
 aside button,
 nav a,
 nav button {
-  transition: transform 0.20s cubic-bezier(0.34, 1.56, 0.64, 1),
-              opacity   0.15s ease;
+  transition: transform var(--dur-normal) var(--ease-spring),
+              opacity   var(--dur-fast) ease;
 }
 
 aside a:hover,
@@ -750,8 +820,8 @@ nav button:hover {
 .card-shine,
 .premium-card,
 .glass-panel {
-  transition: transform 0.30s cubic-bezier(0.34, 1.4, 0.64, 1),
-              opacity   0.30s ease;
+  transition: transform var(--dur-normal) var(--ease-spring),
+              opacity   var(--dur-normal) ease;
 }
 
 .card-shine:hover,
@@ -793,17 +863,56 @@ nav button:hover {
   to   { opacity: 1; transform: translateZ(0) scaleY(1)    translateY(0); }
 }
 
-/* ── Input focus: scale ring with pseudo-element ── */
-input, textarea, select {
-  transition: transform 0.18s ease;
+/* ── Inputs and textareas: animated focus ring and floating label ── */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea,
+select {
+  transition: border-color var(--dur-normal) var(--ease-out),
+              box-shadow var(--dur-normal) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
   outline: none;
 }
 
-input:focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
 textarea:focus,
 select:focus {
   outline: none;
   transform: translateZ(0) scale(1.005);
+  border-color: var(--app-accent1) !important;
+  box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.25), 0 0 16px rgba(255, 87, 34, 0.15) !important;
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: var(--app-accent1) !important;
+  box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.35), 0 0 20px rgba(255, 87, 34, 0.2) !important;
+}
+
+/* Floating label support */
+.floating-label-group {
+  position: relative;
+}
+.floating-label-group input:placeholder-shown + label,
+.floating-label-group textarea:placeholder-shown + label {
+  transform: translateY(0) scale(1);
+  opacity: 0.6;
+}
+.floating-label-group input:focus + label,
+.floating-label-group textarea:focus + label,
+.floating-label-group input:not(:placeholder-shown) + label,
+.floating-label-group textarea:not(:placeholder-shown) + label {
+  transform: translateY(-80%) scale(0.85);
+  opacity: 1;
+  color: var(--app-accent1);
+}
+.floating-label-group label {
+  transition: transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  transform-origin: top left;
+  pointer-events: none;
+}
+[dir="rtl"] .floating-label-group label {
+  transform-origin: top right;
 }
 
 /* ── Spinner: smooth rotation ── */
@@ -839,13 +948,10 @@ html { scroll-behavior: smooth; }
   background: #ffffff !important;
   border: 1px solid rgba(0, 0, 0, 0.07) !important;
   border-radius: 28px !important;
-  box-shadow: none !important;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: all 0.35s var(--ease-spring);
 }
 .home-glass-card:hover {
-  border-color: rgba(0, 0, 0, 0.10) !important;
-  box-shadow: none !important;
-  transform: translateY(-5px) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
 }
 
 .home-glass-hero {
@@ -858,13 +964,11 @@ html { scroll-behavior: smooth; }
 .dark .home-glass-card {
   background: #0F0F16 !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: none !important;
 }
 
 .dark .home-glass-card:hover {
   background: #181822 !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  box-shadow: none !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
 }
 
 .dark .home-glass-hero {
@@ -880,12 +984,22 @@ html { scroll-behavior: smooth; }
   box-shadow: none !important;
 }
 
-/* Re-allow inset highlights (top-edge glints) and outline rings */
+/* Re-allow inset highlights, focus rings, and soft card/nav glows */
 .topbar-glass,
+.lg-nav-wrapper,
 .glass-panel,
 .dark .glass-panel,
 .premium-card,
 .dark .premium-card,
+.home-glass-card,
+.dark .home-glass-card,
+.home-glass-card:hover,
+.dark .home-glass-card:hover,
+.card-shine,
+.dropdown-menu,
+input:focus,
+textarea:focus,
+select:focus,
 .glass-panel:hover,
 .dark .glass-panel:hover,
 .premium-card:hover,
@@ -935,4 +1049,156 @@ html { scroll-behavior: smooth; }
 .dark .rounded-2xl:has(> svg.lucide:only-child),
 .dark .rounded-full:has(> svg.lucide:only-child) {
   box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.15) !important;
+}
+
+/* ══════════════════════════════════════════════
+   Ambient Drifting Gradient Orbs
+   ══════════════════════════════════════════════ */
+@keyframes orbDrift1 {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  33%  { transform: translate3d(50px, -35px, 0) scale(1.08); }
+  66%  { transform: translate3d(-35px, 45px, 0) scale(0.95); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes orbDrift2 {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  33%  { transform: translate3d(-45px, 50px, 0) scale(0.92); }
+  66%  { transform: translate3d(35px, -25px, 0) scale(1.06); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes orbDrift3 {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(25px, 35px, 0) scale(1.05); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.ambient-orb-1 {
+  animation: orbDrift1 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+.ambient-orb-2 {
+  animation: orbDrift2 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+.ambient-orb-3 {
+  animation: orbDrift3 19s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ══════════════════════════════════════════════
+   Learning Feedback Moments (LanGeek Style)
+   ══════════════════════════════════════════════ */
+@keyframes answerCorrect {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.06); box-shadow: 0 0 20px rgba(34, 197, 94, 0.4); }
+  100% { transform: scale(1); }
+}
+
+@keyframes kgShake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-8px); }
+  40%      { transform: translateX(8px); }
+  60%      { transform: translateX(-5px); }
+  80%      { transform: translateX(5px); }
+}
+
+.answer-correct {
+  animation: answerCorrect 0.4s var(--ease-spring) both !important;
+  border-color: #22c55e !important;
+  background-color: rgba(34, 197, 94, 0.12) !important;
+}
+
+.answer-wrong {
+  animation: kgShake 0.45s ease both !important;
+  border-color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+
+/* Floating XP gain chip */
+@keyframes floatUpFade {
+  0%   { opacity: 0; transform: translateY(0) scale(0.8); }
+  20%  { opacity: 1; transform: translateY(-8px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-28px) scale(0.95); }
+}
+
+.xp-float-chip {
+  animation: floatUpFade 1.2s var(--ease-out) forwards;
+  pointer-events: none;
+}
+
+/* ── 3D Card Flip (Flashcards / Vocabulary) ── */
+.card-flip-container {
+  perspective: 1000px;
+}
+
+.card-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
+}
+
+.card-flip-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.card-flip-front,
+.card-flip-back {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.card-flip-back {
+  transform: rotateY(180deg);
+}
+
+/* ── Audio Sound Wave Equalizer ── */
+@keyframes soundWaveBar {
+  0%   { transform: scaleY(0.25); }
+  50%  { transform: scaleY(1); }
+  100% { transform: scaleY(0.4); }
+}
+
+.sound-wave-bar {
+  animation: soundWaveBar 0.8s ease-in-out infinite alternate;
+  transform-origin: bottom center;
+}
+
+/* ══════════════════════════════════════════════
+   Prefers-Reduced-Motion Everywhere
+   ══════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .ambient-orb-1,
+  .ambient-orb-2,
+  .ambient-orb-3,
+  .streak-flame,
+  .card-shine::before,
+  .sound-wave-bar {
+    animation: none !important;
+    display: none !important;
+  }
+
+  .glass-panel,
+  .premium-card,
+  .dropdown-menu {
+    animation: none !important;
+  }
 }

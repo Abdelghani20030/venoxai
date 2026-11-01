@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User, Mail, Calendar as CalendarIcon, Edit, Award, Trash2, LogOut,
   ChevronLeft, ChevronRight, Zap, Globe, Upload, Camera, X, Lightbulb
@@ -385,6 +386,17 @@ export default function ProfileDashboard({
   const [avatarDraft, setAvatarDraft] = useState(''); // base64 preview inside modal
   const fileRef = useRef(null);
 
+  // Lock body scroll when edit modal is open
+  useEffect(() => {
+    if (isEditing) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isEditing]);
+
   const startEdit = () => {
     if (!user) return;
     setEditName(user?.username || '');
@@ -503,12 +515,13 @@ export default function ProfileDashboard({
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-8 animate-fadeIn relative z-10 text-start" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <div className="columns-1 md:columns-2 lg:columns-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-        {/* ═══════════ User Card + Achievements ═══════════ */}
+        {/* ═══════════ LEFT COLUMN: User Card & Daily Activity (4 / 12) ═══════════ */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
 
           {/* User Card */}
-          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col items-center relative overflow-hidden group">
+          <div className="home-glass-card p-6 flex flex-col items-center relative overflow-hidden group">
             <div className="absolute -right-20 -top-20 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
             <button onClick={startEdit}
               className="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
@@ -573,185 +586,35 @@ export default function ProfileDashboard({
             </div>
           </div>
 
-          {/* Achievements */}
-          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
-            <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">{t.achievements}</h4>
-            <div className="flex items-center gap-2 mb-5">
-              <div className="p-2 rounded-xl bg-yellow-500/10 text-yellow-500"><Award size={18} /></div>
-              <span className="text-xl font-black text-black dark:text-white">{t.badgesCount(earned.length)}</span>
-            </div>
-            <div className="flex gap-2 flex-wrap mb-2">
-              {earned.map(b => (
-                <div key={b.id} title={b.desc}
-                  className={`w-12 h-12 rounded-full bg-gradient-to-br ${b.grad} border ${b.border} flex items-center justify-center ${b.txt} relative group cursor-pointer shadow-lg`}>
-                  <Award size={20} className="group-hover:scale-110 transition-transform" />
-                  <span className={`absolute -bottom-1 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider rounded whitespace-nowrap ${b.rib}`}>{b.label}</span>
-                </div>
-              ))}
-              {locked.map(b => (
-                <div key={b.id} title={`${b.desc} (need ${b.req - streak} more days)`}
-                  className="w-12 h-12 rounded-full border-2 border-dashed border-white/10 flex items-center justify-center text-gray-700 relative group cursor-pointer">
-                  <Award size={16} className="opacity-20 group-hover:opacity-40 transition-opacity" />
-                  <span className="absolute -bottom-1 px-1.5 py-0.5 text-[7px] font-black bg-gray-700 text-gray-400 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">{b.req}d</span>
-                </div>
-              ))}
-            </div>
-            {locked.length > 0 && (
-              <p className="text-[10px] text-gray-500 font-semibold mt-1">
-                {_resolveTranslation(lang,
-                  `${locked[0].req - streak} أيام للوصول إلى ${locked[0].label}`,
-                  `${locked[0].req - streak} more days to earn ${locked[0].label}`)}
-              </p>
-            )}
-          </div>
-
-          {/* Level Test result */}
-          {levelTest?.level && (
-            <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
-              <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                {_resolveTranslation(lang, 'اختبار المستوى', 'Level Test')}
+          {/* Daily Rhythm (Streak & Daily Goal Unified Widget) */}
+          <div className="home-glass-card p-6 flex flex-col gap-5">
+            <div className="flex items-center justify-between border-b border-black/5 dark:border-white/8 pb-3">
+              <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                {_resolveTranslation(lang, 'النشاط اليومي', 'Daily Rhythm')}
               </h4>
-              <div className="flex items-center gap-3">
-                <div className="h-16 w-16 shrink-0 rounded-2xl bg-[#0E4AA4] text-white flex items-center justify-center text-2xl font-black">
-                  {levelTest.level}
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                {t.today}
+              </span>
+            </div>
+
+            {/* Streak Highlight */}
+            <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent border border-orange-500/20">
+              <div className="w-12 h-12 rounded-xl bg-orange-500/15 flex items-center justify-center text-orange-500 shrink-0 shadow-inner">
+                <Zap size={22} fill="currentColor" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xl font-black text-black dark:text-white leading-tight">
+                  {t.daysUnit(streak)}
                 </div>
-                <div className="min-w-0">
-                  <div className="text-lg font-black text-black dark:text-white">
-                    {levelTest.score} / 100
-                  </div>
-                  <div className="text-[11px] font-semibold text-gray-500">
-                    {_resolveTranslation(lang, 'متوافق مع CEFR', 'Aligned to CEFR')}
-                  </div>
-                  <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
-                    {levelTest.date
-                      ? new Date(levelTest.date).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', {
-                          day: '2-digit', month: 'short', year: 'numeric',
-                        })
-                      : ''}
-                  </div>
+                <div className="text-[10px] font-bold text-orange-600/90 dark:text-orange-400 uppercase tracking-wider">
+                  {t.streakTitle} · {streak > 0 ? _resolveTranslation(lang, 'واصل الحماس!', 'Keep momentum!') : _resolveTranslation(lang, 'ابدأ اليوم!', 'Start today!')}
                 </div>
               </div>
-              <div className="mt-4 flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                <Award size={15} />
-                {_resolveTranslation(lang, 'إنجاز: مستكشف المستويات', 'Achievement: Level Explorer')}
-              </div>
-              {onOpenLevelTest && (
-                <button
-                  onClick={onOpenLevelTest}
-                  className="mt-4 w-full rounded-xl border border-black/10 dark:border-white/10 py-2.5 text-xs font-black text-[#0E4AA4] dark:text-blue-400 hover:bg-white/5 transition-all"
-                >
-                  {_resolveTranslation(lang, 'عرض الاختبار أو إعادة المحاولة', 'View test or retake')}
-                </button>
-              )}
-            </div>
-          )}
-        {/* ═══════════ Usage Chart + Daily Goal + Overall Progress ═══════════ */}
-
-          {/* ── Usage Time Chart ── */}
-          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
-            {/* Header row */}
-            <div className="flex items-center justify-between mb-1">
-              <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{t.usageTime}</h4>
-              {/* Week / Month toggle */}
-              <div className="flex gap-1 bg-white/5 p-0.5 rounded-xl border border-white/10">
-                {['week','month'].map(v => (
-                  <button key={v} onClick={() => { setChartView(v); setChartOffset(0); }}
-                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                      chartView === v
-                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20'
-                        : 'text-gray-500 hover:text-white'
-                    }`}>
-                    {v === 'week' ? t.week : t.month}
-                  </button>
-                ))}
-              </div>
             </div>
 
-            {/* Range label + nav */}
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-bold text-gray-500">{chartData.rangeLabel}</span>
-              <div className="flex gap-1">
-                <button onClick={() => setChartOffset(o => o - 1)}
-                  className="p-1 rounded bg-white/5 hover:bg-white/10 text-gray-400 transition-all">
-                  <ChevronLeft size={13} />
-                </button>
-                <button onClick={() => setChartOffset(o => Math.min(0, o + 1))}
-                  disabled={chartOffset >= 0}
-                  className="p-1 rounded bg-white/5 hover:bg-white/10 text-gray-400 transition-all disabled:opacity-30">
-                  <ChevronRight size={13} />
-                </button>
-              </div>
-            </div>
-
-            {/* Today's time badge */}
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0">
-                <Zap size={14} fill="currentColor" />
-              </div>
-              <span className="text-base font-black text-black dark:text-white tabular-nums">{fmtSecs(todaySecsTotal)}</span>
-              <span className="text-[10px] text-gray-500 font-semibold">{t.today}</span>
-            </div>
-
-            {/* SVG line chart */}
-            <div className="relative w-full h-[120px]" style={{ overflow: 'visible' }}>
-              {/* Grid lines */}
-              <div className="absolute inset-x-0 top-3 border-t border-dashed border-white/5" />
-              <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-white/5" />
-              <div className="absolute inset-x-0 bottom-3 border-t border-dashed border-white/5" />
-
-              <svg viewBox="0 -24 360 114" className="w-full h-full" style={{ overflow: 'visible' }} preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="usageFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
-                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
-                  </linearGradient>
-                  <linearGradient id="usageLine" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#8b5cf6" />
-                    <stop offset="100%" stopColor="#3b82f6" />
-                  </linearGradient>
-                </defs>
-                {fillPath && <path d={fillPath} fill="url(#usageFill)" />}
-                {linePath && (
-                  <path d={linePath} fill="none" stroke="url(#usageLine)"
-                    strokeWidth="2.5" strokeLinecap="round" />
-                )}
-                {points.map((pt, i) => {
-                  const tipY = Math.max(-20, pt.y - 24);
-                  return (
-                    <g key={i} className="cursor-pointer group">
-                      <circle cx={pt.x} cy={pt.y} r="3.5"
-                        fill={isDark ? '#0f172a' : '#fff'}
-                        stroke="#8b5cf6" strokeWidth="2"
-                        className="group-hover:r-5 transition-all" />
-                      {/* Tooltip */}
-                      <rect x={pt.x - 18} y={tipY} width="36" height="14" rx="4"
-                        fill="#8b5cf6" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                      <text x={pt.x} y={tipY + 10} fill="white" fontSize="8" fontWeight="bold"
-                        textAnchor="middle"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        {Math.round(chartData.values[i])}m
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
-            </div>
-
-            {/* X-axis labels */}
-            <div className={`flex justify-between mt-2 text-[9px] font-bold text-gray-500 ${
-              chartData.labels.length > 14 ? 'overflow-hidden' : ''
-            }`}>
-              {chartData.labels.map((l, i) => (
-                <span key={i} className="text-center" style={{ minWidth: 0, flex: '1' }}>{l}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Daily Goal ── */}
-          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
-            <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-5">{t.dailyGoal}</h4>
-            <div className="flex items-center gap-6">
-              <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
+            {/* Daily Goal Progress */}
+            <div className="flex items-center gap-5 pt-1">
+              <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                   <defs>
                     <linearGradient id="goalG" x1="0" y1="0" x2="1" y2="0">
@@ -764,125 +627,352 @@ export default function ProfileDashboard({
                     fill="transparent" strokeDasharray={circumference} strokeDashoffset={strokeOffset}
                     strokeLinecap="round" className="transition-all duration-700 ease-out" />
                 </svg>
-                <div className="absolute w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400">
-                  <Zap size={22} fill="currentColor" />
+                <div className="absolute w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400">
+                  <Zap size={18} fill="currentColor" />
                 </div>
               </div>
               <div className="flex-1 space-y-1">
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t.today}</div>
-                <div className="text-4xl font-black text-black dark:text-white leading-none">{goalPct}%</div>
-                {goalPct >= 100
-                  ? <div className="text-xs font-semibold text-emerald-500">{t.goalAchieved}</div>
-                  : <div className="text-xs font-semibold text-rose-400">
-                      {_resolveTranslation(lang, `${100 - goalPct}% متبقي`, `${100 - goalPct}% remaining`)}
-                    </div>}
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{t.dailyGoal}</div>
+                <div className="text-3xl font-black text-black dark:text-white leading-none">{goalPct}%</div>
+                {goalPct >= 100 ? (
+                  <div className="text-xs font-semibold text-emerald-500">{t.goalAchieved}</div>
+                ) : (
+                  <div className="text-xs font-semibold text-rose-400">
+                    {_resolveTranslation(lang, `${100 - goalPct}% متبقي`, `${100 - goalPct}% remaining`)}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* ── Overall Progress ── */}
-          <div className="break-inside-avoid mb-6 home-glass-card p-6 flex flex-col">
-            <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-6">{t.overallProgress}</h4>
-            <div className="grid grid-cols-6 gap-1 bg-black/10 dark:bg-white/5 p-1 rounded-2xl border border-white/5 mb-4">
-              {CEFR.map(lvl => (
-                <div key={lvl}
-                  className={`py-3 text-sm font-extrabold rounded-xl text-center border transition-all ${levelColor(lvl, lvl === derivedLevel)} ${
-                    lvl === derivedLevel ? 'scale-105 shadow-lg ring-2 ring-purple-500/20' : 'border-transparent'
-                  }`}>
-                  {lvl}
+        </div>
+
+        {/* ═══════════ RIGHT COLUMN: Milestones & Analytics (8 / 12) ═══════════ */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
+
+          {/* Row 1: Level Test & Achievements */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-stretch">
+
+            {/* Level Test card */}
+            <div className="home-glass-card p-6 flex flex-col justify-between h-full">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                    {_resolveTranslation(lang, 'اختبار المستوى', 'Level Test')}
+                  </h4>
+                  <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-md uppercase">
+                    CEFR
+                  </span>
                 </div>
-              ))}
-            </div>
-            <div className="text-center py-2 text-xs font-bold text-gray-400 dark:text-gray-500 bg-purple-500/5 border border-purple-500/10 rounded-xl">
-              {t.myLevel(derivedLevel)}
-              {planMeta?.totalWeeks && currentWeek && (
-                <span className="ml-2 opacity-60">
-                  · {_resolveTranslation(lang, `الأسبوع ${currentWeek} من ${planMeta.totalWeeks}`, `Week ${currentWeek} of ${planMeta.totalWeeks}`)}
-                </span>
+
+                {levelTest?.level ? (
+                  <>
+                    <div className="flex items-center gap-3.5">
+                      <div className="h-14 w-14 shrink-0 rounded-2xl bg-gradient-to-br from-[#0E4AA4] to-[#1E3A8A] text-white flex items-center justify-center text-2xl font-black shadow-md">
+                        {levelTest.level}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-lg font-black text-black dark:text-white">
+                          {levelTest.score} / 100
+                        </div>
+                        <div className="text-[11px] font-semibold text-gray-500">
+                          {_resolveTranslation(lang, 'متوافق مع CEFR', 'Aligned to CEFR')}
+                        </div>
+                        <div className="text-[10px] font-semibold text-gray-400 mt-0.5">
+                          {levelTest.date
+                            ? new Date(levelTest.date).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', {
+                                day: '2-digit', month: 'short', year: 'numeric',
+                              })
+                            : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-[11px] font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                      <Award size={15} />
+                      {_resolveTranslation(lang, 'إنجاز: مستكشف المستويات', 'Achievement: Level Explorer')}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-3.5 py-1">
+                    <div className="h-14 w-14 shrink-0 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-2xl font-black border border-purple-500/20">
+                      ?
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-base font-black text-black dark:text-white">
+                        {_resolveTranslation(lang, 'لم يتم إجراء الاختبار بعد', 'Not taken yet')}
+                      </div>
+                      <div className="text-[11px] font-semibold text-gray-500">
+                        {_resolveTranslation(lang, 'حدد مستواك بدقة واحصل على شهادتك', 'Determine your CEFR level and get certified')}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {onOpenLevelTest && (
+                <button
+                  onClick={onOpenLevelTest}
+                  className="mt-4 w-full rounded-xl border border-black/10 dark:border-white/10 py-2.5 text-xs font-black text-[#0E4AA4] dark:text-blue-400 hover:bg-white/5 transition-all"
+                >
+                  {levelTest?.level
+                    ? _resolveTranslation(lang, 'عرض الاختبار أو إعادة المحاولة', 'View test or retake')
+                    : _resolveTranslation(lang, 'ابدأ اختبار المستوى الآن', 'Take Level Test Now')}
+                </button>
               )}
             </div>
-          </div>
-        {/* ═══════════ Calendar + Streak ═══════════ */}
 
-          {/* Skill Breakdown */}
-          <div className="break-inside-avoid mb-6 home-glass-card p-5 flex flex-col">
-            <h5 className="text-[11px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">
-              {_resolveTranslation(lang, 'تحليل المهارات', 'Skill Breakdown')}
-            </h5>
-            <div className="w-full h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                  <PolarGrid stroke={isDark ? '#ffffff20' : '#00000020'} />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: isDark ? '#9ca3af' : '#6b7280', fontSize: 10, fontWeight: 'bold' }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar name="Skills" dataKey="A" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.5} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Learning Insights */}
-          <div className="break-inside-avoid mb-6 home-glass-card p-5 flex flex-col gap-4">
-            <h5 className="text-[11px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
-              <Lightbulb size={14} className="text-yellow-400" />
-              {_resolveTranslation(lang, 'رؤى التعلم', 'Learning Insights')}
-            </h5>
-            
-            <div className="flex flex-col gap-3">
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex gap-3 items-start">
-                <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5">
-                  <Award size={12} />
+            {/* Achievements */}
+            <div className="home-glass-card p-6 flex flex-col justify-between h-full">
+              <div>
+                <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">{t.achievements}</h4>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-2 rounded-xl bg-yellow-500/10 text-yellow-500"><Award size={18} /></div>
+                  <span className="text-xl font-black text-black dark:text-white">{t.badgesCount(earned.length)}</span>
                 </div>
-                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 leading-relaxed">
-                  {skillInsights.positive}
-                </p>
-              </div>
-              
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex gap-3 items-start">
-                <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 shrink-0 mt-0.5">
-                  <Lightbulb size={12} />
+                <div className="flex gap-2 flex-wrap mb-2">
+                  {earned.map(b => (
+                    <div key={b.id} title={b.desc}
+                      className={`w-11 h-11 rounded-full bg-gradient-to-br ${b.grad} border ${b.border} flex items-center justify-center ${b.txt} relative group cursor-pointer shadow-lg`}>
+                      <Award size={18} className="group-hover:scale-110 transition-transform" />
+                      <span className={`absolute -bottom-1 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider rounded whitespace-nowrap ${b.rib}`}>{b.label}</span>
+                    </div>
+                  ))}
+                  {locked.map(b => (
+                    <div key={b.id} title={`${b.desc} (need ${b.req - streak} more days)`}
+                      className="w-11 h-11 rounded-full border-2 border-dashed border-white/10 flex items-center justify-center text-gray-700 relative group cursor-pointer">
+                      <Award size={15} className="opacity-20 group-hover:opacity-40 transition-opacity" />
+                      <span className="absolute -bottom-1 px-1.5 py-0.5 text-[7px] font-black bg-gray-700 text-gray-400 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">{b.req}d</span>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 leading-relaxed">
-                  {skillInsights.recommendation}
-                </p>
               </div>
+              {locked.length > 0 && (
+                <p className="text-[10px] text-gray-500 font-semibold mt-3 pt-2 border-t border-black/5 dark:border-white/5">
+                  {_resolveTranslation(lang,
+                    `${locked[0].req - streak} أيام للوصول إلى ${locked[0].label}`,
+                    `${locked[0].req - streak} more days to earn ${locked[0].label}`)}
+                </p>
+              )}
             </div>
+
           </div>
 
-          {/* Streak */}
-          <div className="break-inside-avoid mb-6 home-glass-card p-4 flex items-center gap-4 border-l-4 border-l-orange-500/50 hover:translate-x-1 transition-transform">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
-              <Zap size={20} fill="currentColor" />
+          {/* Row 2: Overall Progress & Learning Insights */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-stretch">
+
+            {/* Overall Progress */}
+            <div className="home-glass-card p-6 flex flex-col justify-between h-full">
+              <div>
+                <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">{t.overallProgress}</h4>
+                <div className="grid grid-cols-6 gap-1 bg-black/10 dark:bg-white/5 p-1 rounded-2xl border border-white/5 mb-4">
+                  {CEFR.map(lvl => (
+                    <div key={lvl}
+                      className={`py-2.5 text-xs font-extrabold rounded-xl text-center border transition-all ${levelColor(lvl, lvl === derivedLevel)} ${
+                        lvl === derivedLevel ? 'scale-105 shadow-lg ring-2 ring-purple-500/20' : 'border-transparent'
+                      }`}>
+                      {lvl}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="text-center py-2.5 text-xs font-bold text-gray-400 dark:text-gray-500 bg-purple-500/5 border border-purple-500/10 rounded-xl">
+                {t.myLevel(derivedLevel)}
+                {planMeta?.totalWeeks && currentWeek && (
+                  <span className="ml-2 opacity-60">
+                    · {_resolveTranslation(lang, `الأسبوع ${currentWeek} من ${planMeta.totalWeeks}`, `Week ${currentWeek} of ${planMeta.totalWeeks}`)}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-lg font-black text-black dark:text-white">{t.daysUnit(streak)}</div>
-              <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.streakTitle}</div>
+
+            {/* Learning Insights */}
+            <div className="home-glass-card p-6 flex flex-col justify-between h-full gap-3">
+              <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Lightbulb size={16} className="text-yellow-400" />
+                {_resolveTranslation(lang, 'رؤى التعلم', 'Learning Insights')}
+              </h4>
+              <div className="flex flex-col gap-2.5 flex-1 justify-center">
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex gap-3 items-start">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0 mt-0.5">
+                    <Award size={12} />
+                  </div>
+                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 leading-relaxed">
+                    {skillInsights.positive}
+                  </p>
+                </div>
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex gap-3 items-start">
+                  <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 shrink-0 mt-0.5">
+                    <Lightbulb size={12} />
+                  </div>
+                  <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 leading-relaxed">
+                    {skillInsights.recommendation}
+                  </p>
+                </div>
+              </div>
             </div>
+
           </div>
+
+          {/* Row 3: Usage Time Chart & Skill Breakdown Radar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-stretch">
+
+            {/* Usage Time Chart */}
+            <div className="home-glass-card p-6 flex flex-col justify-between h-full">
+              <div>
+                {/* Header row */}
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{t.usageTime}</h4>
+                  <div className="flex gap-1 bg-white/5 p-0.5 rounded-xl border border-white/10">
+                    {['week','month'].map(v => (
+                      <button key={v} onClick={() => { setChartView(v); setChartOffset(0); }}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                          chartView === v
+                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20'
+                            : 'text-gray-500 hover:text-white'
+                        }`}>
+                        {v === 'week' ? t.week : t.month}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Range label + nav */}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-gray-500">{chartData.rangeLabel}</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => setChartOffset(o => o - 1)}
+                      className="p-1 rounded bg-white/5 hover:bg-white/10 text-gray-400 transition-all">
+                      <ChevronLeft size={13} />
+                    </button>
+                    <button onClick={() => setChartOffset(o => Math.min(0, o + 1))}
+                      disabled={chartOffset >= 0}
+                      className="p-1 rounded bg-white/5 hover:bg-white/10 text-gray-400 transition-all disabled:opacity-30">
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Today's time badge */}
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0">
+                    <Zap size={13} fill="currentColor" />
+                  </div>
+                  <span className="text-sm font-black text-black dark:text-white tabular-nums">{fmtSecs(todaySecsTotal)}</span>
+                  <span className="text-[10px] text-gray-500 font-semibold">{t.today}</span>
+                </div>
+
+                {/* SVG line chart */}
+                <div className="relative w-full h-[120px]" style={{ overflow: 'visible' }}>
+                  <div className="absolute inset-x-0 top-3 border-t border-dashed border-white/5" />
+                  <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-white/5" />
+                  <div className="absolute inset-x-0 bottom-3 border-t border-dashed border-white/5" />
+
+                  <svg viewBox="0 -24 360 114" className="w-full h-full" style={{ overflow: 'visible' }} preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id="usageFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+                      </linearGradient>
+                      <linearGradient id="usageLine" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#8b5cf6" />
+                        <stop offset="100%" stopColor="#3b82f6" />
+                      </linearGradient>
+                    </defs>
+                    {fillPath && <path d={fillPath} fill="url(#usageFill)" />}
+                    {linePath && (
+                      <path d={linePath} fill="none" stroke="url(#usageLine)"
+                        strokeWidth="2.5" strokeLinecap="round" />
+                    )}
+                    {points.map((pt, i) => {
+                      const tipY = Math.max(-20, pt.y - 24);
+                      return (
+                        <g key={i} className="cursor-pointer group">
+                          <circle cx={pt.x} cy={pt.y} r="3.5"
+                            fill={isDark ? '#0f172a' : '#fff'}
+                            stroke="#8b5cf6" strokeWidth="2"
+                            className="group-hover:r-5 transition-all" />
+                          <rect x={pt.x - 18} y={tipY} width="36" height="14" rx="4"
+                            fill="#8b5cf6" className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                          <text x={pt.x} y={tipY + 10} fill="white" fontSize="8" fontWeight="bold"
+                            textAnchor="middle"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            {Math.round(chartData.values[i])}m
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+
+                {/* X-axis labels */}
+                <div className={`flex justify-between mt-2 text-[9px] font-bold text-gray-500 ${
+                  chartData.labels.length > 14 ? 'overflow-hidden' : ''
+                }`}>
+                  {chartData.labels.map((l, i) => (
+                    <span key={i} className="text-center" style={{ minWidth: 0, flex: '1' }}>{l}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Skill Breakdown */}
+            <div className="home-glass-card p-6 flex flex-col justify-between h-full">
+              <div>
+                <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                  {_resolveTranslation(lang, 'تحليل المهارات', 'Skill Breakdown')}
+                </h4>
+                <div className="w-full h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                      <PolarGrid stroke={isDark ? '#ffffff20' : '#00000020'} />
+                      <PolarAngleAxis dataKey="subject" tick={{ fill: isDark ? '#9ca3af' : '#6b7280', fontSize: 10, fontWeight: 'bold' }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                      <Radar name="Skills" dataKey="A" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.5} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          EDIT MODAL
+          EDIT MODAL - Portaled to document.body, fixed and centered
       ═══════════════════════════════════════════════════════════════ */}
-      {isEditing && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-lg home-glass-card border-white/10 p-6 relative flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
-
-            <div className="flex justify-between items-center pb-3 border-b border-white/10">
-              <h3 className="text-lg font-extrabold text-black dark:text-white flex items-center gap-2">
-                <Edit size={20} className="text-purple-400" /> {t.editProfile}
+      {isEditing && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md animate-fadeIn"
+          onClick={() => setIsEditing(false)}
+        >
+          <div 
+            className="w-full max-w-lg rounded-3xl border border-gray-200 dark:border-white/10 p-6 relative flex flex-col max-h-[85vh] shadow-2xl bg-white dark:bg-[#111222] text-gray-900 dark:text-white"
+            onClick={e => e.stopPropagation()}
+            dir={lang === 'ar' ? 'rtl' : 'ltr'}
+          >
+            {/* Header - Fixed at top of modal */}
+            <div className="flex justify-between items-center pb-3 border-b border-gray-100 dark:border-white/10 shrink-0">
+              <h3 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                <Edit size={20} className="text-purple-500" /> {t.editProfile}
               </h3>
-              <button onClick={() => setIsEditing(false)}
-                className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+              <button 
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4">
+            {/* Scrollable Form Body - Scroll is strictly inside this container */}
+            <form onSubmit={handleSave} className="flex-1 overflow-y-auto space-y-4 py-4 pr-1 pl-0.5">
 
-              {/* Photo upload — purely client-side, no server payload */}
+              {/* Photo upload */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">{t.uploadPhoto}</label>
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">{t.uploadPhoto}</label>
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-purple-500/40 shrink-0 bg-purple-500/5 flex items-center justify-center">
                     {avatarDraft
@@ -890,7 +980,7 @@ export default function ProfileDashboard({
                       : <Camera size={22} className="text-purple-400 opacity-50" />}
                   </div>
                   <button type="button" onClick={() => fileRef.current?.click()}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all">
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all">
                     <Upload size={14} />
                     {_resolveTranslation(lang, 'اختر من جهازك', 'Choose from device')}
                   </button>
@@ -898,39 +988,39 @@ export default function ProfileDashboard({
                 </div>
                 {avatarDraft && (
                   <button type="button" onClick={() => setAvatarDraft('')}
-                    className="text-[10px] text-red-400 hover:text-red-300 font-semibold transition-colors">
+                    className="text-[10px] text-red-500 dark:text-red-400 hover:text-red-600 font-semibold transition-colors">
                     {_resolveTranslation(lang, 'إزالة الصورة', 'Remove photo')}
                   </button>
                 )}
-                <p className="text-[9px] text-gray-600 dark:text-gray-500 font-medium">
+                <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium">
                   {_resolveTranslation(lang, 'الصورة تُحفظ و تُزامن على جميع الأجهزة.', 'Photo syncs across all your devices.')}
                 </p>
               </div>
 
               {/* Username */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">{t.usernameLabel}</label>
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">{t.usernameLabel}</label>
                 <input type="text" required value={editName} onChange={e => setEditName(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold" />
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 text-sm font-semibold" />
               </div>
 
               {/* Email */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">{t.emailLabel}</label>
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">{t.emailLabel}</label>
                 <input type="email" required value={editEmail} onChange={e => setEditEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold" />
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 text-sm font-semibold" />
               </div>
 
               {/* Gender */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">{t.genderLabel}</label>
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">{t.genderLabel}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {['Male','Female','Other'].map(g => (
                     <button key={g} type="button" onClick={() => setEditGender(g)}
                       className={`py-2 text-xs font-bold rounded-xl border transition-all ${
                         editGender === g
-                          ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-                          : 'bg-white/5 border-white/5 text-gray-400 hover:text-white'
+                          ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/40'
+                          : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/5 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white'
                       }`}>
                       {g === 'Male' ? t.male : g === 'Female' ? t.female : t.other}
                     </button>
@@ -940,32 +1030,34 @@ export default function ProfileDashboard({
 
               {/* DOB */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">{t.dobLabel}</label>
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">{t.dobLabel}</label>
                 <input type="text" placeholder="e.g. January 2003" value={editDob} onChange={e => setEditDob(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold" />
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 text-sm font-semibold" />
               </div>
 
               {/* Languages */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">{t.languagesLabel}</label>
+                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block">{t.languagesLabel}</label>
                 <input type="text" placeholder="e.g. English, Arabic" value={editLangs} onChange={e => setEditLangs(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 text-sm font-semibold" />
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:border-purple-500 text-sm font-semibold" />
                 <span className="text-[10px] font-semibold text-gray-500 block">Comma-separated.</span>
               </div>
 
-              <div className="flex gap-2 justify-end pt-4 border-t border-white/10">
+              {/* Footer Buttons - Inside form but sticky/bottom */}
+              <div className="flex gap-2 justify-end pt-4 border-t border-gray-100 dark:border-white/10">
                 <button type="button" onClick={() => setIsEditing(false)}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 text-white transition-all border border-white/5">
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-white transition-all border border-gray-200 dark:border-white/5">
                   {t.cancel}
                 </button>
                 <button type="submit"
-                  className="px-6 py-2 rounded-xl text-xs font-bold bg-[var(--app-accent1)] text-white hover:opacity-90 active:scale-[0.98] transition-all shadow-md">
+                  className="px-6 py-2.5 rounded-xl text-xs font-bold bg-[var(--app-accent1)] text-white hover:opacity-90 active:scale-[0.98] transition-all shadow-md">
                   {t.save}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

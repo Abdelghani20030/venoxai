@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { easing, durations, springs, fadeUp, scaleIn, staggerContainer, staggerChild } from './motion.js';
 import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, ChevronUp, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, User, Lock, Mail, Heart, TrendingUp } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import ProfileDashboard from './ProfileDashboard';
@@ -25,6 +27,7 @@ import {
   pushProgress,
 } from './insforge.jsx';
 import { loadBundledVocab } from './vocabData.js';
+import SaudiFlagIcon from './SaudiFlagIcon';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -572,12 +575,10 @@ function SolidDatePicker({ value, onChange, min, label, lang }) {
    Full visionOS-inspired dark grid + glows + particles + noise
    5 layer stack:
      1. Base gradient
-     2. Grid overlay  (canvas — sharp center, faded edges)
-     3. Glow layers   (CSS radial-gradients)
-     4. Noise texture (canvas — subtle grain)
-     5. Particles     (canvas — ultra-low opacity floating dots)
-   + mouse-parallax on glow layers
-   + breathing animation on glows
+     2. Drifting blurred gradient orbs (#FF5722, #673AB7)
+     3. Noise texture (canvas — subtle grain)
+     4. Particles (canvas — ultra-low opacity floating dots)
+   + pause RAF on document.hidden & prefers-reduced-motion
 ────────────────────────────────────────────────────────────── */
 function PremiumBackground({ theme = 'dark' }) {
   const isDark = theme === 'dark';
@@ -609,7 +610,13 @@ function PremiumBackground({ theme = 'dark' }) {
   useEffect(() => {
     const canvas = partRef.current;
     if (!canvas) return;
+
+    // Check prefers-reduced-motion
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return;
+
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     let W = window.innerWidth, H = window.innerHeight;
     canvas.width = W; canvas.height = H;
 
@@ -626,7 +633,10 @@ function PremiumBackground({ theme = 'dark' }) {
     }));
 
     let frame = 0;
+    let isRunning = !document.hidden;
+
     const tick = () => {
+      if (!isRunning) return;
       ctx.clearRect(0, 0, W, H);
       frame++;
       for (const p of pts) {
@@ -643,7 +653,22 @@ function PremiumBackground({ theme = 'dark' }) {
       }
       animRef.current = requestAnimationFrame(tick);
     };
-    tick();
+
+    if (isRunning) {
+      animRef.current = requestAnimationFrame(tick);
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        isRunning = false;
+        if (animRef.current) cancelAnimationFrame(animRef.current);
+      } else {
+        isRunning = true;
+        animRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const onResize = () => {
       W = window.innerWidth; H = window.innerHeight;
@@ -651,10 +676,11 @@ function PremiumBackground({ theme = 'dark' }) {
     };
     window.addEventListener('resize', onResize);
     return () => {
-      cancelAnimationFrame(animRef.current);
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('resize', onResize);
     };
-  }, []);
+  }, [isDark]);
 
   return (
     <>
@@ -663,7 +689,32 @@ function PremiumBackground({ theme = 'dark' }) {
         background: isDark ? '#000000' : '#ffffff',
       }} />
 
-      {/* Layer 2 — noise grain */}
+      {/* Layer 2 — Drifting blurred gradient orbs (transform-only) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+          className="ambient-orb-1 absolute -top-20 -left-20 w-80 h-80 sm:w-96 sm:h-96 rounded-full filter blur-[80px]"
+          style={{
+            background: '#FF5722',
+            opacity: isDark ? 0.12 : 0.07,
+          }}
+        />
+        <div
+          className="ambient-orb-2 absolute top-1/3 -right-20 w-96 h-96 sm:w-[30rem] sm:h-[30rem] rounded-full filter blur-[90px]"
+          style={{
+            background: '#673AB7',
+            opacity: isDark ? 0.15 : 0.08,
+          }}
+        />
+        <div
+          className="ambient-orb-3 absolute -bottom-20 left-1/4 w-72 h-72 sm:w-88 sm:h-88 rounded-full filter blur-[75px]"
+          style={{
+            background: '#FF5722',
+            opacity: isDark ? 0.09 : 0.05,
+          }}
+        />
+      </div>
+
+      {/* Layer 3 — noise grain */}
       <canvas ref={noiseRef} className="absolute inset-0 w-full h-full"
         style={{ pointerEvents: 'none', opacity: isDark ? 0.45 : 0.20, mixBlendMode: isDark ? 'screen' : 'multiply' }} />
 
@@ -1627,6 +1678,28 @@ const formatCountdown = (nextReview) => {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
+function HamburgerIcon({ isOpen }) {
+  return (
+    <div className="w-5 h-5 relative flex flex-col justify-center items-center">
+      <motion.span
+        className="block h-[2px] w-4 rounded-full bg-current"
+        animate={isOpen ? { rotate: 45, y: 5 } : { rotate: 0, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      />
+      <motion.span
+        className="block h-[2px] w-4 rounded-full bg-current my-[3px]"
+        animate={isOpen ? { opacity: 0, x: -6 } : { opacity: 1, x: 0 }}
+        transition={{ duration: 0.15 }}
+      />
+      <motion.span
+        className="block h-[2px] w-4 rounded-full bg-current"
+        animate={isOpen ? { rotate: -45, y: -5 } : { rotate: 0, y: 0 }}
+        transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      />
+    </div>
+  );
+}
+
 // --- MAIN APPLICATION COMPONENT ---
 function AppInner() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -1640,6 +1713,22 @@ function AppInner() {
   useEffect(() => { stopAllAudio(); }, [activeTab]);
   useEffect(() => () => stopAllAudio(), []);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [headerScrolled, setHeaderScrolled] = useState(false);
+  const mainRef = useRef(null);
+  useEffect(() => {
+    const handleScroll = () => {
+      const el = mainRef.current;
+      const top = el ? el.scrollTop : (window.scrollY || 0);
+      setHeaderScrolled(top > 20);
+    };
+    const el = mainRef.current;
+    if (el) el.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      if (el) el.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
   const [expandedGroups, setExpandedGroups] = useState({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [userLevel, setUserLevel] = useState(localStorage.getItem('userLevel') || 'B2');
@@ -3576,10 +3665,20 @@ function AppInner() {
         </defs>
       </svg>
 
+      {/* ── Hamburger morphing icon ── */}
       {/* ── Top Navigation Bar — Liquid Glass
            wrapper → effect(z0) → tint(z1) → shine(z2) → content(z3)
       ── */}
-      <header className="lg-nav-wrapper fixed top-3 left-3 right-3 z-[60] h-[64px] rounded-[32px]">
+      <motion.header
+        initial={{ y: -16, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.35, ease: easing.out }}
+        className={`lg-nav-wrapper fixed top-3 left-3 right-3 z-[60] h-[64px] rounded-[32px] transition-all duration-300 ${
+          headerScrolled
+            ? (theme === 'dark' ? 'shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-2xl' : 'shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-2xl')
+            : ''
+        }`}
+      >
         {/* z-0 distortion — empty so only backdrop is warped */}
         <div className="lg-effect" />
         {/* z-1 tint — dark: faint blue-white frost; light: white wash */}
@@ -3617,7 +3716,7 @@ function AppInner() {
                 }`}
                 title={_resolveTranslation(lang, 'القائمة', 'Menu')}
               >
-                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                <HamburgerIcon isOpen={isMobileMenuOpen} />
               </button>
               {/* User / Auth Toggle — Avatar first */}
               {user ? (
@@ -3684,105 +3783,195 @@ function AppInner() {
               {/* Theme toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all relative overflow-hidden ${
                   theme === 'dark'
                     ? 'text-gray-400 hover:text-white hover:bg-white/10'
                     : 'text-gray-500 hover:text-black hover:bg-black/5'
                 }`}
                 title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
               >
-                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={theme}
+                    initial={{ rotate: -90, opacity: 0, scale: 0.6 }}
+                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                    exit={{ rotate: 90, opacity: 0, scale: 0.6 }}
+                    transition={{ duration: 0.25, ease: easing.out }}
+                    className="flex items-center justify-center"
+                  >
+                    {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  </motion.div>
+                </AnimatePresence>
               </button>
               {/* Language toggle — SA flag */}
               <button
                 onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all relative overflow-hidden ${
                   theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'
                 }`}
                 title="عربي"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" className="w-5 h-[14px] rounded-sm overflow-hidden">
-                  <rect width="900" height="600" fill="#006C35"/>
-                  <g fill="#fff">
-                    <text x="450" y="330" textAnchor="middle" fontSize="200" fontFamily="serif">&#x200E;</text>
-                    <path d="M220 180 h460 v30 h-460z"/>
-                    <path d="M220 210 h30 v160 h-30z"/>
-                    <path d="M610 210 h30 v160 h-30z"/>
-                    <path d="M220 340 h460 v30 h-460z"/>
-                    <path d="M335 210 h30 v100 q0 30 30 30 h120 q30 0 30-30 v-100 h30 v100 q0 55-60 55 h-120 q-60 0-60-55z"/>
-                    <path d="M455 210 h30 v130 h-30z"/>
-                    <path d="M455 340 h30 v30 h-30z"/>
-                  </g>
-                </svg>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={lang}
+                    initial={{ rotate: -45, opacity: 0, scale: 0.6 }}
+                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                    exit={{ rotate: 45, opacity: 0, scale: 0.6 }}
+                    transition={{ duration: 0.25, ease: easing.out }}
+                    className="flex items-center justify-center"
+                  >
+                    <SaudiFlagIcon className="w-5 h-[14px] rounded-sm overflow-hidden" />
+                  </motion.div>
+                </AnimatePresence>
               </button>
             </div>
           )}
 
           {/* Navigation Icons */}
-          <nav className="hidden md:flex flex-1 items-center justify-center gap-0.5 px-2">
+          <motion.nav
+            variants={{
+              initial: {},
+              animate: {
+                transition: {
+                  staggerChildren: 0.04,
+                  delayChildren: 0.08
+                }
+              }
+            }}
+            initial="initial"
+            animate="animate"
+            className="hidden md:flex flex-1 items-center justify-center gap-0.5 px-2"
+          >
             {navItems.map(item => {
               const isGroup = !!item.items;
               const isActive = isGroup ? item.items.some(s => activeTab === s.id) : activeTab === item.id;
               const isOpen = activeDropdown === item.id;
 
               return (
-                <div key={item.id} className="relative" ref={isOpen ? navDropdownRef : null}>
+                <motion.div
+                  key={item.id}
+                  variants={{
+                    initial: { opacity: 0, y: -10 },
+                    animate: { opacity: 1, y: 0, transition: { duration: 0.25, ease: easing.out } }
+                  }}
+                  className="relative"
+                  ref={isOpen ? navDropdownRef : null}
+                >
                   <button
                     onClick={() => isGroup ? setActiveDropdown(isOpen ? null : item.id) : setActiveTab(item.id)}
                     title={item.label}
-                    className={`relative flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 group shrink-0 ${
+                    className={`relative flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 group shrink-0 ${
                       isActive
-                        ? (theme === 'dark' ? 'bg-white/12 text-white' : 'bg-black/6 text-black')
-                        : (theme === 'dark' ? 'text-white/60 hover:text-white hover:bg-white/8' : 'text-gray-500 hover:text-black hover:bg-black/4')
+                        ? (theme === 'dark' ? 'text-white font-bold' : 'text-black font-bold')
+                        : (theme === 'dark' ? 'text-white/60 hover:text-white' : 'text-gray-500 hover:text-black')
                     }`}
                   >
-                    <item.icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`} />
-                    <span className="hidden lg:inline-block text-xs font-extrabold truncate">{item.label}</span>
-                    {isGroup && <ChevronDown className={`w-3 h-3 opacity-40 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />}
+                    {isActive && (
+                      <motion.div
+                        layoutId="nav-pill"
+                        className={`absolute inset-0 rounded-xl ${
+                          theme === 'dark' ? 'bg-white/12 shadow-[0_0_12px_rgba(255,255,255,0.06)]' : 'bg-black/6 shadow-sm'
+                        }`}
+                        transition={springs.pill}
+                      />
+                    )}
+                    <motion.div
+                      animate={isActive ? { scale: [1, 1.25, 1], rotate: [0, -8, 0] } : { scale: 1, rotate: 0 }}
+                      whileHover={{ scale: 1.15, rotate: 6 }}
+                      transition={springs.snappy}
+                      className="shrink-0 flex items-center justify-center relative z-10"
+                    >
+                      <item.icon className="w-4 h-4 shrink-0" />
+                    </motion.div>
+                    <span className="hidden lg:inline-block text-xs font-extrabold truncate relative z-10">{item.label}</span>
+                    {isGroup && (
+                      <motion.div
+                        animate={{ rotate: isOpen ? 180 : 0 }}
+                        transition={{ duration: 0.25, ease: easing.out }}
+                        className="shrink-0 flex items-center justify-center opacity-40 relative z-10"
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                      </motion.div>
+                    )}
                     {item.badge > 0 && (
-                      <span className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold bg-[var(--app-accent1)] text-white shrink-0">
+                      <motion.span
+                        key={item.badge}
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: [0, 1.25, 1], opacity: 1 }}
+                        transition={springs.snappy}
+                        className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold bg-[var(--app-accent1)] text-white shrink-0 relative z-10"
+                      >
                         {item.badge > 99 ? '99+' : item.badge}
-                      </span>
+                      </motion.span>
                     )}
                   </button>
 
-                  {isGroup && isOpen && (
-                    <div 
-                      className="dropdown-menu absolute top-full left-1/2 -translate-x-1/2 mt-3 p-1.5 pb-3 rounded-2xl shadow-2xl z-[70] animate-in fade-in slide-in-from-top-2 duration-200 min-w-[calc(100%+12px)] w-max"
-                      style={{
-                        background: theme === 'dark' ? 'rgba(10, 10, 12, 0.6)' : 'rgba(255, 255, 255, 0.6)',
-                        backdropFilter: 'blur(40px) saturate(200%)',
-                        WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-                        border: theme === 'dark' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
-                        maxHeight: 'min(480px, 80vh)',
-                        overflowY: 'auto'
-                      }}
-                    >
-                      {item.items.map(sub => (
-                        <button
-                          key={sub.id}
-                          onClick={() => { setActiveTab(sub.id); setActiveDropdown(null); }}
-                          className={`flex items-center gap-1.5 w-full px-2.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                            activeTab === sub.id
-                              ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
-                              : (theme === 'dark' ? 'text-white/70 hover:bg-white/5 hover:text-white' : 'text-gray-600 hover:bg-black/5 hover:text-black')
-                          }`}
+                  <AnimatePresence>
+                    {isGroup && isOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.96, y: -4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96, y: -4, transition: { duration: 0.12 } }}
+                        transition={{ duration: 0.2, ease: easing.out }}
+                        className="dropdown-menu absolute top-full left-1/2 -translate-x-1/2 mt-3 p-1.5 pb-3 rounded-2xl shadow-2xl z-[70] min-w-[calc(100%+12px)] w-max"
+                        style={{
+                          transformOrigin: 'top center',
+                          background: theme === 'dark' ? 'rgba(10, 10, 12, 0.75)' : 'rgba(255, 255, 255, 0.75)',
+                          backdropFilter: 'blur(40px) saturate(200%)',
+                          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+                          border: theme === 'dark' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                          maxHeight: 'min(480px, 80vh)',
+                          overflowY: 'auto'
+                        }}
+                      >
+                        <motion.div
+                          initial="initial"
+                          animate="animate"
+                          variants={{
+                            animate: {
+                              transition: {
+                                staggerChildren: 0.03
+                              }
+                            }
+                          }}
                         >
-                          <sub.icon className="w-4 h-4 shrink-0" />
-                          <span className="flex-1 text-start">{sub.label}</span>
-                          {sub.badge > 0 && (
-                            <span className="min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[8px] font-bold bg-[var(--app-accent1)] text-white">
-                              {sub.badge}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                          {item.items.map(sub => (
+                            <motion.button
+                              key={sub.id}
+                              variants={{
+                                initial: { opacity: 0, y: 6 },
+                                animate: { opacity: 1, y: 0, transition: { duration: 0.2, ease: easing.out } }
+                              }}
+                              onClick={() => { setActiveTab(sub.id); setActiveDropdown(null); }}
+                              className={`flex items-center gap-1.5 w-full px-2.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                                activeTab === sub.id
+                                  ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
+                                  : (theme === 'dark' ? 'text-white/70 hover:bg-white/5 hover:text-white' : 'text-gray-600 hover:bg-black/5 hover:text-black')
+                              }`}
+                            >
+                              <sub.icon className="w-4 h-4 shrink-0" />
+                              <span className="flex-1 text-start">{sub.label}</span>
+                              {sub.badge > 0 && (
+                                <motion.span
+                                  key={sub.badge}
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: [0, 1.25, 1] }}
+                                  transition={springs.snappy}
+                                  className="min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[8px] font-bold bg-[var(--app-accent1)] text-white"
+                                >
+                                  {sub.badge}
+                                </motion.span>
+                              )}
+                            </motion.button>
+                          ))}
+                        </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
               );
             })}
-          </nav>
+          </motion.nav>
 
           {/* RIGHT slot — logo when EN, controls when AR */}
           {lang === 'ar' ? (
@@ -3798,7 +3987,7 @@ function AppInner() {
                 }`}
                 title={_resolveTranslation(lang, 'القائمة', 'Menu')}
               >
-                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                <HamburgerIcon isOpen={isMobileMenuOpen} />
               </button>
               {/* User / Auth Toggle — Avatar first */}
               {user ? (
@@ -3830,30 +4019,52 @@ function AppInner() {
               {/* Theme toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all relative overflow-hidden ${
                   theme === 'dark'
                     ? 'text-gray-400 hover:text-white hover:bg-white/10'
                     : 'text-gray-500 hover:text-black hover:bg-black/5'
                 }`}
                 title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
               >
-                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={theme}
+                    initial={{ rotate: -90, opacity: 0, scale: 0.6 }}
+                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                    exit={{ rotate: 90, opacity: 0, scale: 0.6 }}
+                    transition={{ duration: 0.25, ease: easing.out }}
+                    className="flex items-center justify-center"
+                  >
+                    {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  </motion.div>
+                </AnimatePresence>
               </button>
               {/* Language toggle — UK flag */}
               <button
                 onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all relative overflow-hidden ${
                   theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'
                 }`}
                 title="English"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" className="w-5 h-[13px] rounded-sm overflow-hidden">
-                  <rect width="60" height="30" fill="#012169"/>
-                  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
-                  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" strokeWidth="4"/>
-                  <path d="M30,0 V30 M0,15 H60" stroke="#fff" strokeWidth="10"/>
-                  <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" strokeWidth="6"/>
-                </svg>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={lang}
+                    initial={{ rotate: -45, opacity: 0, scale: 0.6 }}
+                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                    exit={{ rotate: 45, opacity: 0, scale: 0.6 }}
+                    transition={{ duration: 0.25, ease: easing.out }}
+                    className="flex items-center justify-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" className="w-5 h-[13px] rounded-sm overflow-hidden">
+                      <rect width="60" height="30" fill="#012169"/>
+                      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
+                      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" strokeWidth="4"/>
+                      <path d="M30,0 V30 M0,15 H60" stroke="#fff" strokeWidth="10"/>
+                      <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" strokeWidth="6"/>
+                    </svg>
+                  </motion.div>
+                </AnimatePresence>
               </button>
             </div>
           ) : (
@@ -3869,10 +4080,10 @@ function AppInner() {
           )}
 
         </div>
-      </header>
+      </motion.header>
 
       {/* ── Main Content Area ── */}
-      <main className={`relative z-10 flex-1 h-full overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px] ${activeTab === 'speaking' ? 'overflow-y-hidden' : 'overflow-y-auto'}`}>
+      <main ref={mainRef} className={`relative z-10 flex-1 h-full overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px] ${activeTab === 'speaking' ? 'overflow-y-hidden' : 'overflow-y-auto'}`}>
 
         {/* ── Blur curtain — hidden on speaking tab for sharp edge ── */}
         {activeTab !== 'speaking' && (
@@ -3904,137 +4115,168 @@ function AppInner() {
 
 
         <div className={`${activeTab === 'speaking' ? 'w-full' : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8'} print:p-0 print:pt-0`}>
-          <div className="animate-fadeIn">
-            {renderContent()}
-          </div>
+          {activeTab === 'speaking' ? (
+            renderContent()
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{
+                  enter: { duration: 0.35, ease: easing.out },
+                  exit: { duration: 0.15, ease: [0, 0, 1, 1] }
+                }}
+              >
+                {renderContent()}
+              </motion.div>
+            </AnimatePresence>
+          )}
         </div>
       </main>
 
       {/* ── Mobile Navigation Drawer ── */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-[80] bg-black/60 dark:bg-black/80 backdrop-blur-sm transition-opacity duration-300 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-      <div
-        className={`fixed top-0 bottom-0 z-[90] w-[280px] sm:w-[320px] transition-transform duration-300 ease-out md:hidden shadow-2xl flex flex-col border-gray-200/80 dark:border-white/10 ${
-          lang === 'ar'
-            ? 'right-0 border-l rounded-l-[32px]'
-            : 'left-0 border-r rounded-r-[32px]'
-        }`}
-        style={{
-          transform: isMobileMenuOpen
-            ? 'translateX(0)'
-            : (lang === 'ar' ? 'translateX(100%)' : 'translateX(-100%)'),
-          background: theme === 'dark'
-            ? 'rgba(15, 15, 19, 0.96)'
-            : 'rgba(255, 255, 255, 0.96)',
-          backdropFilter: 'blur(40px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-        }}
-      >
-        {/* Drawer Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-white/10">
-          <div className="flex items-center gap-2" dir="ltr">
-            <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5 text-white dark:text-black" />
-            </div>
-            <span className="text-lg font-bold tracking-tight text-black dark:text-white">
-              <span className="text-[var(--app-accent1)]">ai.</span><span>فينوكسا</span>
-            </span>
-          </div>
-          <button
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-              theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-black hover:bg-black/5'
-            }`}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Drawer Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
-          {navItems.map(item => {
-            const isGroup = !!item.items;
-            const isActive = isGroup ? item.items.some(s => activeTab === s.id) : activeTab === item.id;
-            const isExpanded = !!expandedGroups[item.id];
-
-            return (
-              <div key={item.id} className="space-y-1">
-                {isGroup ? (
-                  <div>
-                    <button
-                      onClick={() => setExpandedGroups(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${
-                        isActive
-                          ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/5 text-black')
-                          : (theme === 'dark' ? 'text-white/70 hover:text-white hover:bg-white/5' : 'text-gray-600 hover:text-black hover:bg-black/5')
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <item.icon className="w-5 h-5 shrink-0" />
-                        <span>{item.label}</span>
-                      </div>
-                      <ChevronDown className={`w-4 h-4 opacity-50 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                    </button>
-                    {isExpanded && (
-                      <div className={`mt-1 space-y-1 ${lang === 'ar' ? 'border-r-2 dark:border-white/10 border-gray-200/50 pr-4 pl-0' : 'border-l-2 dark:border-white/10 border-gray-200/50 pl-4 pr-0'}`}>
-                        {item.items.map(sub => {
-                          const isSubActive = activeTab === sub.id;
-                          return (
-                            <button
-                              key={sub.id}
-                              onClick={() => {
-                                setActiveTab(sub.id);
-                                setIsMobileMenuOpen(false);
-                              }}
-                              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                                isSubActive
-                                  ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
-                                  : (theme === 'dark' ? 'text-white/60 hover:bg-white/5 hover:text-white' : 'text-gray-500 hover:bg-black/5 hover:text-black')
-                              }`}
-                            >
-                              <sub.icon className="w-4 h-4 shrink-0" />
-                              <span className="flex-1 text-start">{sub.label}</span>
-                              {sub.badge > 0 && (
-                                <span className="min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[8px] font-bold bg-[var(--app-accent1)] text-white">
-                                  {sub.badge}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            <motion.div
+              key="mobile-drawer-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[80] bg-black/60 dark:bg-black/80 backdrop-blur-sm md:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+            <motion.div
+              key="mobile-drawer-panel"
+              initial={{ x: lang === 'ar' ? '100%' : '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: lang === 'ar' ? '100%' : '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className={`fixed top-0 bottom-0 z-[90] w-[280px] sm:w-[320px] md:hidden shadow-2xl flex flex-col border-gray-200/80 dark:border-white/10 ${
+                lang === 'ar'
+                  ? 'right-0 border-l rounded-l-[32px]'
+                  : 'left-0 border-r rounded-r-[32px]'
+              }`}
+              style={{
+                background: theme === 'dark'
+                  ? 'rgba(15, 15, 19, 0.96)'
+                  : 'rgba(255, 255, 255, 0.96)',
+                backdropFilter: 'blur(40px) saturate(200%)',
+                WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+              }}
+            >
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-white/10">
+                <div className="flex items-center gap-2" dir="ltr">
+                  <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5 text-white dark:text-black" />
                   </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setActiveTab(item.id);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${
-                      isActive
-                        ? (theme === 'dark' ? 'bg-white/12 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
-                        : (theme === 'dark' ? 'text-white/70 hover:text-white hover:bg-white/8' : 'text-gray-600 hover:text-black hover:bg-black/5')
-                    }`}
-                  >
-                    <item.icon className="w-5 h-5 shrink-0" />
-                    <span className="flex-1 text-start">{item.label}</span>
-                    {item.badge > 0 && (
-                      <span className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold bg-[var(--app-accent1)] text-white shrink-0">
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                )}
+                  <span className="text-lg font-bold tracking-tight text-black dark:text-white">
+                    <span className="text-[var(--app-accent1)]">ai.</span><span>فينوكسا</span>
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                    theme === 'dark' ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-black hover:bg-black/5'
+                  }`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            );
-          })}
-        </div>
-      </div>
+
+              {/* Drawer Scrollable Content */}
+              <motion.div
+                className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar"
+                variants={staggerContainer(35, 60)}
+                initial="initial"
+                animate="animate"
+              >
+                {navItems.map(item => {
+                  const isGroup = !!item.items;
+                  const isActive = isGroup ? item.items.some(s => activeTab === s.id) : activeTab === item.id;
+                  const isExpanded = !!expandedGroups[item.id];
+
+                  return (
+                    <motion.div key={item.id} variants={fadeUp} className="space-y-1">
+                      {isGroup ? (
+                        <div>
+                          <button
+                            onClick={() => setExpandedGroups(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                              isActive
+                                ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/5 text-black')
+                                : (theme === 'dark' ? 'text-white/70 hover:text-white hover:bg-white/5' : 'text-gray-600 hover:text-black hover:bg-black/5')
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <item.icon className="w-5 h-5 shrink-0" />
+                              <span>{item.label}</span>
+                            </div>
+                            <ChevronDown className={`w-4 h-4 opacity-50 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                          </button>
+                          {isExpanded && (
+                            <div className={`mt-1 space-y-1 ${lang === 'ar' ? 'border-r-2 dark:border-white/10 border-gray-200/50 pr-4 pl-0' : 'border-l-2 dark:border-white/10 border-gray-200/50 pl-4 pr-0'}`}>
+                              {item.items.map(sub => {
+                                const isSubActive = activeTab === sub.id;
+                                return (
+                                  <button
+                                    key={sub.id}
+                                    onClick={() => {
+                                      setActiveTab(sub.id);
+                                      setIsMobileMenuOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                                      isSubActive
+                                        ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
+                                        : (theme === 'dark' ? 'text-white/60 hover:bg-white/5 hover:text-white' : 'text-gray-500 hover:bg-black/5 hover:text-black')
+                                    }`}
+                                  >
+                                    <sub.icon className="w-4 h-4 shrink-0" />
+                                    <span className="flex-1 text-start">{sub.label}</span>
+                                    {sub.badge > 0 && (
+                                      <span className="min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[8px] font-bold bg-[var(--app-accent1)] text-white">
+                                        {sub.badge}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setActiveTab(item.id);
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                            isActive
+                              ? (theme === 'dark' ? 'bg-white/12 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
+                              : (theme === 'dark' ? 'text-white/70 hover:text-white hover:bg-white/8' : 'text-gray-600 hover:text-black hover:bg-black/5')
+                          }`}
+                        >
+                          <item.icon className="w-5 h-5 shrink-0" />
+                          <span className="flex-1 text-start">{item.label}</span>
+                          {item.badge > 0 && (
+                            <span className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold bg-[var(--app-accent1)] text-white shrink-0">
+                              {item.badge}
+                            </span>
+                          )}
+                        </button>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
@@ -4069,8 +4311,6 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
     setSuccess('');
     if (mode !== 'verify') setFlash('');
   }, [mode]);
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -4158,8 +4398,26 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      <div className="w-full max-w-md home-glass-card border-white/10 p-6 relative overflow-hidden flex flex-col gap-4 text-start">
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+          <motion.div
+            key="auth-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={onClose}
+          />
+          <motion.div
+            key="auth-modal-panel"
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={springs.snappy}
+            className="w-full max-w-md home-glass-card border-white/10 p-6 relative z-10 overflow-hidden flex flex-col gap-4 text-start"
+          >
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
@@ -4308,8 +4566,10 @@ function AuthModal({ isOpen, onClose, mode, setMode, onLogin, onRegister, onVeri
         >
           {t.switchText}
         </button>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }
 function Dashboard({
@@ -4621,262 +4881,356 @@ Return ONLY valid JSON (no markdown):
     });
   };
 
-  return <div className="space-y-6 animate-fadeIn">
-    {/* ── Top Header ── */}
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-lg font-bold text-[#0A0A0A] dark:text-white">{t.userGreeting}</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {t.currentLevel} <span className="font-bold text-[#0E4AA4] dark:text-blue-400">{userLevel}</span>
-        </p>
-      </div>
-      <button onClick={() => setTab('plan')}
-        className="bg-[#0E4AA4] hover:bg-[#0c3d8a] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2 shadow-sm"
-      >
-        <Calendar className="w-4 h-4" />
-        {t.createPlanBtn}
-      </button>
-    </div>
-
-    {/* ── Stats row ── */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-      <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-5 border border-gray-100 dark:border-white/10 shadow-sm">
-        <div className="w-10 h-10 rounded-xl bg-[#EBF0F7] dark:bg-blue-500/10 flex items-center justify-center mb-3">
-          <Zap className="w-5 h-5 text-[#0E4AA4] dark:text-blue-400" />
-        </div>
-        <div className="text-2xl font-bold text-[#0E4AA4] dark:text-blue-400">{userLevel}</div>
-        <div className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{t.currentLevel.replace(':','')}</div>
-      </div>
-      <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-5 border border-gray-100 dark:border-white/10 shadow-sm">
-        <div className="w-10 h-10 rounded-xl bg-[#FFF3DC] dark:bg-orange-500/10 flex items-center justify-center mb-3">
-          <Target className="w-5 h-5 text-[#7a4a00] dark:text-orange-400" />
-        </div>
-        <div className="text-2xl font-bold text-[#7a4a00] dark:text-orange-400">{planMeta?.targetLevel || 'C2'}</div>
-        <div className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{_resolveTranslation(lang, 'الهدف المستهدف', 'Target Level')}</div>
-      </div>
-      <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-5 border border-gray-100 dark:border-white/10 shadow-sm">
-        <div className="w-10 h-10 rounded-xl bg-[#C8EFE8] dark:bg-emerald-500/10 flex items-center justify-center mb-3">
-          <Clock className="w-5 h-5 text-[#0a5c52] dark:text-emerald-400" />
-        </div>
-        <div className="text-2xl font-bold text-[#0a5c52] dark:text-emerald-400">{Math.max(1, (planMeta?.totalWeeks || 36) - (currentWeek || 1))}</div>
-        <div className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{_resolveTranslation(lang, 'أسبوعاً متبقياً', 'Weeks Remaining')}</div>
-      </div>
-      <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-5 border border-gray-100 dark:border-white/10 shadow-sm">
-        <div className="w-10 h-10 rounded-xl bg-[#E8D5F5] dark:bg-purple-500/10 flex items-center justify-center mb-3">
-          <Award className="w-5 h-5 text-[#5a2d82] dark:text-purple-400" />
-        </div>
-        <div className="text-2xl font-bold text-[#5a2d82] dark:text-purple-400">{stats.progress}%</div>
-        <div className="text-xs text-gray-500 dark:text-gray-300 mt-0.5">{_resolveTranslation(lang, 'نسبة إنجاز الخطة', 'Plan Completion')}</div>
-      </div>
-    </div>
-
-    {/* ── Tip + Quote row ── */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Tip card */}
-      <div className="bg-[#FFF3DC] dark:bg-orange-500/10 rounded-2xl p-5 border border-[#FFD78A]/50 dark:border-orange-500/30">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-6 h-6 rounded-lg bg-[#FFD78A] dark:bg-orange-500 flex items-center justify-center">
-            <Star className="w-3.5 h-3.5 text-[#7a4a00] dark:text-white" />
-          </div>
-          <span className="text-xs font-bold text-[#7a4a00] dark:text-orange-400 uppercase tracking-wide">{t.smartTip}</span>
-          <span className="text-xs bg-[#FFD78A] dark:bg-orange-500/30 text-[#7a4a00] dark:text-orange-400 font-bold px-2 py-0.5 rounded-full">{userLevel}</span>
-        </div>
-        <p className="text-sm font-semibold text-[#0A0A0A] dark:text-white leading-relaxed">
-          {t.tipText}
-        </p>
-        <p className="text-xs text-[#7a4a00] dark:text-orange-400/80 mt-2">
-          {t.tipSubtext}
-        </p>
-      </div>
-
-      {/* Quote card */}
-      <div className="bg-[#EBF0F7] dark:bg-blue-500/10 rounded-2xl p-5 border border-[#0E4AA4]/10 dark:border-blue-500/30">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-6 h-6 rounded-lg bg-[#0E4AA4] dark:bg-blue-500 flex items-center justify-center">
-            <TrendingUp className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="text-xs font-bold text-[#0E4AA4] dark:text-blue-400 uppercase tracking-wide">{t.quoteTitle}</span>
-          <button
-            onClick={refreshQuote}
-            disabled={loadingQuote}
-            className="mr-auto p-1 rounded-lg hover:bg-[#0E4AA4]/10 dark:hover:bg-blue-500/20 transition-colors"
-            title={lang === 'ar' ? 'اقتباس جديد' : 'New quote'}
-          >
-            <RotateCcw className={`w-3 h-3 text-[#0E4AA4] dark:text-blue-400 ${loadingQuote ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-        <p className="text-sm font-semibold text-[#0A0A0A] dark:text-white leading-relaxed" dir="ltr">
-          "{safeRender(insight?.quote)}"
-        </p>
-        {insight?.author && (
-          <p className="text-xs text-[#0E4AA4] dark:text-blue-400 mt-2" dir="ltr">
-            — {insight.author}
+  return (
+    <motion.div
+      variants={staggerContainer(70)}
+      initial="initial"
+      animate="animate"
+      className="space-y-6"
+    >
+      {/* ── Top Header ── */}
+      <motion.div variants={fadeUp} className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-[#0A0A0A] dark:text-white">{t.userGreeting}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {t.currentLevel} <span className="font-bold text-[#0E4AA4] dark:text-blue-400">{userLevel}</span>
           </p>
-        )}
-      </div>
-    </div>
+        </div>
+        <button
+          onClick={() => setTab('plan')}
+          className="bg-[#0E4AA4] hover:bg-[#0c3d8a] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-sm active:scale-95"
+        >
+          <Calendar className="w-4 h-4" />
+          {t.createPlanBtn}
+        </button>
+      </motion.div>
 
-    {/* Section heading */}
-    <div className="flex items-center justify-between">
-      <h2 className="text-base font-bold text-[#0A0A0A] dark:text-white flex items-center gap-2">
-        <Activity className="w-4 h-4 text-[#0E4AA4] dark:text-blue-400" />
-        {t.learningPaths}
-      </h2>
-      <button className="text-sm text-[#0E4AA4] dark:text-blue-400 font-medium hover:underline">
-        {t.viewAll}
-      </button>
-    </div>
+      {/* ── Stats row ── */}
+      <motion.div variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <StreakWidget streak={stats.streak} lang={lang} isDark={isDark} theme={theme} />
+        <XPWidget xp={stats.xp} lang={lang} isDark={isDark} theme={theme} />
+        <ProgressWidget progress={stats.progress} lang={lang} isDark={isDark} theme={theme} />
+        <GoalWidget pct={stats.dailyGoalPct} lang={lang} isDark={isDark} theme={theme} />
+      </motion.div>
 
-    {/* Feature cards grid */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {t.paths.map((path) => {
-        const Icon = path.icon;
-        return (
-          <div
+      {/* ── Tip + Quote row ── */}
+      <motion.div variants={fadeUp} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Tip card */}
+        <div className="bg-[#FFF3DC] dark:bg-orange-500/10 rounded-2xl p-5 border border-[#FFD78A]/50 dark:border-orange-500/30 transition-all hover:-translate-y-1">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-6 h-6 rounded-lg bg-[#FFD78A] dark:bg-orange-500 flex items-center justify-center">
+              <Star className="w-3.5 h-3.5 text-[#7a4a00] dark:text-white" />
+            </div>
+            <span className="text-xs font-bold text-[#7a4a00] dark:text-orange-400 uppercase tracking-wide">{t.smartTip}</span>
+            <span className="text-xs bg-[#FFD78A] dark:bg-orange-500/30 text-[#7a4a00] dark:text-orange-400 font-bold px-2 py-0.5 rounded-full">{userLevel}</span>
+          </div>
+          <p className="text-sm font-semibold text-[#0A0A0A] dark:text-white leading-relaxed">
+            {t.tipText}
+          </p>
+          <p className="text-xs text-[#7a4a00] dark:text-orange-400/80 mt-2">
+            {t.tipSubtext}
+          </p>
+        </div>
+
+        {/* Quote card */}
+        <div className="bg-[#EBF0F7] dark:bg-blue-500/10 rounded-2xl p-5 border border-[#0E4AA4]/10 dark:border-blue-500/30 transition-all hover:-translate-y-1">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-6 h-6 rounded-lg bg-[#0E4AA4] dark:bg-blue-500 flex items-center justify-center">
+              <TrendingUp className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="text-xs font-bold text-[#0E4AA4] dark:text-blue-400 uppercase tracking-wide">{t.quoteTitle}</span>
+            <button
+              onClick={refreshQuote}
+              disabled={loadingQuote}
+              className="mr-auto p-1 rounded-lg hover:bg-[#0E4AA4]/10 dark:hover:bg-blue-500/20 transition-colors"
+              title={lang === 'ar' ? 'اقتباس جديد' : 'New quote'}
+            >
+              <RotateCcw className={`w-3 h-3 text-[#0E4AA4] dark:text-blue-400 ${loadingQuote ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+          <p className="text-sm font-semibold text-[#0A0A0A] dark:text-white leading-relaxed" dir="ltr">
+            "{safeRender(insight?.quote)}"
+          </p>
+          {insight?.author && (
+            <p className="text-xs text-[#0E4AA4] dark:text-blue-400 mt-2" dir="ltr">
+              — {insight.author}
+            </p>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Section heading */}
+      <motion.div variants={fadeUp} className="flex items-center justify-between">
+        <h2 className="text-base font-bold text-[#0A0A0A] dark:text-white flex items-center gap-2">
+          <Activity className="w-4 h-4 text-[#0E4AA4] dark:text-blue-400" />
+          {t.learningPaths}
+        </h2>
+        <button className="text-sm text-[#0E4AA4] dark:text-blue-400 font-medium hover:underline">
+          {t.viewAll}
+        </button>
+      </motion.div>
+
+      {/* Feature cards grid */}
+      <motion.div variants={fadeUp} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {t.paths.map((path, i) => (
+          <DashboardCard
             key={path.id}
+            icon={path.icon}
+            title={path.title}
+            desc={path.desc}
+            paletteIndex={i}
+            index={i}
+            isDark={isDark}
             onClick={() => setTab(path.id)}
-            className={`${path.bg} border border-white/60 rounded-2xl p-5 cursor-pointer hover:scale-[1.02] transition-transform duration-200 shadow-sm`}
-          >
-            <div className={`w-10 h-10 rounded-xl ${path.iconBg} shadow-sm flex items-center justify-center mb-4`}>
-              <Icon className={`w-5 h-5 ${path.iconColor}`} />
-            </div>
-            <div className={`text-[10px] font-bold uppercase tracking-widest ${path.textColor} mb-1`}>
-              {path.subtitle}
-            </div>
-            <h3 className={`font-bold text-sm ${path.textColor} mb-2`}>{path.title}</h3>
-            <p className={`text-xs ${path.textColor} leading-relaxed`}>{path.desc}</p>
-          </div>
-        );
-      })}
-    </div>
+          />
+        ))}
+      </motion.div>
 
-    {/* Weekly progress bar */}
-    <div className="bg-white dark:bg-[#0F0F13] rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-sm text-[#0A0A0A] dark:text-white">{t.weeklyProgress}</h3>
-        <span className="text-xs text-gray-400 dark:text-gray-400">{t.weekOf}</span>
-      </div>
-      <div className="flex items-center gap-4 mb-3">
-        <div className="flex-1 bg-[#F7F9FC] dark:bg-white/5 rounded-full h-3">
-          <div className="bg-[#0E4AA4] dark:bg-blue-500 h-3 rounded-full" style={{ width: `${Math.min(100, ((currentWeek || 1) / (planMeta?.totalWeeks || 36)) * 100)}%` }} />
+      {/* Weekly progress bar */}
+      <motion.div variants={fadeUp} className="bg-white dark:bg-[#0F0F13] rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-sm text-[#0A0A0A] dark:text-white">{t.weeklyProgress}</h3>
+          <span className="text-xs text-gray-400 dark:text-gray-400">{t.weekOf}</span>
         </div>
-        <span className="text-sm font-bold text-[#0E4AA4] dark:text-blue-400">{Math.round(Math.min(100, ((currentWeek || 1) / (planMeta?.totalWeeks || 36)) * 100))}%</span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-[#F7F9FC] dark:bg-white/5 rounded-xl p-3">
-          <div className="text-xs text-gray-400 dark:text-gray-400 mb-1">{_resolveTranslation(lang, 'المفردات', 'Vocabulary')}</div>
-          <div className="flex items-end gap-1">
-            <span className="font-bold text-sm text-[#0A0A0A] dark:text-white">{Math.min((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 4, (planMeta?.totalWords || 2000))}</span>
-            <span className="text-xs text-gray-400 dark:text-gray-400 mb-0.5">/ {planMeta?.totalWords || 2000}</span>
+        <div className="flex items-center gap-4 mb-3">
+          <div className="flex-1 bg-[#F7F9FC] dark:bg-white/5 rounded-full h-3 overflow-hidden">
+            <motion.div
+              className="bg-[#0E4AA4] dark:bg-blue-500 h-3 rounded-full origin-left"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.8, ease: easing.out }}
+              style={{ width: `${Math.min(100, ((currentWeek || 1) / (planMeta?.totalWeeks || 36)) * 100)}%` }}
+            />
           </div>
-          <div className="mt-2 bg-white dark:bg-white/10 rounded-full h-1.5">
-            <div className="bg-[#6ECEC0] h-1.5 rounded-full" style={{ width: `${Math.min(100, ((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 4 / (planMeta?.totalWords || 2000)) * 100)}%` }} />
+          <span className="text-sm font-bold text-[#0E4AA4] dark:text-blue-400">
+            <AnimatedNumber value={Math.round(Math.min(100, ((currentWeek || 1) / (planMeta?.totalWeeks || 36)) * 100))} />%
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-[#F7F9FC] dark:bg-white/5 rounded-xl p-3">
+            <div className="text-xs text-gray-400 dark:text-gray-400 mb-1">{_resolveTranslation(lang, 'المفردات', 'Vocabulary')}</div>
+            <div className="flex items-end gap-1">
+              <span className="font-bold text-sm text-[#0A0A0A] dark:text-white">
+                <AnimatedNumber value={Math.min((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 4, (planMeta?.totalWords || 2000))} />
+              </span>
+              <span className="text-xs text-gray-400 dark:text-gray-400 mb-0.5">/ {planMeta?.totalWords || 2000}</span>
+            </div>
+            <div className="mt-2 bg-white dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+              <motion.div
+                className="bg-[#6ECEC0] h-1.5 rounded-full origin-left"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.8, ease: easing.out }}
+                style={{ width: `${Math.min(100, ((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 4 / (planMeta?.totalWords || 2000)) * 100)}%` }}
+              />
+            </div>
+          </div>
+          <div className="bg-[#F7F9FC] dark:bg-white/5 rounded-xl p-3">
+            <div className="text-xs text-gray-400 dark:text-gray-400 mb-1">{_resolveTranslation(lang, 'القواعد', 'Grammar')}</div>
+            <div className="flex items-end gap-1">
+              <span className="font-bold text-sm text-[#0A0A0A] dark:text-white">
+                <AnimatedNumber value={Math.min((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.5, (planMeta?.totalRules || 252))} />
+              </span>
+              <span className="text-xs text-gray-400 dark:text-gray-400 mb-0.5">/ {planMeta?.totalRules || 252}</span>
+            </div>
+            <div className="mt-2 bg-white dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+              <motion.div
+                className="bg-[#FFB347] h-1.5 rounded-full origin-left"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.8, ease: easing.out }}
+                style={{ width: `${Math.min(100, ((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.5 / (planMeta?.totalRules || 252)) * 100)}%` }}
+              />
+            </div>
+          </div>
+          <div className="bg-[#F7F9FC] dark:bg-white/5 rounded-xl p-3">
+            <div className="text-xs text-gray-400 dark:text-gray-400 mb-1">{_resolveTranslation(lang, 'ساعات الدراسة', 'Study Hours')}</div>
+            <div className="flex items-end gap-1">
+              <span className="font-bold text-sm text-[#0A0A0A] dark:text-white">
+                <AnimatedNumber value={Math.round((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.3)} />h
+              </span>
+              <span className="text-xs text-gray-400 dark:text-gray-400 mb-0.5">/ {Math.round((planMeta?.totalWeeks || 36) * 10.5)}h</span>
+            </div>
+            <div className="mt-2 bg-white dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+              <motion.div
+                className="bg-[#B57BEA] h-1.5 rounded-full origin-left"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.8, ease: easing.out }}
+                style={{ width: `${Math.min(100, ((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.3 / ((planMeta?.totalWeeks || 36) * 10.5)) * 100)}%` }}
+              />
+            </div>
           </div>
         </div>
-        <div className="bg-[#F7F9FC] dark:bg-white/5 rounded-xl p-3">
-          <div className="text-xs text-gray-400 dark:text-gray-400 mb-1">{_resolveTranslation(lang, 'القواعد', 'Grammar')}</div>
-          <div className="flex items-end gap-1">
-            <span className="font-bold text-sm text-[#0A0A0A] dark:text-white">{Math.min((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.5, (planMeta?.totalRules || 252))}</span>
-            <span className="text-xs text-gray-400 dark:text-gray-400 mb-0.5">/ {planMeta?.totalRules || 252}</span>
-          </div>
-          <div className="mt-2 bg-white dark:bg-white/10 rounded-full h-1.5">
-            <div className="bg-[#FFB347] h-1.5 rounded-full" style={{ width: `${Math.min(100, ((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.5 / (planMeta?.totalRules || 252)) * 100)}%` }} />
-          </div>
-        </div>
-        <div className="bg-[#F7F9FC] dark:bg-white/5 rounded-xl p-3">
-          <div className="text-xs text-gray-400 dark:text-gray-400 mb-1">{_resolveTranslation(lang, 'ساعات الدراسة', 'Study Hours')}</div>
-          <div className="flex items-end gap-1">
-            <span className="font-bold text-sm text-[#0A0A0A] dark:text-white">{Math.round((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.3)}h</span>
-            <span className="text-xs text-gray-400 dark:text-gray-400 mb-0.5">/ {Math.round((planMeta?.totalWeeks || 36) * 10.5)}h</span>
-          </div>
-          <div className="mt-2 bg-white dark:bg-white/10 rounded-full h-1.5">
-            <div className="bg-[#B57BEA] h-1.5 rounded-full" style={{ width: `${Math.min(100, ((completedCells ? Object.values(completedCells).filter(v=>v==='done').length : 0) * 0.3 / ((planMeta?.totalWeeks || 36) * 10.5)) * 100)}%` }} />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>;
+      </motion.div>
+    </motion.div>
+  );
 }
 
-function StreakWidget({ streak, lang, isDark, theme }) {
+function AnimatedNumber({ value = 0, duration = 800, formatter = v => v.toLocaleString() }) {
+  const [current, setCurrent] = useState(0);
+  const target = typeof value === 'number' ? value : parseInt(String(value).replace(/[^0-9]/g, ''), 10) || 0;
+
+  useEffect(() => {
+    let startTimestamp = null;
+    let animFrame = null;
+    const startVal = 0;
+
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const val = Math.round(startVal + (target - startVal) * easeProgress);
+      setCurrent(val);
+      if (progress < 1) {
+        animFrame = requestAnimationFrame(step);
+      }
+    };
+    animFrame = requestAnimationFrame(step);
+    return () => {
+      if (animFrame) cancelAnimationFrame(animFrame);
+    };
+  }, [target, duration]);
+
+  return <>{formatter(current)}</>;
+}
+
+function WidgetSkeleton() {
   return (
-    <div className="home-glass-card card-shine relative group p-5 flex items-center gap-4 transition-all duration-400 hover:-translate-y-1">
-      <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:scale-110 transition-transform">
-        <Zap size={24} fill="currentColor" />
-      </div>
-      <div>
-        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'سلسلة التعلم', 'Streak')}</div>
-        <div className="text-xl font-black text-black dark:text-white">{streak} {_resolveTranslation(lang, 'أيام', 'Days')}</div>
+    <div className="home-glass-card p-5 flex items-center gap-4 animate-pulse">
+      <div className="w-12 h-12 rounded-2xl bg-gray-200 dark:bg-white/10 shrink-0" />
+      <div className="space-y-2 flex-1">
+        <div className="h-2.5 bg-gray-200 dark:bg-white/10 rounded w-16" />
+        <div className="h-5 bg-gray-200 dark:bg-white/10 rounded w-24" />
       </div>
     </div>
   );
 }
 
-function XPWidget({ xp, lang, isDark, theme }) {
+function StreakWidget({ streak = 0, lang, isDark, theme, loading = false }) {
+  if (loading) return <WidgetSkeleton />;
   return (
-    <div className="home-glass-card card-shine relative group p-5 flex items-center gap-4 transition-all duration-400 hover:-translate-y-1">
+    <div className="home-glass-card card-shine relative group p-5 flex items-center gap-4 transition-all duration-300 hover:-translate-y-1">
+      <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:scale-110 transition-transform">
+        <div className="streak-flame flex items-center justify-center">
+          <Zap size={24} fill="currentColor" />
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'سلسلة التعلم', 'Streak')}</div>
+        <div className="text-xl font-black text-black dark:text-white">
+          <AnimatedNumber value={streak} /> {_resolveTranslation(lang, 'أيام', 'Days')}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function XPWidget({ xp = 0, lang, isDark, theme, loading = false }) {
+  if (loading) return <WidgetSkeleton />;
+  return (
+    <div className="home-glass-card card-shine relative group p-5 flex items-center gap-4 transition-all duration-300 hover:-translate-y-1">
       <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform">
         <Award size={24} />
       </div>
       <div>
         <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'إجمالي النقاط', 'Total XP')}</div>
-        <div className="text-xl font-black text-black dark:text-white">{xp.toLocaleString()}</div>
+        <div className="text-xl font-black text-black dark:text-white">
+          <AnimatedNumber value={xp} />
+        </div>
       </div>
     </div>
   );
 }
 
-function ProgressWidget({ progress, lang, isDark, theme }) {
+function ProgressWidget({ progress = 0, lang, isDark, theme, loading = false }) {
+  if (loading) return <WidgetSkeleton />;
   return (
-    <div className="home-glass-card card-shine relative group p-5 flex flex-col justify-center transition-all duration-400 hover:-translate-y-1">
+    <div className="home-glass-card card-shine relative group p-5 flex flex-col justify-center transition-all duration-300 hover:-translate-y-1">
       <div className="flex justify-between items-center mb-3">
         <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'التقدم الكلي', 'Overall Progress')}</div>
-        <div className="text-xs font-black text-emerald-500">{progress}%</div>
+        <div className="text-xs font-black text-emerald-500">
+          <AnimatedNumber value={progress} />%
+        </div>
       </div>
       <div className="h-2 w-full bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-        <div className="h-full bg-emerald-500 rounded-full group-hover:scale-x-105 transition-transform origin-left" style={{ width: `${progress}%` }}></div>
+        <motion.div
+          className="h-full bg-emerald-500 rounded-full origin-left"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.8, ease: easing.out }}
+          style={{ width: `${progress}%` }}
+        />
       </div>
     </div>
   );
 }
 
-function GoalWidget({ pct, lang, isDark, theme }) {
+function GoalWidget({ pct = 0, lang, isDark, theme, loading = false }) {
+  if (loading) return <WidgetSkeleton />;
   return (
-    <div className="home-glass-card card-shine relative group p-5 flex items-center gap-4 transition-all duration-400 hover:-translate-y-1">
-      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
-        <CalendarCheck size={24} />
+    <div className="home-glass-card card-shine relative group p-5 flex items-center gap-4 transition-all duration-300 hover:-translate-y-1">
+      <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
+        <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
+          <path
+            className="text-gray-200 dark:text-white/10"
+            strokeWidth="3.5"
+            stroke="currentColor"
+            fill="none"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          />
+          <motion.path
+            className="text-blue-500"
+            strokeDasharray="100, 100"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            stroke="currentColor"
+            fill="none"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            initial={{ strokeDashoffset: 100 }}
+            animate={{ strokeDashoffset: 100 - Math.min(100, Math.max(0, pct)) }}
+            transition={{ duration: 0.8, ease: easing.out }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+          <CalendarCheck size={18} />
+        </div>
       </div>
       <div>
         <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{_resolveTranslation(lang, 'الهدف اليومي', 'Daily Goal')}</div>
-        <div className="text-xl font-black text-black dark:text-white">{pct}%</div>
+        <div className="text-xl font-black text-black dark:text-white">
+          <AnimatedNumber value={pct} />%
+        </div>
       </div>
     </div>
   );
 }
+
 const CARD_PALETTES = [
-  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent1)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
-  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent2)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
-  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-[var(--app-accent1)]', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
-  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-rose-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
-  { bg: 'glass-panel', iconBg: 'bg-gray-100 dark:bg-[var(--app-surface)]', iconColor: 'text-amber-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]' },
+  { bg: 'glass-panel', iconBg: 'bg-emerald-500/10 dark:bg-emerald-500/20', iconColor: 'text-emerald-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]', glow: 'rgba(16, 185, 129, 0.22)' },
+  { bg: 'glass-panel', iconBg: 'bg-amber-500/10 dark:bg-amber-500/20', iconColor: 'text-amber-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]', glow: 'rgba(245, 158, 11, 0.22)' },
+  { bg: 'glass-panel', iconBg: 'bg-purple-500/10 dark:bg-purple-500/20', iconColor: 'text-purple-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]', glow: 'rgba(168, 85, 247, 0.22)' },
+  { bg: 'glass-panel', iconBg: 'bg-rose-500/10 dark:bg-rose-500/20', iconColor: 'text-rose-500', text: 'text-black dark:text-white', sub: 'text-gray-500 dark:text-[#B0B0C0]', glow: 'rgba(244, 63, 94, 0.22)' },
 ];
 
 function DashboardCard({ icon: Icon, title, desc, onClick, paletteIndex = 0, index = 0, isDark = false }) {
   const p = CARD_PALETTES[paletteIndex % CARD_PALETTES.length];
   return (
-    <div
+    <motion.div
       onClick={onClick}
-      className="home-glass-card card-shine group relative cursor-pointer rounded-[32px] p-6 sm:p-8 transition-all duration-500 flex flex-col hover:-translate-y-1"
+      whileHover={{ y: -6, boxShadow: `0 12px 32px ${p.glow}` }}
+      whileTap={{ scale: 0.98 }}
+      transition={springs.soft}
+      className="home-glass-card card-shine group relative cursor-pointer rounded-[32px] p-6 sm:p-8 flex flex-col"
     >
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-8 ${p.iconBg} transition-all duration-500 shadow-sm`}>
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-8 ${p.iconBg} shadow-sm transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-[1.08]`}>
         <Icon className={`w-6 h-6 ${p.iconColor}`} />
       </div>
       <div className="space-y-3 text-start rtl:text-right">
         <h3 className={`font-bold text-xl tracking-tight ${p.text}`}>{title}</h3>
         <p className={`text-sm leading-relaxed font-medium ${p.sub}`}>{desc}</p>
       </div>
-
-    </div>
+    </motion.div>
   );
 }
 
@@ -4971,9 +5325,37 @@ function PlanWeekTable({
                             </span>
                           </div>
                         ) : cat.id === 'grammar' ? (() => {
-                          const globalDayIdx = (weekNum - 1) * 7 + d;
-                          const rpd = rulesPerDay || 1;
-                          const startRuleIdx = globalDayIdx * rpd;
+                          const rpd = Math.min(2, Math.max(1, rulesPerDay || 1));
+                          // 2 review days in the week: Day 4 (mid-week review) and Day 7 (end-of-week review)
+                          if (d === 4) {
+                            return (
+                              <div className="flex flex-col items-center gap-0.5 max-w-[85px] text-center">
+                                <span className="text-[9.5px] font-extrabold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/50 px-1.5 py-0.5 rounded-lg leading-tight">
+                                  {_resolveTranslation(lang, '🔄 مراجعة 1-3', '🔄 Mid-Review')}
+                                </span>
+                                <span className="text-[8.5px] text-gray-500 dark:text-gray-400 font-medium leading-none mt-0.5">
+                                  {_resolveTranslation(lang, 'قواعد أيام 1-3', 'Days 1–3 Recap')}
+                                </span>
+                              </div>
+                            );
+                          }
+                          if (d === 7) {
+                            return (
+                              <div className="flex flex-col items-center gap-0.5 max-w-[85px] text-center">
+                                <span className="text-[9.5px] font-extrabold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800/50 px-1.5 py-0.5 rounded-lg leading-tight">
+                                  {_resolveTranslation(lang, '🔄 مراجعة الأسبوع', '🔄 Week Review')}
+                                </span>
+                                <span className="text-[8.5px] text-gray-500 dark:text-gray-400 font-medium leading-none mt-0.5">
+                                  {_resolveTranslation(lang, 'تثبيت ومراجعة', 'Full Week Recap')}
+                                </span>
+                              </div>
+                            );
+                          }
+                          // Study day index in week: d=1 -> 0, d=2 -> 1, d=3 -> 2, d=5 -> 3, d=6 -> 4
+                          const studyDayInWeekIdx = d < 4 ? (d - 1) : (d - 2);
+                          const priorWeeksStudyDays = (weekNum - 1) * 5;
+                          const globalStudyDayIdx = priorWeeksStudyDays + studyDayInWeekIdx;
+                          const startRuleIdx = globalStudyDayIdx * rpd;
                           const dayRules = planGrammarRules ? planGrammarRules.slice(startRuleIdx, startRuleIdx + rpd).filter(Boolean) : [];
                           if (dayRules.length === 0) return <span className="text-[10px] text-gray-400 dark:text-gray-600">—</span>;
                           return (
@@ -5160,6 +5542,26 @@ function StudyPlan({
   const todayISO = new Date().toISOString().slice(0, 10);
   const [startDate, setStartDate] = useState(stored?.startDate || todayISO);
   const [targetDate, setTargetDate] = useState(stored?.targetDate || '');
+
+  const curLvlIdx = LEVEL_ORDER.indexOf(userLevel);
+  const tgtLvlIdx = LEVEL_ORDER.indexOf(targetLevel);
+  const levelDelta = Math.max(1, tgtLvlIdx - curLvlIdx);
+  // Realistic time constraint: advancing each CEFR level takes at least 2 weeks
+  const minWeeksRequired = Math.max(1, levelDelta * 2);
+
+  const minTargetDate = useMemo(() => {
+    if (!startDate) return '';
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + minWeeksRequired * 7);
+    return d.toISOString().slice(0, 10);
+  }, [startDate, minWeeksRequired]);
+
+  // Auto-enforce minTargetDate whenever targetLevel or startDate changes
+  useEffect(() => {
+    if (minTargetDate && (!targetDate || targetDate < minTargetDate)) {
+      setTargetDate(minTargetDate);
+    }
+  }, [minTargetDate]);
   const [skillSettings, setSkillSettings] = useState(() => stored?.skillSettings || {
     listen: {
       useDefault: true,
@@ -5482,12 +5884,12 @@ function StudyPlan({
     if (wordSource === 'langeek') return [];
     return suitableVocabBase.length >= wordsPerDay ? suitableVocabBase : globalVocab;
   }, [wordSource, suitableVocabBase, wordsPerDay, globalVocab]);
-  // rulesPerDay: how many grammar rules to assign per day
-  // If plan days >= total rules → 1 rule/day, stop when exhausted
-  // If plan days < total rules → spread multiple rules per day
+  // rulesPerDay: how many grammar rules to assign per study day.
+  // Capped at 2 rules per study day so learners are never overwhelmed with 10+ rules in a single day.
   const rulesPerDay = useMemo(() => {
     if (!daysToTarget || planGrammarRules.length === 0) return 1;
-    return daysToTarget >= planGrammarRules.length ? 1 : Math.ceil(planGrammarRules.length / daysToTarget);
+    const raw = Math.ceil(planGrammarRules.length / Math.max(1, daysToTarget));
+    return Math.max(1, Math.min(2, raw));
   }, [daysToTarget, planGrammarRules]);
   const generatePlan = () => {
     const mins = {
@@ -5513,10 +5915,18 @@ function StudyPlan({
       alert(t.invalidRange);
       return;
     }
+    if (minTargetDate && end < new Date(minTargetDate)) {
+      alert(_resolveTranslation(lang,
+        `يتطلب الانتقال من ${userLevel} إلى ${targetLevel} مدة لا تقل عن ${minWeeksRequired} أسابيع للدراسة الواقعية والمتقنة.`,
+        `Advancing from ${userLevel} to ${targetLevel} requires at least ${minWeeksRequired} weeks for realistic mastery.`
+      ));
+      return;
+    }
     const diffDays = Math.ceil((end - start) / 86400000);
     const calculatedWeeks = Math.max(1, Math.ceil(diffDays / 7));
     const wpd = wordsMode === 'auto' ? autoWordsPerDay : Math.max(1, parseInt(wordsManual, 10) || 1);
-    const rpd = diffDays >= planGrammarRules.length && planGrammarRules.length > 0 ? 1 : Math.ceil(planGrammarRules.length / (diffDays || 1));
+    const rawRpd = Math.ceil(planGrammarRules.length / Math.max(1, diffDays));
+    const rpd = Math.max(1, Math.min(2, rawRpd));
     setPlanMeta({
       totalWeeks: calculatedWeeks,
       mins,
@@ -5711,16 +6121,46 @@ function StudyPlan({
       isLangeek: false
     });
   };
-  const openGrammarModal = dayIndex => {
-    const globalDayIdx = (currentWeek - 1) * 7 + dayIndex; // 0-based
-    const rpd = planMeta?.rulesPerDay || rulesPerDay || 1;
-    const startRuleIdx = globalDayIdx * rpd;
-    const dayRules = planGrammarRules.slice(startRuleIdx, startRuleIdx + rpd).filter(Boolean);
-    const topic = dayRules.length > 0 ? dayRules.join(' · ') : null;
-    if (!topic) return;
+  const openGrammarModal = dayNum => {
+    const d = typeof dayNum === 'number' ? dayNum : 1; // 1 to 7
+    const rpd = Math.min(2, Math.max(1, planMeta?.rulesPerDay || rulesPerDay || 1));
+    const priorWeeksStudyDays = (currentWeek - 1) * 5;
+    const isMidReview = (d === 4);
+    const isEndReview = (d === 7);
+
+    let modalTitle = '';
+    let modalSubtitle = '';
+    let rulesList = [];
+
+    if (isMidReview) {
+      const d1Start = priorWeeksStudyDays * rpd;
+      const d3End = (priorWeeksStudyDays + 3) * rpd;
+      rulesList = planGrammarRules.slice(d1Start, d3End).filter(Boolean);
+      modalTitle = _resolveTranslation(lang, '🔄 مراجعة منتصف الأسبوع (اليوم 4)', '🔄 Mid-Week Grammar Review (Day 4)');
+      modalSubtitle = _resolveTranslation(lang, 'مراجعة وتثبيت قواعد الأيام 1، 2 و 3', 'Review and reinforce rules learned in Days 1, 2 & 3');
+    } else if (isEndReview) {
+      const weekStart = priorWeeksStudyDays * rpd;
+      const weekEnd = (priorWeeksStudyDays + 5) * rpd;
+      rulesList = planGrammarRules.slice(weekStart, weekEnd).filter(Boolean);
+      modalTitle = _resolveTranslation(lang, '🔄 مراجعة نهاية الأسبوع (اليوم 7)', '🔄 Weekly Grammar Review (Day 7)');
+      modalSubtitle = _resolveTranslation(lang, 'مراجعة شاملة وتثبيت لجميع قواعد هذا الأسبوع', "Comprehensive review and mastery of this week's grammar");
+    } else {
+      const studyDayInWeekIdx = d < 4 ? (d - 1) : (d - 2);
+      const globalStudyDayIdx = priorWeeksStudyDays + studyDayInWeekIdx;
+      const startRuleIdx = globalStudyDayIdx * rpd;
+      rulesList = planGrammarRules.slice(startRuleIdx, startRuleIdx + rpd).filter(Boolean);
+      modalTitle = `${t.grammarHeader} (${t.day} ${d})`;
+      modalSubtitle = t.grammarTarget;
+    }
+
+    if (!rulesList.length) return;
+
     setGrammarModal({
-      day: dayIndex + 1,
-      topic
+      day: d,
+      isReview: isMidReview || isEndReview,
+      title: modalTitle,
+      subtitle: modalSubtitle,
+      rules: rulesList,
     });
   };
   const handlePrint = () => {
@@ -5795,6 +6235,11 @@ function StudyPlan({
         Promise.resolve(document.fonts && document.fonts.ready),
         new Promise(r => setTimeout(r, 2500))
       ]);
+      // Direction must follow the UI language: the plan table's first column is
+      // Activity, so RTL puts it on the right (Arabic) and LTR on the left
+      // (English).
+      const pdfDir = lang === 'ar' ? 'rtl' : 'ltr';
+
       // 2) Temporarily restyle for a clean capture: force the print-visibility
       //    rules on (they only exist inside @media print), switch to light
       //    theme colors, and pin the container to a fixed desktop-like width
@@ -5820,22 +6265,54 @@ function StudyPlan({
         .print-layout-container [class*="overflow-x"] {
           overflow: visible !important;
         }
-        /* The foreignObject/SVG re-layout uses a fallback font whose glyph
-           metrics differ from the live page's webfonts, so truncate boxes
-           sized against the real font clip labels to "است..." in the raster.
-           Let them render in full during capture. */
         .print-layout-container .truncate {
           overflow: visible !important;
           text-overflow: clip !important;
         }
+        /* PDF-only rounded corners: keep the wrapper's on-screen rounded look.
+           html2canvas requires physical radius properties and border-collapse: separate. */
+        .print-layout-container .plan-table-wrapper {
+          border-radius: 28px !important;
+          overflow: hidden !important;
+          border: 1.5px solid #e2e8f0 !important;
+          background: #ffffff !important;
+        }
+        .print-layout-container .plan-table-wrapper table {
+          border-collapse: separate !important;
+          border-spacing: 0 !important;
+          border-radius: 28px !important;
+        }
+        ${pdfDir === 'rtl' ? `
+        .print-layout-container .plan-table-wrapper thead tr th:first-child {
+          border-top-right-radius: 27px !important;
+        }
+        .print-layout-container .plan-table-wrapper thead tr th:last-child {
+          border-top-left-radius: 27px !important;
+        }
+        .print-layout-container .plan-table-wrapper tbody tr:last-child td:first-child {
+          border-bottom-right-radius: 27px !important;
+        }
+        .print-layout-container .plan-table-wrapper tbody tr:last-child td:last-child {
+          border-bottom-left-radius: 27px !important;
+        }
+        ` : `
+        .print-layout-container .plan-table-wrapper thead tr th:first-child {
+          border-top-left-radius: 27px !important;
+        }
+        .print-layout-container .plan-table-wrapper thead tr th:last-child {
+          border-top-right-radius: 27px !important;
+        }
+        .print-layout-container .plan-table-wrapper tbody tr:last-child td:first-child {
+          border-bottom-left-radius: 27px !important;
+        }
+        .print-layout-container .plan-table-wrapper tbody tr:last-child td:last-child {
+          border-bottom-right-radius: 27px !important;
+        }
+        `}
       `;
       document.head.appendChild(captureStyle);
       if (wasDark) html.classList.remove('dark');
       prevContainerCss = container.style.cssText;
-      // Direction must follow the UI language: the plan table's first column is
-      // Activity, so RTL puts it on the right (Arabic) and LTR on the left
-      // (English). Pinning rtl unconditionally mirrored English exports.
-      const pdfDir = lang === 'ar' ? 'rtl' : 'ltr';
       container.style.cssText = `display:block !important; position:fixed !important; left:-2100px !important; top:0 !important; width:1240px !important; margin:0 !important; direction:${pdfDir};`;
 
       // 3) Rasterize each week and assemble the PDF
@@ -5855,16 +6332,62 @@ function StudyPlan({
       // the raster. html2canvas-pro clones the live DOM before rendering, so
       // mutations here don't affect the real page.
       const onclone = (_clonedDoc, clonedEl) => {
-        // Inject a <style> that hides all scrollbars in the cloned tree
+        // Inject a <style> that hides all scrollbars and reinforces rounded corners in the cloned tree
         const s = _clonedDoc.createElement('style');
         s.textContent = `
           * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
           *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
-          /* Expand the table scroll wrapper so the full table is rasterized without clipping */
-          .plan-table-wrapper { overflow: visible !important; }
+          .plan-table-wrapper {
+            border-radius: 28px !important;
+            overflow: hidden !important;
+            border: 1.5px solid #e2e8f0 !important;
+            background: #ffffff !important;
+          }
           .plan-table-wrapper > div { overflow: visible !important; }
+          .plan-table-wrapper table {
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+            border-radius: 28px !important;
+          }
         `;
         _clonedDoc.head.appendChild(s);
+
+        const isRtl = pdfDir === 'rtl';
+        clonedEl.querySelectorAll('.plan-table-wrapper').forEach(wrapper => {
+          wrapper.style.borderRadius = '28px';
+          wrapper.style.overflow = 'hidden';
+          wrapper.style.border = '1.5px solid #e2e8f0';
+          wrapper.style.backgroundColor = '#ffffff';
+
+          const tbl = wrapper.querySelector('table');
+          if (tbl) {
+            tbl.style.borderCollapse = 'separate';
+            tbl.style.borderSpacing = '0';
+            tbl.style.borderRadius = '28px';
+          }
+
+          const ths = wrapper.querySelectorAll('thead tr th');
+          if (ths.length > 0) {
+            if (isRtl) {
+              ths[0].style.borderTopRightRadius = '27px';
+              ths[ths.length - 1].style.borderTopLeftRadius = '27px';
+            } else {
+              ths[0].style.borderTopLeftRadius = '27px';
+              ths[ths.length - 1].style.borderTopRightRadius = '27px';
+            }
+          }
+
+          const lastRowTds = wrapper.querySelectorAll('tbody tr:last-child td');
+          if (lastRowTds.length > 0) {
+            if (isRtl) {
+              lastRowTds[0].style.borderBottomRightRadius = '27px';
+              lastRowTds[lastRowTds.length - 1].style.borderBottomLeftRadius = '27px';
+            } else {
+              lastRowTds[0].style.borderBottomLeftRadius = '27px';
+              lastRowTds[lastRowTds.length - 1].style.borderBottomRightRadius = '27px';
+            }
+          }
+        });
       };
 
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
@@ -6091,7 +6614,12 @@ function StudyPlan({
 
         <div className="bg-gray-50 dark:bg-[var(--app-card)] p-6 rounded-2xl border border-gray-200 dark:border-[var(--app-border)]/50 flex flex-col justify-center relative z-50">
           <label className="block text-sm text-gray-500 dark:text-[var(--app-text)] mb-2 font-semibold">{t.dateLabel}</label>
-          <SolidDatePicker min={startDate || todayStr} value={targetDate} onChange={setTargetDate} label="Target Date" lang={lang} />
+          <SolidDatePicker min={minTargetDate || startDate || todayStr} value={targetDate} onChange={setTargetDate} label="Target Date" lang={lang} />
+          {levelDelta > 1 && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2 font-medium leading-tight">
+              {_resolveTranslation(lang, `💡 الانتقال من ${userLevel} إلى ${targetLevel} يتطلب مدة لا تقل عن ${minWeeksRequired} أسابيع للدراسة المتقنة وتوزيع القواعد بشكل متزن.`, `💡 Advancing from ${userLevel} to ${targetLevel} requires at least ${minWeeksRequired} weeks for balanced and effective study.`)}
+            </p>
+          )}
         </div>
       </div>
 
@@ -6735,22 +7263,56 @@ function StudyPlan({
       )}
 
       {grammarModal && ReactDOM.createPortal(
-        <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden`} onClick={() => setGrammarModal(null)}>
-          <div className="glass-panel rounded-2xl max-w-sm w-full border border-gray-200 dark:border-[var(--app-border)] overflow-hidden transform transition-all scale-100" onClick={e => e.stopPropagation()}>
-            <div className="bg-[#1E90FF] p-5 text-white flex justify-between items-center">
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn print:hidden"
+          onClick={() => setGrammarModal(null)}
+        >
+          <div
+            className="glass-panel rounded-3xl max-w-lg w-full max-h-[85vh] flex flex-col border border-gray-200 dark:border-[var(--app-border)] overflow-hidden shadow-2xl transform transition-all"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className={`p-5 text-white flex justify-between items-center ${grammarModal.isReview ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-[var(--app-accent1)]'}`}>
               <div>
-                <h3 className="font-bold text-lg flex items-center gap-2"><FileText className="w-5 h-5" /> {t.grammarHeader} ({t.day} {grammarModal.day})</h3>
-                <p className="text-sm opacity-80 mt-0.5">{t.grammarTarget}</p>
+                <h3 className="font-extrabold text-base sm:text-lg flex items-center gap-2">
+                  <FileText className="w-5 h-5 shrink-0" />
+                  <span>{grammarModal.title || `${t.grammarHeader} (${t.day} ${grammarModal.day})`}</span>
+                </h3>
+                <p className="text-xs opacity-90 mt-0.5">{grammarModal.subtitle || t.grammarTarget}</p>
               </div>
-              <button onClick={() => setGrammarModal(null)} className="p-1.5 hover:bg-white/20 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
+              <button
+                onClick={() => setGrammarModal(null)}
+                className="p-2 hover:bg-white/20 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div className="p-8 text-center bg-gray-50 dark:bg-[var(--app-card)]">
-              <div className="inline-flex p-4 rounded-full bg-orange-100 dark:bg-[#1E90FF]/20 text-[var(--app-accent1)] dark:text-orange-400 mb-6 shadow-sm">
-                <Target className="w-10 h-10" />
-              </div>
-              <h4 className="text-2xl font-extrabold text-gray-900 dark:text-[var(--app-text)] mb-4" dir="ltr">{safeRender(grammarModal.topic)}</h4>
-              <p className="text-sm text-gray-500 dark:text-[var(--app-text)] leading-relaxed">
-                {_resolveTranslation(lang, 'يمكنك التوجه لقسم "القواعد الشاملة" لطلب شرح مفصل لهذه القاعدة مع الأمثلة من معلم الذكاء الاصطناعي.', 'Head over to the "Comprehensive Grammar" section to get a detailed AI explanation of this rule.')}
+
+            <div className="p-5 overflow-y-auto max-h-[60vh] space-y-2.5 bg-gray-50/80 dark:bg-[var(--app-card)] text-start">
+              {grammarModal.isReview && (
+                <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/40 mb-3 text-xs text-indigo-800 dark:text-indigo-300 font-semibold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 shrink-0 text-indigo-500" />
+                  <span>{_resolveTranslation(lang, 'جلسة مراجعة ذكية لتثبيت القواعد السابقة ومنع النسيان.', 'Spaced review session to reinforce and solidify earlier grammar.')}</span>
+                </div>
+              )}
+
+              {(grammarModal.rules || (grammarModal.topic ? grammarModal.topic.split(' · ') : [])).map((rule, idx) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-2xl bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10 flex items-start gap-3 shadow-xs"
+                >
+                  <div className="w-6 h-6 rounded-lg bg-[var(--app-accent1)]/10 text-[var(--app-accent1)] font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1 font-semibold text-sm text-gray-800 dark:text-gray-100 leading-snug" dir="ltr">
+                    {rule}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 bg-gray-100/70 dark:bg-[var(--app-surface)] border-t border-gray-200/70 dark:border-white/5 text-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {_resolveTranslation(lang, 'يمكنك التوجه لقسم "القواعد الشاملة" لطلب شرح مفصل وتدريبات عملية من معلم الذكاء الاصطناعي.', 'Head over to "Comprehensive Grammar" for in-depth AI explanations and practice.')}
               </p>
             </div>
           </div>
@@ -9935,16 +10497,17 @@ function Speaking({
       const item = ttsQueueRef.current.shift();
       if (!item || !item.text) continue;
 
-      const { text, msgId } = item;
+      const { text, msgId, gender = voiceGenderRef.current, accent = voiceAccentRef.current } = item;
+      const prefKey = `${accent}:${gender}:${text}`;
 
       // 1. Get the pre-fetched blob promise
-      const blobPromise = prefetchCacheRef.current.get(text);
+      const blobPromise = prefetchCacheRef.current.get(prefKey) || prefetchCacheRef.current.get(text);
       let blob = null;
       if (blobPromise) {
         blob = await blobPromise;
       } else {
         // Fallback if not pre-fetched
-        blob = await fetchTTSBlob(text, _voiceGender, _voiceAccent);
+        blob = await fetchTTSBlob(text, gender, accent);
       }
 
       if (initialCallMode && !isCallModeRef.current) {
@@ -9988,6 +10551,7 @@ function Speaking({
       }
 
       // Cleanup cache
+      prefetchCacheRef.current.delete(prefKey);
       prefetchCacheRef.current.delete(text);
     }
     isTtsPlayingRef.current = false;
@@ -10000,15 +10564,16 @@ function Speaking({
     }
   };
 
-  const queueSpeech = (text, msgId = null) => {
+  const queueSpeech = (text, msgId = null, gender = voiceGenderRef.current, accent = voiceAccentRef.current) => {
     if (unmountedRef.current) return;
     const trimmed = text.trim();
     if (!trimmed) return;
+    const prefKey = `${accent}:${gender}:${trimmed}`;
     // PRE-FETCH: Start synthesis IMMEDIATELY
-    if (!prefetchCacheRef.current.has(trimmed)) {
-      prefetchCacheRef.current.set(trimmed, fetchTTSBlob(trimmed, _voiceGender, _voiceAccent));
+    if (!prefetchCacheRef.current.has(prefKey)) {
+      prefetchCacheRef.current.set(prefKey, fetchTTSBlob(trimmed, gender, accent));
     }
-    ttsQueueRef.current.push({ text: trimmed, msgId });
+    ttsQueueRef.current.push({ text: trimmed, msgId, gender, accent });
     processTtsQueue();
   };
   const saveConversationToHistory = (conversation) => {
@@ -10250,6 +10815,8 @@ function Speaking({
       const replyPrompt = `You are a friendly, natural conversation partner helping an English learner. ${langInstruction} Level: ${chatLevelRef.current}. Topic: ${topicRef.current}. Style: ${formalityRef.current}. Personality: ${getPersonalityInstruction()} Recent context: ${history}. User said: "${userMsg}". Reply warmly in 1-3 sentences. Output the reply text ONLY — no JSON, no labels, no analysis whatsoever.`;
       let replyText = '';
       let spokenSentencesCount = 0;
+      const msgGender = voiceGenderRef.current;
+      const msgAccent = voiceAccentRef.current;
 
       // Clear queue for new message
       ttsQueueRef.current = [];
@@ -10269,12 +10836,15 @@ function Speaking({
         // ── Real-time High-Speed Rolling TTS ──
         if (isCallModeRef.current || autoReadRef.current) {
           const unsent = replyText.slice(spokenSentencesCount).trim();
-          // Match any natural break: . ? ! \n , ; or a long segment (> 70 chars)
-          const breakMatch = unsent.match(/[^.!?\n,;]{5,}[.!?\n,;]+/);
+          // Match only sentence-final breaks: . ? ! \n — commas and semicolons
+          // no longer split the stream, so a sentence like "…saying, that is
+          // correct" is spoken as ONE blob with one prosody/voice instead of
+          // switching character mid-sentence. (>100-char safety break below.)
+          const breakMatch = unsent.match(/[^.!?\n]{5,}[.!?\n]+/);
 
           if (breakMatch) {
             const segment = breakMatch[0];
-            queueSpeech(segment, aiMsgId);
+            queueSpeech(segment, aiMsgId, msgGender, msgAccent);
             // We use char count to track where we are in the stream
             spokenSentencesCount += (replyText.indexOf(segment, spokenSentencesCount) - spokenSentencesCount) + segment.length;
           } else if (unsent.length > 100) {
@@ -10282,7 +10852,7 @@ function Speaking({
             const lastSpace = unsent.lastIndexOf(' ');
             if (lastSpace > 50) {
               const segment = unsent.slice(0, lastSpace);
-              queueSpeech(segment, aiMsgId);
+              queueSpeech(segment, aiMsgId, msgGender, msgAccent);
               spokenSentencesCount += (replyText.indexOf(segment, spokenSentencesCount) - spokenSentencesCount) + segment.length;
             }
           }
@@ -10294,7 +10864,7 @@ function Speaking({
       // Final flush for any remaining text
       const remaining = replyText.slice(spokenSentencesCount).trim();
       if (remaining.length > 2 && (isCallModeRef.current || autoReadRef.current)) {
-        queueSpeech(remaining, aiMsgId);
+        queueSpeech(remaining, aiMsgId, msgGender, msgAccent);
       }
 
       setMessages(prev => prev.map(msg =>
@@ -10411,16 +10981,19 @@ Generate exactly ONE natural, engaging opening question in English related to yo
 Do NOT include any introduction, meta-text, brackets, or markdown. Output the question text ONLY, so it can be read directly to the user.`;
 
       let accumulated = '';
+      const openerGender = voiceGenderRef.current;
+      const openerAccent = voiceAccentRef.current;
+      ttsQueueRef.current = [];
       await streamFromAPI(prompt, (delta) => {
         accumulated += delta;
         setMessages([{ id: aiMsgId, role: 'ai', text: accumulated, streaming: true }]);
 
         if (isCallModeRef.current || autoReadRef.current) {
           const unsent = accumulated.slice(spokenSentencesCount).trim();
-          const breakMatch = unsent.match(/[^.!?\n,;]{5,}[.!?\n,;]+/);
+          const breakMatch = unsent.match(/[^.!?\n]{5,}[.!?\n]+/);
           if (breakMatch) {
             const segment = breakMatch[0];
-            queueSpeech(segment, aiMsgId);
+            queueSpeech(segment, aiMsgId, openerGender, openerAccent);
             spokenSentencesCount += (accumulated.indexOf(segment, spokenSentencesCount) - spokenSentencesCount) + segment.length;
           }
         }
@@ -10429,7 +11002,7 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
       const remaining = accumulated.trim().slice(spokenSentencesCount);
       if (remaining.length > 2) {
         if (isCallModeRef.current || autoReadRef.current) {
-          queueSpeech(remaining, aiMsgId);
+          queueSpeech(remaining, aiMsgId, openerGender, openerAccent);
         }
       }
 
@@ -10468,6 +11041,9 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
     const aiMsgId = Date.now();
     setMessages([{ id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     let spokenSentencesCount = 0;
+    const convGender = voiceGenderRef.current;
+    const convAccent = voiceAccentRef.current;
+    ttsQueueRef.current = [];
     try {
       const prompt = `Start a short ${formality === 'formal' ? 'formal' : 'casual'} English conversation for a ${chatLevel} learner about "${topic}". Ask one natural, engaging question only. No intro text, just the question.`;
       let accumulated = '';
@@ -10480,10 +11056,10 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
         // Sync check for start conversation too
         if (isCallModeRef.current || autoReadRef.current) {
           const unsent = accumulated.slice(spokenSentencesCount).trim();
-          const breakMatch = unsent.match(/[^.!?\n,;]{5,}[.!?\n,;]+/);
+          const breakMatch = unsent.match(/[^.!?\n]{5,}[.!?\n]+/);
           if (breakMatch) {
             const segment = breakMatch[0];
-            queueSpeech(segment, aiMsgId);
+            queueSpeech(segment, aiMsgId, convGender, convAccent);
             spokenSentencesCount += (accumulated.indexOf(segment, spokenSentencesCount) - spokenSentencesCount) + segment.length;
           }
         }
@@ -10491,7 +11067,7 @@ Do NOT include any introduction, meta-text, brackets, or markdown. Output the qu
 
       const remaining = accumulated.trim().slice(spokenSentencesCount);
       if (remaining.length > 2 && (isCallModeRef.current || autoReadRef.current)) {
-        queueSpeech(remaining, aiMsgId);
+        queueSpeech(remaining, aiMsgId, convGender, convAccent);
       }
 
       setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, streaming: false } : m));

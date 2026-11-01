@@ -22,7 +22,7 @@
  * ─────────────────────────────────────────────────────────────────────
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Ear, Volume2, RotateCcw, Check, X, Loader2, Trophy, Zap
 } from 'lucide-react';
@@ -93,6 +93,17 @@ export default function MinimalPairs({ lang: uiLang = 'ar', theme = 'dark' }) {
   const [busy, setBusy]         = useState(false);
   const [score, setScore]       = useState({ right: 0, total: 0 });
 
+  // Track the pending speak timer so a queued word never plays after the
+  // user reset, switched category, or left the tool (stale audio bug).
+  const speakTimerRef = useRef(null);
+  const clearSpeakTimer = useCallback(() => {
+    if (speakTimerRef.current) {
+      clearTimeout(speakTimerRef.current);
+      speakTimerRef.current = null;
+    }
+  }, []);
+  useEffect(() => clearSpeakTimer, [clearSpeakTimer]);
+
   const pickRound = useCallback(() => {
     const filtered = category === 'all' ? PAIRS : PAIRS.filter(p => p.cat === category);
     if (!filtered.length) return;
@@ -102,29 +113,38 @@ export default function MinimalPairs({ lang: uiLang = 'ar', theme = 'dark' }) {
     setVerdict(null);
     // Speak after a tick so React has flushed
     setBusy(true);
-    setTimeout(() => {
+    clearSpeakTimer();
+    speakTimerRef.current = setTimeout(() => {
+      speakTimerRef.current = null;
       speakEdge(pair[target], accent);
       setBusy(false);
     }, 200);
-  }, [category, accent]);
+  }, [category, accent, clearSpeakTimer]);
 
   const replay = () => {
     if (!current) return;
     setBusy(true);
-    setTimeout(() => {
+    clearSpeakTimer();
+    speakTimerRef.current = setTimeout(() => {
+      speakTimerRef.current = null;
       speakEdge(current.pair[current.target], accent);
       setBusy(false);
     }, 50);
   };
 
   const choose = (which) => {
-    if (!current || verdict) return;
-    const right = which === current.target;
-    setVerdict(right ? 'correct' : 'wrong');
-    setScore(s => ({ right: s.right + (right ? 1 : 0), total: s.total + 1 }));
+    if (!current) return;
+    clearSpeakTimer();
+    speakEdge(current.pair[which], accent);
+    if (!verdict) {
+      const right = which === current.target;
+      setVerdict(right ? 'correct' : 'wrong');
+      setScore(s => ({ right: s.right + (right ? 1 : 0), total: s.total + 1 }));
+    }
   };
 
   const reset = () => {
+    clearSpeakTimer();
     setScore({ right: 0, total: 0 });
     setCurrent(null);
     setVerdict(null);
@@ -252,8 +272,7 @@ export default function MinimalPairs({ lang: uiLang = 'ar', theme = 'dark' }) {
                   <button
                     key={side}
                     onClick={() => choose(side)}
-                    disabled={!!verdict}
-                    className={`px-4 py-5 rounded-2xl text-lg font-extrabold transition-all border-2 ${
+                    className={`px-4 py-5 rounded-2xl text-lg font-extrabold transition-all border-2 relative group ${
                       showRight
                         ? 'bg-green-500/15 text-green-500 border-green-500/40'
                         : showWrong
@@ -262,11 +281,13 @@ export default function MinimalPairs({ lang: uiLang = 'ar', theme = 'dark' }) {
                             ? 'bg-white/5 text-white border-white/10 hover:bg-white/10'
                             : 'bg-white/60 text-gray-800 border-black/5 hover:bg-white/80'
                     }`}
+                    title={verdict ? t('Click to hear pronunciation', 'انقر للاستماع للنطق') : undefined}
                   >
                     <div className="flex items-center justify-center gap-2">
                       {showRight && <Check className="w-5 h-5" />}
                       {showWrong && <X className="w-5 h-5" />}
-                      {word}
+                      <span>{word}</span>
+                      {verdict && <Volume2 className="w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity ml-1" />}
                     </div>
                   </button>
                 );

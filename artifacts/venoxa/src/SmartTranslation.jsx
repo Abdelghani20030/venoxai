@@ -16,6 +16,7 @@ import {
   Globe, ChevronRight, ChevronUp, Zap, Info, Languages,
   MessageSquare, Link2, AlertCircle, Hash, Heart, Search, Star
 } from 'lucide-react';
+import SaudiFlagIcon from './SaudiFlagIcon';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -104,21 +105,10 @@ const GBFlag = ({ style = {}, className = '' }) => (
   </svg>
 );
 
-// 🇸🇦 Saudi Arabia
+// 🇸🇦 Saudi Arabia — accurate official artwork (shahada calligraphy + sword),
+// shared with the header language toggle via SaudiFlagIcon.jsx
 const SAFlag = ({ style = {}, className = '' }) => (
-  <svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg" className={className}
-    style={_flagStyle(style)}>
-    <rect width="900" height="600" fill="#006C35"/>
-    <g fill="#fff">
-      <path d="M220 180 h460 v30 h-460z"/>
-      <path d="M220 210 h30 v160 h-30z"/>
-      <path d="M610 210 h30 v160 h-30z"/>
-      <path d="M220 340 h460 v30 h-460z"/>
-      <path d="M335 210 h30 v100 q0 30 30 30 h120 q30 0 30-30 v-100 h30 v100 q0 55-60 55 h-120 q-60 0-60-55z"/>
-      <path d="M455 210 h30 v130 h-30z"/>
-      <path d="M455 340 h30 v30 h-30z"/>
-    </g>
-  </svg>
+  <SaudiFlagIcon className={className} style={_flagStyle(style)} />
 );
 
 // 🇫🇷 France
