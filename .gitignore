@@ -59,3 +59,7 @@ Thumbs.db
 .agents/
 .claude/
 
+# Scratch files with hardcoded API keys — keep local only, never commit
+scratch/test-concept.js
+scratch/test-concept.mjs
+

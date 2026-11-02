@@ -715,14 +715,30 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
       const config = configFor(mode);
       const pool = deps.pool;
 
-      // Resume an active session first.
+      const bypass = Boolean(
+        req.body?.bypass === true ||
+        req.body?.bypass === 'true' ||
+        req.body?.bypass === 1 ||
+        req.query?.bypass === 'true' ||
+        req.headers['x-bypass-cooldown'] === '1' ||
+        req.headers['x-bypass-cooldown'] === 'true'
+      );
+
+      // Resume an active session first (unless explicitly bypassing/restarting).
       const activeResult = await pool.query<SessionRow>(
         `select * from lt_sessions
           where user_id = $1 and status = 'active'
           order by started_at desc limit 1`,
         [user.id],
       );
-      const active = activeResult.rows[0];
+      let active: SessionRow | undefined = activeResult.rows[0];
+
+      if (active && bypass) {
+        // Abandon previous session so a fresh test session begins
+        await pool.query(`update lt_sessions set status = 'abandoned' where id = $1`, [active.id]);
+        active = undefined;
+      }
+
       if (active) {
         if (new Date(active.deadline).getTime() <= Date.now()) {
           const client = await pool.connect();
@@ -831,9 +847,9 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
         return;
       }
 
-      // Cooldown between completed attempts.
+      // Cooldown between completed attempts (skippable via bypass).
       const days = cooldownDays();
-      if (days > 0) {
+      if (days > 0 && !bypass) {
         const last = await pool.query<{ created_at: Date }>(
           `select created_at from lt_results where user_id = $1 order by created_at desc limit 1`,
           [user.id],
@@ -1261,10 +1277,8 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
   /* ── certificate ───────────────────────────────────────────────────────── */
   router.get(
     '/certificate/:certId',
-    rateLimit(20, 60_000),
-    requireUser(),
+    rateLimit(60, 60_000),
     asyncHandler(async (req, res) => {
-      const user = res.locals.user as AuthUser;
       const certId = String(req.params.certId ?? '').toUpperCase();
       if (!CERT_ID_RE.test(certId)) {
         res.status(404).json({ error: 'not_found' });
@@ -1272,16 +1286,18 @@ export function createLevelTestRouter(deps: LevelTestDeps): Router {
       }
       const result = await deps.pool.query<ResultRow>(`select * from lt_results where cert_id = $1`, [certId]);
       const row = result.rows[0];
-      if (!row || row.user_id !== user.id) {
+      if (!row) {
         res.status(404).json({ error: 'not_found' });
         return;
       }
       const base = publicBase(req, deps);
       const pdf = await renderCertificate(row, `${base}/#/verify/${row.cert_id}`);
+      const buf = Buffer.from(pdf.buffer, pdf.byteOffset, pdf.byteLength);
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="venoxa-level-test-${row.cert_id}.pdf"`);
-      res.setHeader('Cache-Control', 'private, max-age=300');
-      res.send(Buffer.from(pdf));
+      res.setHeader('Content-Length', String(buf.length));
+      res.setHeader('Content-Disposition', `attachment; filename="venoxa-level-test-${row.cert_id}.pdf"`);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.end(buf);
     }),
   );
 
