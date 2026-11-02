@@ -81,6 +81,55 @@ body {
   --card-radius: 28px;
 }
 
+/* ══════════════════════════════════════════════
+   Venoxa Design Tokens — PDF page 2 (Foundation)
+   Existing colors kept; the new blue (#0A78D6 /
+   #1E90F0) is added alongside them.
+   ══════════════════════════════════════════════ */
+:root {
+  /* ── Colors ── */
+  --vx-base: #0A0A0E;         /* dark page */
+  --vx-surface: #0F0F13;      /* dark cards */
+  --vx-input: #21212A;        /* dark input */
+  --vx-navy: #0B1530;         /* header main bar */
+  --vx-navy-deep: #060D1F;    /* header utility bar (deeper navy) */
+  --vx-navy-raised: #101C3E;  /* dropdowns / panels on navy */
+  --vx-blue: #0A78D6;         /* NEW primary blue */
+  --vx-blue-hover: #1E90F0;
+  --vx-orange: #FF5722;       /* kept — Premium, streaks */
+  --vx-purple: #673AB7;       /* kept — atmosphere only */
+  --vx-highlight: #FFEB3B;    /* kept — hover accents, WotD */
+  --vx-white: #FFFFFF;
+  --vx-muted: #B9BDC9;
+
+  /* Light theme (PDF page 2 — light mode) */
+  --vx-light-page: #FFFFFF;
+  --vx-light-surface: #F3F6FB;
+
+  /* ── Radii ── */
+  --vx-radius-card: 28px;
+  --vx-radius-pill: 999px;
+  --vx-radius-tile: 14px;
+
+  /* ── Motion: one easing language + a spring for hovers ── */
+  --vx-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --vx-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --vx-dur: 0.3s;
+
+  /* ── Typography scale ── */
+  --vx-h1: 64px;
+  --vx-h2: 40px;
+  --vx-h3: 22px;
+  --vx-body: 17px;
+  --vx-caption: 13px;
+
+  /* ── Section rhythm ── */
+  --vx-section-pad: 112px;
+  --vx-content-max: 1240px;
+  --vx-utility-h: 30px;
+  --vx-mainbar-h: 58px;
+}
+
 /* Light: near-opaque frosted white — grid never bleeds through */
 .glass-panel {
   background: #ffffff !important;
@@ -1201,4 +1250,480 @@ select:focus,
   .dropdown-menu {
     animation: none !important;
   }
+}
+
+/* ══════════════════════════════════════════════
+   Two-tier site header — PDF §01
+   Navy in BOTH themes; utility bar (30px, deeper
+   navy) folds away after 40px of scroll and the
+   main bar (58px) gains blur + a hairline border.
+   ══════════════════════════════════════════════ */
+.vx-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+}
+
+/* Utility bar */
+.vx-utility-bar {
+  height: var(--vx-utility-h);
+  overflow: hidden;
+  background: var(--vx-navy-deep);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: height 0.3s var(--vx-ease), opacity 0.2s var(--vx-ease);
+}
+
+.vx-header.vx-collapsed .vx-utility-bar {
+  height: 0;
+  opacity: 0;
+  border-bottom-width: 0;
+}
+
+/* Main bar */
+.vx-main-bar {
+  position: relative;
+  height: var(--vx-mainbar-h);
+  background: var(--vx-navy);
+  border-bottom: 1px solid transparent;
+  transition: background-color 0.3s var(--vx-ease),
+              border-color 0.3s var(--vx-ease),
+              backdrop-filter 0.3s var(--vx-ease);
+}
+
+.vx-header.vx-collapsed .vx-main-bar {
+  background: rgba(11, 21, 48, 0.94);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  border-bottom-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Logo tile — white square with navy V */
+.vx-logo-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--vx-navy);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Utility links */
+.vx-utility-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color 0.2s var(--vx-ease), background-color 0.2s var(--vx-ease);
+}
+
+.vx-utility-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.vx-utility-link.is-premium {
+  color: var(--vx-orange);
+}
+
+.vx-utility-link.is-premium:hover {
+  color: #FF7A50;
+  background: rgba(255, 87, 34, 0.12);
+}
+
+/* Icon buttons on navy */
+.vx-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.65);
+  transition: color 0.2s var(--vx-ease), background-color 0.2s var(--vx-ease);
+}
+
+.vx-icon-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+/* Sliding blue pill behind the active nav link */
+.vx-nav-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--vx-blue);
+  box-shadow: 0 0 20px rgba(10, 120, 214, 0.45) !important;
+}
+
+/* EN/AR pill */
+.vx-lang-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  min-width: 30px;
+  padding: 0 8px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.80);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  transition: color 0.2s var(--vx-ease), border-color 0.2s var(--vx-ease),
+              background-color 0.2s var(--vx-ease);
+}
+
+.vx-lang-btn:hover {
+  color: #fff;
+  border-color: rgba(30, 144, 240, 0.55);
+  background: rgba(10, 120, 214, 0.15);
+}
+
+/* Blue Sign in pill */
+.vx-signin-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--vx-blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: background-color 0.2s var(--vx-ease),
+              box-shadow 0.2s var(--vx-ease);
+}
+
+.vx-signin-pill:hover {
+  background: var(--vx-blue-hover);
+  box-shadow: 0 0 22px rgba(10, 120, 214, 0.55) !important;
+}
+
+/* Navy dropdown — same on both themes */
+.vx-dropdown {
+  background: var(--vx-navy-raised);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 18px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+}
+
+.vx-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 11px;
+  border-radius: 11px;
+  color: rgba(255, 255, 255, 0.70);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color 0.18s var(--vx-ease), background-color 0.18s var(--vx-ease);
+}
+
+.vx-dropdown-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.vx-dropdown-item.is-active {
+  color: #9FD0F8;
+  background: rgba(10, 120, 214, 0.18);
+}
+
+/* Keep the header nav level while hovering (the pill carries the movement);
+   sidebar behaviour elsewhere is untouched. */
+.vx-header nav button:hover,
+.vx-header nav a:hover {
+  transform: none;
+}
+
+/* Frosted glass lip under the header (LanGeek-style): content blurs as it
+   slides under the navy bars and sharpens as it emerges below the edge.
+   Blur only — no saturation — so the ambient orbs don't bloom at the seam. */
+.vx-header-lip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 64px;
+  pointer-events: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.65) 30%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.95) 0%,
+    rgba(0, 0, 0, 0.65) 30%,
+    transparent 100%
+  );
+  transform: translateZ(0);
+}
+
+/* Soft seam wash so the frost reads as part of the panel itself and
+   background orb color stays out of the band under the bar. */
+.vx-header-lip::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 40%;
+  background: linear-gradient(
+    to bottom,
+    rgba(243, 246, 251, 0.90),
+    rgba(243, 246, 251, 0.35) 55%,
+    transparent
+  );
+}
+
+.dark .vx-header-lip::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(6, 13, 31, 0.92),
+    rgba(6, 13, 31, 0.55) 50%,
+    rgba(6, 13, 31, 0.18) 80%,
+    transparent
+  );
+}
+
+/* ══════════════════════════════════════════════
+   Site footer — PDF §13
+   ══════════════════════════════════════════════ */
+.vx-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+  transition: border-color 0.3s var(--vx-ease), color 0.3s var(--vx-ease);
+}
+
+html:not(.dark) .vx-footer {
+  border-top-color: #E4E8F1;
+  color: #111827;
+}
+
+.vx-footer-heading {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+html:not(.dark) .vx-footer-heading {
+  color: #6B7280;
+}
+
+.vx-footer-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.60);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 3px 0;
+  transition: color 0.2s var(--vx-ease);
+}
+
+html:not(.dark) .vx-footer-link {
+  color: #4B5563;
+}
+
+/* Blue underline that grows from the centre */
+.vx-footer-link::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--vx-blue-hover);
+  transition: width 0.25s var(--vx-ease);
+}
+
+.vx-footer-link:hover {
+  color: var(--vx-blue-hover);
+}
+
+.vx-footer-link:hover::after {
+  width: 100%;
+}
+
+.vx-footer-muted {
+  color: rgba(255, 255, 255, 0.50);
+}
+
+html:not(.dark) .vx-footer-muted {
+  color: #6B7280;
+}
+
+.vx-social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.70);
+  transition: color 0.2s var(--vx-ease), border-color 0.2s var(--vx-ease),
+              background-color 0.2s var(--vx-ease);
+}
+
+.vx-social-btn:hover {
+  color: var(--vx-blue-hover);
+  border-color: rgba(30, 144, 240, 0.5);
+  background: rgba(10, 120, 214, 0.12);
+}
+
+html:not(.dark) .vx-social-btn {
+  border-color: #E1E5EF;
+  color: #6B7280;
+}
+
+html:not(.dark) .vx-social-btn:hover {
+  color: var(--vx-blue);
+  border-color: rgba(10, 120, 214, 0.4);
+  background: rgba(10, 120, 214, 0.08);
+}
+
+.vx-footer-divider {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+html:not(.dark) .vx-footer-divider {
+  border-top-color: #E4E8F1;
+}
+
+.vx-footer-lang {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: color 0.2s var(--vx-ease), background-color 0.2s var(--vx-ease);
+}
+
+.vx-footer-lang:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.vx-footer-lang.is-active {
+  color: #fff;
+  font-weight: 800;
+}
+
+html:not(.dark) .vx-footer-lang {
+  color: #6B7280;
+}
+
+html:not(.dark) .vx-footer-lang:hover {
+  color: #111827;
+  background: #F3F6FB;
+}
+
+html:not(.dark) .vx-footer-lang.is-active {
+  color: #111827;
+  font-weight: 800;
+}
+
+/* ══════════════════════════════════════════════
+   Placeholder pages (privacy, terms, ...)
+   ══════════════════════════════════════════════ */
+.vx-placeholder-card {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+  border-radius: var(--vx-radius-card);
+  transition: border-color 0.3s var(--vx-ease), background-color 0.3s var(--vx-ease);
+}
+
+.dark .vx-placeholder-card {
+  background: var(--vx-surface);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.vx-page-muted {
+  color: #6B7280;
+}
+
+.dark .vx-page-muted {
+  color: var(--vx-muted);
+}
+
+/* Primary blue button */
+.vx-btn-blue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: var(--vx-blue);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  transition: background-color 0.2s var(--vx-ease), box-shadow 0.2s var(--vx-ease);
+}
+
+.vx-btn-blue:hover {
+  background: var(--vx-blue-hover);
+  box-shadow: 0 0 24px rgba(10, 120, 214, 0.5) !important;
+}
+
+/* Ghost button */
+.vx-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: #111827;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  transition: border-color 0.2s var(--vx-ease), color 0.2s var(--vx-ease),
+              background-color 0.2s var(--vx-ease);
+}
+
+.dark .vx-btn-ghost {
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  background: transparent;
+}
+
+.vx-btn-ghost:hover {
+  border-color: rgba(30, 144, 240, 0.55);
+  color: var(--vx-blue);
+}
+
+.dark .vx-btn-ghost:hover {
+  color: var(--vx-blue-hover);
 }

@@ -28,6 +28,9 @@ import {
 } from './insforge.jsx';
 import { loadBundledVocab } from './vocabData.js';
 import SaudiFlagIcon from './SaudiFlagIcon';
+import Header from './Header';
+import Footer from './Footer';
+import PlaceholderPage from './PlaceholderPage';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3468,6 +3471,15 @@ function AppInner() {
             setIsAuthModalOpen(true);
           }}
         />;
+      case 'privacy':
+      case 'terms':
+      case 'cookies':
+      case 'faq':
+      case 'contact':
+      case 'about':
+      case 'premium':
+      case 'mobile':
+        return <PlaceholderPage id={activeTab} lang={lang} theme={theme} setTab={setActiveTab} />;
       default:
         return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} levelTest={levelTest} />;
     }
@@ -3665,422 +3677,30 @@ function AppInner() {
         </defs>
       </svg>
 
-      {/* ── Hamburger morphing icon ── */}
-      {/* ── Top Navigation Bar — Liquid Glass
-           wrapper → effect(z0) → tint(z1) → shine(z2) → content(z3)
-      ── */}
-      <motion.header
-        initial={{ y: -16, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.35, ease: easing.out }}
-        className={`lg-nav-wrapper fixed top-3 left-3 right-3 z-[60] h-[64px] rounded-[32px] transition-all duration-300 ${
-          headerScrolled
-            ? (theme === 'dark' ? 'shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-2xl' : 'shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-2xl')
-            : ''
-        }`}
-      >
-        {/* z-0 distortion — empty so only backdrop is warped */}
-        <div className="lg-effect" />
-        {/* z-1 tint — dark: faint blue-white frost; light: white wash */}
-        <div className="lg-tint" style={{
-          background: theme === 'dark'
-            ? 'rgba(20, 40, 120, 0.18)'
-            : 'rgba(255, 255, 255, 0.28)',
-        }} />
-        {/* z-2 shine — inset highlights from reference */}
-        <div className="lg-shine" />
-        {/* z-3 content */}
-        <div className="lg-content flex items-center h-full px-4 sm:px-6 gap-3">
+      {/* ── Two-tier site header (PDF §01): utility bar + main navy bar ── */}
+      <Header
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        navItems={navItems}
+        lang={lang}
+        setLang={setLang}
+        theme={theme}
+        setTheme={setTheme}
+        user={user}
+        token={token}
+        syncStatus={syncStatus}
+        syncErrorMsg={syncErrorMsg}
+        localAvatar={localAvatar}
+        onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+        activeDropdown={activeDropdown}
+        setActiveDropdown={setActiveDropdown}
+        navDropdownRef={navDropdownRef}
+        scrollRef={mainRef}
+        showGlassLip={activeTab !== 'speaking'}
+      />
 
-          {/* LEFT slot — controls when EN, logo when AR */}
-          {lang === 'ar' ? (
-            /* AR: logo on left */
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
-                <Sparkles className="w-5 h-5 text-white dark:text-black" />
-              </div>
-              <h1 className="text-lg font-bold tracking-tight whitespace-nowrap hidden sm:block" dir="ltr">
-                <span className="text-[var(--app-accent1)]">ai.</span><span>فينوكسا</span>
-              </h1>
-            </div>
-          ) : (
-            /* EN: controls on left — always LTR order: Avatar → Theme → Flag */
-            <div className="flex items-center gap-1 shrink-0" dir="ltr">
-              {/* Mobile menu toggle */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className={`md:hidden w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                  theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                    : 'text-gray-500 hover:text-black hover:bg-black/5'
-                }`}
-                title={_resolveTranslation(lang, 'القائمة', 'Menu')}
-              >
-                <HamburgerIcon isOpen={isMobileMenuOpen} />
-              </button>
-              {/* User / Auth Toggle — Avatar first */}
-              {user ? (
-                <>
-                  {/* Cloud sync status indicator */}
-                  {token && syncStatus !== 'idle' && (
-                    <span
-                      className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all duration-300 ${
-                        syncStatus === 'syncing' ? 'animate-pulse' : ''
-                      }`}
-                      title={syncStatus === 'syncing' ? 'Syncing...' : syncStatus === 'synced' ? 'Synced ✓' : syncStatus === 'error' ? 'Sync failed' : ''}
-                    >
-                      {syncStatus === 'syncing' && (
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke={theme === 'dark' ? '#a78bfa' : '#7c3aed'} strokeWidth="2">
-                          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round"/>
-                        </svg>
-                      )}
-                      {syncStatus === 'synced' && (
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5">
-                          <path d="M3 12l2-2 4 4 2-2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M13 16l2-2 4 4 2-2" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
-                          <path d="M20 6a9.96 9.96 0 00-8-4C6.48 2 2 6.48 2 12s4.48 10 10 10a9.96 9.96 0 008-4" strokeLinecap="round" opacity="0.3"/>
-                        </svg>
-                      )}
-                      {syncStatus === 'error' && (
-                        <div className="relative group flex items-center justify-center">
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5">
-                            <circle cx="12" cy="12" r="10" opacity="0.3"/>
-                            <path d="M12 8v4M12 16h.01" strokeLinecap="round"/>
-                          </svg>
-                          <div className="absolute hidden group-hover:block top-full right-0 mt-2 w-max max-w-[250px] bg-red-900/90 backdrop-blur text-white text-xs p-3 rounded-lg shadow-xl z-50 text-left">
-                            {syncErrorMsg || 'Unknown sync error'}
-                          </div>
-                        </div>
-                      )}
-                    </span>
-                  )}
-                  <button
-                    onClick={() => setActiveTab('profile')}
-                    className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border overflow-hidden shrink-0 ${
-                      activeTab === 'profile'
-                        ? 'border-[var(--app-accent1)] ring-2 ring-[var(--app-accent1)]/30'
-                        : (theme === 'dark' ? 'border-white/10 hover:border-white/20' : 'border-black/10 hover:border-black/20')
-                    }`}
-                    title={user.username || 'Profile'}
-                  >
-                    {(localAvatar || user.avatar) ? (
-                      <img src={localAvatar || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-black text-gray-700 dark:text-white">
-                        {(user.username || 'U')[0].toUpperCase()}
-                      </span>
-                    )}
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
-                  className="px-3 py-1 rounded-xl text-xs font-bold text-white bg-[var(--app-accent1)] hover:opacity-90 transition-all active:scale-95 shrink-0"
-                >
-                  {_resolveTranslation(lang, 'دخول', 'Login')}
-                </button>
-              )}
-              {/* Theme toggle */}
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all relative overflow-hidden ${
-                  theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                    : 'text-gray-500 hover:text-black hover:bg-black/5'
-                }`}
-                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={theme}
-                    initial={{ rotate: -90, opacity: 0, scale: 0.6 }}
-                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                    exit={{ rotate: 90, opacity: 0, scale: 0.6 }}
-                    transition={{ duration: 0.25, ease: easing.out }}
-                    className="flex items-center justify-center"
-                  >
-                    {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                  </motion.div>
-                </AnimatePresence>
-              </button>
-              {/* Language toggle — SA flag */}
-              <button
-                onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all relative overflow-hidden ${
-                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'
-                }`}
-                title="عربي"
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={lang}
-                    initial={{ rotate: -45, opacity: 0, scale: 0.6 }}
-                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                    exit={{ rotate: 45, opacity: 0, scale: 0.6 }}
-                    transition={{ duration: 0.25, ease: easing.out }}
-                    className="flex items-center justify-center"
-                  >
-                    <SaudiFlagIcon className="w-5 h-[14px] rounded-sm overflow-hidden" />
-                  </motion.div>
-                </AnimatePresence>
-              </button>
-            </div>
-          )}
-
-          {/* Navigation Icons */}
-          <motion.nav
-            variants={{
-              initial: {},
-              animate: {
-                transition: {
-                  staggerChildren: 0.04,
-                  delayChildren: 0.08
-                }
-              }
-            }}
-            initial="initial"
-            animate="animate"
-            className="hidden md:flex flex-1 items-center justify-center gap-0.5 px-2"
-          >
-            {navItems.map(item => {
-              const isGroup = !!item.items;
-              const isActive = isGroup ? item.items.some(s => activeTab === s.id) : activeTab === item.id;
-              const isOpen = activeDropdown === item.id;
-
-              return (
-                <motion.div
-                  key={item.id}
-                  variants={{
-                    initial: { opacity: 0, y: -10 },
-                    animate: { opacity: 1, y: 0, transition: { duration: 0.25, ease: easing.out } }
-                  }}
-                  className="relative"
-                  ref={isOpen ? navDropdownRef : null}
-                >
-                  <button
-                    onClick={() => isGroup ? setActiveDropdown(isOpen ? null : item.id) : setActiveTab(item.id)}
-                    title={item.label}
-                    className={`relative flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-sm font-semibold transition-colors duration-200 group shrink-0 ${
-                      isActive
-                        ? (theme === 'dark' ? 'text-white font-bold' : 'text-black font-bold')
-                        : (theme === 'dark' ? 'text-white/60 hover:text-white' : 'text-gray-500 hover:text-black')
-                    }`}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="nav-pill"
-                        className={`absolute inset-0 rounded-xl ${
-                          theme === 'dark' ? 'bg-white/12 shadow-[0_0_12px_rgba(255,255,255,0.06)]' : 'bg-black/6 shadow-sm'
-                        }`}
-                        transition={springs.pill}
-                      />
-                    )}
-                    <motion.div
-                      animate={isActive ? { scale: [1, 1.25, 1], rotate: [0, -8, 0] } : { scale: 1, rotate: 0 }}
-                      whileHover={{ scale: 1.15, rotate: 6 }}
-                      transition={springs.snappy}
-                      className="shrink-0 flex items-center justify-center relative z-10"
-                    >
-                      <item.icon className="w-4 h-4 shrink-0" />
-                    </motion.div>
-                    <span className="hidden lg:inline-block text-xs font-extrabold truncate relative z-10">{item.label}</span>
-                    {isGroup && (
-                      <motion.div
-                        animate={{ rotate: isOpen ? 180 : 0 }}
-                        transition={{ duration: 0.25, ease: easing.out }}
-                        className="shrink-0 flex items-center justify-center opacity-40 relative z-10"
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </motion.div>
-                    )}
-                    {item.badge > 0 && (
-                      <motion.span
-                        key={item.badge}
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: [0, 1.25, 1], opacity: 1 }}
-                        transition={springs.snappy}
-                        className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold bg-[var(--app-accent1)] text-white shrink-0 relative z-10"
-                      >
-                        {item.badge > 99 ? '99+' : item.badge}
-                      </motion.span>
-                    )}
-                  </button>
-
-                  <AnimatePresence>
-                    {isGroup && isOpen && (
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.96, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, y: -4, transition: { duration: 0.12 } }}
-                        transition={{ duration: 0.2, ease: easing.out }}
-                        className="dropdown-menu absolute top-full left-1/2 -translate-x-1/2 mt-3 p-1.5 pb-3 rounded-2xl shadow-2xl z-[70] min-w-[calc(100%+12px)] w-max"
-                        style={{
-                          transformOrigin: 'top center',
-                          background: theme === 'dark' ? 'rgba(10, 10, 12, 0.75)' : 'rgba(255, 255, 255, 0.75)',
-                          backdropFilter: 'blur(40px) saturate(200%)',
-                          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-                          border: theme === 'dark' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
-                          maxHeight: 'min(480px, 80vh)',
-                          overflowY: 'auto'
-                        }}
-                      >
-                        <motion.div
-                          initial="initial"
-                          animate="animate"
-                          variants={{
-                            animate: {
-                              transition: {
-                                staggerChildren: 0.03
-                              }
-                            }
-                          }}
-                        >
-                          {item.items.map(sub => (
-                            <motion.button
-                              key={sub.id}
-                              variants={{
-                                initial: { opacity: 0, y: 6 },
-                                animate: { opacity: 1, y: 0, transition: { duration: 0.2, ease: easing.out } }
-                              }}
-                              onClick={() => { setActiveTab(sub.id); setActiveDropdown(null); }}
-                              className={`flex items-center gap-1.5 w-full px-2.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                                activeTab === sub.id
-                                  ? (theme === 'dark' ? 'bg-white/10 text-white' : 'bg-[var(--app-accent1)]/10 text-[var(--app-accent1)]')
-                                  : (theme === 'dark' ? 'text-white/70 hover:bg-white/5 hover:text-white' : 'text-gray-600 hover:bg-black/5 hover:text-black')
-                              }`}
-                            >
-                              <sub.icon className="w-4 h-4 shrink-0" />
-                              <span className="flex-1 text-start">{sub.label}</span>
-                              {sub.badge > 0 && (
-                                <motion.span
-                                  key={sub.badge}
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: [0, 1.25, 1] }}
-                                  transition={springs.snappy}
-                                  className="min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[8px] font-bold bg-[var(--app-accent1)] text-white"
-                                >
-                                  {sub.badge}
-                                </motion.span>
-                              )}
-                            </motion.button>
-                          ))}
-                        </motion.div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              );
-            })}
-          </motion.nav>
-
-          {/* RIGHT slot — logo when EN, controls when AR */}
-          {lang === 'ar' ? (
-            /* AR: controls on right — always LTR order: Avatar → Theme → Flag */
-            <div className="flex items-center gap-1 shrink-0" dir="ltr">
-              {/* Mobile menu toggle */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className={`md:hidden w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                  theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                    : 'text-gray-500 hover:text-black hover:bg-black/5'
-                }`}
-                title={_resolveTranslation(lang, 'القائمة', 'Menu')}
-              >
-                <HamburgerIcon isOpen={isMobileMenuOpen} />
-              </button>
-              {/* User / Auth Toggle — Avatar first */}
-              {user ? (
-                <button
-                  onClick={() => setActiveTab('profile')}
-                  className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border overflow-hidden shrink-0 ${
-                    activeTab === 'profile'
-                      ? 'border-[var(--app-accent1)] ring-2 ring-[var(--app-accent1)]/30'
-                      : (theme === 'dark' ? 'border-white/10 hover:border-white/20' : 'border-black/10 hover:border-black/20')
-                  }`}
-                  title={user.username || 'Profile'}
-                >
-                  {(localAvatar || user.avatar) ? (
-                    <img src={localAvatar || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-black text-gray-700 dark:text-white">
-                      {(user.username || 'U')[0].toUpperCase()}
-                    </span>
-                  )}
-                </button>
-              ) : (
-                <button
-                  onClick={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
-                  className="px-3 py-1 rounded-xl text-xs font-bold text-white bg-[var(--app-accent1)] hover:opacity-90 transition-all active:scale-95 shrink-0"
-                >
-                  {_resolveTranslation(lang, 'دخول', 'Login')}
-                </button>
-              )}
-              {/* Theme toggle */}
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all relative overflow-hidden ${
-                  theme === 'dark'
-                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                    : 'text-gray-500 hover:text-black hover:bg-black/5'
-                }`}
-                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={theme}
-                    initial={{ rotate: -90, opacity: 0, scale: 0.6 }}
-                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                    exit={{ rotate: 90, opacity: 0, scale: 0.6 }}
-                    transition={{ duration: 0.25, ease: easing.out }}
-                    className="flex items-center justify-center"
-                  >
-                    {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                  </motion.div>
-                </AnimatePresence>
-              </button>
-              {/* Language toggle — UK flag */}
-              <button
-                onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all relative overflow-hidden ${
-                  theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'
-                }`}
-                title="English"
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={lang}
-                    initial={{ rotate: -45, opacity: 0, scale: 0.6 }}
-                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                    exit={{ rotate: 45, opacity: 0, scale: 0.6 }}
-                    transition={{ duration: 0.25, ease: easing.out }}
-                    className="flex items-center justify-center"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" className="w-5 h-[13px] rounded-sm overflow-hidden">
-                      <rect width="60" height="30" fill="#012169"/>
-                      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
-                      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" strokeWidth="4"/>
-                      <path d="M30,0 V30 M0,15 H60" stroke="#fff" strokeWidth="10"/>
-                      <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" strokeWidth="6"/>
-                    </svg>
-                  </motion.div>
-                </AnimatePresence>
-              </button>
-            </div>
-          ) : (
-            /* EN: logo on right */
-            <div className="flex items-center gap-2 shrink-0" dir="ltr">
-              <h1 className="text-lg font-bold tracking-tight whitespace-nowrap hidden sm:block">
-                <span className="text-[var(--app-accent1)]">ai.</span><span>فينوكسا</span>
-              </h1>
-              <div className="w-8 h-8 rounded-xl bg-black dark:bg-white flex items-center justify-center shrink-0">
-                <Sparkles className="w-5 h-5 text-white dark:text-black" />
-              </div>
-            </div>
-          )}
-
-        </div>
-      </motion.header>
 
       {/* ── Main Content Area ── */}
       <main ref={mainRef} className={`relative z-10 flex-1 h-full overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px] ${activeTab === 'speaking' ? 'overflow-y-hidden' : 'overflow-y-auto'}`}>
@@ -4090,8 +3710,8 @@ function AppInner() {
           <div
             className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[54] print:hidden"
             style={{
-              backdropFilter: 'blur(16px) saturate(140%)',
-              WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               maskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
               WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
             }}
@@ -4134,6 +3754,17 @@ function AppInner() {
             </AnimatePresence>
           )}
         </div>
+
+        {/* ── Site footer (PDF §13) — bottom of every page except the call screen ── */}
+        {activeTab !== 'speaking' && (
+          <Footer
+            lang={lang}
+            setLang={setLang}
+            setTab={setActiveTab}
+            user={user}
+            onOpenRegister={() => { setAuthModalMode('register'); setIsAuthModalOpen(true); }}
+          />
+        )}
       </main>
 
       {/* ── Mobile Navigation Drawer ── */}
