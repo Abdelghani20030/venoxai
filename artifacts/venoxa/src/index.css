@@ -128,6 +128,15 @@ body {
   --vx-content-max: 1240px;
   --vx-utility-h: 30px;
   --vx-mainbar-h: 58px;
+
+  /* ── Frosted-glass header (translucent + blurred, navy in both themes) ── */
+  --vx-glass-main: rgba(11, 21, 48, 0.70);
+  --vx-glass-main-scrolled: rgba(11, 21, 48, 0.55);
+  --vx-glass-utility: rgba(6, 13, 31, 0.72);
+  --vx-glass-dropdown: rgba(14, 24, 54, 0.97);
+  --vx-glass-blur: 20px;
+  --vx-glass-saturate: 160%;
+  --vx-glass-border: rgba(255, 255, 255, 0.10);
 }
 
 /* Light: near-opaque frosted white — grid never bleeds through */
@@ -1266,11 +1275,15 @@ select:focus,
   z-index: 60;
 }
 
-/* Utility bar */
+/* Utility bar — frosted navy glass: translucent + blurred, ALWAYS (not only
+   when collapsed). Blur lives on the bars — never on .vx-header itself, so
+   descendants keep a clean backdrop to filter. */
 .vx-utility-bar {
   height: var(--vx-utility-h);
   overflow: hidden;
-  background: var(--vx-navy-deep);
+  background: var(--vx-glass-utility);
+  backdrop-filter: blur(var(--vx-glass-blur)) saturate(var(--vx-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--vx-glass-blur)) saturate(var(--vx-glass-saturate));
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   transition: height 0.3s var(--vx-ease), opacity 0.2s var(--vx-ease);
 }
@@ -1281,23 +1294,39 @@ select:focus,
   border-bottom-width: 0;
 }
 
-/* Main bar */
+/* Main bar — frosted navy glass. The blur lives on a ::before child, NOT on
+   .vx-main-bar itself: an ancestor with backdrop-filter becomes a backdrop
+   root, which would stop the .vx-dropdown descendant from blurring the page.
+   isolation keeps the z-index:-1 ::before behind the bar content. */
 .vx-main-bar {
   position: relative;
+  isolation: isolate;
   height: var(--vx-mainbar-h);
-  background: var(--vx-navy);
-  border-bottom: 1px solid transparent;
-  transition: background-color 0.3s var(--vx-ease),
-              border-color 0.3s var(--vx-ease),
-              backdrop-filter 0.3s var(--vx-ease);
+  background: transparent;
+  border-bottom: 1px solid var(--vx-glass-border);
+  transition: border-color 0.3s var(--vx-ease);
+}
+
+.vx-main-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--vx-glass-main);
+  backdrop-filter: blur(var(--vx-glass-blur)) saturate(var(--vx-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--vx-glass-blur)) saturate(var(--vx-glass-saturate));
+  transition: background-color 0.3s var(--vx-ease);
+}
+
+.vx-header.vx-collapsed .vx-main-bar::before {
+  background: var(--vx-glass-main-scrolled);
+  backdrop-filter: blur(24px) saturate(var(--vx-glass-saturate));
+  -webkit-backdrop-filter: blur(24px) saturate(var(--vx-glass-saturate));
 }
 
 .vx-header.vx-collapsed .vx-main-bar {
-  background: rgba(11, 21, 48, 0.94);
-  backdrop-filter: blur(16px) saturate(120%);
-  -webkit-backdrop-filter: blur(16px) saturate(120%);
-  border-bottom-color: rgba(255, 255, 255, 0.10);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35) !important;
+  border-bottom-color: var(--vx-glass-border);
 }
 
 /* Logo tile — white square with navy V */
@@ -1415,19 +1444,21 @@ select:focus,
   box-shadow: 0 0 22px rgba(10, 120, 214, 0.55) !important;
 }
 
-/* Navy dropdown — same on both themes */
+/* Navy-glass dropdown — translucent + blurred, same glass family as the bar */
 .vx-dropdown {
-  background: var(--vx-navy-raised);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--vx-glass-dropdown);
+  border: 1px solid var(--vx-glass-border);
   border-radius: 18px;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5) !important;
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(var(--vx-glass-blur)) saturate(var(--vx-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--vx-glass-blur)) saturate(var(--vx-glass-saturate));
 }
 
 .vx-dropdown-item {
   display: flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 8px;
   width: 100%;
   padding: 8px 11px;
@@ -1456,59 +1487,9 @@ select:focus,
   transform: none;
 }
 
-/* Frosted glass lip under the header (LanGeek-style): content blurs as it
-   slides under the navy bars and sharpens as it emerges below the edge.
-   Blur only — no saturation — so the ambient orbs don't bloom at the seam. */
-.vx-header-lip {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: 64px;
-  pointer-events: none;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  mask-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.95) 0%,
-    rgba(0, 0, 0, 0.65) 30%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.95) 0%,
-    rgba(0, 0, 0, 0.65) 30%,
-    transparent 100%
-  );
-  transform: translateZ(0);
-}
-
-/* Soft seam wash so the frost reads as part of the panel itself and
-   background orb color stays out of the band under the bar. */
-.vx-header-lip::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 40%;
-  background: linear-gradient(
-    to bottom,
-    rgba(243, 246, 251, 0.90),
-    rgba(243, 246, 251, 0.35) 55%,
-    transparent
-  );
-}
-
-.dark .vx-header-lip::before {
-  background: linear-gradient(
-    to bottom,
-    rgba(6, 13, 31, 0.92),
-    rgba(6, 13, 31, 0.55) 50%,
-    rgba(6, 13, 31, 0.18) 80%,
-    transparent
-  );
-}
+/* Frosted glass lip under the header removed entirely: the fixed blur band
+   (and its former ::before washes) painted the dark seam under the bar.
+   Nothing replaces it — the 1px border on .vx-main-bar is the only separation. */
 
 /* ══════════════════════════════════════════════
    Site footer — PDF §13
@@ -1726,4 +1707,143 @@ html:not(.dark) .vx-footer-lang.is-active {
 
 .dark .vx-btn-ghost:hover {
   color: var(--vx-blue-hover);
+}
+
+/* ══════════════════════════════════════════════
+   Site pages (privacy, terms, cookies, faq, help,
+   about, contact, community, premium, report).
+   English markdown inside an LTR article; page
+   chrome (back button, meta, title) follows the
+   UI language and stays dir-aware.
+   ══════════════════════════════════════════════ */
+.vx-sitepage-title {
+  color: #111827;
+}
+
+.dark .vx-sitepage-title {
+  color: #ffffff;
+}
+
+.vx-sitepage-article {
+  color: #1F2937;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.dark .vx-sitepage-article {
+  color: #D1D5DB;
+}
+
+.vx-sitepage-article h3 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 1.9em 0 0.65em;
+  color: #111827;
+}
+
+.dark .vx-sitepage-article h3 {
+  color: #ffffff;
+}
+
+.vx-sitepage-article p {
+  margin: 0 0 1.05em;
+}
+
+.vx-sitepage-article ul,
+.vx-sitepage-article ol {
+  margin: 0 0 1.2em;
+  padding-left: 1.4em;
+}
+
+.vx-sitepage-article li {
+  margin: 0.4em 0;
+}
+
+.vx-sitepage-article strong {
+  font-weight: 800;
+}
+
+.vx-sitepage-article a {
+  color: var(--vx-blue);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(10, 120, 214, 0.35);
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.2s var(--vx-ease);
+}
+
+.vx-sitepage-article a:hover {
+  text-decoration-color: var(--vx-blue);
+}
+
+.dark .vx-sitepage-article a {
+  color: var(--vx-blue-hover);
+}
+
+/* Tables: hairline grid, tinted header row; the wrapper scrolls
+   horizontally so wide tables never overflow on mobile. */
+.vx-sitepage-tablewrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 0 1.4em;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  border-radius: 12px;
+}
+
+.dark .vx-sitepage-tablewrap {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.vx-sitepage-article table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.vx-sitepage-article th,
+.vx-sitepage-article td {
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.vx-sitepage-article tr + tr td,
+.vx-sitepage-article th + th,
+.vx-sitepage-article td + td {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.vx-sitepage-article td + td {
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dark .vx-sitepage-article tr + tr td,
+.dark .vx-sitepage-article td + td {
+  border-top-color: rgba(255, 255, 255, 0.10);
+}
+
+.dark .vx-sitepage-article td + td {
+  border-left-color: rgba(255, 255, 255, 0.10);
+}
+
+.vx-sitepage-article th {
+  background: rgba(10, 120, 214, 0.08);
+  font-weight: 800;
+  color: #111827;
+  border-top: none;
+}
+
+.dark .vx-sitepage-article th {
+  background: rgba(10, 120, 214, 0.18);
+  color: #ffffff;
+}
+
+.vx-sitepage-article thead th {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.10);
+}
+
+.dark .vx-sitepage-article thead th {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
 }

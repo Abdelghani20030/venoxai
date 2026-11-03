@@ -253,7 +253,7 @@ function Header({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: -4, transition: { duration: 0.12 } }}
                         transition={{ duration: 0.2, ease: easing.out }}
-                        className="vx-dropdown absolute top-full left-1/2 -translate-x-1/2 mt-2.5 z-[70] w-max min-w-[230px] max-h-[min(480px,80vh)] overflow-y-auto no-scrollbar p-1.5"
+                        className="vx-dropdown absolute top-full left-1/2 -translate-x-1/2 mt-7 z-[70] w-max min-w-[230px] max-h-[min(480px,80vh)] overflow-y-auto no-scrollbar p-1.5"
                         style={{ transformOrigin: 'top center' }}
                       >
                         <motion.div
@@ -272,7 +272,7 @@ function Header({
                               className={`vx-dropdown-item ${activeTab === sub.id ? 'is-active' : ''}`}
                             >
                               <sub.icon className="w-4 h-4 shrink-0" />
-                              <span className="flex-1 text-start">{sub.label}</span>
+                              <span className="text-center">{sub.label}</span>
                               {sub.badge > 0 && (
                                 <span className="min-w-[16px] h-[16px] rounded-full flex items-center justify-center text-[8px] font-bold bg-[var(--vx-orange)] text-white px-1 shrink-0">
                                   {sub.badge}

@@ -31,6 +31,7 @@ import SaudiFlagIcon from './SaudiFlagIcon';
 import Header from './Header';
 import Footer from './Footer';
 import PlaceholderPage from './PlaceholderPage';
+import SitePage from './SitePage';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1704,10 +1705,16 @@ function HamburgerIcon({ isOpen }) {
 }
 
 // --- MAIN APPLICATION COMPONENT ---
+// Footer site pages with shareable URLs (#/privacy, #/terms, ...).
+const SITE_PAGE_TABS = ['about', 'contact', 'community', 'cookies', 'faq', 'help', 'premium', 'privacy', 'report', 'terms'];
+
 function AppInner() {
   const [activeTab, setActiveTab] = useState(() => {
     try {
-      return window.location.hash.startsWith('#/verify/') ? 'level-test' : 'dashboard';
+      const h = window.location.hash;
+      if (h.startsWith('#/verify/')) return 'level-test';
+      const site = SITE_PAGE_TABS.find(id => h === `#/${id}`);
+      return site || 'dashboard';
     } catch {
       return 'dashboard';
     }
@@ -1718,6 +1725,42 @@ function AppInner() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [headerScrolled, setHeaderScrolled] = useState(false);
   const mainRef = useRef(null);
+
+  // Footer site pages (privacy, terms, faq, ...) always open at the top of
+  // the main scroll container.
+  useEffect(() => {
+    if (SITE_PAGE_TABS.includes(activeTab) && mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [activeTab]);
+
+  // Shareable URLs for the site pages (#/privacy, #/terms, ...) for OAuth
+  // consent screens and app stores. The existing #/verify/<id> flow and
+  // every other hash are left untouched; replaceState avoids history spam.
+  useEffect(() => {
+    try {
+      const h = window.location.hash;
+      if (SITE_PAGE_TABS.includes(activeTab)) {
+        if (h !== `#/${activeTab}`) window.history.replaceState(null, '', `#/${activeTab}`);
+      } else if (h && !h.startsWith('#/verify/') && /^#\/[a-z]+$/.test(h)) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    } catch {
+      /* hash not available */
+    }
+  }, [activeTab]);
+
+  // Browser back/forward and pasted share links land on the right page.
+  useEffect(() => {
+    const onHash = () => {
+      const h = window.location.hash;
+      if (h.startsWith('#/verify/')) return;
+      const site = SITE_PAGE_TABS.find(id => h === `#/${id}`);
+      if (site) setActiveTab(site);
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
   useEffect(() => {
     const handleScroll = () => {
       const el = mainRef.current;
@@ -3475,9 +3518,13 @@ function AppInner() {
       case 'terms':
       case 'cookies':
       case 'faq':
-      case 'contact':
+      case 'help':
       case 'about':
+      case 'contact':
+      case 'community':
       case 'premium':
+      case 'report':
+        return <SitePage id={activeTab} lang={lang} theme={theme} setTab={setActiveTab} user={user} onOpenRegister={() => { setAuthModalMode('register'); setIsAuthModalOpen(true); }} />;
       case 'mobile':
         return <PlaceholderPage id={activeTab} lang={lang} theme={theme} setTab={setActiveTab} />;
       default:
@@ -3698,41 +3745,17 @@ function AppInner() {
         setActiveDropdown={setActiveDropdown}
         navDropdownRef={navDropdownRef}
         scrollRef={mainRef}
-        showGlassLip={activeTab !== 'speaking'}
+        showGlassLip={false}
       />
 
 
       {/* ── Main Content Area ── */}
       <main ref={mainRef} className={`relative z-10 flex-1 h-full overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px] ${activeTab === 'speaking' ? 'overflow-y-hidden' : 'overflow-y-auto'}`}>
 
-        {/* ── Blur curtain — hidden on speaking tab for sharp edge ── */}
-        {activeTab !== 'speaking' && (
-          <div
-            className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[54] print:hidden"
-            style={{
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              maskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)',
-            }}
-          />
-        )}
-
-        {/* Colour-fade — hidden on speaking tab for sharp edge */}
-        {activeTab !== 'speaking' && (
-          <div
-            className="pointer-events-none fixed top-0 left-0 right-0 h-36 z-[55] print:hidden"
-            style={{
-              maskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 40%, transparent 100%)',
-              background: theme === 'dark'
-                ? 'linear-gradient(to bottom, rgba(10,10,14,0.85) 0%, rgba(10,10,14,0.4) 55%, rgba(10,10,14,0) 100%)'
-                : 'linear-gradient(to bottom, rgba(245,245,250,0.92) 0%, rgba(245,245,250,0.5) 55%, rgba(245,245,250,0) 100%)',
-            }}
-          />
-        )}
-
-
+        {/* Legacy fixed blur curtain + colour-fade overlays under the header
+            were removed here: with the glass header they painted a ~90%-opaque
+            wash over the exact area the header covers, so the translucent bars
+            never revealed the real page but only flat wash. */}
 
         <div className={`${activeTab === 'speaking' ? 'w-full' : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8'} print:p-0 print:pt-0`}>
           {activeTab === 'speaking' ? (

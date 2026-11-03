@@ -25,7 +25,7 @@ function Footer({ lang, setLang, setTab, user, onOpenRegister }) {
     { ar: 'من نحن', en: 'About us', tab: 'about' },
     { ar: 'اتصل بنا', en: 'Contact us', tab: 'contact' },
     { ar: 'المجتمع', en: 'Community', tab: 'community' },
-    { ar: 'مركز المساعدة', en: 'Help center', tab: 'faq' },
+    { ar: 'مركز المساعدة', en: 'Help center', tab: 'help' },
     { ar: 'Premium', en: 'Premium', tab: 'premium' },
   ];
 
@@ -43,18 +43,10 @@ function Footer({ lang, setLang, setTab, user, onOpenRegister }) {
     { ar: 'شروط الخدمة', en: 'Terms of Service', tab: 'terms' },
     { ar: 'سياسة الكوكيز', en: 'Cookie Policy', tab: 'cookies' },
     { ar: 'الأسئلة الشائعة', en: 'FAQ', tab: 'faq' },
-    { ar: 'الإبلاغ عن مشكلة', en: 'Report a problem', tab: 'contact' },
+    { ar: 'الإبلاغ عن مشكلة', en: 'Report a problem', tab: 'report' },
   ];
 
-  const go = (link) => {
-    if (link.tab === 'community') {
-      // Community opens AuthModal in register mode while signed out.
-      if (user) setTab('profile');
-      else if (onOpenRegister) onOpenRegister();
-      return;
-    }
-    setTab(link.tab);
-  };
+  const go = (link) => setTab(link.tab);
 
   const socials = [
     { key: 'instagram', icon: Instagram, title: 'Instagram' },

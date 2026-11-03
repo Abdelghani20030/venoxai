@@ -78,6 +78,8 @@
     "@supabase/supabase-js": "^2.49.0",
     "html2canvas-pro": "^2.5.2",
     "jspdf": "^4.2.1",
-    "liquid-glass-react": "^1.1.1"
+    "liquid-glass-react": "^1.1.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   }
 }
