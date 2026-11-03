@@ -1,8 +1,11 @@
 /**
  * src/content/sitePages.js
  * English site-page content for the footer pages (privacy, terms, cookies,
- * faq, help, about, contact, community, premium, report), imported straight
- * from the docs export in /site-content via Vite's ?raw suffix.
+ * faq, help, about, contact, community, premium, report). The build imports
+ * ASCII-named byte copies from ./pages below — git mis-encodes the en dash
+ * (U+2013) in the /site-content file names on Linux (mojibake names in the
+ * commit), which broke the Vercel build with ENOENT. Canonical text stays
+ * in /site-content; keep the two in sync when the docs export changes.
  *
  * Each source file holds several pages split by '## ' headings. The text is
  * rendered as given — placeholders stay literal — except:
@@ -17,10 +20,12 @@
  * is invented here).
  */
 
-import privacyCookieSrc from '@docs/Venoxa AI – Privacy and Cookie Policy.md?raw';
-import faqHelpSrc from '@docs/Venoxa AI – FAQ and Help Center.md?raw';
-import aboutContactSrc from '@docs/Venoxa AI – About and Contact.md?raw';
-import communityEtcSrc from '@docs/Venoxa AI – Community, Premium and Report a Problem.md?raw';
+// Byte-identical copies of the /site-content docs exports under ASCII-safe
+// file names (en-dash names in /site-content break on Linux CI — see header).
+import privacyCookieSrc from './pages/privacy-cookie.md?raw';
+import faqHelpSrc from './pages/faq-help.md?raw';
+import aboutContactSrc from './pages/about-contact.md?raw';
+import communityEtcSrc from './pages/community-premium-report.md?raw';
 
 /** Support address used across the app (footer, placeholder page). */
 export const SUPPORT_EMAIL = 'support@venoxa.ai';

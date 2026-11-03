@@ -33,7 +33,6 @@ export default defineConfig({
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
       "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
-      "@docs": path.resolve(import.meta.dirname, "..", "..", "site-content"),
     },
     dedupe: ["react", "react-dom"],
   },
