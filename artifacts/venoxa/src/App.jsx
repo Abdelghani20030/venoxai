@@ -109,7 +109,7 @@ function cacheLightUser(userData) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  SECRET KEY GATE — change this to whatever key you want
 // ─────────────────────────────────────────────────────────────────────────────
-const SECRET_KEY = 'VENOXA-2025';
+const SECRET_KEY = 'VENOXA2003';
 const KEY_STORAGE = 'venoxa_access_granted';
 
 function KeyGate({ onUnlock }) {
