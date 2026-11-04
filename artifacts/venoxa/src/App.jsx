@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { easing, durations, springs, fadeUp, scaleIn, staggerContainer, staggerChild } from './motion.js';
-import { Home, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, ChevronUp, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, User, Lock, Mail, Heart, TrendingUp } from 'lucide-react';
+import { Home, Route, Library, LineChart, BookOpen, PenTool, MessageSquare, Headphones, Brain, ClipboardList, Trophy, Shuffle, FileText, CheckCircle, Target, Calendar, CalendarCheck, Play, Pause, RotateCcw, Volume2, Mic, Send, Clock, ChevronRight, ChevronLeft, Menu, X, Sparkles, Activity, Award, BookText, Lightbulb, Phone, PhoneOff, MicOff, CheckCircle2, HelpCircle, UploadCloud, Globe, Search, Filter, List, Star, Image as ImageIcon, Layers, Archive, Quote, Zap, Sun, Moon, Printer, Trash2, Copy, MoreHorizontal, PanelLeft, ChevronDown, ChevronUp, Wrench, Languages, Sliders, GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, User, Lock, Mail, Heart, TrendingUp } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import ProfileDashboard from './ProfileDashboard';
 import {
@@ -32,6 +32,11 @@ import Header from './Header';
 import Footer from './Footer';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
+import LearningPath, { PathHero } from './LearningPath.jsx';
+import LessonPlayer from './LessonPlayer.jsx';
+import LibraryPage from './LibraryPage.jsx';
+import ProgressSummary from './ProgressPage.jsx';
+import MobileTabBar from './MobileTabBar.jsx';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3349,7 +3354,12 @@ function AppInner() {
     setActiveTab('plan');
   };
 
+  // ── Learning Path (Phase 4) — which lesson the Lesson Player shows ──
+  const [pathLessonSlug, setPathLessonSlug] = useState(null);
+
   const renderContent = () => {
+    const openPathLesson = (slug) => { setPathLessonSlug(slug); setActiveTab('lesson'); };
+
     const props = {
       userLevel,
       setUserLevel: setUserLevelWrapped,
@@ -3359,7 +3369,66 @@ function AppInner() {
     };
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} levelTest={levelTest} />;
+        return (
+          <React.Fragment>
+            <div className="mb-6">
+              <PathHero lang={lang} theme={theme} user={user} setTab={setActiveTab} onOpenLesson={openPathLesson} />
+            </div>
+            <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} levelTest={levelTest} />
+          </React.Fragment>
+        );
+      case 'path':
+        return <LearningPath
+          lang={lang}
+          theme={theme}
+          user={user}
+          setTab={setActiveTab}
+          onOpenLesson={openPathLesson}
+          onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+        />;
+      case 'lesson':
+        return <LessonPlayer
+          key={pathLessonSlug || 'lesson-none'}
+          slug={pathLessonSlug}
+          lang={lang}
+          theme={theme}
+          onExit={() => setActiveTab('path')}
+          onOpenLesson={openPathLesson}
+        />;
+      case 'library':
+        return <LibraryPage
+          lang={lang}
+          theme={theme}
+          setTab={setActiveTab}
+          vocabDueCount={vocabDueCount}
+          langeekDueCount={langeekDueCount}
+        />;
+      case 'progress':
+        return (
+          <React.Fragment>
+            <div className="mb-6">
+              <ProgressSummary lang={lang} theme={theme} user={user} levelTest={levelTest} setTab={setActiveTab} />
+            </div>
+            <StudyPlan
+              {...props}
+              globalVocab={globalVocab}
+              langeekVocab={langeekVocab}
+              planMeta={planMeta}
+              setPlanMeta={setPlanMeta}
+              completedCells={completedCells}
+              setCompletedCells={setCompletedCellsWrapped}
+              setCellDates={setCellDatesWrapped}
+              currentWeek={currentWeek}
+              setCurrentWeek={setCurrentWeek}
+              recordActivity={recordActivity}
+              token={token}
+              user={user}
+              syncProgress={syncProgress}
+              planResetBlockRef={planResetBlockRef}
+              weekSyncBlockedRef={weekSyncBlockedRef}
+            />
+          </React.Fragment>
+        );
       case 'plan':
         return <StudyPlan 
           {...props} 
@@ -3567,28 +3636,21 @@ function AppInner() {
     return () => { document.title = 'Venoxa'; };
   }, [timerState.secsLeft, timerState.done]);
 
+  // ── 4 primary destinations (redesign §02): everything else lives in My Library ──
   const navItems = [
     { id: 'dashboard', label: _resolveTranslation(lang, 'الرئيسية', 'Dashboard'), icon: Home },
-    { id: 'profile', label: _resolveTranslation(lang, 'الملف الشخصي', 'Profile'), icon: User },
-    { id: 'plan', label: _resolveTranslation(lang, 'خطة المذاكرة', 'Study Plan'), icon: Calendar },
+    { id: 'path', label: _resolveTranslation(lang, 'مسار التعلم', 'Learning Path'), icon: Route },
     {
-      id: 'vocab_group',
-      label: _resolveTranslation(lang, 'المفردات', 'Vocabulary'),
-      icon: BookOpen,
+      id: 'library',
+      label: _resolveTranslation(lang, 'مكتبتي', 'My Library'),
+      icon: Library,
+      badge: vocabDueCount + langeekDueCount,
       items: [
         { id: 'vocab', label: _resolveTranslation(lang, 'الكلمات والمراجعة', 'Vocabulary (SRS)'), icon: BookOpen, badge: vocabDueCount },
         { id: 'phrasal', label: _resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs'), icon: BookText },
         { id: 'idioms', label: _resolveTranslation(lang, 'العامية', 'Slang'), icon: Quote },
         { id: 'idioms-proper', label: _resolveTranslation(lang, 'التعابير الاصطلاحية', 'Idioms'), icon: BookText },
         { id: 'langeek', label: _resolveTranslation(lang, 'لانجيك (PDF)', 'Langeek (PDF)'), icon: Archive, badge: langeekDueCount },
-      ],
-      badge: vocabDueCount + langeekDueCount
-    },
-    {
-      id: 'skills_group',
-      label: _resolveTranslation(lang, 'المهارات', 'Skills'),
-      icon: Layers,
-      items: [
         { id: 'level-test', label: _resolveTranslation(lang, 'اختبار المستوى', 'Level Test'), icon: Award },
         { id: 'listening', label: _resolveTranslation(lang, 'الاستماع', 'Listening'), icon: Headphones },
         { id: 'reading', label: _resolveTranslation(lang, 'القراءة (AI)', 'Reading (AI)'), icon: Brain },
@@ -3596,14 +3658,7 @@ function AppInner() {
         { id: 'writing', label: _resolveTranslation(lang, 'الكتابة (AI)', 'Writing (AI)'), icon: PenTool },
         { id: 'pronunciation', label: _resolveTranslation(lang, 'النطق', 'Pronunciation'), icon: Volume2 },
         { id: 'test-gen', label: _resolveTranslation(lang, 'منشئ الاختبارات', 'Test Generator'), icon: ClipboardList },
-      ]
-    },
-    { id: 'grammar', label: _resolveTranslation(lang, 'القواعد (AI)', 'Grammar (AI)'), icon: FileText },
-    {
-      id: 'tools_group',
-      label: _resolveTranslation(lang, 'الأدوات', 'Tools'),
-      icon: Wrench,
-      items: [
+        { id: 'grammar', label: _resolveTranslation(lang, 'القواعد (AI)', 'Grammar (AI)'), icon: FileText },
         { id: 'smart-translation',    label: _resolveTranslation(lang, 'الترجمة الذكية',     'Smart Translation'),   icon: Languages    },
         { id: 'tone-rewriter',        label: _resolveTranslation(lang, 'إعادة صياغة النبرة', 'Tone Rewriter'),        icon: Sliders      },
         { id: 'sentence-diagrammer',  label: _resolveTranslation(lang, 'محلّل الجمل',         'Sentence Diagrammer'),  icon: GitBranch    },
@@ -3614,8 +3669,9 @@ function AppInner() {
         { id: 'word-of-day',          label: _resolveTranslation(lang, 'كلمة اليوم',         'Word of the Day'),      icon: BookMarked   },
         { id: 'idiom-of-day',         label: _resolveTranslation(lang, 'تعبير اليوم',        'Idiom of the Day'),     icon: Lightbulb    },
         { id: 'timer',                label: _resolveTranslation(lang, 'المؤقت',            'Focus Timer'),           icon: Clock        },
-      ]
+      ],
     },
+    { id: 'progress', label: _resolveTranslation(lang, 'تقدمي', 'My Progress'), icon: LineChart },
   ];
 
   useEffect(() => {
@@ -3759,7 +3815,7 @@ function AppInner() {
             wash over the exact area the header covers, so the translucent bars
             never revealed the real page but only flat wash. */}
 
-        <div className={`${activeTab === 'speaking' ? 'w-full' : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8'} print:p-0 print:pt-0`}>
+        <div className={`${activeTab === 'speaking' ? 'w-full' : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 pb-28 md:pb-8'} print:p-0 print:pt-0`}>
           {activeTab === 'speaking' ? (
             renderContent()
           ) : (
@@ -3791,6 +3847,9 @@ function AppInner() {
           />
         )}
       </main>
+
+      {/* ── Mobile bottom tab bar (Phase 4, PDF page 17): Home · Path · Library · Progress ── */}
+      <MobileTabBar activeTab={activeTab} lang={lang} onNavigate={(id) => setActiveTab(id)} />
 
       {/* ── Mobile Navigation Drawer ── */}
       <AnimatePresence>
