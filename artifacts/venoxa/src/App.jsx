@@ -107,7 +107,9 @@ function cacheLightUser(userData) {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  SECRET KEY GATE — change this to whatever key you want
+//  SECRET KEY GATE — change this to whatever key you want. The stored unlock
+//  has to match the CURRENT key on load, so changing the key logs out every
+//  previously unlocked visitor (they get the gate again and need the new key).
 // ─────────────────────────────────────────────────────────────────────────────
 const SECRET_KEY = 'VENOXA2003';
 const KEY_STORAGE = 'venoxa_access_granted';
@@ -119,7 +121,7 @@ function KeyGate({ onUnlock }) {
 
   const handleSubmit = () => {
     if (input.trim() === SECRET_KEY) {
-      localStorage.setItem(KEY_STORAGE, '1');
+      localStorage.setItem(KEY_STORAGE, SECRET_KEY); // tied to the key: key change = logout
       onUnlock();
     } else {
       setError(true);
@@ -13214,7 +13216,7 @@ Rules:
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
   const [keyGranted, setKeyGranted] = useState(
-    () => localStorage.getItem(KEY_STORAGE) === '1'
+    () => localStorage.getItem(KEY_STORAGE) === SECRET_KEY
   );
 
   if (!keyGranted) return <KeyGate onUnlock={() => setKeyGranted(true)} />;
