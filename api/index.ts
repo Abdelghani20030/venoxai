@@ -7,6 +7,7 @@ import WebSocket from "ws";
 import crypto from "node:crypto";
 import pg from "pg";
 import { createLevelTestRouter } from "../lib/level-test-server.ts";
+import { createPathRouter } from "../lib/path-server.ts";
 import { createPgPool, describeDbError } from "../lib/pg-pool.ts";
 
 // Lazy DB pool — only created if DATABASE_URL is configured
@@ -74,6 +75,17 @@ try {
   }
 } catch (err) {
   console.warn("Could not initialize level-test router:", err);
+}
+
+// Venoxa Learning Path — guided CEFR lessons; locking, grading and the
+// unlock transaction are enforced in lib/path-server.ts (same auth model).
+try {
+  const pathPool = getDbPool();
+  if (pathPool) {
+    app.use("/api/path", createPathRouter({ pool: pathPool }));
+  }
+} catch (err) {
+  console.warn("Could not initialize path router:", err);
 }
 
 // ── Health ────────────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ import imageRouter from "./image"; // Image generation — /api/image
 import kokoroTtsRouter from "./kokoro-tts"; // Kokoro TTS — /api/kokoro-tts
 import groqTtsRouter from "./groq-tts"; // Groq TTS — /api/groq-tts
 import { createLevelTestRouter } from "../../../../lib/level-test-server";
+import { createPathRouter } from "../../../../lib/path-server";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,8 @@ router.use(
     appBaseUrl: process.env.LEVEL_TEST_VERIFY_BASE_URL,
   }),
 );
+
+// Venoxa Learning Path — guided CEFR lessons (shared with api/index.ts).
+router.use("/path", createPathRouter({ pool }));
 
 export default router;
