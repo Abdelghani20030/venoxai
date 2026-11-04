@@ -1,0 +1,70 @@
+/*
+ * src/glass-std.css
+ * Standard `backdrop-filter` mirror for the glass rules.
+ *
+ * WHY THIS FILE EXISTS: index.css starts with `@import "tailwindcss"`, so the
+ * whole file (including the hand-written glass rules) goes through the
+ * Tailwind v4/Vite pipeline, whose Lightning CSS pass rewrites each glass
+ * rule to the `-webkit-backdrop-filter` prefix only. Chromium builds that do
+ * not alias the `-webkit-` form then render the header/cards translucent
+ * with NO blur (broken on the Vercel production build, fine in dev, where
+ * the pass is skipped). This sheet carries the standard, unprefixed
+ * property for exactly those rules with identical values; it must load
+ * AFTER index.css (see main.tsx) and must never contain Tailwind syntax,
+ * or it would be rewritten too. The -webkit- lines live in index.css for
+ * Safari (< 18) and stay untouched.
+ */
+
+.glass-panel {
+  backdrop-filter: blur(48px) saturate(200%);
+}
+
+.premium-card {
+  backdrop-filter: blur(48px) saturate(200%);
+}
+
+.dark .premium-card,
+.dark .glass-panel {
+  backdrop-filter: blur(48px) saturate(180%) !important;
+}
+
+.dropdown-menu {
+  backdrop-filter: blur(48px) saturate(200%);
+}
+
+.dark .dropdown-menu {
+  backdrop-filter: none;
+}
+
+.vx-utility-bar {
+  backdrop-filter: blur(var(--vx-glass-blur)) saturate(var(--vx-glass-saturate));
+}
+
+.vx-main-bar::before {
+  backdrop-filter: blur(var(--vx-glass-blur)) saturate(var(--vx-glass-saturate));
+}
+
+.vx-header.vx-collapsed .vx-main-bar::before {
+  backdrop-filter: blur(24px) saturate(var(--vx-glass-saturate));
+}
+
+.vx-dropdown {
+  backdrop-filter: blur(var(--vx-glass-blur)) saturate(var(--vx-glass-saturate));
+}
+
+/* Print: force blur off, same intent as the print block at the end of
+   index.css (which currently only survives in its -webkit- form). */
+@media print {
+  .glass-panel,
+  .dark .glass-panel,
+  .premium-card,
+  .dark .premium-card,
+  .card-shine,
+  .topbar-glass,
+  .glass-panel:hover,
+  .dark .glass-panel:hover,
+  .premium-card:hover,
+  .dark .premium-card:hover {
+    backdrop-filter: none !important;
+  }
+}

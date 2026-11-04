@@ -41,6 +41,10 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     chunkSizeWarningLimit: 800,
+    // Keep the plain `backdrop-filter` declarations: the lightningcss minifier
+    // folds glass rules down to the -webkit- prefix only, and some Chromium
+    // builds reject that alias (translucent nav with no blur in production).
+    cssMinify: "esbuild",
   },
   server: {
     port,
