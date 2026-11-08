@@ -1,0 +1,55 @@
+/* Design tokens extracted from the approved mockups (showcase.html).
+   Prefixed --vx- so they never collide with the app's existing variables.
+   Light = default. Dark applies under the app's existing dark-theme selector
+   (map it: html[data-theme="dark"], .dark, [data-theme=dark] ... whichever the app uses). */
+:root {
+  --vx-bg:#F7F9FC;
+  --vx-surface:#fff;
+  --vx-card:#fff;
+  --vx-border:#E6E6E6;
+  --vx-text:#0A0A0A;
+  --vx-muted:#5B6678;
+  --vx-muted2:#8590A2;
+  --vx-primary:#0E4AA4;
+  --vx-psoft:#EBF0F7;
+  --vx-mint:#C8EFE8;
+  --vx-mintd:#48725E;
+  --vx-amberbg:#FFECD6;
+  --vx-amberd:#D88C34;
+  --vx-ok:#1F9D74;
+  --vx-track:#E3E9F2;
+  --vx-lockline:#CBD3E0;
+  --vx-lockbg:#EEF1F6;
+  --vx-lockicon:#9AA5B8;
+  --vx-unitbg:#fff;
+  --vx-unitborder:#E6E6E6;
+  --vx-shadow:0 1px 2px rgba(10,20,40,.04);
+}
+html[data-theme="dark"], .dark, [data-theme="dark"] {
+  --vx-bg:#0B1020;
+  --vx-surface:#121A2F;
+  --vx-card:#17223B;
+  --vx-border:#263452;
+  --vx-text:#F8FAFC;
+  --vx-muted:#B6C2D9;
+  --vx-muted2:#7A8BA8;
+  --vx-primary:#4F7CFF;
+  --vx-psoft:rgba(79,124,255,.16);
+  --vx-mint:rgba(120,227,217,.16);
+  --vx-mintd:#78E3D9;
+  --vx-amberbg:rgba(255,215,138,.14);
+  --vx-amberd:#FFD78A;
+  --vx-ok:#2BC08F;
+  --vx-track:#263452;
+  --vx-lockline:#2F3F63;
+  --vx-lockbg:#17223B;
+  --vx-lockicon:#5C6E92;
+  --vx-unitbg:#121A2F;
+  --vx-unitborder:#263452;
+  --vx-shadow:none;
+}
+/* Component dimensions used by the mockups (px):
+   nav height 56 | card radius 18, padding 20, 1px border var(--vx-border) | button height 42, radius 12, weight 700
+   chip radius 999, 12px/650 | progress bar height 8, radius 4 | ring stroke 10-11
+   hero gradient: linear-gradient(120deg,#0A3A84,#0E4AA4 60%,#2A63B8)
+   brand accents for avatar: linear-gradient(135deg,#78E3D9,#9E9EFF) */

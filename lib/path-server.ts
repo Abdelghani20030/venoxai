@@ -65,6 +65,7 @@ interface LessonRow {
   kind: string;
   pass_score: number;
   published: boolean;
+  activities: unknown;
 }
 
 interface ExerciseRow {
@@ -323,7 +324,8 @@ async function loadPublishedLessons(
 ): Promise<LessonRow[]> {
   const result = await client.query<LessonRow>(
     `select id, slug, level, unit, unit_title_en, unit_title_ar, position,
-            title_en, title_ar, objective_en, objective_ar, kind, pass_score, published
+            title_en, title_ar, objective_en, objective_ar, kind, pass_score, published,
+            activities
        from path_lessons
       order by position asc`,
   );
@@ -400,6 +402,21 @@ function clampLevel(level: unknown): PathLevel {
 }
 
 /**
+ * Safe summary of a lesson blueprint: activity types only. Configs and
+ * answer keys never leave the server.
+ */
+function activitySteps(activities: unknown): string[] {
+  if (!Array.isArray(activities)) return [];
+  const out: string[] = [];
+  for (const item of activities) {
+    if (!item || typeof item !== 'object') continue;
+    const type = (item as { type?: unknown }).type;
+    if (typeof type === 'string' && !out.includes(type)) out.push(type);
+  }
+  return out;
+}
+
+/**
  * Build the full map the client renders. Lesson statuses are one of:
  *   'completed' | 'current' | 'unlocked' (open, e.g. revision levels) |
  *   'locked' | 'coming_soon' (unpublished outline)
@@ -454,6 +471,7 @@ async function buildMap(pool: Pool, user: AuthUser): Promise<Record<string, unkn
         objectiveAr: lesson.objective_ar,
         kind: lesson.kind,
         passScore: lesson.pass_score,
+        steps: activitySteps(lesson.activities),
         status: statusOf(lesson),
         bestScore: row?.best_score ?? null,
         attempts: row?.attempts ?? 0,
@@ -522,6 +540,7 @@ async function buildMap(pool: Pool, user: AuthUser): Promise<Record<string, unkn
             objectiveAr: currentLessonRow.objective_ar,
             level: currentLessonRow.level,
             kind: currentLessonRow.kind,
+            steps: activitySteps(currentLessonRow.activities),
             unit: currentLessonRow.unit,
             unitTitleEn: currentLessonRow.unit_title_en,
             unitTitleAr: currentLessonRow.unit_title_ar,

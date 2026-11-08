@@ -1,0 +1,11 @@
+﻿import { chromium } from 'playwright';
+const b = await chromium.launch({ channel: 'chrome', headless: true });
+const c = await b.newContext({ viewport: { width: 1280, height: 820 } });
+await c.addInitScript(() => { localStorage.setItem('venoxa_theme','light'); localStorage.setItem('venoxa_lang','en'); localStorage.setItem('venoxa_access_granted','VENOXA2003'); });
+const p = await c.newPage();
+p.on('console', m => { if (m.type() === 'error') console.log('CONSOLE', m.type(), m.text()); });
+p.on('pageerror', e => console.log('PAGEERROR', e.message));
+await p.goto('http://127.0.0.1:3000/', { waitUntil: 'networkidle' });
+console.log('BODY', (await p.locator('body').innerText()).slice(0,1600));
+await p.screenshot({ path: 'design-reference/actual/debug.png' });
+await b.close();

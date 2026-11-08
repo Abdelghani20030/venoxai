@@ -163,7 +163,7 @@ function Header({
             dir="ltr"
           >
             <span className="vx-logo-tile">V</span>
-            <span className="hidden sm:block text-[17px] font-extrabold tracking-tight text-white whitespace-nowrap">
+            <span className="hidden sm:block text-[17px] font-extrabold tracking-tight text-[var(--vx-text)] whitespace-nowrap">
               Venoxa AI
             </span>
           </button>
@@ -205,7 +205,7 @@ function Header({
                       ? setActiveDropdown(isOpen ? null : item.id)
                       : setActiveTab(item.id)}
                     title={item.label}
-                    className="relative flex items-center gap-1.5 px-2.5 py-2 rounded-full text-sm font-bold transition-colors duration-200 shrink-0"
+                    className="relative flex items-center gap-2 px-[15px] py-2 rounded-[10px] text-[13.5px] font-semibold transition-colors duration-200 shrink-0"
                   >
                     {/* Sliding blue pill behind the active link */}
                     {isActive && (
@@ -215,10 +215,10 @@ function Header({
                         transition={springs.pill}
                       />
                     )}
-                    <item.icon className={`relative z-10 w-4 h-4 shrink-0 transition-colors duration-200 ${isActive ? 'text-white' : 'text-white/60'}`} />
+                    <item.icon className={`relative z-10 w-4 h-4 shrink-0 transition-colors duration-200 ${isActive ? 'text-[var(--vx-primary)]' : 'text-[var(--vx-muted)]'}`} />
                     <span
-                      className={`relative z-10 hidden lg:inline-block text-xs font-extrabold truncate transition-colors duration-200 ${
-                        isActive ? 'text-white' : 'text-white/60'
+                      className={`relative z-10 hidden lg:inline-block text-[13.5px] font-semibold truncate transition-colors duration-200 ${
+                        isActive ? 'text-[var(--vx-primary)]' : 'text-[var(--vx-muted)]'
                       }`}
                     >
                       {item.label}
@@ -227,7 +227,7 @@ function Header({
                       <motion.span
                         animate={{ rotate: isOpen ? 180 : 0 }}
                         transition={{ duration: 0.25, ease: easing.out }}
-                        className={`relative z-10 flex items-center justify-center shrink-0 transition-colors ${isActive ? 'text-white' : 'text-white/40'}`}
+                        className={`relative z-10 flex items-center justify-center shrink-0 transition-colors ${isActive ? 'text-[var(--vx-primary)]' : 'text-[var(--vx-muted2)]'}`}
                       >
                         <ChevronDown className="w-3 h-3" />
                       </motion.span>
@@ -293,7 +293,7 @@ function Header({
           <div className="flex items-center gap-1 shrink-0" dir="ltr">
             {/* Search — feature ships later */}
             <button
-              className="vx-icon-btn hidden sm:flex"
+              className="vx-icon-btn vx-search-btn hidden sm:flex"
               title={label('البحث', 'Search')}
               aria-label={label('البحث', 'Search')}
               onClick={() => { /* TODO: site search lands with the landing sections */ }}
@@ -316,15 +316,15 @@ function Header({
                 onClick={() => setActiveTab('profile')}
                 className={`w-8 h-8 flex items-center justify-center rounded-xl overflow-hidden shrink-0 border transition-all ${
                   activeTab === 'profile'
-                    ? 'border-[var(--vx-blue-hover)]'
-                    : 'border-white/20 hover:border-white/40'
+                    ? 'border-[var(--vx-primary)]'
+                    : 'border-[var(--vx-border)] hover:border-[var(--vx-primary)]'
                 }`}
                 title={user.username || 'Profile'}
               >
                 {(localAvatar || user.avatar) ? (
                   <img src={localAvatar || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-xs font-black text-white">
+                  <span className="text-xs font-black text-[var(--vx-primary)]">
                     {(user.username || 'U')[0].toUpperCase()}
                   </span>
                 )}
@@ -342,7 +342,7 @@ function Header({
             {/* Mobile hamburger — morphs to X, drives the App.jsx drawer */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="vx-icon-btn md:hidden"
+              className="vx-icon-btn vx-menu-btn md:hidden"
               title={label('القائمة', 'Menu')}
               aria-label={label('القائمة', 'Menu')}
             >

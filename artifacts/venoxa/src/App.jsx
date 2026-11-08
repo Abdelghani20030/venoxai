@@ -32,7 +32,8 @@ import Header from './Header';
 import Footer from './Footer';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
-import LearningPath, { PathHero } from './LearningPath.jsx';
+import LearningPath from './LearningPath.jsx';
+import DashboardPage from './DashboardPage.jsx';
 import LessonPlayer from './LessonPlayer.jsx';
 import LibraryPage from './LibraryPage.jsx';
 import ProgressSummary from './ProgressPage.jsx';
@@ -1714,14 +1715,16 @@ function HamburgerIcon({ isOpen }) {
 // --- MAIN APPLICATION COMPONENT ---
 // Footer site pages with shareable URLs (#/privacy, #/terms, ...).
 const SITE_PAGE_TABS = ['about', 'contact', 'community', 'cookies', 'faq', 'help', 'premium', 'privacy', 'report', 'terms'];
+const PRIMARY_HASH_TABS = ['dashboard', 'path', 'library', 'progress'];
 
 function AppInner() {
   const [activeTab, setActiveTab] = useState(() => {
     try {
       const h = window.location.hash;
       if (h.startsWith('#/verify/')) return 'level-test';
+      const primary = PRIMARY_HASH_TABS.find(id => h === `#/${id}`);
       const site = SITE_PAGE_TABS.find(id => h === `#/${id}`);
-      return site || 'dashboard';
+      return primary || site || 'dashboard';
     } catch {
       return 'dashboard';
     }
@@ -1762,6 +1765,8 @@ function AppInner() {
     const onHash = () => {
       const h = window.location.hash;
       if (h.startsWith('#/verify/')) return;
+      const primary = PRIMARY_HASH_TABS.find(id => h === `#/${id}`);
+      if (primary) { setActiveTab(primary); return; }
       const site = SITE_PAGE_TABS.find(id => h === `#/${id}`);
       if (site) setActiveTab(site);
     };
@@ -3243,7 +3248,19 @@ function AppInner() {
     const now = Date.now();
     return langeekVocab.filter(w => { const d = langeekSrsData[w.word]; return d && d.nextReview <= now; }).length;
   }, [langeekVocab, langeekSrsData, srsRefreshTick]);
-  const [theme, setTheme] = useState(localStorage.getItem('venoxa_theme') || 'light');
+  // Default to 'light' — if no preference is saved, start in light mode.
+  // We also apply the class immediately (before first paint) to avoid a flash.
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('venoxa_theme');
+    const resolved = saved === 'dark' ? 'dark' : 'light';
+    // Apply immediately so the first render already has the correct class.
+    if (resolved === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    return resolved;
+  });
   const [lang, setLang] = useState(localStorage.getItem('venoxa_lang') || 'ar');
   useEffect(() => {
     localStorage.setItem('venoxa_theme', theme);
@@ -3370,12 +3387,18 @@ function AppInner() {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <React.Fragment>
-            <div className="mb-6">
-              <PathHero lang={lang} theme={theme} user={user} setTab={setActiveTab} onOpenLesson={openPathLesson} />
-            </div>
-            <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} levelTest={levelTest} />
-          </React.Fragment>
+          <DashboardPage
+            lang={lang}
+            theme={theme}
+            user={user}
+            setTab={setActiveTab}
+            onOpenLesson={openPathLesson}
+            completedCells={completedCells}
+            levelTest={levelTest}
+            streakData={streakData}
+            wordsLearned={Object.keys(srsData || {}).length}
+            dueWords={vocabDueCount + langeekDueCount}
+          />
         );
       case 'path':
         return <LearningPath
@@ -3688,16 +3711,14 @@ function AppInner() {
       id="venoxa-root-div"
       className="flex flex-col h-screen overflow-hidden transition-colors duration-500 font-sans relative"
       dir={_resolveTranslation(lang, 'rtl', 'ltr')}
-      style={{
-        background: theme === 'dark'
-          ? '#0A0A0E'
-          : '#F7F9FC',
-      }}
+      style={{ background: 'var(--vx-bg)' }}
     >
       {/* ── Background ── */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <PremiumBackground theme={theme} />
-      </div>
+      {!['dashboard', 'path'].includes(activeTab) && (
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+          <PremiumBackground theme={theme} />
+        </div>
+      )}
       {/* ── Liquid Glass SVG Filter ── */}
       <svg style={{ display: 'none', position: 'absolute' }} aria-hidden="true">
         <defs>
@@ -3808,14 +3829,20 @@ function AppInner() {
 
 
       {/* ── Main Content Area ── */}
-      <main ref={mainRef} className={`relative z-10 flex-1 h-full overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px] ${activeTab === 'speaking' ? 'overflow-y-hidden' : 'overflow-y-auto'}`}>
+      <main ref={mainRef} className={`relative z-10 flex-1 h-full overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[86px] ${activeTab === 'speaking' ? 'overflow-y-hidden' : 'overflow-y-auto'}`}>
 
         {/* Legacy fixed blur curtain + colour-fade overlays under the header
             were removed here: with the glass header they painted a ~90%-opaque
             wash over the exact area the header covers, so the translucent bars
             never revealed the real page but only flat wash. */}
 
-        <div className={`${activeTab === 'speaking' ? 'w-full' : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 pb-28 md:pb-8'} print:p-0 print:pt-0`}>
+        <div className={`${
+          activeTab === 'speaking'
+            ? 'w-full'
+            : activeTab === 'dashboard' || activeTab === 'path'
+              ? 'w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-4 pb-28 md:pb-6'
+              : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 pb-28 md:pb-8'
+        } print:p-0 print:pt-0`}>
           {activeTab === 'speaking' ? (
             renderContent()
           ) : (
@@ -3836,8 +3863,9 @@ function AppInner() {
           )}
         </div>
 
-        {/* ── Site footer (PDF §13) — bottom of every page except the call screen ── */}
-        {activeTab !== 'speaking' && (
+        {/* ── Site footer (PDF §13) — site pages only; the app shell ends at the
+            primary destinations, matching the approved app screens. ── */}
+        {!['speaking', 'dashboard', 'path', 'library', 'progress'].includes(activeTab) && (
           <Footer
             lang={lang}
             setLang={setLang}
