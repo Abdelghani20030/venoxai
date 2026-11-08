@@ -84,13 +84,13 @@ export interface CreatePgPoolOptions {
  */
 export function createPgPool(rawUrl: unknown, options: CreatePgPoolOptions = {}): pg.Pool {
   const { url, ssl } = normalizeDatabaseUrl(rawUrl);
-  const max = options.max ?? (process.env.VERCEL ? 3 : 10);
+  const max = options.max ?? (process.env.VERCEL ? 3 : 5);
   const pool = new pg.Pool({
     connectionString: url || undefined,
     ...(ssl ? { ssl } : {}),
     max,
-    connectionTimeoutMillis: 10_000,
-    idleTimeoutMillis: 20_000,
+    connectionTimeoutMillis: 30_000,
+    idleTimeoutMillis: 10_000,
   });
   // Idle-client errors must be logged, never thrown — an unhandled "error"
   // event on the pool takes the whole serverless invocation down.

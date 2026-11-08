@@ -36,7 +36,9 @@ export function layoutPath(items, { width = 540, cx = 120, amp = 70, dy = 90, to
   for (const it of items) {
     if (it.unit) {
       out.push({ type: 'unit', it, y });
-      y += 62 + (small ? 40 : 46);
+      // The unit banner height is 58px. The CONTINUE tag is 76px (R+42) above the node.
+      // We give enough gap (58 + 88 = 146px) so the tag never collides with the banner text.
+      y += 62 + (small ? 72 : 88);
     } else {
       const x = mx(cx + amp * PATTERN[n % PATTERN.length]);
       out.push({ type: 'node', it, x, y });

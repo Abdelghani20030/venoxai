@@ -167,9 +167,10 @@ function fail(
   });
 }
 
-/** True when the error means "learning-path tables not created yet". */
+/** True when the error means "learning-path tables/columns not created yet". */
 function isSchemaMissing(error: unknown): boolean {
-  return (error as { code?: string } | null)?.code === '42P01';
+  const code = (error as { code?: string } | null)?.code;
+  return code === '42P01' || code === '42703';
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -216,6 +217,14 @@ function requireUser() {
       return;
     }
     res.locals.user = user;
+    next();
+  };
+}
+
+function optionalUser() {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const user = await verifySupabaseUser(req);
+    res.locals.user = user ?? null;
     next();
   };
 }
@@ -421,12 +430,34 @@ function activitySteps(activities: unknown): string[] {
  *   'completed' | 'current' | 'unlocked' (open, e.g. revision levels) |
  *   'locked' | 'coming_soon' (unpublished outline)
  */
-async function buildMap(pool: Pool, user: AuthUser): Promise<Record<string, unknown>> {
+async function buildMap(pool: Pool, user: AuthUser | null): Promise<Record<string, unknown>> {
   const client = await pool.connect();
   try {
-    const { state, current } = await resolveContext(client, user);
+    let state: StateRow;
+    let current: { id: string; slug: string; position: number } | null = null;
+    let progress: ProgressRow[] = [];
+
+    if (user) {
+      const ctx = await resolveContext(client, user);
+      state = ctx.state;
+      current = ctx.current;
+      progress = await loadProgress(client, user.id);
+    } else {
+      const firstA1 = await client.query<{ id: string; slug: string; position: number }>(
+        `select id, slug, position from path_lessons where published = true and level = 'A1' order by position asc limit 1`
+      );
+      current = firstA1.rows[0] ?? null;
+      state = {
+        user_id: 'guest',
+        placement_level: 'A1',
+        placement_source: null,
+        current_lesson_id: current?.id ?? null,
+        updated_at: new Date(),
+      };
+      progress = [];
+    }
+
     const lessons = await loadPublishedLessons(client);
-    const progress = await loadProgress(client, user.id);
 
     const completedSet = new Set<string>();
     const progressByLesson = new Map<string, ProgressRow>();
@@ -528,7 +559,7 @@ async function buildMap(pool: Pool, user: AuthUser): Promise<Record<string, unkn
     const currentLessonRow = current ? lessons.find((l) => l.id === current.id) ?? null : null;
 
     return {
-      user: { id: user.id },
+      user: user ? { id: user.id } : { id: 'guest', isGuest: true },
       placement: { level: state.placement_level, source: state.placement_source },
       progress: { completedLessons: completedTotal, publishedLessons: publishedCount },
       currentLesson: currentLessonRow
@@ -549,7 +580,7 @@ async function buildMap(pool: Pool, user: AuthUser): Promise<Record<string, unkn
           }
         : null,
       nextLesson: nextLessonAfter(lessons, currentLessonRow?.position ?? null),
-      lastTest: await latestLevelTest(client, user.id),
+      lastTest: user ? await latestLevelTest(client, user.id) : null,
       levels,
     };
   } finally {
@@ -655,9 +686,9 @@ export function createPathRouter(deps: PathDeps): Router {
   router.get(
     '/',
     rateLimit(120, 60_000),
-    requireUser(),
+    optionalUser(),
     asyncHandler(async (req, res) => {
-      const user = res.locals.user as AuthUser;
+      const user = (res.locals.user as AuthUser) || null;
       const map = await buildMap(deps.pool, user);
       res.json(map);
     }),
@@ -667,9 +698,9 @@ export function createPathRouter(deps: PathDeps): Router {
   router.get(
     '/lessons/:slug',
     rateLimit(90, 60_000),
-    requireUser(),
+    optionalUser(),
     asyncHandler(async (req, res) => {
-      const user = res.locals.user as AuthUser;
+      const user = (res.locals.user as AuthUser) || null;
       const slug = typeof req.params?.slug === 'string' ? req.params.slug : '';
       if (!SLUG_RE.test(slug)) {
         fail(res, 400, 'invalid_slug');
@@ -678,7 +709,26 @@ export function createPathRouter(deps: PathDeps): Router {
 
       const client = await deps.pool.connect();
       try {
-        const { state, current } = await resolveContext(client, user);
+        let state: StateRow;
+        let current: { id: string; slug: string; position: number } | null = null;
+        if (user) {
+          const ctx = await resolveContext(client, user);
+          state = ctx.state;
+          current = ctx.current;
+        } else {
+          const firstA1 = await client.query<{ id: string; slug: string; position: number }>(
+            `select id, slug, position from path_lessons where published = true and level = 'A1' order by position asc limit 1`
+          );
+          current = firstA1.rows[0] ?? null;
+          state = {
+            user_id: 'guest',
+            placement_level: 'A1',
+            placement_source: null,
+            current_lesson_id: current?.id ?? null,
+            updated_at: new Date(),
+          };
+        }
+
         const lessonQ = await client.query<LessonRow>(
           `select id, slug, level, unit, unit_title_en, unit_title_ar, position,
                   title_en, title_ar, objective_en, objective_ar, kind, pass_score, published, activities
@@ -692,7 +742,7 @@ export function createPathRouter(deps: PathDeps): Router {
           return;
         }
 
-        const progressRows = await loadProgress(client, user.id);
+        const progressRows = user ? await loadProgress(client, user.id) : [];
         const own = progressRows.find((row) => row.lesson_id === lesson.id);
         const completed = own?.status === 'completed';
 
@@ -723,13 +773,26 @@ export function createPathRouter(deps: PathDeps): Router {
           [lesson.id],
         );
         // answer_key and explanation_* are INTENTIONALLY not selected here.
+        // Only reviewed questions are ever served to learners.
         const exercisesQ = await client.query<ExerciseRow>(
           `select id, step, type, prompt_en, prompt_ar, options, position
              from path_lesson_exercises
-            where lesson_id = $1
+            where lesson_id = $1 and status = 'approved'
             order by position asc`,
           [lesson.id],
         );
+
+        const stepQ = user
+          ? await client.query<{ step: string; xp: number }>(
+              `select step, xp
+                 from user_path_step_progress
+                where user_id = $1 and lesson_id = $2`,
+              [user.id, lesson.id],
+            )
+          : { rows: [] };
+        const completedSteps = stepQ.rows.map((row) => row.step);
+        const optionalXp = stepQ.rows.reduce((sum, row) => sum + (Number(row.xp) || 0), 0);
+        const hasApprovedCheck = exercisesQ.rows.some((row) => row.step === 'check');
 
         res.json({
           lesson: {
@@ -759,6 +822,10 @@ export function createPathRouter(deps: PathDeps): Router {
             config: row.config ?? {},
           })),
           exercises: exercisesQ.rows.map(exerciseHeader),
+          completedSteps,
+          optionalXp,
+          hasApprovedCheck,
+          requiredStep: hasApprovedCheck ? 'check' : 'learn',
           userProgress: {
             completed,
             bestScore: own?.best_score ?? null,
@@ -841,7 +908,7 @@ export function createPathRouter(deps: PathDeps): Router {
         const exerciseQ = await client.query<ExerciseRow>(
           `select id, step, type, prompt_en, prompt_ar, options, answer_key, explanation_en, explanation_ar, position
              from path_lesson_exercises
-            where lesson_id = $1 and step = $2
+            where lesson_id = $1 and step = $2 and status = 'approved'
             order by position asc`,
           [lesson.id, step],
         );
@@ -990,8 +1057,307 @@ export function createPathRouter(deps: PathDeps): Router {
       } catch (error) {
         if (isSchemaMissing(error)) {
           fail(res, 503, 'schema_missing',
-            'Learning-path tables are not created yet. Run migrations/learning-path.sql in the Supabase SQL Editor.',
-            'جداول مسار التعلم غير موجودة. يرجى تشغيل ملف migrations/learning-path.sql في محرر SQL في Supabase.');
+            'Run migrations/learning-path.sql and migrations/path-lesson-steps.sql in the Supabase SQL Editor.',
+            'يرجى تشغيل ملفي migrations/learning-path.sql و migrations/path-lesson-steps.sql في محرر SQL في Supabase.');
+          return;
+        }
+        throw error;
+      } finally {
+        client.release();
+      }
+    }),
+  );
+
+  /* ── POST /api/path/lessons/:slug/steps/:step — optional-step XP ──────────
+   * Records completion of an optional step (Learn, Words, Listen, Read, Write,
+   * Practice). Never gates progress and never writes lesson completion.
+   */
+  const OPTIONAL_STEPS = new Set(['learn', 'words', 'listen', 'read', 'write', 'practice']);
+  const OPTIONAL_STEP_XP: Record<string, number> = {
+    learn: 5, words: 5, listen: 5, read: 5, write: 10, practice: 10,
+  };
+
+  router.post(
+    '/lessons/:slug/steps/:step',
+    rateLimit(60, 60_000),
+    requireUser(),
+    asyncHandler(async (req, res) => {
+      const user = res.locals.user as AuthUser;
+      const slug = typeof req.params?.slug === 'string' ? req.params.slug : '';
+      const step = typeof req.params?.step === 'string' ? req.params.step : '';
+      if (!SLUG_RE.test(slug)) {
+        fail(res, 400, 'invalid_slug');
+        return;
+      }
+      if (!OPTIONAL_STEPS.has(step)) {
+        fail(res, 400, 'invalid_step', 'Unknown optional step.');
+        return;
+      }
+
+      const client = await deps.pool.connect();
+      try {
+        const { state, current } = await resolveContext(client, user);
+        const lessonQ = await client.query<LessonRow>(
+          `select id, slug, level, unit, position, title_en, title_ar, pass_score, published, kind, activities
+             from path_lessons
+            where slug = $1`,
+          [slug],
+        );
+        const lesson = lessonQ.rows[0];
+        if (!lesson || !lesson.published) {
+          fail(res, 404, 'not_found');
+          return;
+        }
+
+        const progressRows = await loadProgress(client, user.id);
+        const alreadyCompleted = progressRows.find(
+          (row) => row.lesson_id === lesson.id && row.status === 'completed',
+        );
+        let locked = false;
+        if (!alreadyCompleted) {
+          if (current) locked = lesson.position > current.position;
+          else {
+            const unlockedWithoutPointer =
+              levelRank(lesson.level) < levelRank(state.placement_level) ||
+              (levelRank(lesson.level) === levelRank(state.placement_level) &&
+                lesson.position === (await firstPublishedPositionOfLevel(client, state.placement_level)));
+            locked = !unlockedWithoutPointer;
+          }
+        }
+        if (locked) {
+          fail(res, 403, 'lesson_locked', 'This lesson is still locked.', 'هذا الدرس لا يزال مقفلاً.', {
+            currentSlug: current?.slug ?? null,
+          });
+          return;
+        }
+
+        if (step === 'practice') {
+          const hasPractice = await client.query(
+            `select 1 from path_lesson_exercises
+              where lesson_id = $1 and step = 'practice' and status = 'approved'
+              limit 1`,
+            [lesson.id],
+          );
+          if (hasPractice.rows.length === 0) {
+            fail(res, 409, 'no_exercises', 'This lesson has no approved practice questions yet.');
+            return;
+          }
+        } else {
+          const hasContent = await client.query(
+            `select 1 from path_lesson_content
+              where lesson_id = $1 and step = $2
+              limit 1`,
+            [lesson.id, step],
+          );
+          if (hasContent.rows.length === 0) {
+            fail(res, 404, 'step_not_found', 'This step is not part of the lesson.');
+            return;
+          }
+        }
+
+        const xp = OPTIONAL_STEP_XP[step];
+        const inserted = await client.query(
+          `insert into user_path_step_progress (user_id, lesson_id, step, xp)
+           values ($1, $2, $3, $4)
+           on conflict (user_id, lesson_id, step) do nothing
+           returning xp`,
+          [user.id, lesson.id, step, xp],
+        );
+        const xpAwarded = inserted.rows[0]?.xp ?? 0;
+        res.json({
+          step,
+          xpAwarded,
+          alreadyCompleted: inserted.rows.length === 0,
+        });
+      } catch (error) {
+        if (isSchemaMissing(error)) {
+          fail(res, 503, 'schema_missing',
+            'Run migrations/learning-path.sql and migrations/path-lesson-steps.sql in the Supabase SQL Editor.',
+            'يرجى تشغيل ملفي migrations/learning-path.sql و migrations/path-lesson-steps.sql في محرر SQL في Supabase.');
+          return;
+        }
+        throw error;
+      } finally {
+        client.release();
+      }
+    }),
+  );
+
+  /* ── POST /api/path/lessons/:slug/complete — Learn-only completion ─────────
+   * The approved rule: Check is required when approved Check questions exist;
+   * otherwise Learn is required. This endpoint refuses when an approved Check
+   * exists, and requires a recorded Learn completion before it will complete
+   * the lesson. Used by the lesson player's "Finish lesson" action.
+   */
+  router.post(
+    '/lessons/:slug/complete',
+    rateLimit(20, 60_000),
+    requireUser(),
+    asyncHandler(async (req, res) => {
+      const user = res.locals.user as AuthUser;
+      const slug = typeof req.params?.slug === 'string' ? req.params.slug : '';
+      if (!SLUG_RE.test(slug)) {
+        fail(res, 400, 'invalid_slug');
+        return;
+      }
+
+      const client = await deps.pool.connect();
+      try {
+        const { state, current } = await resolveContext(client, user);
+        const lessonQ = await client.query<LessonRow>(
+          `select id, slug, level, unit, position, title_en, title_ar, pass_score, published, kind, activities
+             from path_lessons
+            where slug = $1`,
+          [slug],
+        );
+        const lesson = lessonQ.rows[0];
+        if (!lesson || !lesson.published) {
+          fail(res, 404, 'not_found');
+          return;
+        }
+
+        const progressRows = await loadProgress(client, user.id);
+        const own = progressRows.find((row) => row.lesson_id === lesson.id);
+        const alreadyCompleted = own?.status === 'completed';
+
+        let locked = false;
+        if (!alreadyCompleted) {
+          if (current) locked = lesson.position > current.position;
+          else {
+            const unlockedWithoutPointer =
+              levelRank(lesson.level) < levelRank(state.placement_level) ||
+              (levelRank(lesson.level) === levelRank(state.placement_level) &&
+                lesson.position === (await firstPublishedPositionOfLevel(client, state.placement_level)));
+            locked = !unlockedWithoutPointer;
+          }
+        }
+        if (locked) {
+          fail(res, 403, 'lesson_locked', 'This lesson is still locked.', 'هذا الدرس لا يزال مقفلاً.', {
+            currentSlug: current?.slug ?? null,
+          });
+          return;
+        }
+
+        const approvedCheck = await client.query(
+          `select 1 from path_lesson_exercises
+            where lesson_id = $1 and step = 'check' and status = 'approved'
+            limit 1`,
+          [lesson.id],
+        );
+        if (approvedCheck.rows.length > 0) {
+          fail(res, 409, 'check_required',
+            'This lesson has approved Check questions. Complete the Check to finish it.',
+            'هذا الدرس يحتوي على أسئلة اختبار معتمدة. أكمل الاختبار لإنهاء الدرس.');
+          return;
+        }
+
+        const learnContent = await client.query(
+          `select 1 from path_lesson_content
+            where lesson_id = $1 and step = 'learn'
+            limit 1`,
+          [lesson.id],
+        );
+        if (learnContent.rows.length === 0) {
+          fail(res, 409, 'no_content', 'This lesson has no approved content yet.');
+          return;
+        }
+        const learned = await client.query(
+          `select 1 from user_path_step_progress
+            where user_id = $1 and lesson_id = $2 and step = 'learn'
+            limit 1`,
+          [user.id, lesson.id],
+        );
+        if (learned.rows.length === 0) {
+          fail(res, 409, 'learn_required',
+            'Open the Learn step before finishing this lesson.',
+            'افتح خطوة التعلّم قبل إنهاء هذا الدرس.');
+          return;
+        }
+
+        await client.query('begin');
+        try {
+          const existing = await client.query<ProgressRow>(
+            `select lesson_id, status, best_score, attempts, completed_at, updated_at
+               from user_path_progress
+              where user_id = $1 and lesson_id = $2
+              for update`,
+            [user.id, lesson.id],
+          );
+          const row = existing.rows[0];
+
+          if (row && row.status === 'completed') {
+            await client.query('rollback');
+            res.json({
+              completed: true,
+              replayed: true,
+              score: row.best_score,
+              xpAwarded: 0,
+              passScore: lesson.pass_score,
+              nextLesson: null,
+            });
+            return;
+          }
+
+          if (row) {
+            await client.query(
+              `update user_path_progress
+                  set attempts = attempts + 1,
+                      status = 'completed',
+                      completed_at = now(),
+                      updated_at = now()
+                where user_id = $1 and lesson_id = $2`,
+              [user.id, lesson.id],
+            );
+          } else {
+            await client.query(
+              `insert into user_path_progress (user_id, lesson_id, status, best_score, attempts, completed_at)
+               values ($1, $2, 'completed', 0, 1, now())`,
+              [user.id, lesson.id],
+            );
+          }
+
+          let nextLesson: { slug: string; titleEn: string; titleAr: string } | null = null;
+          if (current && current.id === lesson.id) {
+            await client.query(
+              `update user_path_state
+                  set current_lesson_id = (
+                        select l.id from path_lessons l
+                         where l.published and l.position > $2
+                         order by l.position asc
+                         limit 1
+                      ),
+                      updated_at = now()
+                where user_id = $1 and current_lesson_id = $3`,
+              [user.id, lesson.position, current.id],
+            );
+            const refreshed = await client.query<{ slug: string; title_en: string; title_ar: string }>(
+              `select l.slug, l.title_en, l.title_ar
+                 from user_path_state s join path_lessons l on l.id = s.current_lesson_id
+                where s.user_id = $1`,
+              [user.id],
+            );
+            const next = refreshed.rows[0];
+            if (next) nextLesson = { slug: next.slug, titleEn: next.title_en, titleAr: next.title_ar };
+          }
+
+          await client.query('commit');
+          res.json({
+            completed: true,
+            replayed: false,
+            score: null,
+            passScore: lesson.pass_score,
+            xpAwarded: 15,
+            nextLesson,
+          });
+        } catch (error) {
+          await client.query('rollback');
+          throw error;
+        }
+      } catch (error) {
+        if (isSchemaMissing(error)) {
+          fail(res, 503, 'schema_missing',
+            'Run migrations/learning-path.sql and migrations/path-lesson-steps.sql in the Supabase SQL Editor.',
+            'يرجى تشغيل ملفي migrations/learning-path.sql و migrations/path-lesson-steps.sql في محرر SQL في Supabase.');
           return;
         }
         throw error;

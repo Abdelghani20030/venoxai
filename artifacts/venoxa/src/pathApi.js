@@ -15,10 +15,13 @@ const CACHE_KEY = 'venoxa_path_cache_v1';
 
 async function getPathToken() {
   try {
-    const { data } = await supabase.auth.getSession();
-    return data?.session?.access_token || null;
+    const tokenFromStorage = typeof localStorage !== 'undefined' ? localStorage.getItem('venoxa_token') : null;
+    const sessionPromise = supabase.auth.getSession();
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ data: null }), 1200));
+    const { data } = await Promise.race([sessionPromise, timeoutPromise]);
+    return data?.session?.access_token || tokenFromStorage || null;
   } catch {
-    return null;
+    return typeof localStorage !== 'undefined' ? localStorage.getItem('venoxa_token') : null;
   }
 }
 
@@ -32,6 +35,7 @@ export async function pathFetch(path, options = {}) {
       method: options.method || 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: AbortSignal.timeout(10000),
     });
   } catch {
     return { ok: false, status: 0, data: null, network: true };
@@ -90,6 +94,30 @@ export async function submitAttempt(slug, step, answers) {
   return pathFetch(`/lessons/${encodeURIComponent(slug)}/attempt`, {
     method: 'POST',
     body: { step, answers },
+  });
+}
+
+/**
+ * POST /api/path/lessons/:slug/steps/:step — optional step completion + XP.
+ * Optional steps never gate progress.
+ */
+export async function completeLessonStep(slug, step) {
+  invalidatePathCache();
+  return pathFetch(`/lessons/${encodeURIComponent(slug)}/steps/${encodeURIComponent(step)}`, {
+    method: 'POST',
+    body: {},
+  });
+}
+
+/**
+ * POST /api/path/lessons/:slug/complete — Learn-only completion when the
+ * lesson has no approved Check questions. The server refuses if a Check exists.
+ */
+export async function completeLesson(slug) {
+  invalidatePathCache();
+  return pathFetch(`/lessons/${encodeURIComponent(slug)}/complete`, {
+    method: 'POST',
+    body: {},
   });
 }
 

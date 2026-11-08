@@ -10,8 +10,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, Award, BookOpen, Check, ClipboardCheck, Compass, Headphones,
-  Loader2, Lock, PenTool, RefreshCcw, RotateCcw, Volume2,
+  AlertCircle, ArrowRight, Award, BookOpen, Check, ClipboardCheck, Compass,
+  Headphones, Info, Loader2, Lock, PenTool, RefreshCcw, RotateCcw, Volume2,
 } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import { fetchPathMap, setPlacement } from './pathApi.js';
@@ -88,6 +88,19 @@ function useIsMobile(maxWidth = 1023) {
 }
 
 /** Turn the server level into the exact PathMap item stream. */
+/** First playable A1 lesson in a server map, preferring the current pointer. */
+function firstA1Lesson(map) {
+  const a1 = (map?.levels || []).find((level) => level.level === 'A1');
+  if (!a1 || (a1.published || 0) === 0) return null;
+  if (map?.currentLesson?.level === 'A1') return map.currentLesson;
+  const lessons = (a1.units || []).flatMap((unit) => unit.lessons || []);
+  return lessons.find((lesson) => lesson.status === 'current')
+    || lessons.find((lesson) => lesson.status === 'unlocked')
+    || lessons.find((lesson) => lesson.kind !== 'revision' && lesson.status !== 'locked')
+    || lessons[0]
+    || null;
+}
+
 function buildPathItems(level, lang) {
   const items = [];
   if (!level) return items;
@@ -128,13 +141,17 @@ function buildPathItems(level, lang) {
 export default function LearningPath({ lang, setTab, onOpenLesson, onOpenAuth, fixture = null }) {
   const [phase, setPhase] = useState(fixture ? 'ready' : 'loading');
   const [map, setMap] = useState(fixture || null);
-  const [placing, setPlacing] = useState(false);
+  // idle | placing | error | error-auth | not-seeded — never a silent no-op.
+  const [startState, setStartState] = useState('idle');
+  const [startMessage, setStartMessage] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedLevel, setSelectedLevel] = useState(null);
   const isMobile = useIsMobile();
 
   const load = useCallback(async () => {
     setPhase('loading');
+    setStartState('idle');
+    setStartMessage('');
     const res = await fetchPathMap();
     if (res.ok && res.data) {
       const data = res.data;
@@ -186,11 +203,54 @@ export default function LearningPath({ lang, setTab, onOpenLesson, onOpenAuth, f
     [levels],
   );
 
+  const placing = startState === 'placing';
+
   const startFromA1 = async () => {
-    setPlacing(true);
+    if (placing) return;
+    setStartState('placing');
+    setStartMessage('');
     const res = await setPlacement({ level: 'A1' });
-    setPlacing(false);
-    if (res.ok) setReloadKey((k) => k + 1);
+
+    if (!res.ok) {
+      const isDev = import.meta.env.DEV;
+      let message;
+      if (res.status === 401) {
+        message = t(lang, 'انتهت جلستك. سجّل الدخول من جديد ثم أعد المحاولة.', 'Your session expired. Sign in again, then start from A1.');
+      } else if (res.data?.error === 'schema_missing' || res.status === 503) {
+        message = isDev
+          ? t(lang, 'جداول المسار غير موجودة. شغّل migrations/learning-path.sql في Supabase ثم أعد المحاولة.', 'The path tables are not created yet. Run migrations/learning-path.sql in Supabase, then retry.')
+          : t(lang, 'المسار غير متاح مؤقتاً. حاول بعد قليل.', 'The path is temporarily unavailable. Please try again shortly.');
+      } else if (res.network || res.status === 0) {
+        message = t(lang, 'تعذّر الوصول إلى الخادم. تحقّق من الاتصال ثم أعد المحاولة.', 'Could not reach the server. Check your connection and retry.');
+      } else if (res.status === 429) {
+        message = t(lang, 'محاولات كثيرة. انتظر لحظة ثم أعد المحاولة.', 'Too many attempts. Wait a moment and retry.');
+      } else {
+        message = t(lang, 'تعذّر حفظ نقطة البداية. أعد المحاولة.', 'Could not save your starting point. Please retry.');
+      }
+      setStartState(res.status === 401 ? 'error-auth' : 'error');
+      setStartMessage(message);
+      return;
+    }
+
+    const data = res.data;
+    const next = firstA1Lesson(data);
+    const published = data?.progress?.publishedLessons ?? 0;
+    if (!data || published === 0 || !next) {
+      setMap(data || map);
+      setPhase('empty');
+      setStartState('not-seeded');
+      setStartMessage(import.meta.env.DEV
+        ? t(lang, 'تم حفظ نقطة البداية، لكن دروس A1 لم تُنشر بعد. شغّل seed المحتوى في Supabase ثم أعد المحاولة.', 'Your starting level is saved, but A1 lessons are not published yet. Run the A1 content seed in Supabase, then retry.')
+        : t(lang, 'تم حفظ نقطة البداية، لكن دروس A1 غير متاحة بعد. حاول بعد قليل.', 'Your starting level is saved, but A1 lessons are not available yet. Please try again shortly.'));
+      return;
+    }
+
+    setMap(data);
+    setPhase('ready');
+    setSelectedLevel('A1');
+    setStartState('idle');
+    setStartMessage('');
+    onOpenLesson(next.slug);
   };
 
   if (phase === 'loading') {
@@ -253,14 +313,54 @@ export default function LearningPath({ lang, setTab, onOpenLesson, onOpenAuth, f
           {t(lang, 'درس واحد في كل مرة، من A1 إلى C1. ابدأ من المستوى الأول أو خُذ اختبار المستوى لنضعك في المكان الصحيح.', 'One lesson at a time, from A1 to C1. Start from the beginning, or take the level test and we will place you correctly.')}
         </p>
         <div className="vx-path-actions" style={{ justifyContent: 'center', marginTop: 22 }}>
-          <button type="button" className="vx-btn" disabled={placing} onClick={startFromA1}>
+          <button
+            type="button"
+            className="vx-btn"
+            disabled={placing}
+            aria-busy={placing}
+            onClick={startFromA1}
+          >
             {placing ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
-            {t(lang, 'البدء من A1', 'Start from A1')}
+            {placing
+              ? t(lang, 'جارٍ البدء…', 'Starting…')
+              : t(lang, 'البدء من A1', 'Start from A1')}
           </button>
           <button type="button" className="vx-btn is-ghost" onClick={() => setTab('level-test')}>
             <Award size={16} /> {t(lang, 'اختبار تحديد المستوى', 'Take the placement test')}
           </button>
         </div>
+        {startMessage ? (
+          <div
+            className={`vx-notice ${startState === 'not-seeded' ? 'is-warn' : 'is-error'}`}
+            role="alert"
+          >
+            {startState === 'not-seeded' ? <Info size={16} /> : <AlertCircle size={16} />}
+            <div className="vx-notice-body">
+              <span>{startMessage}</span>
+              <div className="vx-notice-actions">
+                {startState === 'error-auth' ? (
+                  <button type="button" className="vx-btn is-ghost is-sm" onClick={onOpenAuth}>
+                    <Lock size={13} /> {t(lang, 'تسجيل الدخول', 'Sign in')}
+                  </button>
+                ) : null}
+                {startState === 'error' ? (
+                  <button type="button" className="vx-btn is-ghost is-sm" onClick={startFromA1}>
+                    <RefreshCcw size={13} /> {t(lang, 'إعادة المحاولة', 'Retry')}
+                  </button>
+                ) : null}
+                {startState === 'not-seeded' ? (
+                  <button
+                    type="button"
+                    className="vx-btn is-ghost is-sm"
+                    onClick={() => setReloadKey((k) => k + 1)}
+                  >
+                    <RefreshCcw size={13} /> {t(lang, 'تحقّق مرة أخرى', 'Check again')}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
