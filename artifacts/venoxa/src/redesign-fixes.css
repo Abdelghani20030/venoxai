@@ -1,0 +1,231 @@
+/* Venoxa redesign fixes: header chips, library tabs/search, progress page.
+   Imported from Header.jsx so it loads on every screen. */
+
+/* Streak + XP chips on the navy header bar (design page 03) */
+.vx-header-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.10);
+  white-space: nowrap;
+}
+.vx-header-chip.is-flame {
+  background: rgba(255, 178, 86, 0.18);
+  color: #ffc47a;
+}
+
+/* Pill buttons used as tabs (My Library) */
+.vx-chip-btn {
+  cursor: pointer;
+  border: 0;
+  font-family: inherit;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.vx-chip-btn.is-gray:hover { color: var(--vx-text); }
+.vx-chip-btn:focus-visible,
+.vx-link-card:focus-visible,
+.vx-search-input:focus-visible {
+  outline: 2px solid var(--vx-primary);
+  outline-offset: 2px;
+}
+.vx-chip-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--vx-orange, #e8812e);
+  color: #fff;
+}
+
+/* Library search field */
+.vx-search-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--vx-border);
+  background: var(--vx-card);
+  color: var(--vx-text);
+  font-size: 14px;
+  font-family: inherit;
+}
+.vx-search-input::placeholder { color: var(--vx-muted); }
+
+/* Tool tiles in My Library */
+.vx-tool-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--vx-card-radius, 18px);
+  border: 1px solid var(--vx-border);
+  background: var(--vx-card);
+  color: var(--vx-text);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.vx-tool-tile:hover { border-color: var(--vx-primary); transform: translateY(-1px); }
+.vx-tool-tile:focus-visible { outline: 2px solid var(--vx-primary); outline-offset: 2px; }
+.vx-tool-tile .vx-tool-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+.vx-tool-tile.is-mint .vx-tool-icon { background: var(--vx-mint); color: var(--vx-mintd); }
+.vx-tool-tile.is-blue .vx-tool-icon { background: var(--vx-psoft); color: var(--vx-primary); }
+.vx-tool-tile.is-amber .vx-tool-icon { background: var(--vx-amberbg); color: var(--vx-amberd); }
+
+/* My Progress: link cards and weekly bars */
+.vx-link-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: var(--vx-card-radius, 18px);
+  border: 1px solid var(--vx-border);
+  background: var(--vx-card);
+  color: var(--vx-text);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.vx-link-card:hover { border-color: var(--vx-primary); }
+.vx-link-card .vx-link-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 12px;
+  background: var(--vx-psoft);
+  color: var(--vx-primary);
+}
+
+.vx-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+  gap: 10px;
+  height: 120px;
+}
+.vx-week-col {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 8px;
+}
+.vx-week-bar {
+  border-radius: 8px 8px 4px 4px;
+  background: var(--vx-primary);
+  min-height: 6px;
+}
+.vx-week-bar.is-empty { background: var(--vx-lockbg); }
+.vx-week-day {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vx-muted);
+  text-align: center;
+}
+
+/* ── Placement welcome (design page 07) ─────────────────────────────────── */
+.vx-welcome {
+  max-width: 440px;
+  min-height: 470px;
+  margin: 24px auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.vx-welcome-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  line-height: 1.12;
+  margin: 6px 0 0;
+}
+.vx-welcome-choices { display: grid; gap: 12px; }
+.vx-choice {
+  text-align: start;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1.5px solid var(--vx-border);
+  background: var(--vx-card);
+  color: var(--vx-text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.vx-choice:hover { border-color: var(--vx-primary); }
+.vx-choice.is-selected { border: 2px solid var(--vx-primary); background: var(--vx-psoft); padding: 15.5px; }
+.vx-choice:focus-visible { outline: 2px solid var(--vx-primary); outline-offset: 2px; }
+.vx-choice-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+/* ── Welcome / home for signed-out visitors ─────────────────────────────── */
+.vx-landing { display: grid; gap: 16px; max-width: 1080px; margin: 0 auto; }
+.vx-landing-hero {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 40px 36px;
+}
+.vx-landing-title {
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.08;
+  max-width: 640px;
+  margin: 0;
+}
+.vx-landing-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.vx-btn.vx-landing-ghost { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.vx-landing-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #cfe0fa;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  font-family: inherit;
+}
+.vx-landing-link:hover { color: #fff; }
+.vx-landing-link:focus-visible { outline: 2px solid #fff; outline-offset: 3px; border-radius: 6px; }
+.vx-landing-example-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.vx-landing-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.vx-landing-step-num {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: var(--vx-psoft);
+  color: var(--vx-primary);
+  font-weight: 800;
+  font-size: 14px;
+}
+.vx-landing-cta { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .vx-landing-hero { padding: 28px 22px; }
+}

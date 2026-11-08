@@ -1,26 +1,28 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Venoxa — "My Library" hub (Phase 4, PDF page 02: nothing is removed).
+//  Venoxa — "My Library" hub (design page 08: nothing is removed).
 //
-//  Grammar, vocabulary, skills and all tools keep their originals — they are
-//  reachable from this single grid instead of three separate nav menus. The
-//  guided English course (Learning Path) is promoted as the first card.
+//  Four tabs (Vocabulary, Grammar, Skills, Tools) plus a search field that
+//  looks across every tool. Level Test lives in My Progress / Learning Path
+//  now, so it is not listed here. The guided course (Learning Path) is
+//  promoted as the first card.
 // ─────────────────────────────────────────────────────────────────────────────
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Route, BookOpen, BookText, Quote, Archive, Award, Headphones, Brain,
+  Route, BookOpen, BookText, Quote, Archive, Headphones, Brain,
   MessageSquare, PenTool, Volume2, ClipboardList, FileText, Languages, Sliders,
   GitBranch, Ear, GitFork, Link2, ScrollText, BookMarked, Lightbulb, Clock,
-  ChevronRight, Sparkles,
+  ChevronRight, Search, Sparkles,
 } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import { readCachedPathMap } from './pathApi.js';
+import { Notice } from './ui/vx/index.jsx';
 
 const SECTIONS = [
   {
     key: 'vocab',
     titleAr: 'المفردات',
     titleEn: 'Vocabulary',
-    accent: 'emerald',
+    tone: 'mint',
     items: [
       { id: 'vocab', ar: 'الكلمات والمراجعة', en: 'Vocabulary (SRS)', icon: BookOpen, badgeKey: 'vocabDue' },
       { id: 'phrasal', ar: 'الأفعال المركبة', en: 'Phrasal Verbs', icon: BookText },
@@ -30,12 +32,20 @@ const SECTIONS = [
     ],
   },
   {
+    key: 'grammar',
+    titleAr: 'القواعد',
+    titleEn: 'Grammar',
+    tone: 'blue',
+    items: [
+      { id: 'grammar', ar: 'القواعد (AI)', en: 'Grammar (AI)', icon: FileText },
+    ],
+  },
+  {
     key: 'skills',
     titleAr: 'المهارات',
     titleEn: 'Skills',
-    accent: 'sky',
+    tone: 'blue',
     items: [
-      { id: 'level-test', ar: 'اختبار المستوى', en: 'Level Test', icon: Award },
       { id: 'listening', ar: 'الاستماع', en: 'Listening', icon: Headphones },
       { id: 'reading', ar: 'القراءة', en: 'Reading (AI)', icon: Brain },
       { id: 'speaking', ar: 'المحادثة', en: 'Speaking (Call)', icon: MessageSquare },
@@ -45,19 +55,10 @@ const SECTIONS = [
     ],
   },
   {
-    key: 'grammar',
-    titleAr: 'القواعد',
-    titleEn: 'Grammar',
-    accent: 'violet',
-    items: [
-      { id: 'grammar', ar: 'القواعد (AI)', en: 'Grammar (AI)', icon: FileText },
-    ],
-  },
-  {
     key: 'tools',
-    titleAr: 'أدوات الذكاء الاصطناعي',
-    titleEn: 'AI Tools',
-    accent: 'amber',
+    titleAr: 'الأدوات',
+    titleEn: 'Tools',
+    tone: 'amber',
     items: [
       { id: 'smart-translation', ar: 'الترجمة الذكية', en: 'Smart Translation', icon: Languages },
       { id: 'tone-rewriter', ar: 'إعادة صياغة النبرة', en: 'Tone Rewriter', icon: Sliders },
@@ -73,108 +74,134 @@ const SECTIONS = [
   },
 ];
 
-const ACCENTS = {
-  emerald: { icon: 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400', chip: 'bg-white/70 dark:bg-emerald-500/10 border-emerald-500/20' },
-  sky: { icon: 'bg-sky-500/15 text-sky-500 dark:text-sky-400', chip: 'bg-white/70 dark:bg-sky-500/10 border-sky-500/20' },
-  violet: { icon: 'bg-violet-500/15 text-violet-500 dark:text-violet-400', chip: 'bg-white/70 dark:bg-violet-500/10 border-violet-500/20' },
-  amber: { icon: 'bg-amber-500/15 text-amber-500 dark:text-amber-400', chip: 'bg-white/70 dark:bg-amber-500/10 border-amber-500/20' },
-};
+const t = (lang, ar, en) => _resolveTranslation(lang, ar, en);
 
-export default function LibraryPage({ lang, theme, setTab, vocabDueCount = 0, langeekDueCount = 0 }) {
-  const title = _resolveTranslation(lang, 'مكتبتي', 'My Library');
-  const subtitle = _resolveTranslation(
-    lang,
-    'كل أدواتك في مكان واحد — والمسار الإنجليزي الموجّه في المقدمة.',
-    'Your tools, one place — with the guided English course up front.',
-  );
-  const course = _resolveTranslation(lang, 'دورة الإنجليزية', 'English Course');
-  const courseSub = _resolveTranslation(lang, 'المشوار الموجّه من A1 إلى C1', 'The guided path from A1 to C1');
+export default function LibraryPage({ lang, setTab, vocabDueCount = 0, langeekDueCount = 0 }) {
+  const [activeKey, setActiveKey] = useState('vocab');
+  const [query, setQuery] = useState('');
+
   const badges = { vocabDue: vocabDueCount, langeekDue: langeekDueCount };
+  const searching = query.trim().length > 0;
 
   const cached = readCachedPathMap();
   const pathPercent = cached?.progress?.publishedLessons
     ? Math.round((cached.progress.completedLessons / cached.progress.publishedLessons) * 100)
     : 0;
 
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return SECTIONS.flatMap((section) => section.items.map((item) => ({ ...item, tone: section.tone })))
+      .filter((item) => item.en.toLowerCase().includes(q) || item.ar.includes(q));
+  }, [query]);
+
+  const activeSection = SECTIONS.find((s) => s.key === activeKey) || SECTIONS[0];
+  const shown = searching ? results : activeSection.items.map((item) => ({ ...item, tone: activeSection.tone }));
+  const vocabBadge = vocabDueCount + langeekDueCount;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <header>
+        <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--vx-text)' }}>
+          {t(lang, 'مكتبتي', 'My Library')}
+        </h1>
+      </header>
+
+      <Notice tone="warn" icon={Sparkles}>
+        {t(
+          lang,
+          'استكشاف حرّ. تصفّح أي شيء بحرية، ولن يغيّر ذلك تقدّمك في مسار التعلم.',
+          'Independent exploration. Browse anything freely. It won’t change your Learning Path progress.',
+        )}
+      </Notice>
+
       {/* Guided course promo */}
       <button
         type="button"
         onClick={() => setTab('path')}
-        className="group w-full text-start rounded-3xl p-6 sm:p-8 premium-card border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-transparent to-violet-500/10 hover:ring-2 hover:ring-sky-400/40 transition-all"
+        className="vx-link-card"
+        aria-label={t(lang, 'افتح مسار التعلم', 'Open the Learning Path')}
       >
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <span className="grid place-items-center w-14 h-14 rounded-2xl bg-sky-500/15 text-sky-500 dark:text-sky-400">
-              <Route size={28} />
-            </span>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-sky-500 dark:text-sky-400">
-                {_resolveTranslation(lang, 'المسار الموجّه', 'Guided path')}
-              </p>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{course}</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{courseSub}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            {cached?.progress && (
-              <div className="text-end">
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{pathPercent}%</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {cached.progress.completedLessons}/{cached.progress.publishedLessons}
-                </p>
-              </div>
-            )}
-            <span className="grid place-items-center w-10 h-10 rounded-full border border-sky-500/30 text-sky-500 dark:text-sky-400 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-transform">
-              <ChevronRight size={18} className="rtl:rotate-180" />
-            </span>
-          </div>
-        </div>
+        <span className="vx-link-icon"><Route size={20} /></span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span className="vx-h3" style={{ display: 'block' }}>{t(lang, 'دورة الإنجليزية', 'English course')}</span>
+          <span className="vx-sm" style={{ display: 'block' }}>
+            {cached?.progress
+              ? `${cached.progress.completedLessons}/${cached.progress.publishedLessons} ${t(lang, 'درساً', 'lessons')} · ${pathPercent}%`
+              : t(lang, 'المسار الموجّه من A1 إلى C1', 'The guided path from A1 to C1')}
+          </span>
+        </span>
+        <ChevronRight size={18} className="rtl:rotate-180" />
       </button>
 
-      <header>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{title}</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>
-      </header>
+      <div style={{ position: 'relative' }}>
+        <Search
+          size={16}
+          aria-hidden="true"
+          style={{ position: 'absolute', insetInlineStart: 14, top: 14, color: 'var(--vx-muted)' }}
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t(lang, 'ابحث عن أداة…', 'Search tools…')}
+          aria-label={t(lang, 'ابحث في المكتبة', 'Search the library')}
+          className="vx-search-input"
+          style={{ paddingInlineStart: 38 }}
+        />
+      </div>
 
-      {SECTIONS.map((section) => {
-        const accent = ACCENTS[section.accent];
-        return (
-          <section key={section.key}>
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3 flex items-center gap-2">
-              <Sparkles size={12} />
-              {_resolveTranslation(lang, section.titleAr, section.titleEn)}
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const badge = item.badgeKey ? badges[item.badgeKey] || 0 : 0;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setTab(item.id)}
-                    className={`group text-start rounded-2xl p-4 premium-card border ${accent.chip} hover:ring-2 hover:ring-sky-400/30 hover:-translate-y-0.5 transition-all`}
-                  >
-                    <span className={`grid place-items-center w-10 h-10 rounded-xl ${accent.icon}`}>
-                      <Icon size={20} />
-                    </span>
-                    <span className="mt-3 block text-sm font-bold text-gray-900 dark:text-white leading-snug">
-                      {_resolveTranslation(lang, item.ar, item.en)}
-                    </span>
-                    {badge > 0 && (
-                      <span className="mt-1 inline-block px-1.5 py-0.5 rounded-md bg-rose-500/15 text-[10px] font-bold text-rose-500 dark:text-rose-400">
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
+      <div role="tablist" aria-label={t(lang, 'أقسام المكتبة', 'Library sections')} className="flex flex-wrap gap-2">
+        {SECTIONS.map((section) => {
+          const selected = !searching && section.key === activeKey;
+          return (
+            <button
+              key={section.key}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => { setQuery(''); setActiveKey(section.key); }}
+              className={`vx-chip vx-chip-btn ${selected ? '' : 'is-gray'}`}
+              style={{ padding: '7px 14px', fontSize: 13 }}
+            >
+              {t(lang, section.titleAr, section.titleEn)}
+              {section.key === 'vocab' && vocabBadge > 0 && (
+                <span className="vx-chip-count">{vocabBadge > 99 ? '99+' : vocabBadge}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <section role="tabpanel" aria-live="polite">
+        {searching && (
+          <p className="vx-sm" style={{ marginBottom: 12 }}>
+            {results.length > 0
+              ? t(lang, `${results.length} نتيجة`, `${results.length} ${results.length === 1 ? 'result' : 'results'}`)
+              : t(lang, 'لا توجد نتائج. جرّب كلمة أخرى.', 'No matches. Try another word.')}
+          </p>
+        )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {shown.map((item) => {
+            const Icon = item.icon;
+            const badge = item.badgeKey ? badges[item.badgeKey] || 0 : 0;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={`vx-tool-tile is-${item.tone}`}
+              >
+                <span className="vx-tool-icon"><Icon size={20} /></span>
+                <span className="vx-h3">{t(lang, item.ar, item.en)}</span>
+                {badge > 0 && (
+                  <span className="vx-chip-count">{badge > 99 ? '99+' : badge}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

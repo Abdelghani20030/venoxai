@@ -1,95 +1,161 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Venoxa — "My Progress" summary band (Phase 4, PDF page 02)
+//  Venoxa — "My Progress" (design page 08, right panel)
 //
-//  Rendered ABOVE the existing Study Plan component (which stays untouched);
-//  the old 'plan' tab id keeps working for direct links.
+//  Overall progress ring, this week's study time, and links to the Study Plan,
+//  Profile and Level test / certificate. The Study Plan itself keeps its own
+//  route ('plan'); this page no longer stacks it underneath.
 // ─────────────────────────────────────────────────────────────────────────────
-import React, { useEffect } from 'react';
-import {
-  Award, Route, User, Trophy, Flame, Zap, GraduationCap,
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Award, CalendarDays, ChevronRight, User } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import { fetchPathMap } from './pathApi.js';
 
-function Stat({ icon: Icon, label, value, tone }) {
-  const tones = {
-    amber: 'bg-amber-500/15 text-amber-500 dark:text-amber-400',
-    violet: 'bg-violet-500/15 text-violet-500 dark:text-violet-400',
-    sky: 'bg-sky-500/15 text-sky-500 dark:text-sky-400',
-    emerald: 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400',
-  };
+const t = (lang, ar, en) => _resolveTranslation(lang, ar, en);
+
+const RING_R = 50.5;
+const RING_C = 2 * Math.PI * RING_R;
+const BAR_MAX_PX = 84;
+
+/** Study seconds per day for the current Mon–Sun week (keys are YYYY-MM-DD). */
+function readWeek(lang) {
+  let usage = {};
+  for (const key of ['venoxa_daily_usage_secs', 'venoxa_usage_time']) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || '{}') || {};
+      if (Object.keys(parsed).length) { usage = parsed; break; }
+    } catch { /* ignore malformed local data */ }
+  }
+  const now = new Date();
+  const todayIdx = (now.getDay() + 6) % 7;
+  // Noon avoids the UTC date flipping for local midnight in toISOString().
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - todayIdx, 12);
+  const fmt = new Intl.DateTimeFormat(lang === 'ar' ? 'ar' : 'en', { weekday: 'short' });
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const secs = Number(usage[d.toISOString().slice(0, 10)]) || 0;
+    return { label: fmt.format(d), mins: Math.round(secs / 60), future: i > todayIdx };
+  });
+}
+
+function LinkCard({ icon: Icon, title, subtitle, onClick }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl px-4 py-3 premium-card border border-white/10 dark:border-white/5">
-      <span className={`grid place-items-center w-10 h-10 rounded-xl ${tones[tone]}`}>
-        <Icon size={18} />
+    <button type="button" onClick={onClick} className="vx-link-card">
+      <span className="vx-link-icon"><Icon size={20} /></span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span className="vx-h3" style={{ display: 'block' }}>{title}</span>
+        {subtitle && <span className="vx-sm" style={{ display: 'block' }}>{subtitle}</span>}
       </span>
-      <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-widest text-gray-400 dark:text-gray-500 truncate">{label}</p>
-        <p className="text-lg font-bold text-gray-900 dark:text-white leading-tight truncate">{value}</p>
-      </div>
-    </div>
+      <ChevronRight size={18} className="rtl:rotate-180" />
+    </button>
   );
 }
 
-export default function ProgressSummary({ lang, theme, user, levelTest, setTab }) {
-  const [pathStat, setPathStat] = React.useState(null);
+export default function ProgressSummary({ lang, setTab, wordsLearned = 0 }) {
+  const [map, setMap] = useState(null);
+
   useEffect(() => {
     let alive = true;
     fetchPathMap().then((res) => {
-      if (alive && res.ok && res.data?.progress) {
-        const p = res.data.progress;
-        if (p.publishedLessons > 0) {
-          setPathStat(`${p.completedLessons}/${p.publishedLessons}`);
-        }
-      }
+      if (alive && res.ok && res.data) setMap(res.data);
     });
     return () => { alive = false; };
   }, []);
 
-  const title = _resolveTranslation(lang, 'تقدمي', 'My Progress');
-  const subtitle = _resolveTranslation(
-    lang,
-    'مسارك، خطتك، شهادتك — كل تقدمك في مكان واحد.',
-    'Your path, your plan, your certificate — all progress in one place.',
-  );
+  const week = useMemo(() => readWeek(lang), [lang]);
+  const maxMins = Math.max(...week.map((d) => d.mins), 1);
 
-  const quick = [
-    { id: 'path', ar: 'مساري', en: 'My path', icon: Route },
-    { id: 'profile', ar: 'ملفي', en: 'Profile', icon: User },
-    { id: 'level-test', ar: 'الشهادة', en: 'Certificate', icon: Award },
-  ];
+  const levelCode = map?.currentLesson?.level || map?.placement?.level || null;
+  const level = (map?.levels || []).find((l) => l.level === levelCode);
+  const percent = level
+    ? (typeof level.percent === 'number'
+      ? level.percent
+      : (level.published ? Math.round((level.completed / level.published) * 100) : 0))
+    : 0;
+  const completed = map?.progress?.completedLessons ?? 0;
 
   return (
-    <div className="rounded-3xl p-5 sm:p-6 premium-card border border-white/10 dark:border-white/5">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">{title}</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>
+    <div className="space-y-4">
+      <h1 className="sr-only">{t(lang, 'تقدمي', 'My Progress')}</h1>
+
+      <section className="vx-card" aria-label={t(lang, 'التقدم العام', 'Overall progress')}>
+        <div className="flex items-center gap-5 flex-wrap">
+          <div className="vx-hero-ring" aria-hidden="true">
+            <svg width="112" height="112" viewBox="0 0 112 112">
+              <circle cx="56" cy="56" r={RING_R} fill="none" stroke="var(--vx-lockbg)" strokeWidth="11" />
+              <circle
+                cx="56" cy="56" r={RING_R} fill="none" stroke="var(--vx-primary)" strokeWidth="11"
+                strokeLinecap="round"
+                strokeDasharray={RING_C}
+                strokeDashoffset={RING_C * (1 - percent / 100)}
+              />
+            </svg>
+            <div className="vx-ringlab" style={{ color: 'var(--vx-text)' }}>
+              <b dir="ltr">{levelCode || '—'}</b>
+              <span dir="ltr">{percent}%</span>
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <h2 className="vx-h3" style={{ fontSize: 18 }}>{t(lang, 'التقدم العام', 'Overall progress')}</h2>
+            <p className="vx-sm" style={{ marginTop: 4 }}>
+              {t(
+                lang,
+                `${completed} دروس مكتملة · ${wordsLearned} كلمة متعلَّمة · المستوى الحالي ${levelCode || '—'}`,
+                `${completed} ${completed === 1 ? 'lesson' : 'lessons'} completed · ${wordsLearned} words learned · current level ${levelCode || '—'}`,
+              )}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {quick.map((q) => {
-            const Icon = q.icon;
+      </section>
+
+      <section className="vx-card" aria-label={t(lang, 'هذا الأسبوع', 'This week')}>
+        <h2 className="vx-h3" style={{ marginBottom: 14 }}>{t(lang, 'هذا الأسبوع', 'This week')}</h2>
+        <div className="vx-week">
+          {week.map((day) => {
+            const empty = day.mins === 0;
+            const height = empty ? 6 : Math.max(10, Math.round((day.mins / maxMins) * BAR_MAX_PX));
             return (
-              <button
-                key={q.id}
-                type="button"
-                onClick={() => setTab(q.id)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-colors"
-              >
-                <Icon size={14} />
-                {_resolveTranslation(lang, q.ar, q.en)}
-              </button>
+              <div key={day.label} className="vx-week-col">
+                <div
+                  className={`vx-week-bar ${empty ? 'is-empty' : ''}`}
+                  style={{ height }}
+                  role="img"
+                  aria-label={day.future
+                    ? `${day.label}`
+                    : t(lang, `${day.label}: ${day.mins} دقيقة`, `${day.label}: ${day.mins} min`)}
+                />
+                <span className="vx-week-day">{day.label}</span>
+              </div>
             );
           })}
         </div>
-      </div>
-      <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat icon={Zap} tone="amber" label={_resolveTranslation(lang, 'نقاط الخبرة', 'Total XP')} value={user?.xp ?? 0} />
-        <Stat icon={Flame} tone="violet" label={_resolveTranslation(lang, 'سلسلة الأيام', 'Streak')} value={`${user?.streak ?? 0} ${_resolveTranslation(lang, 'يوم', 'days')}`} />
-        <Stat icon={GraduationCap} tone="sky" label={_resolveTranslation(lang, 'المستوى', 'Level')} value={user?.level ?? '—'} />
-        {pathStat
-          ? <Stat icon={Trophy} tone="emerald" label={_resolveTranslation(lang, 'الدروس المكتملة', 'Lessons done')} value={pathStat} />
-          : <Stat icon={Award} tone="emerald" label={_resolveTranslation(lang, 'الشهادة', 'Certificate')} value={levelTest?.certId ? _resolveTranslation(lang, 'تم الإصدار', 'Issued') : _resolveTranslation(lang, 'اِختبار المستوى', 'Take the test')} />}
+        {week.every((d) => d.mins === 0) && (
+          <p className="vx-sm" style={{ marginTop: 12 }}>
+            {t(lang, 'لا يوجد وقت دراسة هذا الأسبوع بعد.', 'No study time yet this week.')}
+          </p>
+        )}
+      </section>
+
+      <LinkCard
+        icon={CalendarDays}
+        title={t(lang, 'خطة الدراسة', 'Study Plan')}
+        subtitle={t(lang, 'خطتك الأسبوعية، كرفيق اختياري', 'Your weekly plan, kept as an optional companion')}
+        onClick={() => setTab('plan')}
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <LinkCard
+          icon={User}
+          title={t(lang, 'ملفي الشخصي', 'Profile')}
+          subtitle={t(lang, 'الأهداف والإنجازات والتعديل', 'Goals, achievements and editing')}
+          onClick={() => setTab('profile')}
+        />
+        <LinkCard
+          icon={Award}
+          title={t(lang, 'اختبار المستوى والشهادة', 'Level test and certificate')}
+          subtitle={t(lang, 'آخر نتيجة وإعادة الاختبار', 'Latest result and retake')}
+          onClick={() => setTab('level-test')}
+        />
       </div>
     </div>
   );

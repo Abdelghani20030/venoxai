@@ -10,12 +10,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertCircle, ArrowRight, Award, BookOpen, Check, ClipboardCheck, Compass,
-  Headphones, Info, Loader2, Lock, PenTool, RefreshCcw, RotateCcw, Volume2,
+  ArrowRight, BookOpen, Check, ClipboardCheck, Compass,
+  Headphones, Loader2, Lock, PenTool, RefreshCcw, RotateCcw, Volume2,
 } from 'lucide-react';
 import { _resolveTranslation } from './translations.js';
 import { fetchPathMap, setPlacement } from './pathApi.js';
 import PathMap from './PathMap.jsx';
+import PlacementWelcome from './PlacementWelcome.jsx';
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
 const LEVEL_META = {
@@ -302,66 +303,16 @@ export default function LearningPath({ lang, setTab, onOpenLesson, onOpenAuth, f
 
   if (phase === 'empty') {
     return (
-      <div className="vx-card" style={{ maxWidth: 760, margin: '32px auto', textAlign: 'center', padding: '48px 28px' }}>
-        <span className="vx-icon-tile" style={{ margin: '0 auto', background: 'var(--vx-psoft)', color: 'var(--vx-primary)', width: 56, height: 56, borderRadius: 18 }}>
-          <Compass size={28} />
-        </span>
-        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-.6px', marginTop: 18 }}>
-          {t(lang, 'رحلتك الإنجليزية تبدأ هنا', 'Your guided English journey starts here')}
-        </h1>
-        <p className="vx-sm" style={{ maxWidth: 440, margin: '8px auto 0', fontSize: 13.5, lineHeight: 1.6 }}>
-          {t(lang, 'درس واحد في كل مرة، من A1 إلى C1. ابدأ من المستوى الأول أو خُذ اختبار المستوى لنضعك في المكان الصحيح.', 'One lesson at a time, from A1 to C1. Start from the beginning, or take the level test and we will place you correctly.')}
-        </p>
-        <div className="vx-path-actions" style={{ justifyContent: 'center', marginTop: 22 }}>
-          <button
-            type="button"
-            className="vx-btn"
-            disabled={placing}
-            aria-busy={placing}
-            onClick={startFromA1}
-          >
-            {placing ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
-            {placing
-              ? t(lang, 'جارٍ البدء…', 'Starting…')
-              : t(lang, 'البدء من A1', 'Start from A1')}
-          </button>
-          <button type="button" className="vx-btn is-ghost" onClick={() => setTab('level-test')}>
-            <Award size={16} /> {t(lang, 'اختبار تحديد المستوى', 'Take the placement test')}
-          </button>
-        </div>
-        {startMessage ? (
-          <div
-            className={`vx-notice ${startState === 'not-seeded' ? 'is-warn' : 'is-error'}`}
-            role="alert"
-          >
-            {startState === 'not-seeded' ? <Info size={16} /> : <AlertCircle size={16} />}
-            <div className="vx-notice-body">
-              <span>{startMessage}</span>
-              <div className="vx-notice-actions">
-                {startState === 'error-auth' ? (
-                  <button type="button" className="vx-btn is-ghost is-sm" onClick={onOpenAuth}>
-                    <Lock size={13} /> {t(lang, 'تسجيل الدخول', 'Sign in')}
-                  </button>
-                ) : null}
-                {startState === 'error' ? (
-                  <button type="button" className="vx-btn is-ghost is-sm" onClick={startFromA1}>
-                    <RefreshCcw size={13} /> {t(lang, 'إعادة المحاولة', 'Retry')}
-                  </button>
-                ) : null}
-                {startState === 'not-seeded' ? (
-                  <button
-                    type="button"
-                    className="vx-btn is-ghost is-sm"
-                    onClick={() => setReloadKey((k) => k + 1)}
-                  >
-                    <RefreshCcw size={13} /> {t(lang, 'تحقّق مرة أخرى', 'Check again')}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
+      <PlacementWelcome
+        lang={lang}
+        placing={placing}
+        startState={startState}
+        startMessage={startMessage}
+        onStartA1={startFromA1}
+        onTakeTest={() => setTab('level-test')}
+        onSignIn={onOpenAuth}
+        onRecheck={() => setReloadKey((k) => k + 1)}
+      />
     );
   }
 
@@ -375,6 +326,27 @@ export default function LearningPath({ lang, setTab, onOpenLesson, onOpenAuth, f
           {t(lang, 'إعادة المحاولة', 'Retry')}
         </button>
       </div>
+    );
+  }
+
+  // A fresh account has a default A1 placement with no recorded source: ask
+  // where to start before showing the path (design page 07).
+  const needsWelcome = !fixture
+    && map?.placement
+    && map.placement.source == null
+    && (map?.progress?.completedLessons ?? 0) === 0;
+  if (needsWelcome) {
+    return (
+      <PlacementWelcome
+        lang={lang}
+        placing={placing}
+        startState={startState}
+        startMessage={startMessage}
+        onStartA1={startFromA1}
+        onTakeTest={() => setTab('level-test')}
+        onSignIn={onOpenAuth}
+        onRecheck={() => setReloadKey((k) => k + 1)}
+      />
     );
   }
 

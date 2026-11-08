@@ -33,6 +33,7 @@ import Footer from './Footer';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
 import LearningPath from './LearningPath.jsx';
+import LandingPage from './LandingPage.jsx';
 import DashboardPage from './DashboardPage.jsx';
 import LessonPlayer from './LessonPlayer.jsx';
 import LibraryPage from './LibraryPage.jsx';
@@ -3313,6 +3314,17 @@ function AppInner() {
     };
     switch (activeTab) {
       case 'dashboard':
+        // Signed-out visitors get the welcome screen; the Dashboard needs an account.
+        if (!user) {
+          return (
+            <LandingPage
+              lang={lang}
+              setTab={setActiveTab}
+              onOpenRegister={() => { setAuthModalMode('register'); setIsAuthModalOpen(true); }}
+              onOpenLogin={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+            />
+          );
+        }
         return (
           <DashboardPage
             lang={lang}
@@ -3357,29 +3369,11 @@ function AppInner() {
         />;
       case 'progress':
         return (
-          <React.Fragment>
-            <div className="mb-6">
-              <ProgressSummary lang={lang} theme={theme} user={user} levelTest={levelTest} setTab={setActiveTab} />
-            </div>
-            <StudyPlan
-              {...props}
-              globalVocab={globalVocab}
-              langeekVocab={langeekVocab}
-              planMeta={planMeta}
-              setPlanMeta={setPlanMeta}
-              completedCells={completedCells}
-              setCompletedCells={setCompletedCellsWrapped}
-              setCellDates={setCellDatesWrapped}
-              currentWeek={currentWeek}
-              setCurrentWeek={setCurrentWeek}
-              recordActivity={recordActivity}
-              token={token}
-              user={user}
-              syncProgress={syncProgress}
-              planResetBlockRef={planResetBlockRef}
-              weekSyncBlockedRef={weekSyncBlockedRef}
-            />
-          </React.Fragment>
+          <ProgressSummary
+            lang={lang}
+            setTab={setActiveTab}
+            wordsLearned={Object.keys(srsData || {}).length}
+          />
         );
       case 'plan':
         return <StudyPlan 
@@ -3588,22 +3582,26 @@ function AppInner() {
     return () => { document.title = 'Venoxa'; };
   }, [timerState.secsLeft, timerState.done]);
 
+  // Same XP formula as DashboardPage, so the header chip and the hero agree.
+  const headerXp = Object.values(completedCells || {}).filter((v) => v === 'done').length * 15
+    + (levelTest?.xpAwarded || 0);
+
   // ── 4 primary destinations (redesign §02): everything else lives in My Library ──
   const navItems = [
     { id: 'dashboard', label: _resolveTranslation(lang, 'الرئيسية', 'Dashboard'), icon: Home },
-    { id: 'path', label: _resolveTranslation(lang, 'مسار التعلم', 'Learning Path'), icon: Route },
+    { id: 'path', label: _resolveTranslation(lang, 'مسار التعلم', 'Learning Path'), icon: Route, match: ['lesson'] },
     {
       id: 'library',
       label: _resolveTranslation(lang, 'مكتبتي', 'My Library'),
       icon: Library,
       badge: vocabDueCount + langeekDueCount,
+      hub: true, // desktop: opens the My Library page; items still feed the mobile drawer
       items: [
         { id: 'vocab', label: _resolveTranslation(lang, 'الكلمات والمراجعة', 'Vocabulary (SRS)'), icon: BookOpen, badge: vocabDueCount },
         { id: 'phrasal', label: _resolveTranslation(lang, 'الأفعال المركبة', 'Phrasal Verbs'), icon: BookText },
         { id: 'idioms', label: _resolveTranslation(lang, 'العامية', 'Slang'), icon: Quote },
         { id: 'idioms-proper', label: _resolveTranslation(lang, 'التعابير الاصطلاحية', 'Idioms'), icon: BookText },
         { id: 'langeek', label: _resolveTranslation(lang, 'لانجيك (PDF)', 'Langeek (PDF)'), icon: Archive, badge: langeekDueCount },
-        { id: 'level-test', label: _resolveTranslation(lang, 'اختبار المستوى', 'Level Test'), icon: Award },
         { id: 'listening', label: _resolveTranslation(lang, 'الاستماع', 'Listening'), icon: Headphones },
         { id: 'reading', label: _resolveTranslation(lang, 'القراءة (AI)', 'Reading (AI)'), icon: Brain },
         { id: 'speaking', label: _resolveTranslation(lang, 'المحادثة والاتصال', 'Speaking (Call)'), icon: MessageSquare },
@@ -3623,7 +3621,7 @@ function AppInner() {
         { id: 'timer',                label: _resolveTranslation(lang, 'المؤقت',            'Focus Timer'),           icon: Clock        },
       ],
     },
-    { id: 'progress', label: _resolveTranslation(lang, 'تقدمي', 'My Progress'), icon: LineChart },
+    { id: 'progress', label: _resolveTranslation(lang, 'تقدمي', 'My Progress'), icon: LineChart, match: ['plan', 'profile', 'level-test'] },
   ];
 
   useEffect(() => {
@@ -3754,6 +3752,8 @@ function AppInner() {
         navDropdownRef={navDropdownRef}
         scrollRef={mainRef}
         showGlassLip={false}
+        streak={streakData?.current || 0}
+        xp={headerXp}
       />
 
 

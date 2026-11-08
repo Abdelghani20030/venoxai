@@ -15,9 +15,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { easing, springs } from './motion.js';
+import './redesign-fixes.css';
 import { _resolveTranslation } from './translations.js';
 import {
-  BookOpen, Smartphone, Mail, Crown, Search, Sun, Moon, User, ChevronDown,
+  BookOpen, Smartphone, Mail, Crown, Search, Sun, Moon, User, ChevronDown, Flame, Zap,
 } from 'lucide-react';
 
 /* Hamburger → X (own copy so App.jsx internals stay untouched) */
@@ -64,6 +65,8 @@ function Header({
   navDropdownRef,
   scrollRef,
   showGlassLip = true,
+  streak = 0,
+  xp = 0,
 }) {
   const reduced = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
@@ -184,10 +187,12 @@ function Header({
             className="hidden md:flex flex-1 items-center justify-center gap-0.5 px-2 min-w-0"
           >
             {navItems.map(item => {
-              const isGroup = !!item.items;
-              const isActive = isGroup
-                ? item.items.some(s => activeTab === s.id)
-                : activeTab === item.id;
+              // `hub` items (My Library) have sub-items for the mobile drawer but
+              // navigate straight to their hub page on desktop, per the design.
+              const isGroup = !!item.items && !item.hub;
+              const isActive = activeTab === item.id
+                || (item.items ? item.items.some(s => activeTab === s.id) : false)
+                || (item.match ? item.match.includes(activeTab) : false);
               const isOpen = activeDropdown === item.id;
 
               return (
@@ -291,6 +296,22 @@ function Header({
 
           {/* Right cluster — fixed LTR order; the dir on <html> mirrors the bar */}
           <div className="flex items-center gap-1 shrink-0" dir="ltr">
+            {/* Streak + XP chips (design page 03) */}
+            <span
+              className="vx-header-chip is-flame hidden sm:inline-flex"
+              title={label('أيام متتالية', 'Day streak')}
+            >
+              <Flame className="w-3.5 h-3.5" />
+              {streak}
+            </span>
+            <span
+              className="vx-header-chip hidden sm:inline-flex"
+              title={label('نقاط الخبرة', 'Experience points')}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              {xp} XP
+            </span>
+
             {/* Search — feature ships later */}
             <button
               className="vx-icon-btn vx-search-btn hidden sm:flex"
