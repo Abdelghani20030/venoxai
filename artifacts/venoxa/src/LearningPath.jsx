@@ -208,15 +208,30 @@ export default function LearningPath({ lang, setTab, onOpenLesson, onOpenAuth, f
 
   const startFromA1 = async () => {
     if (placing) return;
-    setStartState('placing');
     setStartMessage('');
+
+    // Guests can read the map, but placement and progress belong to an
+    // account. Ask for sign-in explicitly instead of firing a 401 that the
+    // server would only reject.
+    if (map?.user?.isGuest) {
+      setStartState('error-auth');
+      setStartMessage(t(
+        lang,
+        'سجّل الدخول لبدء المسار من A1 وحفظ تقدّمك.',
+        'Sign in to start from A1 and save your progress.',
+      ));
+      onOpenAuth?.();
+      return;
+    }
+
+    setStartState('placing');
     const res = await setPlacement({ level: 'A1' });
 
     if (!res.ok) {
       const isDev = import.meta.env.DEV;
       let message;
       if (res.status === 401) {
-        message = t(lang, 'انتهت جلستك. سجّل الدخول من جديد ثم أعد المحاولة.', 'Your session expired. Sign in again, then start from A1.');
+        message = t(lang, 'سجّل الدخول لبدء المسار من A1 وحفظ تقدّمك.', 'Sign in to start from A1 and save your progress.');
       } else if (res.data?.error === 'schema_missing' || res.status === 503) {
         message = isDev
           ? t(lang, 'جداول المسار غير موجودة. شغّل migrations/learning-path.sql في Supabase ثم أعد المحاولة.', 'The path tables are not created yet. Run migrations/learning-path.sql in Supabase, then retry.')
@@ -230,6 +245,7 @@ export default function LearningPath({ lang, setTab, onOpenLesson, onOpenAuth, f
       }
       setStartState(res.status === 401 ? 'error-auth' : 'error');
       setStartMessage(message);
+      if (res.status === 401) onOpenAuth?.();
       return;
     }
 

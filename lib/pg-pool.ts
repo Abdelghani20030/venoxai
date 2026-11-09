@@ -90,7 +90,12 @@ export function createPgPool(rawUrl: unknown, options: CreatePgPoolOptions = {})
     ...(ssl ? { ssl } : {}),
     max,
     connectionTimeoutMillis: 30_000,
-    idleTimeoutMillis: 10_000,
+    // Supabase's pooler spends several seconds on the TLS handshake from some
+    // networks. Closing an idle client after 10s forced every navigation to
+    // pay that cost again and could exceed the browser's request timeout.
+    idleTimeoutMillis: 300_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
   });
   // Idle-client errors must be logged, never thrown — an unhandled "error"
   // event on the pool takes the whole serverless invocation down.
