@@ -49,4 +49,3 @@ Write-Host "  Build successful." -ForegroundColor Green
 # 4. Start concurrent servers using node runner (single terminal, robust)
 Write-Host "`nStarting Venoxa AI Platform (Backend on port 3001, Frontend on port 3000)..." -ForegroundColor Yellow
 node scripts/dev.js
-

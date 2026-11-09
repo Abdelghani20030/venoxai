@@ -7,7 +7,7 @@
 node_modules
 dist
 *.ps1
-/*.md
+*.md
 attached_assets
 scratch
 scripts

@@ -64,7 +64,7 @@ function startProcess(name, command, args, options = {}) {
 console.log("\n=== Starting Venoxa AI Platform Local Servers ===");
 
 // 3. Start Backend API on port 3001
-const backendEnv = { ...process.env, PORT: "3001", NODE_ENV: "production" };
+const backendEnv = { ...process.env, PORT: "3001" };
 const backend = startProcess(
   "Backend",
   "node",

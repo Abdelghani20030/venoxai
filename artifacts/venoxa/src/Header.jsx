@@ -15,10 +15,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { easing, springs } from './motion.js';
-import './redesign-fixes.css';
 import { _resolveTranslation } from './translations.js';
 import {
-  BookOpen, Smartphone, Mail, Crown, Search, Sun, Moon, User, ChevronDown, Flame, Zap,
+  BookOpen, Smartphone, Mail, Crown, Search, Sun, Moon, User, ChevronDown,
 } from 'lucide-react';
 
 /* Hamburger → X (own copy so App.jsx internals stay untouched) */
@@ -65,8 +64,6 @@ function Header({
   navDropdownRef,
   scrollRef,
   showGlassLip = true,
-  streak = 0,
-  xp = 0,
 }) {
   const reduced = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
@@ -166,7 +163,7 @@ function Header({
             dir="ltr"
           >
             <span className="vx-logo-tile">V</span>
-            <span className="hidden sm:block text-[17px] font-extrabold tracking-tight text-[var(--vx-text)] whitespace-nowrap">
+            <span className="hidden sm:block text-[17px] font-extrabold tracking-tight text-white whitespace-nowrap">
               Venoxa AI
             </span>
           </button>
@@ -187,12 +184,10 @@ function Header({
             className="hidden md:flex flex-1 items-center justify-center gap-0.5 px-2 min-w-0"
           >
             {navItems.map(item => {
-              // `hub` items (My Library) have sub-items for the mobile drawer but
-              // navigate straight to their hub page on desktop, per the design.
-              const isGroup = !!item.items && !item.hub;
-              const isActive = activeTab === item.id
-                || (item.items ? item.items.some(s => activeTab === s.id) : false)
-                || (item.match ? item.match.includes(activeTab) : false);
+              const isGroup = !!item.items;
+              const isActive = isGroup
+                ? item.items.some(s => activeTab === s.id)
+                : activeTab === item.id;
               const isOpen = activeDropdown === item.id;
 
               return (
@@ -210,7 +205,7 @@ function Header({
                       ? setActiveDropdown(isOpen ? null : item.id)
                       : setActiveTab(item.id)}
                     title={item.label}
-                    className="relative flex items-center gap-2 px-[15px] py-2 rounded-[10px] text-[13.5px] font-semibold transition-colors duration-200 shrink-0"
+                    className="relative flex items-center gap-1.5 px-2.5 py-2 rounded-full text-sm font-bold transition-colors duration-200 shrink-0"
                   >
                     {/* Sliding blue pill behind the active link */}
                     {isActive && (
@@ -220,10 +215,10 @@ function Header({
                         transition={springs.pill}
                       />
                     )}
-                    <item.icon className={`relative z-10 w-4 h-4 shrink-0 transition-colors duration-200 ${isActive ? 'text-[var(--vx-primary)]' : 'text-[var(--vx-muted)]'}`} />
+                    <item.icon className={`relative z-10 w-4 h-4 shrink-0 transition-colors duration-200 ${isActive ? 'text-white' : 'text-white/60'}`} />
                     <span
-                      className={`relative z-10 hidden lg:inline-block text-[13.5px] font-semibold truncate transition-colors duration-200 ${
-                        isActive ? 'text-[var(--vx-primary)]' : 'text-[var(--vx-muted)]'
+                      className={`relative z-10 hidden lg:inline-block text-xs font-extrabold truncate transition-colors duration-200 ${
+                        isActive ? 'text-white' : 'text-white/60'
                       }`}
                     >
                       {item.label}
@@ -232,7 +227,7 @@ function Header({
                       <motion.span
                         animate={{ rotate: isOpen ? 180 : 0 }}
                         transition={{ duration: 0.25, ease: easing.out }}
-                        className={`relative z-10 flex items-center justify-center shrink-0 transition-colors ${isActive ? 'text-[var(--vx-primary)]' : 'text-[var(--vx-muted2)]'}`}
+                        className={`relative z-10 flex items-center justify-center shrink-0 transition-colors ${isActive ? 'text-white' : 'text-white/40'}`}
                       >
                         <ChevronDown className="w-3 h-3" />
                       </motion.span>
@@ -296,25 +291,9 @@ function Header({
 
           {/* Right cluster — fixed LTR order; the dir on <html> mirrors the bar */}
           <div className="flex items-center gap-1 shrink-0" dir="ltr">
-            {/* Streak + XP chips (design page 03) */}
-            <span
-              className="vx-header-chip is-flame hidden sm:inline-flex"
-              title={label('أيام متتالية', 'Day streak')}
-            >
-              <Flame className="w-3.5 h-3.5" />
-              {streak}
-            </span>
-            <span
-              className="vx-header-chip hidden sm:inline-flex"
-              title={label('نقاط الخبرة', 'Experience points')}
-            >
-              <Zap className="w-3.5 h-3.5" />
-              {xp} XP
-            </span>
-
             {/* Search — feature ships later */}
             <button
-              className="vx-icon-btn vx-search-btn hidden sm:flex"
+              className="vx-icon-btn hidden sm:flex"
               title={label('البحث', 'Search')}
               aria-label={label('البحث', 'Search')}
               onClick={() => { /* TODO: site search lands with the landing sections */ }}
@@ -337,15 +316,15 @@ function Header({
                 onClick={() => setActiveTab('profile')}
                 className={`w-8 h-8 flex items-center justify-center rounded-xl overflow-hidden shrink-0 border transition-all ${
                   activeTab === 'profile'
-                    ? 'border-[var(--vx-primary)]'
-                    : 'border-[var(--vx-border)] hover:border-[var(--vx-primary)]'
+                    ? 'border-[var(--vx-blue-hover)]'
+                    : 'border-white/20 hover:border-white/40'
                 }`}
                 title={user.username || 'Profile'}
               >
                 {(localAvatar || user.avatar) ? (
                   <img src={localAvatar || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-xs font-black text-[var(--vx-primary)]">
+                  <span className="text-xs font-black text-white">
                     {(user.username || 'U')[0].toUpperCase()}
                   </span>
                 )}
@@ -363,7 +342,7 @@ function Header({
             {/* Mobile hamburger — morphs to X, drives the App.jsx drawer */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="vx-icon-btn vx-menu-btn md:hidden"
+              className="vx-icon-btn md:hidden"
               title={label('القائمة', 'Menu')}
               aria-label={label('القائمة', 'Menu')}
             >
