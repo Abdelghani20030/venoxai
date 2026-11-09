@@ -60,6 +60,11 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Windows: the build output can be locked by antivirus/indexers, which
+    // makes Vite's watcher crash with EBUSY. It is generated, never edited.
+    watch: {
+      ignored: ["**/dist/**"],
+    },
   },
   preview: {
     port,
