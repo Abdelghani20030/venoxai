@@ -36,6 +36,7 @@ import { PathDashboard } from './path/Dashboard.jsx';
 import { PathMap } from './path/PathMap.jsx';
 import { LessonPlayer } from './path/LessonPlayer.jsx';
 import { PlacementFlow } from './path/PlacementFlow.jsx';
+import { LibraryHub, LibraryToolBreadcrumb } from './path/LibraryHub.jsx';
 import { useTabRouteBridge, initTabFromUrl } from './router.jsx';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
@@ -3454,7 +3455,8 @@ function AppInner() {
           onRefreshPath={refreshPathData}
         />;
       case 'library':
-        return <LibraryHubShell lang={lang} onNavigate={setActiveTab} />;
+        // Phase 7: My Library hub (spec §5.6, §5.11–5.16, PDF p.8)
+        return <LibraryHub lang={lang} onNavigate={setActiveTab} onOpenLesson={openLesson} />;
       case 'progress':
         return <ProgressHubShell lang={lang} onNavigate={setActiveTab} />;
       case 'plan':
@@ -3867,6 +3869,7 @@ function AppInner() {
             never revealed the real page but only flat wash. */}
 
         <div className={`${activeTab === 'speaking' ? 'w-full' : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8'} print:p-0 print:pt-0`}>
+          <LibraryToolBreadcrumb lang={lang} tab={activeTab} onNavigate={setActiveTab} />
           {activeTab === 'speaking' ? (
             renderContent()
           ) : (
