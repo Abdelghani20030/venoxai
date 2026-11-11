@@ -328,7 +328,6 @@ router.post("/user/sync-beacon", async (req: Request, res: Response) => {
       langeekSrsData: mergedLangeekSrsData,
       phrasalSrs: mergedPhrasalSrs, idiomsSrs: mergedIdiomsSrs,
       idiomsProperSrs: mergedIdiomsProperSrs,
-      idiomsProperSrs: mergedIdiomsProperSrs,
       planConfig: mergedPlanConfig, studiedWords: mergedStudiedWords
     };
 

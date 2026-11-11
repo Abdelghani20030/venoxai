@@ -13,6 +13,7 @@ import groqTtsRouter from "./groq-tts"; // Groq TTS — /api/groq-tts
 import authRouter from "./auth";
 import userRouter from "./user";
 import { createLevelTestRouter } from "../../../../lib/level-test-server";
+import { createPathRouter } from "../../../../lib/path-server";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,9 @@ router.use(
     appBaseUrl: process.env.LEVEL_TEST_VERIFY_BASE_URL,
   }),
 );
+
+// Venoxa Learning Path — the redesigned guided curriculum (spec §8).
+// Guests may read /map and /summary; everything else requires a Supabase token.
+router.use("/path", createPathRouter({ pool }));
 
 export default router;
