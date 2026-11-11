@@ -405,6 +405,7 @@ interface LessonCard {
   draft: boolean;
   completed: boolean;
   reason: string | null;
+  bestScore: number | null;
 }
 
 function asPathNode(lesson: LessonRow): PathNode {
@@ -418,7 +419,7 @@ function asPathNode(lesson: LessonRow): PathNode {
   };
 }
 
-function lessonCard(lesson: LessonRow, computed: ComputedPath): LessonCard {
+function lessonCard(lesson: LessonRow, computed: ComputedPath, scores?: Map<string, number | null>): LessonCard {
   const view = computed.nodes.get(lesson.id);
   return {
     id: lesson.id,
@@ -433,6 +434,7 @@ function lessonCard(lesson: LessonRow, computed: ComputedPath): LessonCard {
     draft: view?.draft ?? lesson.status !== 'published',
     completed: view?.completed ?? false,
     reason: view?.reason ?? null,
+    bestScore: scores?.get(lesson.id) ?? null,
   };
 }
 
@@ -474,6 +476,7 @@ export function createPathRouter(deps: PathServerDeps): Router {
     asyncHandler(async (_req, res) => {
       const user = res.locals.user as AuthUser | null;
       const ctx = await loadContext(pool, user?.id ?? null);
+      const scores = new Map(ctx.progress.map((p) => [p.lesson_id, p.best_score ?? null]));
       const levels = await loadLevels(pool);
       const units = await loadUnits(pool);
       const completion = levelCompletion(
@@ -488,7 +491,7 @@ export function createPathRouter(deps: PathServerDeps): Router {
         placementSource: ctx.state?.placement_source ?? DEFAULT_STATE.placement_source,
         xp: ctx.state?.xp_total ?? 0,
         streak: ctx.state?.streak_current ?? 0,
-        current: currentLesson ? lessonCard(currentLesson, ctx.computed) : null,
+        current: currentLesson ? lessonCard(currentLesson, ctx.computed, scores) : null,
         completion: Object.fromEntries(completion),
         levels: levels.map((level) => ({
           code: level.code,
@@ -505,7 +508,7 @@ export function createPathRouter(deps: PathServerDeps): Router {
               lessons: ctx.lessons
                 .filter((l) => l.unit_id === unit.id)
                 .sort((a, b) => a.order_index - b.order_index)
-                .map((l) => lessonCard(l, ctx.computed)),
+                .map((l) => lessonCard(l, ctx.computed, scores)),
             })),
         })),
       });
@@ -519,10 +522,11 @@ export function createPathRouter(deps: PathServerDeps): Router {
     asyncHandler(async (_req, res) => {
       const user = res.locals.user as AuthUser | null;
       const ctx = await loadContext(pool, user?.id ?? null);
+      const scores = new Map(ctx.progress.map((p) => [p.lesson_id, p.best_score ?? null]));
       const completion = levelCompletion(ctx.lessons.map(asPathNode), ctx.computed);
       const currentLesson = findLesson(ctx.lessons, ctx.computed.currentLessonId);
       let current: (LessonCard & { objective: string; level: string; unitTitle: string }) | null =
-        currentLesson ? lessonCard(currentLesson, ctx.computed) : null;
+        currentLesson ? lessonCard(currentLesson, ctx.computed, scores) : null;
       if (current && currentLesson) {
         const unit = await loadUnit(pool, currentLesson.unit_id);
         current = {

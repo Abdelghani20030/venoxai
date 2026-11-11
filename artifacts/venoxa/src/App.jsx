@@ -33,6 +33,7 @@ import AppHeader from './layout/AppHeader.jsx';
 import MobileTabBar from './layout/MobileTabBar.jsx';
 import { PathHomeShell, LessonShell, LibraryHubShell, ProgressHubShell } from './path/Screens.jsx';
 import { PathDashboard } from './path/Dashboard.jsx';
+import { PathMap } from './path/PathMap.jsx';
 import { useTabRouteBridge, initTabFromUrl } from './router.jsx';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
@@ -3413,7 +3414,17 @@ function AppInner() {
           wordsLearned={wordsLearned}
         />;
       case 'path-home':
-        return <PathHomeShell lang={lang} onNavigate={setActiveTab} />;
+        // Phase 4: the real path map (spec §5.2) replaces the Phase-1 shell.
+        return <PathMap
+          lang={lang}
+          summary={pathSummary}
+          map={pathMap}
+          loading={pathLoading}
+          user={user}
+          onNavigate={setActiveTab}
+          onOpenLesson={openLesson}
+          onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+        />;
       case 'lesson':
         return <LessonShell lang={lang} lessonRoute={lessonRoute} onNavigate={setActiveTab} />;
       case 'placement':
