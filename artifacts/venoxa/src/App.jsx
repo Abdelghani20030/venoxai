@@ -35,6 +35,7 @@ import { PathHomeShell, LessonShell, LibraryHubShell, ProgressHubShell } from '.
 import { PathDashboard } from './path/Dashboard.jsx';
 import { PathMap } from './path/PathMap.jsx';
 import { LessonPlayer } from './path/LessonPlayer.jsx';
+import { PlacementFlow } from './path/PlacementFlow.jsx';
 import { useTabRouteBridge, initTabFromUrl } from './router.jsx';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
@@ -3439,20 +3440,18 @@ function AppInner() {
           onRefreshPath={refreshPathData}
         />;
       case 'placement':
-        // Phase 1–5: the existing level-test engine serves /path/placement;
-        // Phase 6 wraps it in the new welcome → adaptive → result flow.
-        return <LevelTest
+        // Phase 6: placement flow (spec §5.5, PDF p.7)
+        return <PlacementFlow
           lang={lang}
           theme={theme}
-          userLevel={userLevel}
+          user={user}
+          token={token}
           levelTest={levelTest}
           onComplete={handleLevelTestComplete}
-          onApplyPlan={handleApplyLevelTestPlan}
-          onOpenAuth={() => {
-            setAuthModalMode('login');
-            setIsAuthModalOpen(true);
-          }}
-          onGoHome={() => setActiveTab('dashboard')}
+          onNavigate={setActiveTab}
+          onOpenLesson={openLesson}
+          onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+          onRefreshPath={refreshPathData}
         />;
       case 'library':
         return <LibraryHubShell lang={lang} onNavigate={setActiveTab} />;
