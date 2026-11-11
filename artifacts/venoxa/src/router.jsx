@@ -16,7 +16,7 @@
 // the old hash effects in App.jsx still own them. The `#/verify/<id>`
 // certificate flow must never have its hash stripped either.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation } from 'wouter';
 
 // Kept in sync with SITE_PAGE_TABS in App.jsx (kept separate so App.jsx
@@ -224,5 +224,30 @@ export function useTabRouteBridge({ activeTab, setActiveTab }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setActiveTab]);
 
-  return { location, lessonRoute };
+  // Open a lesson deep link programmatically (dashboard CTA, path map nodes).
+  // Canonical URLs are spec-style `/path/a1/introducing-yourself`: the DB slug
+  // always carries the `${level}-` prefix, so it is stripped for the URL.
+  // Navigating the URL lets effect L derive lessonRoute + the lesson tab, so
+  // deep links and in-app links share one code path.
+  const openLesson = useCallback((level, slug) => {
+    const l = String(level || '').toLowerCase();
+    const s = String(slug || '').toLowerCase();
+    if (!/^[a-z0-9-]+$/.test(l) || !/^[a-z0-9-]+$/.test(s)) return;
+    const prefix = `${l}-`;
+    const short = s.startsWith(prefix) ? s.slice(prefix.length) : s;
+    navigate(withBase(`/path/${l}/${short}`));
+  }, [navigate]);
+
+  return { location, lessonRoute, openLesson };
+}
+
+/**
+ * The full DB slug for a parsed lesson route: URL slugs omit the
+ * `${level}-` prefix, but /api/path/lessons/:slug wants the full one.
+ * Legacy double-prefixed URLs still resolve correctly.
+ */
+export function lessonFullSlug(lessonRoute) {
+  if (!lessonRoute?.level || !lessonRoute?.slug) return null;
+  const prefix = `${lessonRoute.level}-`;
+  return lessonRoute.slug.startsWith(prefix) ? lessonRoute.slug : `${prefix}${lessonRoute.slug}`;
 }

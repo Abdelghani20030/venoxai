@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { easing, durations, springs, fadeUp, scaleIn, staggerContainer, staggerChild } from './motion.js';
@@ -32,6 +32,7 @@ import Footer from './Footer';
 import AppHeader from './layout/AppHeader.jsx';
 import MobileTabBar from './layout/MobileTabBar.jsx';
 import { PathHomeShell, LessonShell, LibraryHubShell, ProgressHubShell } from './path/Screens.jsx';
+import { PathDashboard } from './path/Dashboard.jsx';
 import { useTabRouteBridge, initTabFromUrl } from './router.jsx';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
@@ -1716,7 +1717,7 @@ function AppInner() {
   // URL ↔ tab bridge (wouter; spec §3.9/§9): tab changes sync the address
   // bar, browser back/forward and pasted /library/... links map back into
   // the tab system. Site pages keep their legacy #/<id> hash URLs.
-  const { lessonRoute } = useTabRouteBridge({ activeTab, setActiveTab });
+  const { lessonRoute, openLesson } = useTabRouteBridge({ activeTab, setActiveTab });
   // Silence all audio the moment the user switches section.
   useEffect(() => { stopAllAudio(); }, [activeTab]);
   useEffect(() => () => stopAllAudio(), []);
@@ -3099,11 +3100,43 @@ function AppInner() {
     } catch { return { current: 0, lastDate: null }; }
   });
 
-  // Header XP chip — the server-owned path summary replaces this in Phase 3;
-  // persisted locally meanwhile so the value survives reloads.
+  // Header XP chip — fed by the server-owned path summary from Phase 3;
+  // persisted locally so the value survives reloads.
   const [pathXp, setPathXp] = useState(() => {
     try { return Number(localStorage.getItem('venoxa_path_xp')) || 0; } catch { return 0; }
   });
+
+  // ── Learning-path server data (Phase 3: dashboard; later phases refetch
+  //    after attempts/placement). Guests get read-only zeroed defaults from
+  //    the server, so the dashboard works signed out.
+  const [pathSummary, setPathSummary] = useState(null);
+  const [pathMap, setPathMap] = useState(null);
+  const [pathLoading, setPathLoading] = useState(true);
+
+  const refreshPathData = useCallback(async () => {
+    try {
+      const t = await auth.currentUser?.getIdToken?.() || null;
+      const headers = t ? { Authorization: `Bearer ${t}` } : {};
+      const [sRes, mRes] = await Promise.all([
+        fetch('/api/path/summary', { headers }),
+        fetch('/api/path/map', { headers }),
+      ]);
+      if (sRes.ok) {
+        const data = await sRes.json();
+        setPathSummary(data);
+        if (Number.isFinite(data?.xp)) {
+          setPathXp(data.xp);
+          try { localStorage.setItem('venoxa_path_xp', String(data.xp)); } catch { /* quota */ }
+        }
+      }
+      if (mRes.ok) setPathMap(await mRes.json());
+    } catch { /* offline or backend down — keep previous data */ }
+    finally { setPathLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    refreshPathData();
+  }, [refreshPathData, token, user?.uid]);
 
   const recordActivity = () => {
     const today = new Date().toISOString().slice(0, 10);
@@ -3236,6 +3269,10 @@ function AppInner() {
     const now = Date.now();
     return globalVocab.filter(w => { const d = srsData[w.word]; return d && d.nextReview <= now; }).length;
   }, [globalVocab, srsData, srsRefreshTick]);
+  // Words learned (dashboard tile): every word that has entered an SRS store.
+  const wordsLearned = useMemo(() => (
+    Object.keys(srsData || {}).length + Object.keys(langeekSrsData || {}).length
+  ), [srsData, langeekSrsData]);
   const langeekDueCount = useMemo(() => {
     const now = Date.now();
     return langeekVocab.filter(w => { const d = langeekSrsData[w.word]; return d && d.nextReview <= now; }).length;
@@ -3361,7 +3398,20 @@ function AppInner() {
     };
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} levelTest={levelTest} />;
+        // Phase 3: the redesigned dashboard (spec §5.1). The legacy Dashboard
+        // below stays for reference / rollback — it is no longer rendered.
+        return <PathDashboard
+          lang={lang}
+          summary={pathSummary}
+          map={pathMap}
+          loading={pathLoading}
+          user={user}
+          onNavigate={setActiveTab}
+          onOpenLesson={openLesson}
+          onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+          vocabDueCount={vocabDueCount}
+          wordsLearned={wordsLearned}
+        />;
       case 'path-home':
         return <PathHomeShell lang={lang} onNavigate={setActiveTab} />;
       case 'lesson':
@@ -3556,7 +3606,19 @@ function AppInner() {
       case 'mobile':
         return <PlaceholderPage id={activeTab} lang={lang} theme={theme} setTab={setActiveTab} />;
       default:
-        return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} levelTest={levelTest} />;
+        // Unknown tab ids fall back to the (new) home screen.
+        return <PathDashboard
+          lang={lang}
+          summary={pathSummary}
+          map={pathMap}
+          loading={pathLoading}
+          user={user}
+          onNavigate={setActiveTab}
+          onOpenLesson={openLesson}
+          onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+          vocabDueCount={vocabDueCount}
+          wordsLearned={wordsLearned}
+        />;
     }
   };
   // ── Persistent Timer State (survives section changes) ──
