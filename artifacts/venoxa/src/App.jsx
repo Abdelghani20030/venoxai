@@ -34,6 +34,7 @@ import MobileTabBar from './layout/MobileTabBar.jsx';
 import { PathHomeShell, LessonShell, LibraryHubShell, ProgressHubShell } from './path/Screens.jsx';
 import { PathDashboard } from './path/Dashboard.jsx';
 import { PathMap } from './path/PathMap.jsx';
+import { LessonPlayer } from './path/LessonPlayer.jsx';
 import { useTabRouteBridge, initTabFromUrl } from './router.jsx';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
@@ -3426,7 +3427,17 @@ function AppInner() {
           onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
         />;
       case 'lesson':
-        return <LessonShell lang={lang} lessonRoute={lessonRoute} onNavigate={setActiveTab} />;
+        // Phase 5: real lesson player (spec §5.3–5.4, PDF p.5 & p.6)
+        return <LessonPlayer
+          lang={lang}
+          lessonRoute={lessonRoute}
+          user={user}
+          token={token}
+          onNavigate={setActiveTab}
+          onOpenLesson={openLesson}
+          onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+          onRefreshPath={refreshPathData}
+        />;
       case 'placement':
         // Phase 1–5: the existing level-test engine serves /path/placement;
         // Phase 6 wraps it in the new welcome → adaptive → result flow.

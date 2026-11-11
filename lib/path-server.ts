@@ -35,6 +35,7 @@ import {
   LEVEL_ORDER,
   computeStates,
   isBelowStart,
+  isExerciseCorrect,
   levelCompletion,
   nextStreak,
   scoreAttempt,
@@ -803,6 +804,15 @@ export function createPathRouter(deps: PathServerDeps): Router {
         };
       });
 
+      const feedback = exercises.map((ex, i) => ({
+        exerciseId: ex.id,
+        orderIndex: ex.order_index,
+        correct: isExerciseCorrect(ex, answers[i]),
+        explanation: ex.explanation ?? null,
+        correctAnswer: ex.answer,
+        audioScript: ex.audio_script ?? null,
+      }));
+
       res.json({
         score,
         passed: belowStart ? score >= lesson.pass_score : result.completed || score >= lesson.pass_score,
@@ -816,6 +826,43 @@ export function createPathRouter(deps: PathServerDeps): Router {
         alreadyCompleted: result.alreadyCompleted,
         bestScore: result.bestScore,
         next: result.next,
+        feedback,
+      });
+    }),
+  );
+
+  /* ── POST /lessons/:slug/check-one — instant check for single exercise ─── */
+  router.post(
+    '/lessons/:slug/check-one',
+    rateLimit(60, 60_000),
+    requireUser(),
+    asyncHandler(async (req, res) => {
+      const user = res.locals.user as AuthUser;
+      const slug = String(req.params.slug ?? '');
+      const lesson = await loadLessonBySlug(pool, slug);
+      if (!lesson) {
+        res.status(404).json({ error: 'not_found' });
+        return;
+      }
+      const ctx = await loadContext(pool, user.id);
+      const view = ctx.computed.nodes.get(lesson.id);
+      if (!view || view.state === 'locked') {
+        res.status(403).json({ error: 'locked', reason: view?.reason ?? 'chain_locked' });
+        return;
+      }
+      const exercises = await loadExercises(pool, lesson.id);
+      const exerciseId = String(req.body?.exerciseId ?? '');
+      const ex = exercises.find((e) => e.id === exerciseId);
+      if (!ex) {
+        res.status(404).json({ error: 'exercise_not_found' });
+        return;
+      }
+      const correct = isExerciseCorrect(ex, req.body?.answer);
+      res.json({
+        correct,
+        explanation: ex.explanation ?? null,
+        correctAnswer: ex.answer,
+        audioScript: ex.audio_script ?? null,
       });
     }),
   );
