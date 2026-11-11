@@ -37,6 +37,7 @@ import { PathMap } from './path/PathMap.jsx';
 import { LessonPlayer } from './path/LessonPlayer.jsx';
 import { PlacementFlow } from './path/PlacementFlow.jsx';
 import { LibraryHub, LibraryToolBreadcrumb } from './path/LibraryHub.jsx';
+import { ProgressHub, ProgressBreadcrumb, PacingProposalBanner } from './path/ProgressHub.jsx';
 import { useTabRouteBridge, initTabFromUrl } from './router.jsx';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
@@ -3458,7 +3459,19 @@ function AppInner() {
         // Phase 7: My Library hub (spec §5.6, §5.11–5.16, PDF p.8)
         return <LibraryHub lang={lang} onNavigate={setActiveTab} onOpenLesson={openLesson} />;
       case 'progress':
-        return <ProgressHubShell lang={lang} onNavigate={setActiveTab} />;
+        // Phase 8: My Progress hub (spec §5.6, §5.10, §5.15, §5.17, PDF p.8)
+        return <ProgressHub
+          lang={lang}
+          user={user}
+          userLevel={userLevel}
+          summary={pathSummary}
+          map={pathMap}
+          wordsLearned={wordsLearned}
+          streakData={streakData}
+          levelTest={levelTest}
+          onNavigate={setActiveTab}
+          onOpenLesson={openLesson}
+        />;
       case 'plan':
         return <StudyPlan 
           {...props} 
@@ -3870,6 +3883,7 @@ function AppInner() {
 
         <div className={`${activeTab === 'speaking' ? 'w-full' : 'w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8'} print:p-0 print:pt-0`}>
           <LibraryToolBreadcrumb lang={lang} tab={activeTab} onNavigate={setActiveTab} />
+          <ProgressBreadcrumb lang={lang} tab={activeTab} onNavigate={setActiveTab} />
           {activeTab === 'speaking' ? (
             renderContent()
           ) : (
