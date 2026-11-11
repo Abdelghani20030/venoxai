@@ -1847,3 +1847,129 @@ html:not(.dark) .vx-footer-lang.is-active {
 .dark .vx-sitepage-article thead th {
   border-bottom-color: rgba(255, 255, 255, 0.12);
 }
+
+/* ══════════════════════════════════════════════
+   Learning-path redesign tokens (spec §3.2) — `--vxp-*`
+   Appended by the learning-path redesign. The Nov-3 site-page system
+   above already occupies `--vx-*` with different values, so the redesign
+   tokens use their own `--vxp-` namespace; legacy vars are untouched
+   until each screen is restyled in its own phase.
+   ══════════════════════════════════════════════ */
+:root {
+  --vxp-font: 'Inter', 'The Year of The Camel', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --vxp-bg: #edf1f8;            /* page canvas (slides) */
+  --vxp-canvas: #f7f9fc;        /* canvas behind cards */
+  --vxp-surface: #ffffff;       /* card */
+  --vxp-surface-2: #f7f9fc;     /* inputs, empty cells */
+  --vxp-surface-3: #eef1f6;     /* empty/locked fills, chips */
+  --vxp-border: #e4e9f2;
+  --vxp-border-strong: #cbd3e0;
+  --vxp-text: #0a1228;          /* headings, deepest */
+  --vxp-body: #0a0a0a;          /* body text in cards */
+  --vxp-muted: #4a566b;
+  --vxp-dim: #7c889d;
+  --vxp-eyebrow: #0e4aa4;
+
+  --vxp-primary: #0e4aa4;
+  --vxp-primary-hover: #0c3f8c;
+  --vxp-primary-tint: #ebf0f7;
+  --vxp-on-primary: #ffffff;
+
+  --vxp-hero-a: #0b3b86;
+  --vxp-hero-b: #2861b5;
+
+  --vxp-success: #1f9d74;
+  --vxp-success-tint: #e8f5f0;
+  --vxp-success-text: #0f7a57;
+  --vxp-mint: #c8efe8;
+  --vxp-mint-text: #48725e;
+  --vxp-amber: #ffecd6;
+  --vxp-amber-text: #d88c34;
+  --vxp-danger: #b4462b;
+  --vxp-danger-tint: #fff1ee;
+  --vxp-endcall: #e36b60;
+
+  --vxp-locked-fill: #eef1f6;
+  --vxp-locked-border: #cbd3e0;
+  --vxp-locked-text: #7c889d;
+  --vxp-continue-bg: #0a0a0a;
+  --vxp-continue-text: #ffffff;
+  --vxp-tooltip-bg: #0a1228;
+
+  --vxp-avatar-a: #8ed8e8;
+  --vxp-avatar-b: #a5a4f7;
+  --vxp-avatar-text: #0a1228;
+
+  --vxp-header-bg: #ffffff;
+  --vxp-track: #e4e9f2;
+  --vxp-shadow: 0 8px 24px rgba(15, 30, 70, 0.06);
+}
+
+.dark {
+  --vxp-bg: #060a14;
+  --vxp-canvas: #0b1020;
+  --vxp-surface: #17223b;
+  --vxp-surface-2: #121a2f;
+  --vxp-surface-3: #101828;
+  --vxp-border: #263452;
+  --vxp-border-strong: #33456b;
+  --vxp-text: #f8fafc;
+  --vxp-body: #f8fafc;
+  --vxp-muted: #b6c2d9;
+  --vxp-dim: #7a8ba8;
+  --vxp-eyebrow: #78a0ff;
+
+  --vxp-primary: #4f7cff;
+  --vxp-primary-hover: #6b91ff;
+  --vxp-primary-tint: rgba(79, 124, 255, 0.16);
+  --vxp-on-primary: #ffffff;
+
+  --vxp-hero-a: #0b2a5c;
+  --vxp-hero-b: #1c4290;
+
+  --vxp-success: #2bc08f;
+  --vxp-success-tint: rgba(43, 192, 143, 0.14);
+  --vxp-success-text: #5fd6ab;
+  --vxp-mint: rgba(78, 201, 176, 0.16);
+  --vxp-mint-text: #7fd8c4;
+  --vxp-amber: rgba(216, 140, 52, 0.16);
+  --vxp-amber-text: #ffd78a;
+  --vxp-danger: #ff9d85;
+  --vxp-danger-tint: rgba(228, 107, 96, 0.14);
+  --vxp-endcall: #e36b60;
+
+  --vxp-locked-fill: #101a30;
+  --vxp-locked-border: #263452;
+  --vxp-locked-text: #7a8ba8;
+  --vxp-continue-bg: #f8fafc;
+  --vxp-continue-text: #0a1228;
+  --vxp-tooltip-bg: #17223b;
+
+  --vxp-avatar-a: #5fb9cf;
+  --vxp-avatar-b: #7d7ce0;
+  --vxp-avatar-text: #0a1228;
+
+  --vxp-header-bg: #121a2f;
+  --vxp-track: #263452;
+  --vxp-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Shared chrome for the redesigned screens (spec §3.3/§3.6) */
+.vx-font {
+  font-family: var(--vxp-font);
+}
+
+.vx-card {
+  box-shadow: var(--vxp-shadow);
+}
+
+/* Eyebrow labels: 11–12px, uppercase, ~0.12em tracking, weight 800 */
+.vx-eyebrow {
+  font-family: var(--vxp-font);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vxp-eyebrow);
+}

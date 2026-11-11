@@ -47,6 +47,11 @@ export default defineConfig({
     strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
+    // Watcher guard (lesson from the prior build on Windows): builds writing
+    // into dist would otherwise trigger a dev-server reload storm.
+    watch: {
+      ignored: ["**/dist/**"],
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:3001",

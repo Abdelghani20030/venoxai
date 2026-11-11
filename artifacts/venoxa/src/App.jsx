@@ -28,8 +28,11 @@ import {
 } from './insforge.jsx';
 import { loadBundledVocab } from './vocabData.js';
 import SaudiFlagIcon from './SaudiFlagIcon';
-import Header from './Header';
 import Footer from './Footer';
+import AppHeader from './layout/AppHeader.jsx';
+import MobileTabBar from './layout/MobileTabBar.jsx';
+import { PathHomeShell, LessonShell, LibraryHubShell, ProgressHubShell } from './path/Screens.jsx';
+import { useTabRouteBridge, initTabFromUrl } from './router.jsx';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
 
@@ -1709,16 +1712,11 @@ function HamburgerIcon({ isOpen }) {
 const SITE_PAGE_TABS = ['about', 'contact', 'community', 'cookies', 'faq', 'help', 'premium', 'privacy', 'report', 'terms'];
 
 function AppInner() {
-  const [activeTab, setActiveTab] = useState(() => {
-    try {
-      const h = window.location.hash;
-      if (h.startsWith('#/verify/')) return 'level-test';
-      const site = SITE_PAGE_TABS.find(id => h === `#/${id}`);
-      return site || 'dashboard';
-    } catch {
-      return 'dashboard';
-    }
-  });
+  const [activeTab, setActiveTab] = useState(() => initTabFromUrl());
+  // URL ↔ tab bridge (wouter; spec §3.9/§9): tab changes sync the address
+  // bar, browser back/forward and pasted /library/... links map back into
+  // the tab system. Site pages keep their legacy #/<id> hash URLs.
+  const { lessonRoute } = useTabRouteBridge({ activeTab, setActiveTab });
   // Silence all audio the moment the user switches section.
   useEffect(() => { stopAllAudio(); }, [activeTab]);
   useEffect(() => () => stopAllAudio(), []);
@@ -3101,6 +3099,12 @@ function AppInner() {
     } catch { return { current: 0, lastDate: null }; }
   });
 
+  // Header XP chip — the server-owned path summary replaces this in Phase 3;
+  // persisted locally meanwhile so the value survives reloads.
+  const [pathXp, setPathXp] = useState(() => {
+    try { return Number(localStorage.getItem('venoxa_path_xp')) || 0; } catch { return 0; }
+  });
+
   const recordActivity = () => {
     const today = new Date().toISOString().slice(0, 10);
     setStreakData(prev => {
@@ -3358,6 +3362,30 @@ function AppInner() {
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard setTab={setActiveTab} {...props} planMeta={planMeta} completedCells={completedCells} cellDates={cellDates} currentWeek={currentWeek} streakData={streakData} levelTest={levelTest} />;
+      case 'path-home':
+        return <PathHomeShell lang={lang} onNavigate={setActiveTab} />;
+      case 'lesson':
+        return <LessonShell lang={lang} lessonRoute={lessonRoute} onNavigate={setActiveTab} />;
+      case 'placement':
+        // Phase 1–5: the existing level-test engine serves /path/placement;
+        // Phase 6 wraps it in the new welcome → adaptive → result flow.
+        return <LevelTest
+          lang={lang}
+          theme={theme}
+          userLevel={userLevel}
+          levelTest={levelTest}
+          onComplete={handleLevelTestComplete}
+          onApplyPlan={handleApplyLevelTestPlan}
+          onOpenAuth={() => {
+            setAuthModalMode('login');
+            setIsAuthModalOpen(true);
+          }}
+          onGoHome={() => setActiveTab('dashboard')}
+        />;
+      case 'library':
+        return <LibraryHubShell lang={lang} onNavigate={setActiveTab} />;
+      case 'progress':
+        return <ProgressHubShell lang={lang} onNavigate={setActiveTab} />;
       case 'plan':
         return <StudyPlan 
           {...props} 
@@ -3724,11 +3752,10 @@ function AppInner() {
         </defs>
       </svg>
 
-      {/* ── Two-tier site header (PDF §01): utility bar + main navy bar ── */}
-      <Header
+      {/* ── Single-row header (spec §3.4) + mobile bottom tab bar (§3.5) ── */}
+      <AppHeader
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        navItems={navItems}
         lang={lang}
         setLang={setLang}
         theme={theme}
@@ -3736,21 +3763,20 @@ function AppInner() {
         user={user}
         token={token}
         syncStatus={syncStatus}
-        syncErrorMsg={syncErrorMsg}
+        streak={streakData?.current || 0}
+        xp={pathXp}
         localAvatar={localAvatar}
         onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
-        activeDropdown={activeDropdown}
-        setActiveDropdown={setActiveDropdown}
-        navDropdownRef={navDropdownRef}
-        scrollRef={mainRef}
-        showGlassLip={false}
+        onLogout={logout}
+        scrolled={headerScrolled}
       />
+      {activeTab !== 'speaking' && (
+        <MobileTabBar activeTab={activeTab} setActiveTab={setActiveTab} lang={lang} />
+      )}
 
 
       {/* ── Main Content Area ── */}
-      <main ref={mainRef} className={`relative z-10 flex-1 h-full overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[88px] ${activeTab === 'speaking' ? 'overflow-y-hidden' : 'overflow-y-auto'}`}>
+      <main ref={mainRef} className={`relative z-10 flex-1 h-full overflow-x-hidden scroll-smooth transition-all duration-300 print:overflow-visible print:h-auto print:pt-0 print:m-0 pt-[58px] ${activeTab === 'speaking' ? 'overflow-y-hidden' : 'overflow-y-auto pb-[76px] md:pb-0'}`}>
 
         {/* Legacy fixed blur curtain + colour-fade overlays under the header
             were removed here: with the glass header they painted a ~90%-opaque
