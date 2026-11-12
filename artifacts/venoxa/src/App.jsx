@@ -38,6 +38,7 @@ import { LessonPlayer } from './path/LessonPlayer.jsx';
 import { PlacementFlow } from './path/PlacementFlow.jsx';
 import { LibraryHub, LibraryToolBreadcrumb } from './path/LibraryHub.jsx';
 import { ProgressHub, ProgressBreadcrumb, PacingProposalBanner } from './path/ProgressHub.jsx';
+import { StudyPlan } from './path/StudyPlan.jsx';
 import { useTabRouteBridge, initTabFromUrl } from './router.jsx';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
@@ -1963,6 +1964,7 @@ function AppInner() {
     }).catch(console.warn);
   }, [customLangeekVocab]);
 
+  const autoTickPlanSkillRef = useRef(null);
   // Wrapped Setters
   const setSrsDataWrapped = (val) => {
     setSrsData(prev => {
@@ -1970,6 +1972,7 @@ function AppInner() {
       markFieldDirty('srsData');
       return next;
     });
+    autoTickPlanSkillRef.current?.('vocab');
   };
   const setLangeekSrsDataWrapped = (val) => {
     setLangeekSrsData(prev => {
@@ -2005,6 +2008,7 @@ function AppInner() {
       markFieldDirty('speakingHistory');
       return next;
     });
+    autoTickPlanSkillRef.current?.('speak');
   };
   const setWritingHistoryWrapped = (val) => {
     setWritingHistory(prev => {
@@ -2012,6 +2016,7 @@ function AppInner() {
       markFieldDirty('writingHistory');
       return next;
     });
+    autoTickPlanSkillRef.current?.('write');
   };
   const setTranslationHistoryWrapped = (val) => {
     setTranslationHistory(prev => {
@@ -2138,6 +2143,7 @@ function AppInner() {
       markFieldDirty('listeningHistory');
       return next;
     });
+    autoTickPlanSkillRef.current?.('listen');
   };
   const setListeningFavoritesWrapped = (val) => {
     setListeningFavorites(prev => {
@@ -2152,6 +2158,7 @@ function AppInner() {
       markFieldDirty('readingHistory');
       return next;
     });
+    autoTickPlanSkillRef.current?.('read');
   };
   const setReadingFavoritesWrapped = (val) => {
     setReadingFavorites(prev => {
@@ -3173,6 +3180,32 @@ function AppInner() {
     } catch { return 1; }
   });
 
+  const autoTickPlanSkill = (skillId) => {
+    if (!skillId) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const dayIdx = (new Date().getDay() + 6) % 7;
+    const week = currentWeek || 1;
+    const key = `${week}-${skillId}-${dayIdx}`;
+
+    setCompletedCellsWrapped(prev => {
+      if (prev?.[key] === 'done') return prev;
+      const next = { ...(prev || {}), [key]: 'done' };
+      try { localStorage.setItem('venoxa_completed_cells', JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    setCellDatesWrapped(prev => {
+      if (prev?.[key] === today) return prev;
+      const next = { ...(prev || {}), [key]: today };
+      try { localStorage.setItem('venoxa_cell_dates', JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    recordActivity();
+  };
+  autoTickPlanSkillRef.current = autoTickPlanSkill;
+
+
   const dailyGoalPct = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const todayDone = Object.entries(completedCells || {})
@@ -3399,7 +3432,8 @@ function AppInner() {
       setUserLevel: setUserLevelWrapped,
       AI_KEY: GEMINI_API_KEY,
       lang,
-      theme
+      theme,
+      autoTickPlanSkill
     };
     switch (activeTab) {
       case 'dashboard':
@@ -3475,6 +3509,14 @@ function AppInner() {
       case 'plan':
         return <StudyPlan 
           {...props} 
+          userLevel={userLevel}
+          setUserLevel={setUserLevel}
+          lang={lang}
+          theme={theme}
+          summary={pathSummary}
+          map={pathMap}
+          onNavigate={setActiveTab}
+          onOpenLesson={openLesson}
           globalVocab={globalVocab}
           langeekVocab={langeekVocab}
           planMeta={planMeta} 
@@ -5296,7 +5338,7 @@ function loadStoredPlan() {
     return null;
   }
 }
-function StudyPlan({
+function LegacyStudyPlan({
   userLevel,
   setUserLevel,
   lang,
