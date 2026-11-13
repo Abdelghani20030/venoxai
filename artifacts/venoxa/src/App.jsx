@@ -749,6 +749,16 @@ const GEMINI_API_KEY = "proxied"; // Real key lives in backend; this just enable
 // --- HELPER FUNCTION FOR BACKTICKS ---
 const getBackticks = () => String.fromCharCode(96, 96, 96);
 
+// --- QUOTA-SAFE localStorage WRITE -------------------------------------------
+// Large payloads (vocab bundles, long histories) can exceed the ~5MB
+// localStorage quota and throw a hard error inside an effect, crashing React.
+// safeLS never throws: data that doesn't fit is skipped (bundled vocab
+// re-loads from /data/*.csv every session anyway; user data is synced to the
+// cloud, so a skipped local cache is a graceful degradation, not data loss).
+const safeLS = (key, val) => {
+  try { localStorage.setItem(key, val); } catch { /* quota exceeded — skip */ }
+};
+
 // --- AI API HELPER (proxied through our backend) ---
 // Non-streaming version used for things like image prompt generation.
 const fetchFromGemini = async (prompt, _apiKey, maxTokens = 512) => {
@@ -2308,11 +2318,11 @@ function AppInner() {
           // NOTE: We use loadAllVocabFromStorage which reads from Firestore custom fields
           // and merges with bundled vocab. This is a one-time fetch on auth, not real-time.
           loadAllVocabFromStorage().then(vocabs => {
-            if (vocabs.globalVocab?.length)  { setGlobalVocab(vocabs.globalVocab);   localStorage.setItem('venoxa_global_vocab',       JSON.stringify(vocabs.globalVocab));  }
-            if (vocabs.phrasalVocab?.length) { setPhrasalVocab(vocabs.phrasalVocab); localStorage.setItem('venoxa_phrasal_vocab',      JSON.stringify(vocabs.phrasalVocab)); }
-            if (vocabs.idiomsVocab?.length)  { setIdiomsProperVocab(vocabs.idiomsVocab); localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(vocabs.idiomsVocab)); }
-            if (vocabs.slangVocab?.length)   { setIdiomsVocab(vocabs.slangVocab);    localStorage.setItem('venoxa_idioms_vocab',        JSON.stringify(vocabs.slangVocab));   }
-            if (vocabs.langeekVocab?.length) { setLangeekVocab(vocabs.langeekVocab); localStorage.setItem('venoxa_langeek_vocab',       JSON.stringify(vocabs.langeekVocab)); }
+            if (vocabs.globalVocab?.length)  { setGlobalVocab(vocabs.globalVocab);   safeLS('venoxa_global_vocab',       JSON.stringify(vocabs.globalVocab));  }
+            if (vocabs.phrasalVocab?.length) { setPhrasalVocab(vocabs.phrasalVocab); safeLS('venoxa_phrasal_vocab',      JSON.stringify(vocabs.phrasalVocab)); }
+            if (vocabs.idiomsVocab?.length)  { setIdiomsProperVocab(vocabs.idiomsVocab); safeLS('venoxa_idioms_proper_vocab', JSON.stringify(vocabs.idiomsVocab)); }
+            if (vocabs.slangVocab?.length)   { setIdiomsVocab(vocabs.slangVocab);    safeLS('venoxa_idioms_vocab',        JSON.stringify(vocabs.slangVocab));   }
+            if (vocabs.langeekVocab?.length) { setLangeekVocab(vocabs.langeekVocab); safeLS('venoxa_langeek_vocab',       JSON.stringify(vocabs.langeekVocab)); }
             // After vocabs load, pull progress once (safe merge, respects dirty flags)
             pullChanges().then(() => setIsCloudProgressLoaded(true)).catch(console.warn);
           }).catch(err => {
@@ -2330,11 +2340,11 @@ function AppInner() {
 
         // ── Load default bundled vocabulary for guest / logged-out user ──
         loadAllVocabFromStorage().then(vocabs => {
-          if (vocabs.globalVocab?.length)  { setGlobalVocab(vocabs.globalVocab);   localStorage.setItem('venoxa_global_vocab',       JSON.stringify(vocabs.globalVocab));  }
-          if (vocabs.phrasalVocab?.length) { setPhrasalVocab(vocabs.phrasalVocab); localStorage.setItem('venoxa_phrasal_vocab',      JSON.stringify(vocabs.phrasalVocab)); }
-          if (vocabs.idiomsVocab?.length)  { setIdiomsProperVocab(vocabs.idiomsVocab); localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(vocabs.idiomsVocab)); }
-          if (vocabs.slangVocab?.length)   { setIdiomsVocab(vocabs.slangVocab);    localStorage.setItem('venoxa_idioms_vocab',        JSON.stringify(vocabs.slangVocab));   }
-          if (vocabs.langeekVocab?.length) { setLangeekVocab(vocabs.langeekVocab); localStorage.setItem('venoxa_langeek_vocab',       JSON.stringify(vocabs.langeekVocab)); }
+          if (vocabs.globalVocab?.length)  { setGlobalVocab(vocabs.globalVocab);   safeLS('venoxa_global_vocab',       JSON.stringify(vocabs.globalVocab));  }
+          if (vocabs.phrasalVocab?.length) { setPhrasalVocab(vocabs.phrasalVocab); safeLS('venoxa_phrasal_vocab',      JSON.stringify(vocabs.phrasalVocab)); }
+          if (vocabs.idiomsVocab?.length)  { setIdiomsProperVocab(vocabs.idiomsVocab); safeLS('venoxa_idioms_proper_vocab', JSON.stringify(vocabs.idiomsVocab)); }
+          if (vocabs.slangVocab?.length)   { setIdiomsVocab(vocabs.slangVocab);    safeLS('venoxa_idioms_vocab',        JSON.stringify(vocabs.slangVocab));   }
+          if (vocabs.langeekVocab?.length) { setLangeekVocab(vocabs.langeekVocab); safeLS('venoxa_langeek_vocab',       JSON.stringify(vocabs.langeekVocab)); }
         }).catch(err => console.warn('Guest loadAllVocabFromStorage failed:', err));
       }
     });
@@ -3222,43 +3232,50 @@ function AppInner() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  useEffect(() => localStorage.setItem('venoxa_global_vocab', JSON.stringify(globalVocab)), [globalVocab]);
-  useEffect(() => localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(phrasalVocab)), [phrasalVocab]);
-  useEffect(() => localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(idiomsVocab)), [idiomsVocab]);
-  useEffect(() => localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(idiomsProperVocab)), [idiomsProperVocab]);
-  useEffect(() => localStorage.setItem('venoxa_langeek_vocab', JSON.stringify(langeekVocab)), [langeekVocab]);
-  useEffect(() => localStorage.setItem('venoxa_srs_data', JSON.stringify(srsData)), [srsData]);
-  useEffect(() => localStorage.setItem('venoxa_phrasal_srs', JSON.stringify(phrasalSrs)), [phrasalSrs]);
-  useEffect(() => localStorage.setItem('venoxa_idioms_srs', JSON.stringify(idiomsSrs)), [idiomsSrs]);
-  useEffect(() => localStorage.setItem('venoxa_idioms_proper_srs', JSON.stringify(idiomsProperSrs)), [idiomsProperSrs]);
-  useEffect(() => localStorage.setItem('venoxa_langeek_srs_data', JSON.stringify(langeekSrsData)), [langeekSrsData]);
-  useEffect(() => localStorage.setItem('venoxa_speaking_history', JSON.stringify(speakingHistory)), [speakingHistory]);
-  useEffect(() => localStorage.setItem('venoxa_writing_history', JSON.stringify(writingHistory)), [writingHistory]);
-  useEffect(() => localStorage.setItem('venoxa_translation_history', JSON.stringify(translationHistory)), [translationHistory]);
-  useEffect(() => localStorage.setItem('venoxa_translation_favorites', JSON.stringify(translationFavorites)), [translationFavorites]);
-  useEffect(() => localStorage.setItem('venoxa_saved_words', JSON.stringify(savedWords)), [savedWords]);
-  useEffect(() => localStorage.setItem('venoxa_saved_idioms', JSON.stringify(savedIdioms)), [savedIdioms]);
+  // Bundled vocabulary arrays (globalVocab/phrasalVocab/idiomsVocab/
+  // idiomsProperVocab/langeekVocab) are NOT persisted to localStorage:
+  // merged bundled+custom lists are ~15K words (several MB with Arabic text)
+  // and blow the ~5MB quota (RuntimeError: setItem exceeded the quota).
+  // They re-load from /data/*.csv every session via loadBundledVocab() and the
+  // merge effects above; user-added words persist separately in venoxa_custom_*.
+  useEffect(() => {
+    // Reclaim quota from oversized caches written before this fix.
+    for (const k of ['venoxa_global_vocab', 'venoxa_phrasal_vocab', 'venoxa_idioms_vocab', 'venoxa_idioms_proper_vocab', 'venoxa_langeek_vocab']) {
+      try { localStorage.removeItem(k); } catch { /* ignore */ }
+    }
+  }, []);
+  useEffect(() => safeLS('venoxa_srs_data', JSON.stringify(srsData)), [srsData]);
+  useEffect(() => safeLS('venoxa_phrasal_srs', JSON.stringify(phrasalSrs)), [phrasalSrs]);
+  useEffect(() => safeLS('venoxa_idioms_srs', JSON.stringify(idiomsSrs)), [idiomsSrs]);
+  useEffect(() => safeLS('venoxa_idioms_proper_srs', JSON.stringify(idiomsProperSrs)), [idiomsProperSrs]);
+  useEffect(() => safeLS('venoxa_langeek_srs_data', JSON.stringify(langeekSrsData)), [langeekSrsData]);
+  useEffect(() => safeLS('venoxa_speaking_history', JSON.stringify(speakingHistory)), [speakingHistory]);
+  useEffect(() => safeLS('venoxa_writing_history', JSON.stringify(writingHistory)), [writingHistory]);
+  useEffect(() => safeLS('venoxa_translation_history', JSON.stringify(translationHistory)), [translationHistory]);
+  useEffect(() => safeLS('venoxa_translation_favorites', JSON.stringify(translationFavorites)), [translationFavorites]);
+  useEffect(() => safeLS('venoxa_saved_words', JSON.stringify(savedWords)), [savedWords]);
+  useEffect(() => safeLS('venoxa_saved_idioms', JSON.stringify(savedIdioms)), [savedIdioms]);
 
-  useEffect(() => localStorage.setItem('venoxa_tone_rewriter_favorites', JSON.stringify(toneRewriterFavorites)), [toneRewriterFavorites]);
-  useEffect(() => localStorage.setItem('venoxa_tone_rewriter_history', JSON.stringify(toneRewriterHistory)), [toneRewriterHistory]);
-  useEffect(() => localStorage.setItem('venoxa_sentence_diagrammer_favorites', JSON.stringify(sentenceDiagrammerFavorites)), [sentenceDiagrammerFavorites]);
-  useEffect(() => localStorage.setItem('venoxa_sentence_diagrammer_history', JSON.stringify(sentenceDiagrammerHistory)), [sentenceDiagrammerHistory]);
-  useEffect(() => localStorage.setItem('venoxa_word_family_favorites', JSON.stringify(wordFamilyFavorites)), [wordFamilyFavorites]);
-  useEffect(() => localStorage.setItem('venoxa_word_family_history', JSON.stringify(wordFamilyHistory)), [wordFamilyHistory]);
-  useEffect(() => localStorage.setItem('venoxa_collocations_favorites', JSON.stringify(collocationFavorites)), [collocationFavorites]);
-  useEffect(() => localStorage.setItem('venoxa_collocations_history', JSON.stringify(collocationHistory)), [collocationHistory]);
-  useEffect(() => localStorage.setItem('venoxa_etymology_favorites', JSON.stringify(etymologyFavorites)), [etymologyFavorites]);
-  useEffect(() => localStorage.setItem('venoxa_etymology_history', JSON.stringify(etymologyHistory)), [etymologyHistory]);
-  useEffect(() => localStorage.setItem('venoxa_pron_bookmarks', JSON.stringify(pronBookmarks)), [pronBookmarks]);
-  useEffect(() => localStorage.setItem('venoxa_pron_completed', JSON.stringify(pronCompleted)), [pronCompleted]);
-  useEffect(() => localStorage.setItem('venoxa-test-sessions', JSON.stringify(testSessions)), [testSessions]);
-  useEffect(() => localStorage.setItem('venoxa_listening_history', JSON.stringify(listeningHistory)), [listeningHistory]);
-  useEffect(() => localStorage.setItem('venoxa_listening_favorites', JSON.stringify(listeningFavorites)), [listeningFavorites]);
-  useEffect(() => localStorage.setItem('venoxa_reading_history', JSON.stringify(readingHistory)), [readingHistory]);
-  useEffect(() => localStorage.setItem('venoxa_reading_favorites', JSON.stringify(readingFavorites)), [readingFavorites]);
-  useEffect(() => localStorage.setItem('venoxa_speaking_favorites', JSON.stringify(speakingFavorites)), [speakingFavorites]);
-  useEffect(() => localStorage.setItem('venoxa_word_of_day_history', JSON.stringify(wordOfDayHistory)), [wordOfDayHistory]);
-  useEffect(() => localStorage.setItem('venoxa_idiom_of_day_history', JSON.stringify(idiomOfDayHistory)), [idiomOfDayHistory]);
+  useEffect(() => safeLS('venoxa_tone_rewriter_favorites', JSON.stringify(toneRewriterFavorites)), [toneRewriterFavorites]);
+  useEffect(() => safeLS('venoxa_tone_rewriter_history', JSON.stringify(toneRewriterHistory)), [toneRewriterHistory]);
+  useEffect(() => safeLS('venoxa_sentence_diagrammer_favorites', JSON.stringify(sentenceDiagrammerFavorites)), [sentenceDiagrammerFavorites]);
+  useEffect(() => safeLS('venoxa_sentence_diagrammer_history', JSON.stringify(sentenceDiagrammerHistory)), [sentenceDiagrammerHistory]);
+  useEffect(() => safeLS('venoxa_word_family_favorites', JSON.stringify(wordFamilyFavorites)), [wordFamilyFavorites]);
+  useEffect(() => safeLS('venoxa_word_family_history', JSON.stringify(wordFamilyHistory)), [wordFamilyHistory]);
+  useEffect(() => safeLS('venoxa_collocations_favorites', JSON.stringify(collocationFavorites)), [collocationFavorites]);
+  useEffect(() => safeLS('venoxa_collocations_history', JSON.stringify(collocationHistory)), [collocationHistory]);
+  useEffect(() => safeLS('venoxa_etymology_favorites', JSON.stringify(etymologyFavorites)), [etymologyFavorites]);
+  useEffect(() => safeLS('venoxa_etymology_history', JSON.stringify(etymologyHistory)), [etymologyHistory]);
+  useEffect(() => safeLS('venoxa_pron_bookmarks', JSON.stringify(pronBookmarks)), [pronBookmarks]);
+  useEffect(() => safeLS('venoxa_pron_completed', JSON.stringify(pronCompleted)), [pronCompleted]);
+  useEffect(() => safeLS('venoxa-test-sessions', JSON.stringify(testSessions)), [testSessions]);
+  useEffect(() => safeLS('venoxa_listening_history', JSON.stringify(listeningHistory)), [listeningHistory]);
+  useEffect(() => safeLS('venoxa_listening_favorites', JSON.stringify(listeningFavorites)), [listeningFavorites]);
+  useEffect(() => safeLS('venoxa_reading_history', JSON.stringify(readingHistory)), [readingHistory]);
+  useEffect(() => safeLS('venoxa_reading_favorites', JSON.stringify(readingFavorites)), [readingFavorites]);
+  useEffect(() => safeLS('venoxa_speaking_favorites', JSON.stringify(speakingFavorites)), [speakingFavorites]);
+  useEffect(() => safeLS('venoxa_word_of_day_history', JSON.stringify(wordOfDayHistory)), [wordOfDayHistory]);
+  useEffect(() => safeLS('venoxa_idiom_of_day_history', JSON.stringify(idiomOfDayHistory)), [idiomOfDayHistory]);
 
   useEffect(() => {
     latestLocalRef.current = {
@@ -7694,7 +7711,7 @@ function PhrasalVerbs({
       }
       if (parsedData.length > 0) {
         setPhrasalVocab(parsedData);
-        localStorage.setItem('venoxa_phrasal_vocab', JSON.stringify(parsedData));
+        safeLS('venoxa_phrasal_vocab', JSON.stringify(parsedData));
         setSearchQuery(''); setMode('browse');
         setUploadMessage(`✅ ${parsedData.length} phrasal verbs uploaded!`);
         setTimeout(() => setUploadMessage(''), 3000);
@@ -8001,7 +8018,7 @@ function IdiomsSlang({
       }
       if (parsedData.length > 0) {
         setIdiomsVocab(parsedData);
-        localStorage.setItem('venoxa_idioms_vocab', JSON.stringify(parsedData));
+        safeLS('venoxa_idioms_vocab', JSON.stringify(parsedData));
         setSearchQuery(''); setTopicFilter('All'); setMode('browse');
         setUploadMessage(`✅ ${parsedData.length} slang uploaded!`);
         setTimeout(() => setUploadMessage(''), 3000);
@@ -8324,7 +8341,7 @@ function IdiomsProper({
       }
       if (parsedData.length > 0) {
         setIdiomsProperVocab(parsedData);
-        localStorage.setItem('venoxa_idioms_proper_vocab', JSON.stringify(parsedData));
+        safeLS('venoxa_idioms_proper_vocab', JSON.stringify(parsedData));
         setSearchQuery(''); setTopicFilter('All'); setMode('browse');
         setUploadMessage(`✅ ${parsedData.length} idioms uploaded!`);
         setTimeout(() => setUploadMessage(''), 3000);
