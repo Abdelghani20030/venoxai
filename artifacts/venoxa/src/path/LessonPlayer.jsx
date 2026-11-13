@@ -372,6 +372,36 @@ export function LessonPlayer({
     }
   };
 
+  // Attached vocabulary items — these hooks MUST stay above the early returns
+  // below (loading/error states), otherwise React sees a different hook count
+  // per render and crashes with "Rendered more hooks than during the previous render".
+  const vocabItems = useMemo(() => {
+    // Check if any step has items
+    const vocabStep = steps.find((s) => s.type === 'vocab');
+    if (vocabStep?.items && Array.isArray(vocabStep.items)) return vocabStep.items;
+    // Fallback default A1 vocab for Lesson 4 (lesson is undefined while loading)
+    if (lesson?.slug === 'a1-introducing-yourself') {
+      return [
+        { term: 'name', ar: 'اسم' },
+        { term: 'age', ar: 'عمر' },
+        { term: 'nationality', ar: 'جنسية' },
+        { term: 'country', ar: 'بلد' },
+        { term: 'job', ar: 'وظيفة' },
+      ];
+    }
+    return [];
+  }, [steps, lesson?.slug]);
+
+  // Audio / dialogue lines
+  const listeningLines = useMemo(() => {
+    const lStep = steps.find((s) => s.type === 'listening');
+    return lStep?.lines || [
+      'Hi! My name is Ali.',
+      'I am from Riyadh.',
+      'Nice to meet you!',
+    ];
+  }, [steps]);
+
   /* ── Loading & Error States ────────────────────────────────────────────── */
 
   if (loading) {
@@ -888,34 +918,6 @@ export function LessonPlayer({
     lesson.slug === 'a1-introducing-yourself' ||
     lesson.slug === 'a1-the-verb-to-be' ||
     lesson.slug === 'a1-subject-pronouns';
-
-  // Attached vocabulary items
-  const vocabItems = useMemo(() => {
-    // Check if any step has items
-    const vocabStep = steps.find((s) => s.type === 'vocab');
-    if (vocabStep?.items && Array.isArray(vocabStep.items)) return vocabStep.items;
-    // Fallback default A1 vocab for Lesson 4
-    if (lesson.slug === 'a1-introducing-yourself') {
-      return [
-        { term: 'name', ar: 'اسم' },
-        { term: 'age', ar: 'عمر' },
-        { term: 'nationality', ar: 'جنسية' },
-        { term: 'country', ar: 'بلد' },
-        { term: 'job', ar: 'وظيفة' },
-      ];
-    }
-    return [];
-  }, [steps, lesson.slug]);
-
-  // Audio / dialogue lines
-  const listeningLines = useMemo(() => {
-    const lStep = steps.find((s) => s.type === 'listening');
-    return lStep?.lines || [
-      'Hi! My name is Ali.',
-      'I am from Riyadh.',
-      'Nice to meet you!',
-    ];
-  }, [steps]);
 
   const activeMeta = activeStep ? STEP_META[activeStep.type] || STEP_META.grammar : STEP_META.grammar;
   const ActiveIcon = activeMeta.icon;
