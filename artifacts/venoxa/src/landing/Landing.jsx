@@ -50,6 +50,7 @@ export default function Landing({ lang, setLang, theme, setTheme, user, onGetSta
 
   return (
     <div ref={rootRef} className="vx-landing min-h-screen bg-[var(--vxp-surface-2)] text-[var(--vxp-text)]" dir={c.isAr ? 'rtl' : 'ltr'}>
+      <div aria-hidden="true" className="vx-intro" />
       <ScrollProgress />
 
       <a href="#vx-landing-main" className="vx-skip">

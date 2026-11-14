@@ -205,7 +205,24 @@ html:not(.dark) .vx-landing {
   box-shadow: 0 0 110px var(--vx-cta-glow);
 }
 
+/* ── page-load fade-in (copy of the Duolingo intro: opacity 1→0 in 0.3s) ── */
+.vx-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--vxp-surface);
+  pointer-events: none;
+  animation: vx-intro-out 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+@keyframes vx-intro-out {
+  from { opacity: 1; }
+  to   { opacity: 0; visibility: hidden; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .vx-intro {
+    display: none;
+  }
   .vx-reveal,
   .vx-group .vx-item,
   .vx-group .vx-fade {
