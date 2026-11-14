@@ -6,18 +6,23 @@
   --vx-cta-glow: rgba(14, 74, 164, 0.25);
   --vx-purple: #6c5ce7;
   --vx-purple-tint: #efeeff;
+  --vx-dir: 1; /* flips to -1 in RTL so slide-in effects mirror */
+  overflow-x: clip; /* slide-in elements must never create a sideways scrollbar */
+}
+.vx-landing[dir='rtl'] {
+  --vx-dir: -1;
 }
 
 /* WCAG AA (Lighthouse color-contrast): light-mode text tokens hardened so
    every text/background pair on the landing reaches ≥4.5:1. Scoped to the
    landing only — the app shell and dark mode keep the index.css values. */
 html:not(.dark) .vx-landing {
-  --vxp-dim: #5b6678;          /* 5.8:1 on white · 4.7–5.5:1 on all tints */
-  --vxp-mint-text: #38604b;    /* 5.8:1 on #c8efe8 */
-  --vxp-amber-text: #8a5717;   /* 5.3:1 on #ffecd6 */
-  --vxp-success-text: #0d6b4c; /* 6.5:1 on white */
-  --vx-purple: #5a4bd1;        /* 5.5:1 on #efeeff */
-  --vx-blue-hover: #0b5cad;    /* footer link 6.3:1 on #f7f9fc */
+  --vxp-dim: #5b6678;
+  --vxp-mint-text: #38604b;
+  --vxp-amber-text: #8a5717;
+  --vxp-success-text: #0d6b4c;
+  --vx-purple: #5a4bd1;
+  --vx-blue-hover: #0b5cad;
 }
 .dark .vx-landing {
   --vx-cta-bg: #0d2f6b;
@@ -55,10 +60,14 @@ html:not(.dark) .vx-landing {
   font-weight: 800;
   font-size: 16px;
   padding-inline: 28px;
-  transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.1s ease;
+  transition: filter 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.1s ease;
 }
 .vx-btn-edge {
   box-shadow: 0 4px 0 0 var(--vxp-primary-hover);
+}
+.vx-btn-edge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 0 var(--vxp-primary-hover);
 }
 .vx-btn-edge:active {
   transform: translateY(2px);
@@ -66,6 +75,10 @@ html:not(.dark) .vx-landing {
 }
 .vx-btn-edge-white {
   box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.22);
+}
+.vx-btn-edge-white:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 0 rgba(0, 0, 0, 0.22);
 }
 .vx-btn-edge-white:active {
   transform: translateY(2px);
@@ -81,12 +94,48 @@ html:not(.dark) .vx-landing {
 /* ── reveal on scroll ──────────────────────────────────────────────────── */
 .vx-reveal {
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition: opacity 0.7s ease, transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+}
+.vx-fx-up    { transform: translateY(44px); }
+.vx-fx-start { transform: translateX(calc(var(--vx-dir) * -72px)); }
+.vx-fx-end   { transform: translateX(calc(var(--vx-dir) * 72px)); }
+.vx-fx-zoom  { transform: scale(0.88) translateY(24px); }
+.vx-fx-tilt  { transform: perspective(900px) rotateX(14deg) translateY(40px) scale(0.96); }
+.vx-fx-pop {
+  transform: scale(0.55) translateY(28px);
+  transition: opacity 0.35s ease, transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .vx-reveal.is-visible {
   opacity: 1;
   transform: none;
+}
+
+/* ── staggered groups (chips, level cards) ─────────────────────────────── */
+.vx-group .vx-item,
+.vx-group .vx-fade {
+  opacity: 0;
+}
+.vx-group.is-visible .vx-item {
+  opacity: 1;
+  animation: vx-pop 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 85ms);
+}
+.vx-group.is-visible .vx-fade {
+  opacity: 1;
+  transition: opacity 0.8s ease 0.5s;
+}
+@keyframes vx-pop {
+  from { opacity: 0; transform: scale(0.5) translateY(26px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* chips: springy lift + tilt on hover */
+.vx-chip {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.vx-chip:hover {
+  transform: translateY(-4px) rotate(-2deg) scale(1.06);
 }
 
 /* ── floating shapes ───────────────────────────────────────────────────── */
@@ -97,13 +146,57 @@ html:not(.dark) .vx-landing {
   animation: vx-float 11s ease-in-out infinite reverse;
 }
 @keyframes vx-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-12px) rotate(2deg); }
+}
+
+/* soft colour blobs behind illustrations breathe slowly */
+.vx-art [class*='blur-'] {
+  animation: vx-breathe 7s ease-in-out infinite;
+}
+@keyframes vx-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.07); }
+}
+
+/* the "current" path node pulses to say "tap me" */
+.vx-pulse {
+  animation: vx-pulse 2.2s ease-in-out infinite;
+}
+@keyframes vx-pulse {
+  0%, 100% { box-shadow: 0 0 0 10px var(--vxp-primary-tint); }
+  50%      { box-shadow: 0 0 0 18px color-mix(in srgb, var(--vxp-primary-tint) 35%, transparent); }
+}
+
+/* CTA button wiggles every few seconds */
+.vx-nudge {
+  animation: vx-nudge 4.5s ease-in-out 2s infinite;
+}
+.vx-nudge:hover {
+  animation: none;
+}
+@keyframes vx-nudge {
+  0%, 82%, 100% { transform: none; }
+  86% { transform: rotate(-2.5deg) scale(1.04); }
+  90% { transform: rotate(2.5deg) scale(1.04); }
+  94% { transform: rotate(-1.2deg); }
+}
+
+/* ── scroll progress bar ───────────────────────────────────────────────── */
+.vx-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: 3px;
+  background: linear-gradient(90deg, var(--vxp-primary), var(--vxp-success));
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+.vx-landing[dir='rtl'] .vx-progress {
+  transform-origin: right;
 }
 
 /* ── final CTA block glow (dark mode) ──────────────────────────────────── */
@@ -113,13 +206,24 @@ html:not(.dark) .vx-landing {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vx-reveal {
+  .vx-reveal,
+  .vx-group .vx-item,
+  .vx-group .vx-fade {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
+    animation: none !important;
   }
   .vx-float,
-  .vx-float-slow {
+  .vx-float-slow,
+  .vx-pulse,
+  .vx-nudge,
+  .vx-art [class*='blur-'] {
     animation: none !important;
+  }
+  .vx-chip:hover,
+  .vx-btn-edge:hover,
+  .vx-btn-edge-white:hover {
+    transform: none;
   }
 }

@@ -1,7 +1,6 @@
 // src/landing/sections/FinalCta.jsx — big coloured block with a soft wavy
-// top edge: blue in light mode, deep navy with a glow in dark mode
-// (--vx-cta-bg in landing.css). White Get started button + small account
-// link, a few floating shapes. The existing Footer follows in Landing.jsx.
+// top edge. Floating shapes drift at different speeds on scroll (parallax),
+// the headline zooms in and the white button wiggles every few seconds.
 
 import { FOCUS_RING } from '../../ui/index.jsx';
 import { Reveal } from '../reveal.jsx';
@@ -9,7 +8,6 @@ import { Reveal } from '../reveal.jsx';
 export default function FinalCta({ c, authed, onPrimary, onSecondary }) {
   return (
     <section aria-labelledby="vx-cta-t">
-      {/* wavy top edge — fill matches the block below */}
       <svg
         aria-hidden="true"
         viewBox="0 0 1440 64"
@@ -23,16 +21,16 @@ export default function FinalCta({ c, authed, onPrimary, onSecondary }) {
       </svg>
 
       <div className="vx-cta-block relative overflow-hidden">
-        {/* floating shapes */}
+        {/* floating shapes — each drifts at its own parallax speed */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <span className="vx-float absolute start-[8%] top-10 h-16 w-16 rounded-full bg-white/10" />
-          <span className="vx-float-slow absolute end-[12%] top-16 h-10 w-10 rounded-[16px] bg-white/10" />
-          <span className="vx-float absolute bottom-14 start-[16%] h-7 w-7 rounded-full bg-white/10" />
-          <span className="vx-float-slow absolute bottom-20 end-[22%] h-12 w-12 rounded-full border-[3px] border-white/15" />
+          <span data-par="0.18" className="vx-float absolute start-[8%] top-10 h-16 w-16 rounded-full bg-white/10" />
+          <span data-par="-0.12" className="vx-float-slow absolute end-[12%] top-16 h-10 w-10 rounded-[16px] bg-white/10" />
+          <span data-par="0.1" className="vx-float absolute bottom-14 start-[16%] h-7 w-7 rounded-full bg-white/10" />
+          <span data-par="-0.2" className="vx-float-slow absolute bottom-20 end-[22%] h-12 w-12 rounded-full border-[3px] border-white/15" />
         </div>
 
         <div className="relative mx-auto max-w-[760px] px-4 pb-20 pt-8 text-center sm:px-6 sm:pb-24 sm:pt-10">
-          <Reveal>
+          <Reveal effect="zoom">
             <h2
               id="vx-cta-t"
               className={`text-[clamp(30px,4.5vw,46px)] font-extrabold leading-[1.08] text-white ${
@@ -44,7 +42,7 @@ export default function FinalCta({ c, authed, onPrimary, onSecondary }) {
             <button
               type="button"
               onClick={onPrimary}
-              className={`vx-btn vx-btn-edge-white mx-auto mt-8 w-full bg-white text-[var(--vxp-primary)] transition-[filter] hover:brightness-[0.96] sm:w-auto sm:min-w-[220px] ${FOCUS_RING}`}
+              className={`vx-btn vx-btn-edge-white vx-nudge mx-auto mt-8 w-full bg-white text-[var(--vxp-primary)] transition-[filter] hover:brightness-[0.96] sm:w-auto sm:min-w-[220px] ${FOCUS_RING}`}
             >
               {authed ? c.openApp : c.getStarted}
             </button>

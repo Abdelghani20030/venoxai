@@ -20,6 +20,7 @@ import LearnAnywhere from './sections/LearnAnywhere.jsx';
 import Tools from './sections/Tools.jsx';
 import FinalCta from './sections/FinalCta.jsx';
 import Footer from '../Footer.jsx';
+import { ScrollProgress, useParallax } from './reveal.jsx';
 import PathZigzag from './illustrations/PathZigzag.jsx';
 import Flashcards from './illustrations/Flashcards.jsx';
 import ChatMic from './illustrations/ChatMic.jsx';
@@ -30,6 +31,8 @@ const FEATURE_ART = [PathZigzag, Flashcards, ChatMic, SkillsArt, LevelBadgeArt];
 
 export default function Landing({ lang, setLang, theme, setTheme, user, onGetStarted, onLogin, onEnterApp, setTab }) {
   const c = landingCopy(lang);
+  const rootRef = useRef(null);
+  useParallax(rootRef);
   const authed = !!user;
 
   // When sign-in completes while the landing is open (the auth modal just
@@ -46,7 +49,9 @@ export default function Landing({ lang, setLang, theme, setTheme, user, onGetSta
   const footerSetTab = (tab) => setTab(!authed && tab === 'dashboard' ? 'landing' : tab);
 
   return (
-    <div className="vx-landing min-h-screen bg-[var(--vxp-surface-2)] text-[var(--vxp-text)]" dir={c.isAr ? 'rtl' : 'ltr'}>
+    <div ref={rootRef} className="vx-landing min-h-screen bg-[var(--vxp-surface-2)] text-[var(--vxp-text)]" dir={c.isAr ? 'rtl' : 'ltr'}>
+      <ScrollProgress />
+
       <a href="#vx-landing-main" className="vx-skip">
         {c.skip}
       </a>

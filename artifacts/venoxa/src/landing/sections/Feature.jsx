@@ -1,28 +1,16 @@
 // src/landing/sections/Feature.jsx — one "text on one side, illustration on
 // the other" section. Alternation is driven by `index` (odd = illustration
-// first on desktop). Background/eyebrow colour follows the section family.
+// first on desktop). Text slides in from its own side, the illustration pops
+// in and drifts at a different speed while you scroll (parallax).
 // Mobile: text first, then illustration.
 
-import { FOCUS_RING } from '../../ui/index.jsx';
 import { Reveal } from '../reveal.jsx';
 
 const FAMILIES = {
-  blue: {
-    bg: 'bg-[var(--vxp-primary-tint)]',
-    eyebrow: 'text-[var(--vxp-primary)]',
-  },
-  mint: {
-    bg: 'bg-[var(--vxp-mint)]',
-    eyebrow: 'text-[var(--vxp-mint-text)]',
-  },
-  amber: {
-    bg: 'bg-[var(--vxp-amber)]',
-    eyebrow: 'text-[var(--vxp-amber-text)]',
-  },
-  plain: {
-    bg: 'bg-[var(--vxp-surface)]',
-    eyebrow: 'text-[var(--vxp-primary)]',
-  },
+  blue: { bg: 'bg-[var(--vxp-primary-tint)]', eyebrow: 'text-[var(--vxp-primary)]' },
+  mint: { bg: 'bg-[var(--vxp-mint)]', eyebrow: 'text-[var(--vxp-mint-text)]' },
+  amber: { bg: 'bg-[var(--vxp-amber)]', eyebrow: 'text-[var(--vxp-amber-text)]' },
+  plain: { bg: 'bg-[var(--vxp-surface)]', eyebrow: 'text-[var(--vxp-primary)]' },
 };
 
 // Colour rhythm across the five features: blue, mint, amber, white, blue.
@@ -34,7 +22,8 @@ export default function Feature({ c, data, index, Art }) {
   return (
     <section id={`vx-feat-${data.id}`} aria-labelledby={`vx-feat-${data.id}-t`} className={fam.bg}>
       <div className="mx-auto grid max-w-[1120px] items-center gap-10 px-4 py-14 sm:px-6 sm:py-24 lg:grid-cols-2 lg:gap-16">
-        <Reveal className={flip ? 'lg:order-2' : ''}>
+        {/* text slides in from the side it sits on */}
+        <Reveal effect={flip ? 'end' : 'start'} className={flip ? 'lg:order-2' : ''}>
           <p className={`vx-eyebrow ${fam.eyebrow}`}>{data.eyebrow}</p>
           <h2
             id={`vx-feat-${data.id}-t`}
@@ -46,7 +35,13 @@ export default function Feature({ c, data, index, Art }) {
             {data.body}
           </p>
         </Reveal>
-        <Reveal className={flip ? 'lg:order-1' : ''} aria-hidden="true">
+        <Reveal
+          effect="pop"
+          delay={150}
+          className={`vx-art ${flip ? 'lg:order-1' : ''}`}
+          aria-hidden="true"
+          data-par={flip ? '-0.05' : '0.05'}
+        >
           <Art />
         </Reveal>
       </div>

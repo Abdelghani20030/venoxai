@@ -1,11 +1,12 @@
 // src/landing/sections/Tools.jsx — "And handy tools to help you": a wrap of
-// coloured chips. Labels and icons reuse the app's own tool nav entries.
+// coloured chips that pop in one after another. Labels and icons reuse the
+// app's own tool nav entries.
 
 import {
   BookMarked, Clock, Ear, GitBranch, GitFork, Languages, Lightbulb,
   Link2, ScrollText, Sliders,
 } from 'lucide-react';
-import { Reveal } from '../reveal.jsx';
+import { RevealGroup } from '../reveal.jsx';
 
 const TOOL_ICONS = [Languages, Sliders, GitBranch, GitFork, Link2, ScrollText, Ear, BookMarked, Lightbulb, Clock];
 
@@ -21,8 +22,8 @@ export default function Tools({ c }) {
   return (
     <section aria-labelledby="vx-tools-t" className="bg-[var(--vxp-surface)]">
       <div className="mx-auto max-w-[1120px] px-4 py-14 text-center sm:px-6 sm:py-20">
-        <Reveal>
-          <h2 id="vx-tools-t" className="text-[clamp(24px,3.2vw,34px)] font-extrabold leading-[1.15] text-[var(--vxp-text)]">
+        <RevealGroup>
+          <h2 id="vx-tools-t" className="vx-fade text-[clamp(24px,3.2vw,34px)] font-extrabold leading-[1.15] text-[var(--vxp-text)]">
             {c.toolsTitle}
           </h2>
           <ul className="mx-auto mt-7 flex max-w-[760px] flex-wrap justify-center gap-2.5">
@@ -31,7 +32,8 @@ export default function Tools({ c }) {
               return (
                 <li
                   key={t.label}
-                  className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-[14px] font-bold ${CHIP_TINTS[i % CHIP_TINTS.length]}`}
+                  style={{ '--i': i }}
+                  className={`vx-item vx-chip flex items-center gap-2 rounded-full px-4 py-2.5 text-[14px] font-bold ${CHIP_TINTS[i % CHIP_TINTS.length]}`}
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {t.label}
@@ -39,7 +41,7 @@ export default function Tools({ c }) {
               );
             })}
           </ul>
-        </Reveal>
+        </RevealGroup>
       </div>
     </section>
   );

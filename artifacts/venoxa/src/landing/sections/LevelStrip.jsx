@@ -1,8 +1,8 @@
 // src/landing/sections/LevelStrip.jsx — one horizontal row of five level
 // chips (each a different soft colour), scrollable on mobile, with a
-// one-line caption. The caption is the section's accessible name.
+// one-line caption. The chips pop in one by one; hover = springy lift.
 
-import { Reveal } from '../reveal.jsx';
+import { RevealGroup } from '../reveal.jsx';
 
 const TINTS = [
   'bg-[var(--vxp-primary-tint)] text-[var(--vxp-primary)]',
@@ -16,25 +16,23 @@ export default function LevelStrip({ c }) {
   return (
     <section aria-labelledby="vx-levels-cap" className="bg-[var(--vxp-surface-2)]">
       <div className="mx-auto max-w-[1120px] px-4 py-10 sm:px-6 sm:py-14">
-        <Reveal>
-          <ul
-            className="flex gap-3 overflow-x-auto pb-1"
-            style={{ scrollbarWidth: 'none' }}
-          >
+        <RevealGroup>
+          <ul className="flex gap-3 overflow-x-auto py-2" style={{ scrollbarWidth: 'none' }}>
             {c.levels.map((l, i) => (
               <li
                 key={l.code}
-                className={`flex w-[132px] shrink-0 flex-col items-center gap-0.5 rounded-2xl px-4 py-3.5 text-center ${TINTS[i % TINTS.length]}`}
+                style={{ '--i': i }}
+                className={`vx-item vx-chip flex w-[132px] shrink-0 flex-col items-center gap-0.5 rounded-2xl px-4 py-3.5 text-center ${TINTS[i % TINTS.length]}`}
               >
                 <span className="text-[18px] font-extrabold leading-tight">{l.code}</span>
                 <span className="text-[12px] font-bold leading-snug">{l.name}</span>
               </li>
             ))}
           </ul>
-          <p id="vx-levels-cap" className="mt-4 text-center text-[14px] font-semibold text-[var(--vxp-dim)]">
+          <p id="vx-levels-cap" className="vx-fade mt-4 text-center text-[14px] font-semibold text-[var(--vxp-dim)]">
             {c.levelsCaption}
           </p>
-        </Reveal>
+        </RevealGroup>
       </div>
     </section>
   );

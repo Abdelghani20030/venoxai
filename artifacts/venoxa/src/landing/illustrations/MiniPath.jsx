@@ -32,7 +32,7 @@ export function MiniNode({ kind, tag }) {
         </span>
       )}
       <span
-        className={`flex h-full w-full items-center justify-center rounded-full ${halo} ${
+        className={`flex h-full w-full items-center justify-center rounded-full ${halo} ${kind === 'current' ? 'vx-pulse' : ''} ${
           kind === 'current'
             ? 'bg-[var(--vxp-primary)] text-white'
             : kind === 'done'
