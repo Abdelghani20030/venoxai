@@ -15,10 +15,14 @@ import {
   Instagram, Twitter, Linkedin, Facebook, Send, Globe,
 } from 'lucide-react';
 
-function Footer({ lang, setLang, setTab, user, onOpenRegister }) {
+function Footer({ lang, setLang, setTab, user, onOpenRegister, headingTag = 'h4' }) {
   const reduced = useReducedMotion();
   const isAr = lang === 'ar';
   const label = (ar, en) => _resolveTranslation(lang, ar, en);
+  // Column heading element: the landing (which already has h2 sections)
+  // passes 'h3' so the document outline doesn't skip a level; the app
+  // shell keeps the historical 'h4'.
+  const HeadingTag = headingTag;
 
   const quickLinks = [
     { ar: 'الرئيسية', en: 'Home', tab: 'dashboard' },
@@ -74,7 +78,7 @@ function Footer({ lang, setLang, setTab, user, onOpenRegister }) {
             aria-label="Venoxa AI"
             dir="ltr"
           >
-            <span className="w-8 h-8 rounded-[10px] bg-[var(--vx-blue)] flex items-center justify-center text-white font-black text-[15px] leading-none">
+            <span aria-hidden="true" className="w-8 h-8 rounded-[10px] bg-[var(--vx-blue)] flex items-center justify-center text-white font-black text-[15px] leading-none">
               V
             </span>
             <span className="text-[17px] font-extrabold tracking-tight text-inherit">Venoxa AI</span>
@@ -109,7 +113,7 @@ function Footer({ lang, setLang, setTab, user, onOpenRegister }) {
 
         {/* Quick links */}
         <div>
-          <h4 className="vx-footer-heading">{label('روابط سريعة', 'Quick links')}</h4>
+          <HeadingTag className="vx-footer-heading">{label('روابط سريعة', 'Quick links')}</HeadingTag>
           <ul className="flex flex-col gap-1.5 items-start">
             {quickLinks.map(link => (
               <li key={link.en}>
@@ -123,7 +127,7 @@ function Footer({ lang, setLang, setTab, user, onOpenRegister }) {
 
         {/* Learn */}
         <div>
-          <h4 className="vx-footer-heading">{label('تعرّف على المزيد', 'Learn')}</h4>
+          <HeadingTag className="vx-footer-heading">{label('تعرّف على المزيد', 'Learn')}</HeadingTag>
           <ul className="flex flex-col gap-1.5 items-start">
             {learnLinks.map(link => (
               <li key={link.en}>
@@ -137,7 +141,7 @@ function Footer({ lang, setLang, setTab, user, onOpenRegister }) {
 
         {/* Legal and support */}
         <div>
-          <h4 className="vx-footer-heading">{label('القانونية والدعم', 'Legal and support')}</h4>
+          <HeadingTag className="vx-footer-heading">{label('القانونية والدعم', 'Legal and support')}</HeadingTag>
           <ul className="flex flex-col gap-1.5 items-start">
             {legalLinks.map(link => (
               <li key={link.en}>

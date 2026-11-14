@@ -1,0 +1,125 @@
+/* src/landing/landing.css — only what Tailwind utilities can't express.
+   Design tokens come from index.css (--vxp-*), so light/dark flips here too. */
+
+.vx-landing {
+  --vx-cta-bg: #0e4aa4;
+  --vx-cta-glow: rgba(14, 74, 164, 0.25);
+  --vx-purple: #6c5ce7;
+  --vx-purple-tint: #efeeff;
+}
+
+/* WCAG AA (Lighthouse color-contrast): light-mode text tokens hardened so
+   every text/background pair on the landing reaches ≥4.5:1. Scoped to the
+   landing only — the app shell and dark mode keep the index.css values. */
+html:not(.dark) .vx-landing {
+  --vxp-dim: #5b6678;          /* 5.8:1 on white · 4.7–5.5:1 on all tints */
+  --vxp-mint-text: #38604b;    /* 5.8:1 on #c8efe8 */
+  --vxp-amber-text: #8a5717;   /* 5.3:1 on #ffecd6 */
+  --vxp-success-text: #0d6b4c; /* 6.5:1 on white */
+  --vx-purple: #5a4bd1;        /* 5.5:1 on #efeeff */
+  --vx-blue-hover: #0b5cad;    /* footer link 6.3:1 on #f7f9fc */
+}
+.dark .vx-landing {
+  --vx-cta-bg: #0d2f6b;
+  --vx-cta-glow: rgba(79, 124, 255, 0.30);
+  --vx-purple: #9e9eff;
+  --vx-purple-tint: rgba(158, 158, 255, 0.14);
+}
+
+/* ── skip link ─────────────────────────────────────────────────────────── */
+.vx-skip {
+  position: absolute;
+  inset-inline-start: 16px;
+  top: -56px;
+  z-index: 60;
+  background: var(--vxp-primary);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 14px;
+  transition: top 0.2s ease;
+}
+.vx-skip:focus-visible {
+  top: 12px;
+}
+
+/* ── 52px CTA buttons with the pressed 4px edge ────────────────────────── */
+.vx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  border-radius: 16px;
+  font-weight: 800;
+  font-size: 16px;
+  padding-inline: 28px;
+  transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.1s ease;
+}
+.vx-btn-edge {
+  box-shadow: 0 4px 0 0 var(--vxp-primary-hover);
+}
+.vx-btn-edge:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 var(--vxp-primary-hover);
+}
+.vx-btn-edge-white {
+  box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.22);
+}
+.vx-btn-edge-white:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.22);
+}
+.vx-btn-sm {
+  height: 40px;
+  border-radius: 12px;
+  font-size: 14px;
+  padding-inline: 16px;
+}
+
+/* ── reveal on scroll ──────────────────────────────────────────────────── */
+.vx-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.vx-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── floating shapes ───────────────────────────────────────────────────── */
+.vx-float {
+  animation: vx-float 7s ease-in-out infinite;
+}
+.vx-float-slow {
+  animation: vx-float 11s ease-in-out infinite reverse;
+}
+@keyframes vx-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ── final CTA block glow (dark mode) ──────────────────────────────────── */
+.vx-cta-block {
+  background: var(--vx-cta-bg);
+  box-shadow: 0 0 110px var(--vx-cta-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vx-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .vx-float,
+  .vx-float-slow {
+    animation: none !important;
+  }
+}

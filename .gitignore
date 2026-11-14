@@ -62,3 +62,14 @@ Thumbs.db
 # Scratch files with hardcoded API keys — keep local only, never commit
 scratch/
 
+# Test / harness files and temporary scripts output
+artifacts/venoxa/public/__inject.js
+artifacts/venoxa/public/landing-test.html
+artifacts/venoxa/public/shot/
+artifacts/venoxa/shot.html
+attached_assets/inject-script.txt
+attached_assets/mint-out.json
+scripts/.*
+!scripts/.tmp-db-check.mjs
+!scripts/.tmp-list-models.mjs
+

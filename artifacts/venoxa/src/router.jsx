@@ -104,7 +104,8 @@ const LESSON_RE = /^\/path\/(a1|a2|b1|b2|c1)\/([a-z0-9-]+)\/?$/i;
 export function pathToState(pathname) {
   let p = stripBase(pathname || '');
   if (p.length > 1) p = p.replace(/\/+$/, '') || '/';
-  if (p === '/' || p === '') return null; // legacy root → dashboard (App init handles)
+  if (p === '/welcome') return { tab: 'landing' };
+  if (p === '/' || p === '') return null; // legacy root → dashboard (App init handles; logged-out → landing)
   if (p === '/dashboard') return { tab: 'dashboard' };
   if (p === '/path') return { tab: 'path-home' };
   if (p === '/path/placement') return { tab: 'placement' };

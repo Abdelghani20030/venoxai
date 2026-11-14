@@ -29,6 +29,7 @@ import {
 import { loadBundledVocab } from './vocabData.js';
 import SaudiFlagIcon from './SaudiFlagIcon';
 import Footer from './Footer';
+import Landing from './landing/Landing.jsx';
 import AppHeader from './layout/AppHeader.jsx';
 import MobileTabBar from './layout/MobileTabBar.jsx';
 import { PathHomeShell, LessonShell, LibraryHubShell, ProgressHubShell } from './path/Screens.jsx';
@@ -39,7 +40,7 @@ import { PlacementFlow } from './path/PlacementFlow.jsx';
 import { LibraryHub, LibraryToolBreadcrumb } from './path/LibraryHub.jsx';
 import { ProgressHub, ProgressBreadcrumb, PacingProposalBanner } from './path/ProgressHub.jsx';
 import { StudyPlan } from './path/StudyPlan.jsx';
-import { useTabRouteBridge, initTabFromUrl } from './router.jsx';
+import { useTabRouteBridge, initTabFromUrl, stripBase } from './router.jsx';
 import PlaceholderPage from './PlaceholderPage';
 import SitePage from './SitePage';
 
@@ -1729,7 +1730,17 @@ function HamburgerIcon({ isOpen }) {
 const SITE_PAGE_TABS = ['about', 'contact', 'community', 'cookies', 'faq', 'help', 'premium', 'privacy', 'report', 'terms'];
 
 function AppInner() {
-  const [activeTab, setActiveTab] = useState(() => initTabFromUrl());
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = initTabFromUrl();
+    // Landing page: /welcome always shows it; the bare root shows it only
+    // for logged-out visitors (logged-in users keep the dashboard legacy).
+    if (t === 'landing') return t;
+    try {
+      const p = stripBase(window.location.pathname).replace(/\/+$/, '') || '/';
+      if (t === 'dashboard' && p === '/' && !localStorage.getItem('venoxa_token')) return 'landing';
+    } catch { /* URL not available */ }
+    return t;
+  });
   // URL ↔ tab bridge (wouter; spec §3.9/§9): tab changes sync the address
   // bar, browser back/forward and pasted /library/... links map back into
   // the tab system. Site pages keep their legacy #/<id> hash URLs.
@@ -3737,7 +3748,10 @@ function AppInner() {
     return () => clearInterval(appTimerRef.current);
   }, [timerState.running]);
 
-  // Tab title while timer is running or paused
+  // Tab title while the focus timer is running or paused. When idle we
+  // restore the document's own title (index.html ships a descriptive one
+  // for the public landing) instead of clobbering it with a bare name.
+  const baseTitleRef = useRef(document.title);
   useEffect(() => {
     if (timerState.secsLeft !== null && !timerState.done) {
       const m = Math.floor(timerState.secsLeft / 60);
@@ -3745,9 +3759,9 @@ function AppInner() {
       const fmt = n => String(n).padStart(2, '0');
       document.title = `${fmt(m)}:${fmt(s)} — Venoxa`;
     } else {
-      document.title = 'Venoxa';
+      document.title = baseTitleRef.current;
     }
-    return () => { document.title = 'Venoxa'; };
+    return () => { document.title = baseTitleRef.current; };
   }, [timerState.secsLeft, timerState.done]);
 
   const navItems = [
@@ -3809,6 +3823,40 @@ function AppInner() {
       }
     }
   }, [isMobileMenuOpen, activeTab]);
+
+  // ── Public landing page (logged-out visitors at / and /welcome; or a
+  //    signed-in user who opens /welcome on purpose). Rendered standalone
+  //    with its own minimal top bar — the app chrome below is skipped.
+  if (activeTab === 'landing') {
+    return (
+      <>
+        <Landing
+          lang={lang}
+          setLang={setLang}
+          theme={theme}
+          setTheme={setTheme}
+          user={user}
+          onGetStarted={() => { setAuthModalMode('register'); setIsAuthModalOpen(true); }}
+          onLogin={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+          onEnterApp={() => setActiveTab('dashboard')}
+          setTab={setActiveTab}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          mode={authModalMode}
+          setMode={setAuthModalMode}
+          onLogin={login}
+          onRegister={register}
+          onVerify={verifyEmailCode}
+          onResend={resendEmailVerification}
+          onResetPassword={sendPasswordReset}
+          lang={lang}
+          theme={theme}
+        />
+      </>
+    );
+  }
 
   return (
     <div
@@ -13402,6 +13450,18 @@ export default function App() {
     () => localStorage.getItem(KEY_STORAGE) === '1'
   );
 
-  if (!keyGranted) return <KeyGate onUnlock={() => setKeyGranted(true)} />;
+  // The public landing page must be reachable without the private-access
+  // key — it IS the public entry point. /welcome always shows the landing;
+  // the bare root shows it for logged-out visitors. The gate keeps
+  // protecting the app itself (every other route/state).
+  let landingRoute = false;
+  try {
+    const p = stripBase(window.location.pathname).replace(/\/+$/, '') || '/';
+    landingRoute =
+      p === '/welcome' ||
+      (p === '/' && !localStorage.getItem('venoxa_token'));
+  } catch { /* URL not available */ }
+
+  if (!keyGranted && !landingRoute) return <KeyGate onUnlock={() => setKeyGranted(true)} />;
   return <AppInner />;
 }
